@@ -70,19 +70,40 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
     }
   }, [token]);
 
-  // Load real-time data
+  // Load real-time data and swap history
   useEffect(() => {
     if (!tokenAddress) return;
 
     const loadRealTimeData = async () => {
       try {
         const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-        const response = await fetch(`${API_BASE}/api/tokens/${tokenAddress}/realtime-data`);
         
-        if (response.ok) {
-          const data = await response.json();
-          setRealTimeData(data.data);
+        // Fetch real-time data
+        const realTimeResponse = await fetch(`${API_BASE}/api/tokens/${tokenAddress}/realtime-data`);
+        let realTimeDataObj = {};
+        
+        if (realTimeResponse.ok) {
+          const data = await realTimeResponse.json();
+          realTimeDataObj = data.data || {};
         }
+
+        // Fetch swap history if not in real-time data
+        if (!realTimeDataObj.swapHistory && !realTimeDataObj.recentSwaps) {
+          try {
+            const swapsResponse = await fetch(`${API_BASE}/api/charts/swaps/${tokenAddress}`);
+            if (swapsResponse.ok) {
+              const swapsData = await swapsResponse.json();
+              if (swapsData.swaps && Array.isArray(swapsData.swaps)) {
+                realTimeDataObj.swapHistory = swapsData.swaps;
+                console.log(`📊 Loaded ${swapsData.swaps.length} swaps from API`);
+              }
+            }
+          } catch (swapError) {
+            console.warn('Could not load swap history:', swapError);
+          }
+        }
+
+        setRealTimeData(realTimeDataObj);
       } catch (error) {
         console.error('Error loading real-time data:', error);
       }
@@ -481,35 +502,45 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically */}
-              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4" style={{ height: '100%' }}>
+              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4" style={{ height: '100%', maxHeight: '100%' }}>
                 
                 {/* CENTER-UP: Price Chart (Decoupled) */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '350px' }}>
+                <div className="bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '45%', minHeight: '400px', maxHeight: '45%' }}>
                   <SVGChart token={token} onClose={onClose} />
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) */}
-                <div className="bg-gray-800 rounded-lg p-4 overflow-y-auto" style={{ height: '50%', minHeight: '300px' }}>
-                  <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Swap History
-                  </h3>
-                  <SwapTable token={token} realTimeData={realTimeData} />
+                <div className="bg-gray-800 rounded-lg flex flex-col flex-shrink-0" style={{ height: '55%', minHeight: '400px', maxHeight: '55%' }}>
+                  <div className="px-4 pt-4 pb-2 flex-shrink-0 border-b border-gray-700">
+                    <h3 className="text-white font-semibold flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      Swap History
+                    </h3>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: 0 }}>
+                    <SwapTable token={token} realTimeData={realTimeData} />
+                  </div>
                 </div>
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: '100%' }}>
+              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: '100%', maxHeight: '100%' }}>
                 
                 {/* RIGHT-UP: Jupiter Integrated Plugin */}
-                <div className="bg-gray-800 rounded-lg p-4 overflow-hidden" style={{ height: '50%', minHeight: '350px' }}>
-                  <h3 className="text-white font-semibold mb-4">Swap Token</h3>
-                  <JupiterSwapWidget token={token} />
+                <div className="bg-gray-800 rounded-lg flex flex-col flex-shrink-0" style={{ height: '50%', minHeight: '400px', maxHeight: '50%' }}>
+                  <div className="px-4 pt-4 pb-2 flex-shrink-0 border-b border-gray-700">
+                    <h3 className="text-white font-semibold">Swap Token</h3>
+                  </div>
+                  <div className="flex-1 overflow-hidden p-4" style={{ minHeight: 0 }}>
+                    <JupiterSwapWidget token={token} />
+                  </div>
                 </div>
 
                 {/* RIGHT-BOTTOM: Black Section (Placeholder) */}
-                <div className="bg-black rounded-lg" style={{ height: '50%', minHeight: '300px' }}>
-                  {/* Reserved for future content */}
+                <div className="bg-black rounded-lg border border-gray-800 flex-shrink-0" style={{ height: '50%', minHeight: '400px', maxHeight: '50%', display: 'block' }}>
+                  <div className="h-full w-full flex items-center justify-center">
+                    <span className="text-gray-600 text-sm">Reserved for future content</span>
+                  </div>
                 </div>
               </div>
             </div>
