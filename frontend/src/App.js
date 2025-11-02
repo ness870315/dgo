@@ -1103,11 +1103,19 @@ function AppContent() {
     // Re-apply filters with the NEW category filters
     if (newCategoryFilters.trenches) {
       // ✅ For bonding tokens, sort by graduation progress (descending)
+      console.log('🏗️ [Trenches] bond\
+ingTokens count:', bondingTokens?.length || 0);
+      if (!bondingTokens || bondingTokens.length === 0) {
+        console.warn('⚠️ [Trenches] No bonding tokens available!');
+        setFilteredTokens([]);
+        return;
+      }
       const sorted = [...bondingTokens].sort((a, b) => {
         const progressA = a.bondingCurveProgress || 0;
         const progressB = b.bondingCurveProgress || 0;
         return progressB - progressA; // Descending - highest progress first
       });
+      console.log('✅ [Trenches] Sorted', sorted.length, 'bonding tokens');
       setFilteredTokens(sorted);
     } else {
       let filtered = tokenService.filterTokens(tokens, filters);
