@@ -16,10 +16,12 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   };
 
   const formatPrice = (price) => {
-    if (!price || price === 0) return '$0.00';
-    if (price < 0.0001) return `$${price.toExponential(2)}`;
-    if (price < 1) return `$${price.toFixed(6)}`;
-    return `$${price.toFixed(2)}`;
+    // Convert to number if string
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    if (!numPrice || numPrice === 0) return '$0.00';
+    if (numPrice < 0.0001) return `$${numPrice.toExponential(2)}`;
+    if (numPrice < 1) return `$${numPrice.toFixed(6)}`;
+    return `$${numPrice.toFixed(2)}`;
   };
 
   const formatPercentage = (val) => {
