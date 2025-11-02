@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
+import GraduationStatusBar from './GraduationStatusBar';
 
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFilters }) => {
   const [rankings, setRankings] = useState([]);
@@ -93,7 +94,82 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   }, [tokens]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
+  
+  // Check if we're displaying bonding tokens
+  const isBondingTokens = displayTokens.length > 0 && displayTokens[0].isBondingToken;
 
+  // Simple bonding token UI with graduation bar
+  if (isBondingTokens) {
+    return (
+      <div className="w-full h-full overflow-y-auto bg-gray-900">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs table-fixed">
+            <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
+              <tr className="border-b border-gray-700">
+                <th colSpan="4" className="px-2 py-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-sm">🏗️ Trenches</span>
+                    </div>
+                    {lastUpdate && (
+                      <span className="text-xs text-gray-400 normal-case">
+                        Updated: {lastUpdate.toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </th>
+              </tr>
+              <tr className="border-b border-gray-700">
+                <th className="px-2 py-2 text-left w-8">#</th>
+                <th className="px-2 py-2 text-left">Token</th>
+                <th className="px-2 py-2 text-right">Price</th>
+                <th className="px-2 py-2 text-left">Graduation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayTokens.map((token, index) => (
+                <tr
+                  key={token.contractAddress || index}
+                  className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                  onClick={() => onTokenSelect(token)}
+                >
+                  <td className="px-2 py-2 font-medium text-gray-300">#{index + 1}</td>
+                  <td className="px-2 py-2">
+                    <div className="flex items-center gap-2">
+                      {token.logo && (
+                        <img src={token.logo} alt={token.symbol} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
+                      )}
+                      <div>
+                        <div className="font-bold text-white">{token.symbol}</div>
+                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-white">
+                    {formatPrice(token.priceUsd)}
+                  </td>
+                  <td className="px-2 py-2">
+                    <GraduationStatusBar 
+                      bondingProgress={token.bondingCurveProgress} 
+                      proximityLevel={token.graduationProximity}
+                      compact={true}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {displayTokens.length === 0 && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-gray-400">No bonding tokens available</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Regular token UI with full columns
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
       {/* Table */}
