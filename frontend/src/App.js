@@ -325,7 +325,7 @@ function AppContent() {
         const hypeLabel = t?.hypeAnalysis?.latestLabel || t?.hypeLabel;
         if (hypeLabel) return /viral|trending/i.test(hypeLabel);
         const s = (t.score || t.overallScore || 0);
-        return s >= 8.0; // Viral (9.0+) and Trending (8.0-8.9) only
+        return s >= 7.8; // Viral (8.5+) and Trending (7.8-8.4) only - matching backend threshold
       };
       const viralAndTrendingCandidates = tokenData.filter(isViralOrTrendingToken);
 
