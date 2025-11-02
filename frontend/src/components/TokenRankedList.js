@@ -176,9 +176,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           <div className="font-bold text-white flex items-center gap-1 text-xs">
                             <span className="truncate">{token.symbol}</span>
                             {fuelInfo.isFueled && (
-                              <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
-                                <Flame className="w-2 h-2 text-orange-400" />
-                                <span className="text-orange-400 text-xs font-bold">
+                              <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                                <Flame className="w-1.5 h-1.5 text-orange-400" />
+                                <span className="text-orange-400 text-[9px] font-bold">
                                   {fuelInfo.multiplier}
                                 </span>
                               </div>
@@ -396,9 +396,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                         <div className="font-bold text-white flex items-center gap-1 text-xs">
                           <span className="truncate">{token.symbol}</span>
                         {fuelInfo.isFueled && (
-                            <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
-                            <Flame className="w-2 h-2 text-orange-400" />
-                            <span className="text-orange-400 text-xs font-bold">
+                            <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                            <Flame className="w-1.5 h-1.5 text-orange-400" />
+                            <span className="text-orange-400 text-[9px] font-bold">
                               {fuelInfo.multiplier}
                             </span>
                           </div>
