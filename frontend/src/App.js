@@ -1268,7 +1268,8 @@ function AppContent() {
     };
 
     performJupiterSearch();
-  }, [filteredTokens.length, searchTerm, jupiterSearchLoading, showJupiterSearch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTokens.length, searchTerm]);
 
   // Close Jupiter modal when search term changes or results appear
   useEffect(() => {
