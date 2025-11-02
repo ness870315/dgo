@@ -580,13 +580,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 truncate mb-1">{token.name || token.symbol}</div>
-                      {/* Platform Indicator */}
-                      <div className="flex items-center gap-1.5">
-                        <div className="px-1.5 py-0.5 bg-green-500/20 border border-green-500/50 rounded text-[10px] text-green-400 font-medium">
-                          SWAP
-                        </div>
-                      </div>
+                      <div className="text-xs text-gray-400 truncate">{token.name || token.symbol}</div>
                     </div>
                   </div>
                   
