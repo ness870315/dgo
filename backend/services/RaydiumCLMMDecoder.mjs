@@ -26,7 +26,6 @@ class RaydiumCLMMDecoder {
             failedDecodes: 0,
             cacheHits: 0
         };
-        console.log('🔧 [RaydiumCLMMDecoder] Initialized');
     }
 
     /**
@@ -50,14 +49,12 @@ class RaydiumCLMMDecoder {
             const accountInfo = await this.connection.getAccountInfo(poolPubkey);
 
             if (!accountInfo) {
-                console.log(`⚠️ [RaydiumCLMMDecoder] Pool account not found: ${poolAddress.substring(0, 8)}...`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
 
             // Check if it's a Raydium CLMM program
             if (accountInfo.owner.toBase58() !== RAYDIUM_CLMM_PROGRAM) {
-                console.log(`⚠️ [RaydiumCLMMDecoder] Not a Raydium CLMM pool: ${poolAddress.substring(0, 8)}... (owner: ${accountInfo.owner.toBase58().substring(0, 8)}...)`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
@@ -200,13 +197,6 @@ class RaydiumCLMMDecoder {
             this.poolCache.set(poolAddress, poolData);
             this.accuracyMetrics.successfulDecodes++;
 
-            console.log(`✅ [RaydiumCLMMDecoder] Decoded CLMM pool ${poolAddress.substring(0, 8)}...`, {
-                vaultA: poolData.vaultA.substring(0, 8) + '...',
-                vaultB: poolData.vaultB.substring(0, 8) + '...',
-                mintA: poolData.mintA?.substring(0, 8) + '...' || 'N/A',
-                mintB: poolData.mintB?.substring(0, 8) + '...' || 'N/A'
-            });
-
             return poolData;
 
         } catch (error) {
@@ -236,16 +226,9 @@ class RaydiumCLMMDecoder {
      * Pre-cache pool data for a batch of pools
      */
     async precachePools(poolAddresses) {
-        console.log(`🔄 [RaydiumCLMMDecoder] Pre-caching ${poolAddresses.length} CLMM pools...`);
-        
-        const results = await Promise.allSettled(
+        await Promise.allSettled(
             poolAddresses.map(addr => this.decodePoolState(addr))
         );
-
-        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-        console.log(`✅ [RaydiumCLMMDecoder] Pre-cached ${successful}/${poolAddresses.length} CLMM pools`);
-
-        return successful;
     }
 
     /**
@@ -268,7 +251,6 @@ class RaydiumCLMMDecoder {
      */
     clearCache() {
         this.poolCache.clear();
-        console.log('🗑️ [RaydiumCLMMDecoder] Cache cleared');
     }
 }
 

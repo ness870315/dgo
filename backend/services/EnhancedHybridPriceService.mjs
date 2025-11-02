@@ -170,7 +170,6 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async initializeAsync() {
         try {
-            console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
@@ -178,19 +177,14 @@ class EnhancedHybridPriceService extends EventEmitter {
             // 🚀 NEW: Initialize persistent swap storage
             await this.chartDatabase.ensureDataDir(); // Ensure data directory exists
             this.chartDatabase.startBatchWriter(); // Start batch writer
-            console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
-            
-            console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
             // ✅ CRITICAL FIX: Add PROBITY for continuous real-time monitoring
             this.poolAddresses.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN');
             this.swapHistory.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', []);
-            console.log(`✅ [EnhancedHybridPriceService] Added PROBITY -> pool 98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN to monitoring map`);
             
             // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with ACTIVE PumpSwap pool!
             this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', 'GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN');
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
-            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> ACTIVE PumpSwap pool GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN to monitoring map`);
             
             // ✅ ADD MEMEPUTER for testing
             this.poolAddresses.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
@@ -198,14 +192,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Also register in ChartDatabase for API access
             await this.chartDatabase.setPoolMapping('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
-            console.log(`✅ [EnhancedHybridPriceService] Added MEMEPUTER -> graduatedPool c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh to monitoring map`);
             
             // 🚀 NEW: Load and add top 200 tokens from cache for gRPC monitoring
             await this.loadTopTokens();
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
-                console.log('🚀 [EnhancedHybridPriceService] Auto-starting SIMPLIFIED single-token monitoring...');
                 await this.startRealTimeMonitoring(); // This will call the simplified version
             }
             
@@ -218,7 +210,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                     if (sendRecentSwaps && this.swapHistory.has(tokenAddress)) {
                         // Send ALL swaps in memory (up to 1000, kept in swapHistory)
                         const allSwaps = this.swapHistory.get(tokenAddress);
-                        console.log(`📊 [EnhancedHybridPriceService] Sending ${allSwaps.length} swaps to late-joining client for ${tokenAddress.substring(0, 8)}...`);
                         this.webSocketServer.sendRecentSwapsToClient(clientId, tokenAddress, allSwaps);
                     }
                 });
@@ -226,8 +217,6 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // ✅ NEW: Start periodic decoder stats logging (every 5 minutes)
             this.startDecoderStatsLogging(300000);
-            
-            console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
         }
@@ -235,34 +224,22 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async initializeGrpcClient() {
         try {
-            console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
-            
             if (!GrpcWrapper) {
-                console.log('📦 [EnhancedHybridPriceService] Loading gRPC wrapper...');
                 GrpcWrapper = require('./GrpcWrapper.cjs');
             }
             
             this.grpcWrapper = new GrpcWrapper();
             this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
-            
-            console.log('✅ [EnhancedHybridPriceService] gRPC client initialized successfully');
-            
-            // Test connection
-            console.log('🧪 [EnhancedHybridPriceService] Testing gRPC connection...');
-            const version = await this.grpcClient.getVersion();
-            console.log('✅ [EnhancedHybridPriceService] Constant K gRPC connected:', JSON.stringify(version, null, 2));
+            console.log('✅ [EnhancedHybridPriceService] gRPC client initialized');
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to initialize gRPC client:', error.message);
-            console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
-            console.error('❌ [EnhancedHybridPriceService] Error details:', error);
             this.grpcClient = null;
         }
     }
 
     async loadTokenCache() {
         try {
-            console.log('📂 [EnhancedHybridPriceService] Loading token cache...');
             const data = await fs.readFile(this.cachePath, 'utf8');
             this.tokenCache = JSON.parse(data);
             
@@ -271,7 +248,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                 token.contractAddress && // Must have contract address
                 (token.jupiterData?.firstPool?.id || token.graduatedPool || token.birdEyeRaw?.firstPool?.id) // Must have a pool
             );
-            console.log(`✅ [EnhancedHybridPriceService] Loaded ${tokensToMonitor.length} tokens with pools from cache`);
             
             // Extract pool addresses for real-time monitoring
             await this.extractPoolAddresses(tokensToMonitor);
@@ -281,9 +257,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.tokenCache = [];
         }
     }
-
+    
     async extractPoolAddresses(tokens) {
-        console.log('🔍 [EnhancedHybridPriceService] Extracting pool addresses...');
         
         for (const token of tokens) {
             const contractAddress = token.contractAddress || token.tokenAddress;
@@ -308,24 +283,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (poolAddress) {
                 this.poolAddresses.set(contractAddress, poolAddress);
                 this.swapHistory.set(contractAddress, []);
-                console.log(`✅ [EnhancedHybridPriceService] Pool found for ${token.symbol}: ${poolAddress}`);
-            } else {
-                console.log(`⚠️ [EnhancedHybridPriceService] No pool found for ${token.symbol}`);
             }
         }
-        
-        console.log(`✅ [EnhancedHybridPriceService] Extracted ${this.poolAddresses.size} pool addresses`);
     }
-
+    
     async loadTopTokens() {
         try {
-            console.log('🚀 [EnhancedHybridPriceService] Loading tokens from cache...');
-            console.log(`📂 [EnhancedHybridPriceService] Cache path: ${this.cachePath}`);
-            
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
             const tokens = JSON.parse(cacheData);
-            console.log(`📊 [EnhancedHybridPriceService] Parsed ${tokens.length} tokens from cache file`);
             
             // Filter for tokens with pools and sort by score
             const tokensWithPools = tokens
@@ -341,8 +307,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                     return scoreB - scoreA; // Sort descending
                 });
                 // ✅ REMOVED LIMIT: Process ALL tokens with pools, not just top 200
-            
-            console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
             
             // Add each token to monitoring AND populate metadata cache
             let addedCount = 0;
@@ -415,19 +379,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                         this.midPriceUsd.set(tokenAddress, price);
                     }
                     
-                    // Log first 3 tokens for debugging
-                    if (metadataCount < 3) {
-                        console.log(`📝 [Token ${metadataCount + 1}] ${token.symbol}: price=$${price}, mcap=$${marketCap}, liq=$${liquidity}`);
-                    }
-                    
                     metadataCount++;
                 }
             }
             
-            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} NEW tokens for gRPC monitoring`);
-            console.log(`✅ [EnhancedHybridPriceService] Populated metadata for ${metadataCount} tokens`);
-            console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens being tracked (including hardcoded)`);
-            console.log(`✅ [EnhancedHybridPriceService] Metadata cache now has ${this.tokenMetadataCache.size} entries`);
+            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} new tokens for monitoring, total ${this.poolAddresses.size} tokens`);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
@@ -440,17 +396,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
 
-        console.log(`🚀 [EnhancedHybridPriceService] Starting SINGLE SHARED STREAM for ${this.poolAddresses.size} tokens...`);
-        
         // ✅ CRITICAL FIX: Allow restart when new tokens are added
         if (this.sharedStream && !forceRestart) {
-            console.log('⚠️ [EnhancedHybridPriceService] Shared stream already exists, skipping...');
             return;
         }
         
         // ✅ CRITICAL FIX: End existing stream before creating new one
         if (this.sharedStream && forceRestart) {
-            console.log('🔄 [EnhancedHybridPriceService] Restarting stream with updated token list...');
             try {
                 this.sharedStream.removeAllListeners();
                 this.sharedStream.end();
@@ -482,15 +434,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             CommitmentLevel = { CONFIRMED: 'confirmed' };
         }
         
-        console.log(`📊 [EnhancedHybridPriceService] Creating shared stream with ${allTokenAddresses.length} token addresses...`);
-        
         // Create SINGLE stream for all tokens
         this.sharedStream = await this.grpcClient.subscribeOnce(
             {}, {}, transactionFilters, {}, {}, {}, {}, 
             CommitmentLevel.CONFIRMED, []
         );
         
-        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allTokenAddresses.length} token addresses`);
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allTokenAddresses.length} tokens`);
         
         // Process ALL transactions in the shared stream
         this.sharedStream.on("data", async (msg) => {
@@ -501,19 +451,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.error(`❌ [EnhancedHybridPriceService] Shared stream error:`, error.message);
             // Attempt to reconnect
             setTimeout(() => {
-                console.log('🔄 [EnhancedHybridPriceService] Attempting to reconnect shared stream...');
                 this.sharedStream = null;
                 this.startRealTimeMonitoring();
             }, 5000);
         });
         
         this.sharedStream.on("end", () => {
-            console.log('✅ [EnhancedHybridPriceService] Shared stream ended, reconnecting...');
             this.sharedStream = null;
             this.startRealTimeMonitoring();
         });
-        
-        console.log(`✅ [EnhancedHybridPriceService] Shared stream monitoring started`);
     }
 
     // ✅ NEW: Process updates from shared stream
@@ -582,7 +528,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                         
                         if (userTokenChanges.length > 0) {
                             // Found a swap for this token!
-                            console.log(`🔄 [EnhancedHybridPriceService] Swap detected for ${tokenAddress.substring(0,8)}... (${userTokenChanges.length} changes)`);
                             await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
                         }
                     }
@@ -594,56 +539,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Process swap for a specific token from shared stream
     // 🚀 ROBUST: Uses production-grade swap detection with v0 tx support
     async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
-        console.log(`🔍 [processSwapForToken] Called for token ${tokenAddress.substring(0, 8)}... at slot ${slot}`);
         const tx = msg.transaction.transaction;
-        
-        // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
-        this._txDebugCounter = (this._txDebugCounter || 0) + 1;
-        if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
-            console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
-            console.log(JSON.stringify({
-                signature: signature?.substring(0, 16) + '...',
-                slot: slot,
-                blockTime: tx.blockTime,
-                meta: {
-                    err: tx.meta?.err,
-                    fee: tx.meta?.fee,
-                    preBalances: tx.meta?.preBalances?.slice(0, 5),
-                    postBalances: tx.meta?.postBalances?.slice(0, 5),
-                    preTokenBalances: tx.meta?.preTokenBalances?.map(b => ({
-                        accountIndex: b.accountIndex,
-                        mint: b.mint?.substring(0, 16) + '...',
-                        owner: b.owner?.substring(0, 16) + '...',
-                        uiTokenAmount: b.uiTokenAmount
-                    })),
-                    postTokenBalances: tx.meta?.postTokenBalances?.map(b => ({
-                        accountIndex: b.accountIndex,
-                        mint: b.mint?.substring(0, 16) + '...',
-                        owner: b.owner?.substring(0, 16) + '...',
-                        uiTokenAmount: b.uiTokenAmount
-                    }))
-                },
-                transaction: {
-                    message: {
-                        accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => 
-                            typeof k === 'string' ? k.substring(0, 16) + '...' : 
-                            (k?.type === 'Buffer' && Array.isArray(k?.data)) ? `Buffer[${k.data.slice(0, 8).join(',')}...]` :
-                            String(k).substring(0, 16) + '...'
-                        ),
-                        loadedAddresses: tx.transaction?.message?.loadedAddresses ? {
-                            writable: tx.transaction.message.loadedAddresses.writable?.length ?? 0,
-                            readonly: tx.transaction.message.loadedAddresses.readonly?.length ?? 0
-                        } : undefined,
-                        instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
-                            programIdIndex: i?.programIdIndex,
-                            accounts: i?.accounts?.slice(0, 10),
-                            data: typeof i?.data === 'string' ? i.data.substring(0, 32) + '...' : String(i?.data || '').substring(0, 32)
-                        }))
-                    }
-                }
-            }, null, 2));
-            console.log(`\n`);
-        }
         
         // 🚀 DETECT PROGRAM ID AND SELECT APPROPRIATE DECODER
         let decoder = null;
@@ -662,25 +558,16 @@ class EnhancedHybridPriceService extends EventEmitter {
                         decoder = this.raydiumCPMMDecoder;
                         isRaydiumSwap = true; // ✅ Confirmed Raydium CPMM swap
                         this._cpmmDecoderUsed = (this._cpmmDecoderUsed || 0) + 1;
-                        if (this._cpmmDecoderUsed <= 5 || this._cpmmDecoderUsed % 100 === 0) {
-                            console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._cpmmDecoderUsed})`);
-                        }
                         break;
                     } else if (programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') {
                         decoder = this.raydiumCLMMDecoder;
                         isRaydiumSwap = true; // ✅ Confirmed Raydium CLMM swap
                         this._clmmDecoderUsed = (this._clmmDecoderUsed || 0) + 1;
-                        if (this._clmmDecoderUsed <= 5 || this._clmmDecoderUsed % 100 === 0) {
-                            console.log(`🔧 [processSwapForToken] Using CLMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._clmmDecoderUsed})`);
-                        }
                         break;
                     } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
                         decoder = this.raydiumDecoder;
                         isRaydiumSwap = true; // ✅ Confirmed Raydium AMM swap
                         this._ammDecoderUsed = (this._ammDecoderUsed || 0) + 1;
-                        if (this._ammDecoderUsed <= 5 || this._ammDecoderUsed % 100 === 0) {
-                            console.log(`🔧 [processSwapForToken] Using AMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._ammDecoderUsed})`);
-                        }
                         break;
                     }
                     // Note: Other AMM programs (Orca, Meteora) don't have decoders yet
@@ -719,57 +606,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Try Raydium-specific extraction (more accurate)
             if (raydiumProgramId) {
                 actualPoolAddressForDecoding = extractRaydiumPoolFromIx(tx, raydiumProgramId);
-                if (!actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 5 || (this._cpmmDecoderUsed || 0) <= 5 || (this._clmmDecoderUsed || 0) <= 5)) {
-                    // Debug: Log instruction structure if extraction failed
-                    const debugIx = instructions.find(ix => {
-                        if (ix.programIdIndex !== undefined) {
-                            return combined[ix.programIdIndex] === raydiumProgramId;
-                        }
-                        return false;
-                    });
-                    if (debugIx) {
-                        console.log(`🔍 [DEBUG] FULL INSTRUCTION STRUCTURE:`);
-                        console.log(`   programIdIndex: ${debugIx.programIdIndex}`);
-                        console.log(`   accounts type: ${typeof debugIx.accounts}, isArray: ${Array.isArray(debugIx.accounts)}, length: ${Array.isArray(debugIx.accounts) ? debugIx.accounts.length : 'N/A'}`);
-                        console.log(`   accountKeyIndexes type: ${typeof debugIx.accountKeyIndexes}, isArray: ${Array.isArray(debugIx.accountKeyIndexes)}, length: ${Array.isArray(debugIx.accountKeyIndexes) ? debugIx.accountKeyIndexes.length : 'N/A'}`);
-                        console.log(`   accountKeys type: ${typeof debugIx.accountKeys}, isArray: ${Array.isArray(debugIx.accountKeys)}, length: ${Array.isArray(debugIx.accountKeys) ? debugIx.accountKeys.length : 'N/A'}`);
-                        console.log(`   Keys in instruction: ${Object.keys(debugIx).join(', ')}`);
-                        
-                        // Try each format
-                        if (Array.isArray(debugIx.accounts) && debugIx.accounts.length > 0) {
-                            console.log(`   accounts[0-2]: ${debugIx.accounts.slice(0, 3).join(', ')}`);
-                            console.log(`   combined[accounts[0]]: ${combined[debugIx.accounts[0]]?.substring(0, 16) || 'undefined'}...`);
-                        }
-                        if (Array.isArray(debugIx.accountKeyIndexes) && debugIx.accountKeyIndexes.length > 0) {
-                            console.log(`   accountKeyIndexes[0-2]: ${debugIx.accountKeyIndexes.slice(0, 3).join(', ')}`);
-                            console.log(`   combined[accountKeyIndexes[0]]: ${combined[debugIx.accountKeyIndexes[0]]?.substring(0, 16) || 'undefined'}...`);
-                        }
-                        if (Array.isArray(debugIx.accountKeys) && debugIx.accountKeys.length > 0) {
-                            console.log(`   accountKeys[0-2]: ${debugIx.accountKeys.slice(0, 3).map(k => k?.substring(0, 16) + '...').join(', ')}`);
-                        }
-                    } else {
-                        console.log(`⚠️ [DEBUG] No Raydium instruction found despite program ID ${raydiumProgramId.substring(0, 8)}... detected`);
-                    }
-                }
-                if (actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3)) {
-                    console.log(`✅ [processSwapForToken] Extracted Raydium pool from TX: ${actualPoolAddressForDecoding.substring(0, 16)}... (cached: ${poolAddress?.substring(0, 16) || 'N/A'}...)`);
-                }
             }
             
             // Fallback to generic guess if Raydium-specific extraction failed
             if (!actualPoolAddressForDecoding) {
                 actualPoolAddressForDecoding = guessPoolFromIx(tx);
-                if (actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3)) {
-                    console.log(`⚠️ [processSwapForToken] Fallback: Extracted pool from TX: ${actualPoolAddressForDecoding.substring(0, 16)}... (cached: ${poolAddress?.substring(0, 16) || 'N/A'}...)`);
-                }
             }
             
             // Final fallback to cached pool address
             if (!actualPoolAddressForDecoding) {
                 actualPoolAddressForDecoding = poolAddress;
-                if ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3) {
-                    console.log(`⚠️ [processSwapForToken] Using cached pool: ${poolAddress?.substring(0, 16) || 'N/A'}...`);
-                }
             }
             
             if (actualPoolAddressForDecoding && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder || decoder === this.raydiumCLMMDecoder)) {
@@ -794,8 +640,6 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
         
-        console.log(`✅ [EnhancedHybridPriceService] ${swapRecord.type}: ${swapRecord.tokenAmount.toFixed(2)} ${tokenAddress.substring(0, 8)}... for ${swapRecord.baseAmount.toFixed(6)} (counter: ${swapRecord.counterMint.substring(0, 8)}...) | Price: $${swapRecord.priceUsd?.toFixed(8) ?? 'N/A'} | Volume: $${swapRecord.volumeUsd.toFixed(2)}`);
-        
         // 🚀 HARDENING: Update mid-price using EWMA (alpha=0.2)
         if (swapRecord.priceUsd && isFinite(swapRecord.priceUsd) && swapRecord.priceUsd > 0) {
             const currentMid = this.midPriceUsd.get(tokenAddress);
@@ -813,7 +657,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         // Save to database
         try {
             await this.chartDatabase.storeSwaps(tokenAddress, [swapRecord]);
-            console.log(`💾 [EnhancedHybridPriceService] Swap saved to database`);
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to save swap:`, error.message);
         }
@@ -821,19 +664,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         // Broadcast to WebSocket clients
         if (this.webSocketServer) {
             try {
-                console.log(`📡 [EnhancedHybridPriceService] Broadcasting swap to ${this.webSocketServer.clients?.size ?? 0} WebSocket clients...`);
                 this.webSocketServer.broadcastSwapUpdate(tokenAddress, swapRecord);
-                console.log(`✅ [EnhancedHybridPriceService] Swap broadcast successful`);
             } catch (error) {
                 console.error(`❌ [EnhancedHybridPriceService] Failed to broadcast swap:`, error.message);
-                console.error(`❌ [EnhancedHybridPriceService] WebSocket server state:`, {
-                    hasServer: !!this.webSocketServer,
-                    hasBroadcastMethod: typeof this.webSocketServer?.broadcastSwapUpdate === 'function',
-                    clientCount: this.webSocketServer.clients?.size ?? 0
-                });
             }
-        } else {
-            console.warn(`⚠️ [EnhancedHybridPriceService] No WebSocket server available for broadcast`);
         }
         
         // Update internal tracking

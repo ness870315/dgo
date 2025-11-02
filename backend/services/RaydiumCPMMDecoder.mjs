@@ -26,7 +26,6 @@ class RaydiumCPMMDecoder {
             failedDecodes: 0,
             cacheHits: 0
         };
-        console.log('🔧 [RaydiumCPMMDecoder] Initialized');
     }
 
     /**
@@ -48,14 +47,12 @@ class RaydiumCPMMDecoder {
             const accountInfo = await this.connection.getAccountInfo(poolPubkey);
 
             if (!accountInfo) {
-                console.log(`⚠️ [RaydiumCPMMDecoder] Pool account not found: ${poolAddress.substring(0, 8)}...`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
 
             // Check if it's a Raydium CPMM program
             if (accountInfo.owner.toBase58() !== RAYDIUM_CPMM_PROGRAM) {
-                console.log(`⚠️ [RaydiumCPMMDecoder] Not a Raydium CPMM pool: ${poolAddress.substring(0, 8)}... (owner: ${accountInfo.owner.toBase58().substring(0, 8)}...)`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
@@ -181,13 +178,6 @@ class RaydiumCPMMDecoder {
             this.poolCache.set(poolAddress, poolData);
             this.accuracyMetrics.successfulDecodes++;
 
-            console.log(`✅ [RaydiumCPMMDecoder] Decoded CPMM pool ${poolAddress.substring(0, 8)}...`, {
-                token0Vault: poolData.token0Vault.substring(0, 8) + '...',
-                token1Vault: poolData.token1Vault.substring(0, 8) + '...',
-                token0Mint: poolData.token0Mint?.substring(0, 8) + '...' || 'N/A',
-                token1Mint: poolData.token1Mint?.substring(0, 8) + '...' || 'N/A'
-            });
-
             return poolData;
 
         } catch (error) {
@@ -217,16 +207,9 @@ class RaydiumCPMMDecoder {
      * Pre-cache pool data for a batch of pools
      */
     async precachePools(poolAddresses) {
-        console.log(`🔄 [RaydiumCPMMDecoder] Pre-caching ${poolAddresses.length} CPMM pools...`);
-        
-        const results = await Promise.allSettled(
+        await Promise.allSettled(
             poolAddresses.map(addr => this.decodePoolState(addr))
         );
-
-        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-        console.log(`✅ [RaydiumCPMMDecoder] Pre-cached ${successful}/${poolAddresses.length} CPMM pools`);
-
-        return successful;
     }
 
     /**
@@ -249,7 +232,6 @@ class RaydiumCPMMDecoder {
      */
     clearCache() {
         this.poolCache.clear();
-        console.log('🗑️ [RaydiumCPMMDecoder] Cache cleared');
     }
 }
 

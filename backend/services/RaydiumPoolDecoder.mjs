@@ -44,14 +44,12 @@ class RaydiumPoolDecoder {
             const accountInfo = await this.connection.getAccountInfo(poolPubkey);
 
             if (!accountInfo) {
-                console.log(`⚠️ [RaydiumDecoder] Pool account not found: ${poolAddress.substring(0, 8)}...`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
 
             // Check if it's a Raydium AMM program
             if (accountInfo.owner.toBase58() !== RAYDIUM_AMM_PROGRAM) {
-                console.log(`⚠️ [RaydiumDecoder] Not a Raydium AMM pool: ${poolAddress.substring(0, 8)}...`);
                 this.accuracyMetrics.failedDecodes++;
                 return null;
             }
@@ -74,11 +72,6 @@ class RaydiumPoolDecoder {
             // Cache it
             this.poolCache.set(poolAddress, poolData);
             this.accuracyMetrics.successfulDecodes++;
-
-            console.log(`✅ [RaydiumDecoder] Decoded pool ${poolAddress.substring(0, 8)}...`, {
-                baseVault: poolData.baseVault.substring(0, 8) + '...',
-                quoteVault: poolData.quoteVault.substring(0, 8) + '...'
-            });
 
             return poolData;
 
@@ -108,16 +101,9 @@ class RaydiumPoolDecoder {
      * Pre-cache pool data for a batch of pools
      */
     async precachePools(poolAddresses) {
-        console.log(`🔄 [RaydiumDecoder] Pre-caching ${poolAddresses.length} Raydium pools...`);
-        
-        const results = await Promise.allSettled(
+        await Promise.allSettled(
             poolAddresses.map(addr => this.decodePoolState(addr))
         );
-
-        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-        console.log(`✅ [RaydiumDecoder] Pre-cached ${successful}/${poolAddresses.length} pools`);
-
-        return successful;
     }
 
     /**
@@ -140,7 +126,6 @@ class RaydiumPoolDecoder {
      */
     clearCache() {
         this.poolCache.clear();
-        console.log('🗑️ [RaydiumDecoder] Cache cleared');
     }
 }
 

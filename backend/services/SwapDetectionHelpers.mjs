@@ -312,7 +312,6 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecode
     // 🚀 GUARDRAIL 1: Require fee payer/signer to be involved on target mint
     const feePayer = getFeePayer(tx);
     if (!userTouchedTargetMint(deltas, feePayer, signerSet, targetMint, raydiumDecoder, poolAddress)) {
-        console.log(`⚠️ [pickLegsAndSide] Skip: no fee payer/signer involvement on target mint ${targetMint.substring(0, 8)}... (fee payer: ${feePayer.substring(0, 8)}...)`);
         return null;
     }
     
@@ -320,26 +319,13 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecode
     const collapsed = collapseUserSideByMint(deltas, signerSet, raydiumDecoder, poolAddress);
     
     // 🚀 HARDENING: Check for multi-hop routes (3+ mints on user side)
-    // Build userSideByMint map for explicit logging
     const userSideByMint = new Map();
     for (const d of collapsed) {
         userSideByMint.set(d.mint, (userSideByMint.get(d.mint) || 0) + d.deltaUI);
     }
     
     if (userSideByMint.size > 2) {
-        const sig = typeof tx.signature === 'string' ? tx.signature : 
-                    (tx.signature?.type === 'Buffer' ? bs58.encode(Uint8Array.from(tx.signature.data)) : 'unknown');
-        console.log(`⚠️ [pickLegsAndSide] Skip: routed_aggregator (${userSideByMint.size} mints) for ${targetMint.substring(0, 8)}...`, {
-            sig: sig.substring(0, 16) + '...',
-            mints: [...userSideByMint.keys()].map(m => m.substring(0, 8) + '...')
-        });
         return null;
-    }
-    
-    // 🚀 HARDENING: Conservation check
-    const sumTarget = mintSum(deltas, targetMint);
-    if (Math.abs(sumTarget) > 1e-6) {
-        console.log(`⚠️ [pickLegsAndSide] Warning: non-zero mint sum for ${targetMint.substring(0, 8)}... (${sumTarget.toFixed(9)})`);
     }
     
     // Pick target delta (MUST be user-side)
@@ -348,7 +334,6 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecode
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
     
     if (!targetLeg || Math.abs(targetLeg.deltaUI) < 1e-9) {
-        console.log(`⚠️ [pickLegsAndSide] Skip: no user target delta for ${targetMint.substring(0, 8)}...`);
         return null;
     }
 
@@ -363,7 +348,6 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecode
         const solDelta = solDeltaBySigner.get(feePayer) ?? 0;
         
         if (solDelta !== 0 && Math.abs(solDelta) > 1e-6) {
-            console.log(`💰 [pickLegsAndSide] Using native SOL as counter: ${solDelta.toFixed(6)} SOL (fee payer: ${feePayer.substring(0, 8)}...)`);
             counterLeg = {
                 accountIndex: -1,
                 accountPubkey: feePayer,
@@ -380,26 +364,14 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecode
             counterLeg = deltas
                 .filter((d) => d.mint !== targetMint)
                 .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
-            
-            if (counterLeg) {
-                console.log(`⚠️ [pickLegsAndSide] Using pool-side counter as last resort: ${counterLeg.mint.substring(0, 8)}...`);
-            }
         }
     }
 
     if (!counterLeg || Math.abs(counterLeg.deltaUI) < 1e-12) {
-        console.log(`⚠️ [pickLegsAndSide] Skip: no counter leg for ${targetMint.substring(0, 8)}... (single-leg case - likely fees/airdrops/ATA init)`);
         return null;
     }
 
     const side = targetLeg.deltaUI > 0 ? 'BUY' : 'SELL';
-    
-    // 🚀 DEBUG: Log leg details for verification
-    console.log(`📊 [pickLegsAndSide] ${side} legs selected:`);
-    console.log(`   TARGET: owner=${targetLeg.owner.substring(0, 8)}..., acct=${targetLeg.accountPubkey.substring(0, 8)}..., Δ=${targetLeg.deltaUI.toFixed(6)}, mint=${targetLeg.mint.substring(0, 8)}...`);
-    console.log(`   COUNTER: owner=${counterLeg.owner.substring(0, 8)}..., acct=${counterLeg.accountPubkey.substring(0, 8)}..., Δ=${counterLeg.deltaUI.toFixed(6)}, mint=${counterLeg.mint.substring(0, 8)}...`);
-    console.log(`   FEE PAYER: ${feePayer.substring(0, 8)}...`);
-    
     return { target: targetLeg, counter: counterLeg, side, feePayer };
 }
 
