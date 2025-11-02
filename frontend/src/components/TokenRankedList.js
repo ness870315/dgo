@@ -173,7 +173,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-white flex items-center gap-1 text-xs">
+                          <div className="font-bold text-white flex items-center gap-2 text-xs">
                             <span className="truncate">{token.symbol}</span>
                             {fuelInfo.isFueled && (
                               <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
@@ -393,7 +393,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       )}
                       
                       <div className="min-w-0 flex-1">
-                        <div className="font-bold text-white flex items-center gap-1 text-xs">
+                        <div className="font-bold text-white flex items-center gap-2 text-xs">
                           <span className="truncate">{token.symbol}</span>
                         {fuelInfo.isFueled && (
                             <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
