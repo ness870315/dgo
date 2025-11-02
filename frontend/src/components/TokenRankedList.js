@@ -127,11 +127,11 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                 </th>
               </tr>
               <tr className="border-b border-gray-700">
-                <th className="px-1 py-2 text-left w-8">#</th>
-                <th className="px-1 py-2 text-left w-48">Token</th>
-                <th className="px-1 py-2 text-right w-24">Price</th>
-                <th className="px-1 py-2 text-right w-32">Market Cap</th>
-                <th className="px-2 py-2 text-left">Graduation</th>
+                <th className="pl-2 pr-0 py-2 text-left w-8">#</th>
+                <th className="pl-0 py-2 text-left w-48">Token</th>
+                <th className="pl-2 pr-0 py-2 text-right w-24">Price</th>
+                <th className="pl-0 pr-0 py-2 text-right w-32">Market Cap</th>
+                <th className="pl-6 py-2 text-left">Graduation</th>
               </tr>
             </thead>
             <tbody>
@@ -143,8 +143,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
                       onClick={() => onTokenSelect(token)}
                     >
-                      <td className="px-2 py-2 font-medium text-gray-300">#{index + 1}</td>
-                      <td className="pl-1 pr-0 py-2">
+                      <td className="pl-2 pr-0 py-2 font-medium text-gray-300">#{index + 1}</td>
+                      <td className="pl-0 py-2">
                         <div className="flex items-center gap-1">
                           {token?.logo && (
                             <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
@@ -155,13 +155,13 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         </div>
                       </td>
-                      <td className="px-0 py-2 text-right font-mono text-white">
+                      <td className="pl-2 pr-0 py-2 text-right font-mono text-white">
                         {formatPrice(token?.priceUsd || 0)}
                       </td>
-                      <td className="pl-1 pr-0 py-2 text-right font-medium text-white">
+                      <td className="pl-0 pr-0 py-2 text-right font-medium text-white">
                         {formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}
                       </td>
-                      <td className="pl-4 py-2">
+                      <td className="pl-6 py-2">
                         <GraduationStatusBar 
                           bondingProgress={token?.bondingCurveProgress || 0} 
                           proximityLevel={token?.graduationProximity || 'FAR_FROM_GRADUATION'}
