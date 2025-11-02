@@ -622,7 +622,7 @@
             </div>
             <div id="usersStats" class="status-display" style="display:none;"></div>
             <div id="usersList" class="results-container" style="display:none;"></div>
-            <div style="margin-top:15px; padding:12px; background: #fff8e1; border-left: 4px solid #ffb300; border-radius:8px;">
+            <div id="adminUpgradeSection" style="margin-top:15px; padding:12px; background: #fff8e1; border-left: 4px solid #ffb300; border-radius:8px;">
                 <strong>Admin Upgrade:</strong>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; align-items:center;">
                     <input id="upgradeUserId" placeholder="user id (e.g., 1962643731066081280)" style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px;" />
@@ -1342,7 +1342,7 @@
 
         function prefillUpgrade(userId) {
             document.getElementById('upgradeUserId').value = userId;
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            document.getElementById('adminUpgradeSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         async function revokeUserPremium(username) {
