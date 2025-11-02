@@ -205,6 +205,9 @@ class EnhancedTokenProcessor {
   async processCoinGeckoStage() {
     console.log('🪙 Stage 1: CONTRACT DISCOVERY - Fetching new Solana contracts from CoinGecko...');
     
+    // 🔄 CRITICAL: Reload existing tokens from cache to get latest data for deduplication
+    await this.loadExistingData();
+    
     // Get existing contract addresses to avoid duplicates
     // 🚨 CRITICAL FIX: Check ALL tokens in database, not just completed ones
     const existingTokens = this.processedTokens; // Check all tokens, not just completed
@@ -321,6 +324,9 @@ class EnhancedTokenProcessor {
     console.log('🔍 Stage 1.5: CONTRACT DISCOVERY - Fetching new Solana contracts from Dexscreener...');
 
     try {
+      // 🔄 CRITICAL: Reload existing tokens from cache to get latest data for deduplication
+      await this.loadExistingData();
+      
       // Get existing contract addresses to avoid duplicates
       // 🚨 CRITICAL FIX: Check ALL tokens in database, not just completed ones
       const existingTokens = this.processedTokens; // Check all tokens, not just completed
