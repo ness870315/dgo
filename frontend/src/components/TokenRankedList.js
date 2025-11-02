@@ -145,9 +145,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                     >
                       <td className="pl-2 pr-0 py-2 font-medium text-gray-300">#{index + 1}</td>
                       <td className="pl-0 py-2">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center">
                           {token?.logo && (
-                            <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
+                            <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full mr-1" onError={(e) => e.target.style.display = 'none'} />
                           )}
                           <div>
                             <div className="font-bold text-white">{token?.symbol || 'Unknown'}</div>
