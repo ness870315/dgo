@@ -1470,10 +1470,32 @@ Meme tweet:`;
         console.warn(`⚠️ [MEME] Market sentiment search failed:`, err.message);
       }
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            marketSentiment || 'crypto market memes jokes',
+            { type: 'meme', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST MARKET MEMES (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [GENERAL MEME] Found ${relevantOpinions.length} relevant past market memes`);
+          }
+        } catch (error) {
+          console.error('❌ [GENERAL MEME] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const generalMemePrompt = `You're a crypto KOL with great humor. Generate a funny tweet about the current crypto market.
 
 🔍 CURRENT MARKET CONTEXT:
-${marketSentiment || 'General crypto market vibes'}
+${marketSentiment || 'General crypto market vibes'}${pastOpinionsContext}
 
 CLASSIC CRYPTO JOKES (pick what fits based on current market):
 - BTC dumping: "looks like someone needs to CTO Bitcoin"
@@ -1488,6 +1510,8 @@ CLASSIC CRYPTO JOKES (pick what fits based on current market):
 - "Few understand" memes
 - "Zoom out" when dumping
 - Exit liquidity jokes
+- Build on your past jokes naturally when relevant for consistency
+- Show consistency or acknowledge if your view changed
 
 Make it:
 - Timely and relevant to TODAY's market
