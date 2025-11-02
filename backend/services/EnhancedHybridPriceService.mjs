@@ -656,7 +656,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // Save to database
         try {
-            await this.chartDatabase.storeSwaps(tokenAddress, [swapRecord]);
+            // Add tokenAddress to swapRecord before saving
+            const swapRecordWithToken = { ...swapRecord, tokenAddress };
+            await this.chartDatabase.storeSwaps([swapRecordWithToken]);
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to save swap:`, error.message);
         }
