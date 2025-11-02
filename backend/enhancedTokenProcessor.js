@@ -243,21 +243,10 @@ class EnhancedTokenProcessor {
           break;
         }
         
-        // 🚀 OPTIMIZATION: Filter out existing contracts - only add NEW contracts
-        const newTokens = batchTokens.filter(token => {
-          if (!token.contractAddress) return false;
-          const contractLower = token.contractAddress.toLowerCase();
-          if (existingContracts.has(contractLower)) {
-            return false; // Skip existing contract
-          }
-          existingContracts.add(contractLower); // Add to set to avoid duplicates within batch
-          newContractsFound++;
-          console.log(`🆕 TRULY NEW token discovered: ${token.symbol} (${token.contractAddress})`);
-          return true;
-        });
-        
-        allTokens.push(...newTokens);
-        console.log(`✅ Fetched ${batchTokens.length} tokens from page ${page}, added ${newTokens.length} NEW contracts (total: ${allTokens.length}, new contracts: ${newContractsFound})`);
+        // Add ALL tokens to batch (including those with null contractAddress)
+        // They will be enriched with contract addresses later
+        allTokens.push(...batchTokens);
+        console.log(`✅ Fetched ${batchTokens.length} tokens from page ${page} (total: ${allTokens.length})`);
         
         // Continue if we haven't reached target and got a full batch
         if (allTokens.length < targetTokens && batchTokens.length === batchSize) {
@@ -1419,7 +1408,6 @@ class EnhancedTokenProcessor {
       const url = `${this.apis.coingecko}/coins/markets`;
       const params = {
         vs_currency: 'usd',
-        category: 'solana-meme-coins', // 🎯 Fetch specifically from Solana Meme Coins category
         order: 'market_cap_desc',
         per_page: effectiveBatchSize,
         page: page,
@@ -1427,9 +1415,7 @@ class EnhancedTokenProcessor {
         price_change_percentage: '1h,24h,7d' // Get price changes in one call
       };
       
-      console.log(`🌐 FAST Fetching ${effectiveBatchSize} Solana Meme Coins from CoinGecko (page ${page})`);
-      console.log(`🔍 Request URL: ${url}`);
-      console.log(`🔍 Request Params:`, JSON.stringify(params, null, 2));
+      console.log(`🌐 Fetching ${effectiveBatchSize} tokens from CoinGecko (page ${page})`);
       
       const response = await axios.get(url, { 
         params,
@@ -1439,11 +1425,8 @@ class EnhancedTokenProcessor {
         }
       });
       
-      console.log(`✅ CoinGecko Response Status: ${response.status}`);
-      console.log(`📊 Response Headers:`, JSON.stringify(response.headers, null, 2));
-      
       if (response.data && Array.isArray(response.data)) {
-        console.log(`📊 CoinGecko returned ${response.data.length} Solana meme coins`);
+        console.log(`📊 CoinGecko returned ${response.data.length} tokens`);
         
         // Filter out tokens with missing essential data and stable/infrastructure tokens
         const validTokens = response.data.filter(token => {
