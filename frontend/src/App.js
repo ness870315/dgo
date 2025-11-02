@@ -1102,8 +1102,12 @@ function AppContent() {
     setCategoryFilters(newCategoryFilters);
     // Re-apply filters with the NEW category filters
     if (newCategoryFilters.trenches) {
-      const filtered = tokenService.filterTokens(bondingTokens, filters);
-      const sorted = tokenService.sortTokens(filtered, filters.sortBy);
+      // ✅ For bonding tokens, sort by graduation progress (descending)
+      const sorted = [...bondingTokens].sort((a, b) => {
+        const progressA = a.bondingCurveProgress || 0;
+        const progressB = b.bondingCurveProgress || 0;
+        return progressB - progressA; // Descending - highest progress first
+      });
       setFilteredTokens(sorted);
     } else {
       let filtered = tokenService.filterTokens(tokens, filters);
