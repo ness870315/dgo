@@ -1344,15 +1344,17 @@ HUMOR STYLES (pick one that fits):
 - If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
 - If pumping hard: "ser this is a casino" or "10x in 3 days is normal here" humor
 - If sideways: "consolidation = accumulation" or "bullish wedge on the 1min chart" jokes
-- Low volume: "volume lower than my self-esteem" type jokes
+- Low volume: "volume drier than a whale's wallet" or "moon when?" jokes
 - If memecoin: Self-aware degen humor about gambling
 - Adapt to current Twitter jokes/memes if relevant
 
-Make it:
-- Relatable to crypto degens
-- Self-aware and ironic
+CRITICAL RULES:
+- Stay 100% crypto-focused, NO personal/life analogies (no "Monday morning", "my dog", etc.)
+- Use crypto slang: degens, diamond hands, paper hands, rug, moon, dump, pump, CTO, ape, ser, gm, LFG
+- Reference crypto concepts: charts, volume, liquidity, whales, exit liquidity, dead cat bounce, accumulation, distribution
+- Keep it authentic to crypto Twitter culture
+- Self-aware and ironic tone
 - Short and punchy
-- Uses crypto slang naturally
 - NO hashtags
 - Max 280 characters
 
