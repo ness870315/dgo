@@ -307,11 +307,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
           </div>
 
           {/* Main Content Grid - 3 columns as per wireframe */}
-          <div className="flex-1 overflow-hidden p-4">
+          <div className="flex-1 overflow-hidden p-4" style={{ height: 'calc(100vh - 80px)' }}>
             <div className="grid grid-cols-12 gap-4 h-full">
               
               {/* LEFT COLUMN - Token Detail (Full Height) - Real TokenDetails content */}
-              <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-6">
+              <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-6" style={{ height: '100%' }}>
                 <div className="space-y-6">
                   {/* Performance Overview */}
                   <div>
@@ -481,15 +481,15 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically */}
-              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 h-full">
+              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4" style={{ height: '100%' }}>
                 
                 {/* CENTER-UP: Price Chart (Decoupled) */}
-                <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '350px' }}>
                   <SVGChart token={token} onClose={onClose} />
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto" style={{ minHeight: '300px' }}>
+                <div className="bg-gray-800 rounded-lg p-4 overflow-y-auto" style={{ height: '50%', minHeight: '300px' }}>
                   <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5" />
                     Swap History
@@ -499,16 +499,16 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 h-full">
+              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: '100%' }}>
                 
                 {/* RIGHT-UP: Jupiter Integrated Plugin */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden" style={{ minHeight: '400px' }}>
+                <div className="bg-gray-800 rounded-lg p-4 overflow-hidden" style={{ height: '50%', minHeight: '350px' }}>
                   <h3 className="text-white font-semibold mb-4">Swap Token</h3>
                   <JupiterSwapWidget token={token} />
                 </div>
 
                 {/* RIGHT-BOTTOM: Black Section (Placeholder) */}
-                <div className="flex-1 bg-black rounded-lg" style={{ minHeight: '300px' }}>
+                <div className="bg-black rounded-lg" style={{ height: '50%', minHeight: '300px' }}>
                   {/* Reserved for future content */}
                 </div>
               </div>
@@ -595,24 +595,46 @@ const JupiterSwapWidget = ({ token }) => {
   useEffect(() => {
     if (!isLoaded || !window.Jupiter || !token?.contractAddress) return;
 
-    try {
-      // Initialize Jupiter Plugin with integrated mode
-      window.Jupiter.init({
-        displayMode: "integrated",
-        integratedTargetId: "jupiter-plugin",
-        formProps: {
-          initialInputMint: "So11111111111111111111111111111111111111112", // SOL
-          initialOutputMint: token.contractAddress,
-          swapMode: "ExactIn",
-        },
-        containerStyles: {
-          width: "100%",
-        },
-        containerClassName: "jupiter-plugin-container"
-      });
-    } catch (error) {
-      console.error("Error initializing Jupiter plugin:", error);
-    }
+    // Wait for DOM element to be available
+    const initJupiter = () => {
+      const targetElement = document.getElementById('jupiter-plugin');
+      if (!targetElement) {
+        console.warn('Jupiter plugin target element not found, retrying...');
+        setTimeout(initJupiter, 100);
+        return;
+      }
+
+      try {
+        // Close any existing instance
+        if (window.Jupiter.close) {
+          try {
+            window.Jupiter.close();
+          } catch (e) {
+            // Ignore close errors
+          }
+        }
+
+        // Initialize Jupiter Plugin with integrated mode
+        window.Jupiter.init({
+          displayMode: "integrated",
+          integratedTargetId: "jupiter-plugin",
+          formProps: {
+            initialInputMint: "So11111111111111111111111111111111111111112", // SOL
+            initialOutputMint: token.contractAddress,
+            swapMode: "ExactIn",
+          },
+          containerStyles: {
+            width: "100%",
+          },
+          containerClassName: "jupiter-plugin-container"
+        });
+      } catch (error) {
+        console.error("Error initializing Jupiter plugin:", error);
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    setTimeout(initJupiter, 100);
 
     // Cleanup on unmount
     return () => {
@@ -620,20 +642,20 @@ const JupiterSwapWidget = ({ token }) => {
         try {
           window.Jupiter.close();
         } catch (e) {
-          console.error('Error closing Jupiter:', e);
+          // Ignore cleanup errors
         }
       }
     };
   }, [isLoaded, token?.contractAddress]);
 
   return (
-    <div className="w-full h-full" style={{ minHeight: '350px' }}>
+    <div className="w-full" style={{ height: 'calc(100% - 40px)', minHeight: '300px' }}>
       {!isLoaded && (
         <div className="flex items-center justify-center h-full text-gray-400 text-sm">
           Loading Jupiter swap widget...
         </div>
       )}
-      <div id="jupiter-plugin" className="w-full h-full"></div>
+      <div id="jupiter-plugin" className="w-full h-full" style={{ display: isLoaded ? 'block' : 'none' }}></div>
     </div>
   );
 };
