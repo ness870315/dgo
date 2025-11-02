@@ -419,8 +419,12 @@ class ChartDatabase {
         const swapsByToken = new Map();
         
         for (const swap of swaps) {
-            // Determine token address from swap data
-            const tokenAddress = swap.tokenAddress || swap.baseToken || 'UNKNOWN';
+            // Determine token address from swap data (check multiple locations)
+            const tokenAddress = swap.tokenAddress || 
+                               swap.baseToken || 
+                               swap.rawData?.tokenAddress ||
+                               swap.rawData?.mintAddress ||
+                               'UNKNOWN';
             
             if (!swapsByToken.has(tokenAddress)) {
                 swapsByToken.set(tokenAddress, []);
