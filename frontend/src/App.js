@@ -1767,6 +1767,7 @@ function AppContent() {
           console.log('🔴 [App] onClose called, closing Jupiter modal');
           setShowJupiterSearch(false);
           setJupiterSearchResults([]);
+          setSearchTerm(''); // Clear search to prevent re-trigger
         }}
         searchTerm={pendingSearchTerm}
         results={jupiterSearchResults}
