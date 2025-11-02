@@ -785,15 +785,15 @@ function AppContent() {
     console.log('🚀 Importing Jupiter token:', jupiterToken);
     
     try {
-      // Use the public add-free endpoint (same as admin dashboard)
+      // Use the public endpoint (no auth required)
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/admin/tokens/add-free`, {
+      const response = await fetch(`${apiBase}/api/tokens/add-from-search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          contractAddress: jupiterToken.address || jupiterToken.mint,
+          contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
           symbol: jupiterToken.symbol || 'UNKNOWN',
           name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token'
         })

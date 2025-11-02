@@ -8050,6 +8050,56 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Public: Add token from Jupiter search (no auth required)
+    this.app.post('/api/tokens/add-from-search', async (req, res) => {
+      try {
+        const { symbol, name, contractAddress } = req.body;
+
+        // CONTRACT ADDRESS IS REQUIRED
+        if (!contractAddress) {
+          return res.status(400).json({ error: 'Contract address is required' });
+        }
+
+        console.log(`🔍 [Public Search] Adding token by CA: ${contractAddress}`);
+
+        // Use provided symbol/name or let Jupiter API fill them in
+        const tokenData = {
+          symbol: symbol ? symbol.trim().toUpperCase() : 'UNKNOWN',
+          name: name ? name.trim() : 'Unknown Token',
+          contractAddress: contractAddress.trim(),
+          isPaid: false,
+          isAdmin: false
+        };
+
+        console.log(`🔍 [Public Search] Using data: ${tokenData.symbol} (${tokenData.name}) - CA: ${tokenData.contractAddress}`);
+
+        // Process token IMMEDIATELY - will fetch from Jupiter
+        const processedToken = await this.tokenProcessor.addPaidToken(tokenData);
+        
+        res.json({ 
+          success: true, 
+          message: `Token ${processedToken.symbol} processed immediately and is now live!`,
+          token: {
+            symbol: processedToken.symbol,
+            name: processedToken.name,
+            contractAddress: processedToken.contractAddress,
+            isPaid: false,
+            isAdmin: false,
+            stage: processedToken.stage,
+            mentions: processedToken.mentions || 0,
+            communityScore: processedToken.communityScore || 5,
+            hasTwitterData: !!processedToken.twitterData,
+            hasJupiterData: !!processedToken.jupiterData,
+            processingTime: 'Instant (Public Search)'
+          }
+        });
+        
+      } catch (error) {
+        console.error('🔍 [Public Search] ❌ Error adding token:', error);
+        res.status(500).json({ error: error.message || 'Failed to add token' });
+      }
+    });
+
     // Admin: Delete token from database
     this.app.delete('/api/admin/tokens/:symbol', async (req, res) => {
       try {
