@@ -328,11 +328,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
           </div>
 
           {/* Main Content Grid - 3 columns as per wireframe */}
-          <div className="flex-1 overflow-hidden p-4" style={{ height: 'calc(100vh - 80px)' }}>
-            <div className="grid grid-cols-12 gap-4 h-full">
+          <div className="flex-1 overflow-y-auto p-4" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+            <div className="grid grid-cols-12 gap-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
               
               {/* LEFT COLUMN - Token Detail (Full Height) - Real TokenDetails content */}
-              <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-6" style={{ height: '100%' }}>
+              <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-6" style={{ height: '100%', minHeight: '800px' }}>
                 <div className="space-y-6">
                   {/* Performance Overview */}
                   <div>
@@ -502,44 +502,52 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically */}
-              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4" style={{ height: '100%', maxHeight: '100%' }}>
+              <div className="col-span-12 lg:col-span-5 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
                 {/* CENTER-UP: Price Chart (Decoupled) */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '45%', minHeight: '400px', maxHeight: '45%' }}>
+                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '45%', minHeight: '400px', flexShrink: 0 }}>
                   <SVGChart token={token} onClose={onClose} />
                 </div>
 
-                {/* CENTER-DOWN: Swap Table (Decoupled) */}
-                <div className="bg-gray-800 rounded-lg flex flex-col flex-shrink-0" style={{ height: '55%', minHeight: '400px', maxHeight: '55%' }}>
-                  <div className="px-4 pt-4 pb-2 flex-shrink-0 border-b border-gray-700">
+                {/* CENTER-DOWN: Swap Table (Decoupled) - MUST BE VISIBLE */}
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: '55%', minHeight: '450px', flexShrink: 0 }}>
+                  <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
                       Swap History
                     </h3>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: 0 }}>
-                    <SwapTable token={token} realTimeData={realTimeData} />
+                  <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: '300px' }}>
+                    {realTimeData?.swapHistory?.length > 0 || realTimeData?.recentSwaps?.length > 0 ? (
+                      <SwapTable token={token} realTimeData={realTimeData} />
+                    ) : (
+                      <div className="text-gray-400 text-center py-8">
+                        <p>Loading swap history...</p>
+                        <p className="text-xs mt-2">Swaps will appear here as they occur</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: '100%', maxHeight: '100%' }}>
+              <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
                 {/* RIGHT-UP: Jupiter Integrated Plugin */}
-                <div className="bg-gray-800 rounded-lg flex flex-col flex-shrink-0" style={{ height: '50%', minHeight: '400px', maxHeight: '50%' }}>
-                  <div className="px-4 pt-4 pb-2 flex-shrink-0 border-b border-gray-700">
+                <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '50%', minHeight: '450px', flexShrink: 0 }}>
+                  <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold">Swap Token</h3>
                   </div>
-                  <div className="flex-1 overflow-hidden p-4" style={{ minHeight: 0 }}>
+                  <div className="flex-1 overflow-hidden p-4" style={{ minHeight: '350px' }}>
                     <JupiterSwapWidget token={token} />
                   </div>
                 </div>
 
-                {/* RIGHT-BOTTOM: Black Section (Placeholder) */}
-                <div className="bg-black rounded-lg border border-gray-800 flex-shrink-0" style={{ height: '50%', minHeight: '400px', maxHeight: '50%', display: 'block' }}>
-                  <div className="h-full w-full flex items-center justify-center">
-                    <span className="text-gray-600 text-sm">Reserved for future content</span>
+                {/* RIGHT-BOTTOM: Black Section (Placeholder) - MUST BE VISIBLE */}
+                <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '50%', minHeight: '450px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="text-center">
+                    <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
+                    <p className="text-gray-600 text-xs">Black Section Placeholder</p>
                   </div>
                 </div>
               </div>
