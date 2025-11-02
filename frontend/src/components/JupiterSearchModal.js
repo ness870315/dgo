@@ -30,8 +30,14 @@ const JupiterSearchModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-4xl max-h-[80vh] flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-4xl max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <div>
@@ -75,7 +81,8 @@ const JupiterSearchModal = ({
                     address: token.address,
                     mint: token.mint,
                     hasExtensions: !!token.extensions,
-                    extensions: token.extensions
+                    extensions: token.extensions,
+                    allKeys: Object.keys(token)
                   });
                 }
                 
@@ -89,13 +96,13 @@ const JupiterSearchModal = ({
                     <div className="flex items-center gap-3 flex-1">
                       {/* Token Icon */}
                       <div className="w-10 h-10 flex-shrink-0">
-                        {token.logoURI && !failedImages.has(token.address || token.mint) ? (
+                        {(token.icon || token.logoURI) && !failedImages.has(token.address || token.mint || token.id) ? (
                           <img
-                            src={token.logoURI}
+                            src={token.icon || token.logoURI}
                             alt={token.symbol}
                             className="w-10 h-10 rounded-full"
                             onError={(e) => {
-                              setFailedImages(prev => new Set([...prev, token.address || token.mint]));
+                              setFailedImages(prev => new Set([...prev, token.address || token.mint || token.id]));
                             }}
                           />
                         ) : (
