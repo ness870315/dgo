@@ -516,9 +516,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   // Regular token UI with full columns (no bonding tokens)
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
-      {/* Mobile Card View */}
+      {/* Mobile Card View - Dexscreener Style */}
       <div className="block md:hidden">
-        <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
+        <div className="px-3 py-2.5 border-b border-gray-700 bg-gray-800/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-white font-bold text-sm">📊 Token Rankings</span>
@@ -533,64 +533,94 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
         <div className="divide-y divide-gray-700">
           {displayTokens.map((token, index) => {
             const fuelInfo = getFuelInfo(token.symbol);
+            const price = token.price || token.jupiterData?.price || 0;
+            const priceChange1h = token.priceChange1h || 0;
+            const priceChange24h = token.priceChange24h || 0;
             
             return (
               <div
                 key={token.address || token.contractAddress || index}
-                className="p-3 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                className="px-3 py-3 hover:bg-gray-800/30 cursor-pointer transition-colors border-b border-gray-800/50"
                 onClick={() => onTokenSelect(token)}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  {/* Left Section - Token Info */}
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    {/* Network Icon (Solana) */}
+                    <div className="flex flex-col items-center gap-1 mt-0.5 flex-shrink-0">
+                      <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Token Icon */}
                     {token.jupiterData?.icon || token.logo ? (
                       <img 
                         src={token.jupiterData?.icon || token.logo} 
                         alt={token.symbol} 
-                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        className="w-10 h-10 rounded-lg flex-shrink-0"
                         onError={(e) => e.target.style.display = 'none'}
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
                         <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
                       </div>
                     )}
+                    
+                    {/* Token Name & Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold text-white flex items-center gap-2">
-                        <span className="truncate">{token.symbol}</span>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="font-bold text-white text-sm truncate">{token.symbol}</span>
                         {fuelInfo.isFueled && (
-                          <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
-                            <Flame className="w-1.5 h-1.5 text-orange-400" />
-                            <span className="text-orange-400 text-[9px] font-bold">
+                          <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-yellow-500/20 border border-yellow-500/50 rounded-full flex-shrink-0">
+                            <Flame className="w-2.5 h-2.5 text-yellow-400" />
+                            <span className="text-yellow-400 text-[10px] font-bold">
                               {fuelInfo.multiplier}
                             </span>
                           </div>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                      <div className="text-xs text-gray-400 truncate mb-1">{token.name || token.symbol}</div>
+                      {/* Platform Indicator */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="px-1.5 py-0.5 bg-green-500/20 border border-green-500/50 rounded text-[10px] text-green-400 font-medium">
+                          SWAP
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-white font-mono">{formatPrice(token.price || token.jupiterData?.price)}</div>
-                    <div className="flex items-center justify-end gap-2 mt-0.5">
-                      <span className={`text-xs font-semibold ${(token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatPercentage(token.priceChange1h || 0)}
+                  
+                  {/* Right Section - Price & Changes */}
+                  <div className="flex flex-col items-end flex-shrink-0 min-w-[100px]">
+                    <div className="font-bold text-white font-mono text-base mb-1">
+                      {formatPrice(price)}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-medium ${
+                        priceChange1h >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        1H {priceChange1h >= 0 ? '+' : ''}{priceChange1h.toFixed(1)}%
                       </span>
-                      <span className={`text-xs font-semibold ${(token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatPercentage(token.priceChange24h || 0)}
+                      <span className={`text-[11px] font-medium ${
+                        priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        24H {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
-                    <span className="text-gray-400">VOL </span>
-                    <span className="text-white font-semibold">{formatNumber(token.volume24h || 0)}</span>
-                  </div>
-                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                
+                {/* Metrics Pills */}
+                <div className="flex items-center justify-end gap-2 mt-3">
+                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
                     <span className="text-gray-400">LIQ </span>
                     <span className="text-white font-semibold">{formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}</span>
                   </div>
-                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
+                    <span className="text-gray-400">VOL </span>
+                    <span className="text-white font-semibold">{formatNumber(token.volume24h || 0)}</span>
+                  </div>
+                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
                     <span className="text-gray-400">MCAP </span>
                     <span className="text-white font-semibold">{formatNumber(token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0)}</span>
                   </div>
