@@ -91,7 +91,7 @@ export default class EnhancedKOLTrustSystem {
       const tokenData = currentTokenData[contractAddress] || {};
       
       // Current performance
-      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || 0;
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || tokenData?.jupiterData?.mcap || call.currentMC || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       const currentMultiple = calledMC > 0 ? currentMC / calledMC : 0;
       
@@ -227,7 +227,7 @@ export default class EnhancedKOLTrustSystem {
       const contractAddress = call.contractAddress || call.token?.contractAddress;
       const tokenData = currentTokenData[contractAddress] || {};
       
-      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || 0;
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || tokenData?.jupiterData?.mcap || call.currentMC || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       const athMC = call.athMC || call.athMultiplier * calledMC || currentMC;
       
@@ -278,7 +278,7 @@ export default class EnhancedKOLTrustSystem {
       const contractAddress = call.contractAddress || call.token?.contractAddress;
       const tokenData = currentTokenData[contractAddress] || {};
       
-      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || 0;
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || tokenData?.jupiterData?.mcap || call.currentMC || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       const athMC = call.athMC || call.athMultiplier * calledMC || currentMC;
       
@@ -341,7 +341,7 @@ export default class EnhancedKOLTrustSystem {
       const tokenData = currentTokenData[contractAddress] || {};
       
       const calledMC = call.calledMc || call.calledMC || 0;
-      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || 0;
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || tokenData?.jupiterData?.mcap || call.currentMC || 0;
       
       // Market cap timing (early entries get bonus)
       const mcapTimingScore = this.calculateMarketCapTimingScore(calledMC);
