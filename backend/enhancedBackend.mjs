@@ -13715,16 +13715,22 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const address = token.contractAddress || token.tokenAddress;
           const realTimeData = realTimeMetrics.get(address);
           
+          // Get Jupiter data for fallback
+          const jupiter24h = token.jupiterData?.stats24h || {};
+          const jupiter5m = token.jupiterData?.stats5m || {};
+          const jupiter1h = token.jupiterData?.stats1h || {};
+          const jupiter6h = token.jupiterData?.stats6h || {};
+          
           return {
             ...token,
             // Override with real-time data if available
             price: realTimeData?.price || token.jupiterData?.price || token.price || 0,
-            volume24h: realTimeData?.volume24h || 0,
-            txns24h: realTimeData?.txns24h || 0,
-            makers24h: realTimeData?.makers24h || 0,
-            priceChange5m: realTimeData?.priceChange5m || 0,
-            priceChange1h: realTimeData?.priceChange1h || 0,
-            priceChange6h: realTimeData?.priceChange6h || 0,
+            volume24h: realTimeData?.volume24h || jupiter24h.buyVolume + jupiter24h.sellVolume || token.jupiterData?.volume24h || 0,
+            txns24h: realTimeData?.txns24h || jupiter24h.numBuys + jupiter24h.numSells || token.jupiterData?.txns24h || 0,
+            makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
+            priceChange5m: realTimeData?.priceChange5m || jupiter5m.priceChange || 0,
+            priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
+            priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
             priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
             marketCap: realTimeData?.marketCap || token.marketCap || token.jupiterData?.mcap || 0,
             liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
