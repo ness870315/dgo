@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Flame } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
 
@@ -47,55 +47,62 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   };
 
   // ✅ Fetch real-time rankings and merge with category-filtered tokens
-  useEffect(() => {
-    console.log('🔍 [TokenRankedList] tokens prop:', tokens?.length, 'tokens');
-    const fetchAndMergeRankings = async () => {
-      try {
-        // Check if ALL tokens are bonding tokens
-        const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
+  const fetchAndMergeRankings = useCallback(async () => {
+    console.log('🔍 [TokenRankedList] Fetching rankings for:', tokens?.length, 'tokens');
+    try {
+      // Check if ALL tokens are bonding tokens
+      const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
+      
+      if (allAreBonding) {
+        console.log('✅ [TokenRankedList] All tokens are bonding, using bonding UI');
+        // For bonding tokens, just use the tokens prop directly
+        setRankings(tokens);
+        setLastUpdate(new Date());
+        return;
+      }
+      
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+      const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        // ✅ Merge ranking data with filtered tokens
+        const filteredRankings = data.data.filter(rankedToken => {
+          // Check if ranked token is in our filtered tokens list
+          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+          return tokens.some(filteredToken => 
+            (filteredToken.contractAddress || filteredToken.tokenAddress) === address
+          );
+        });
         
-        if (allAreBonding) {
-          console.log('✅ [TokenRankedList] All tokens are bonding, using bonding UI');
-          // For bonding tokens, just use the tokens prop directly
-          setRankings(tokens);
-          setLastUpdate(new Date());
-          return;
-        }
-        
-        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-        const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
-        const data = await response.json();
-        
-        if (data.success && data.data && data.data.length > 0) {
-          // ✅ Merge ranking data with filtered tokens
-          const filteredRankings = data.data.filter(rankedToken => {
-            // Check if ranked token is in our filtered tokens list
-            const address = rankedToken.contractAddress || rankedToken.tokenAddress;
-            return tokens.some(filteredToken => 
-              (filteredToken.contractAddress || filteredToken.tokenAddress) === address
-            );
-          });
-          
-          // Preserve the ranking order from the API (sorted by Overall Score)
-          setRankings(filteredRankings);
-          setLastUpdate(new Date());
-        } else {
-          // Fallback to tokens prop if API fails
-          if (tokens && tokens.length > 0) {
-            setRankings(tokens);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching rankings:', err);
-        // Fallback to tokens prop on error
+        // Preserve the ranking order from the API (sorted by Overall Score)
+        setRankings(filteredRankings);
+        setLastUpdate(new Date());
+      } else {
+        // Fallback to tokens prop if API fails
         if (tokens && tokens.length > 0) {
           setRankings(tokens);
         }
       }
-    };
-    
-    fetchAndMergeRankings();
+    } catch (err) {
+      console.error('Error fetching rankings:', err);
+      // Fallback to tokens prop on error
+      if (tokens && tokens.length > 0) {
+        setRankings(tokens);
+      }
+    }
   }, [tokens]);
+
+  useEffect(() => {
+    fetchAndMergeRankings();
+    
+    // ✅ ADDED: Polling for live updates every 30 seconds
+    const interval = setInterval(() => {
+      fetchAndMergeRankings();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [fetchAndMergeRankings]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
   
