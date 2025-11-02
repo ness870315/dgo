@@ -147,20 +147,7 @@ class RealTimeTokenMonitor {
     }
 
     reportStats() {
-        const runtime = Math.floor((Date.now() - this.monitoringStats.startTime) / 1000);
-        const realTimeStats = this.hybridPriceService.getRealTimeStats();
-        
-        console.log('\n📊 [RealTimeTokenMonitor] STATS REPORT');
-        console.log('============================================================');
-        console.log(`⏰ Runtime: ${runtime} seconds`);
-        console.log(`📈 Total Tokens: ${this.monitoringStats.totalTokens}`);
-        console.log(`🔌 Active Streams: ${realTimeStats.activeStreams.length}`);
-        console.log(`💰 Total Swaps: ${this.monitoringStats.totalSwaps}`);
-        console.log(`📊 Price Updates: ${this.monitoringStats.totalPriceUpdates}`);
-        console.log(`❌ Errors: ${this.monitoringStats.errors}`);
-        console.log(`⚡ Swaps/sec: ${(this.monitoringStats.totalSwaps / runtime).toFixed(2)}`);
-        console.log(`📈 Updates/sec: ${(this.monitoringStats.totalPriceUpdates / runtime).toFixed(2)}`);
-        console.log('============================================================\n');
+        // Stats reporting disabled (too verbose for production)
     }
 
     // Public methods for getting real-time data

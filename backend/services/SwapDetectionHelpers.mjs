@@ -691,7 +691,6 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
         const ratio = priceUsd / midPriceUsd;
         if (ratio > 5 || ratio < 0.2) {
             // >5× or <0.2× off mid? likely mis-leg or outlier
-            console.log(`⚠️ [processTxForSwap] Skip: price outlier (${ratio.toFixed(2)}x ratio, price=$${priceUsd.toFixed(8)}, mid=$${midPriceUsd.toFixed(8)}) for ${sigShort}...`);
             return null;
         }
     }
