@@ -807,9 +807,10 @@ function AppContent() {
 
       console.log('✅ Token imported:', data.message);
       
-      // Close modal
+      // Close modal and clear search to prevent re-triggering
       setShowJupiterSearch(false);
       setJupiterSearchResults([]);
+      setSearchTerm(''); // Clear search term so modal doesn't re-appear
       
       // Create a token object from Jupiter data to show immediately
       const importedToken = {
