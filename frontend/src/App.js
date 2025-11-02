@@ -836,9 +836,7 @@ function AppContent() {
       setSelectedToken(importedToken);
       setShowPreTokenDetail(false);
       
-      setSuccessMessage(`✅ ${jupiterToken.symbol} added! Full data processing in background...`);
-      
-      // Refresh tokens in background
+      // Refresh tokens in background (no success message - modal closes and token view opens immediately)
       setTimeout(() => {
         loadTokens();
       }, 2000);
