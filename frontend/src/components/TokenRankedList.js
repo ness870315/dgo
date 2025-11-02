@@ -48,14 +48,14 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   // ✅ Fetch real-time rankings and merge with category-filtered tokens
   useEffect(() => {
-    console.log('🔍 [TokenRankedList] tokens prop:', tokens?.length, 'tokens', 'isBonding?', tokens?.some(t => t?.isBondingToken));
+    console.log('🔍 [TokenRankedList] tokens prop:', tokens?.length, 'tokens', 'Trenches filter:', categoryFilters?.trenches);
     const fetchAndMergeRankings = async () => {
       try {
-        // Check if we have bonding tokens (Trenches filter)
-        const isBondingTokens = tokens && tokens.length > 0 && tokens.some(t => t.isBondingToken);
+        // Check if Trenches filter is active
+        const isTrenchesActive = categoryFilters?.trenches || false;
         
-        if (isBondingTokens) {
-          console.log('✅ [TokenRankedList] Using bonding tokens, setting rankings');
+        if (isTrenchesActive) {
+          console.log('✅ [TokenRankedList] Using bonding tokens (Trenches filter), setting rankings');
           // For bonding tokens, just use the tokens prop directly
           setRankings(tokens);
           setLastUpdate(new Date());
@@ -95,12 +95,12 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     };
     
     fetchAndMergeRankings();
-  }, [tokens]);
+  }, [tokens, categoryFilters]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
   
-  // Check if we're displaying bonding tokens
-  const isBondingTokens = displayTokens && displayTokens.length > 0 && displayTokens[0] && displayTokens[0].isBondingToken;
+  // Check if we're displaying bonding tokens (only if Trenches filter is active)
+  const isBondingTokens = categoryFilters?.trenches || false;
   console.log('🎨 [TokenRankedList] Render - displayTokens:', displayTokens?.length, 'isBonding:', isBondingTokens);
 
   // Simple bonding token UI with graduation bar
