@@ -110,22 +110,10 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs md:text-xs" style={{ fontSize: '11px' }}>
             <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
-                <th colSpan="5" className="px-2 py-2 text-left hidden md:table-cell">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-bold text-sm">🏗️ Trenches</span>
-                    </div>
-                    {lastUpdate && (
-                      <span className="text-xs text-gray-400 normal-case">
-                        Updated: {lastUpdate.toLocaleTimeString()}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th colSpan="3" className="px-2 py-2 text-left md:hidden">
+                <th colSpan="5" className="px-2 py-2 text-left">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-bold text-sm">🏗️ Trenches</span>
@@ -139,11 +127,11 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                 </th>
               </tr>
               <tr className="border-b border-gray-700">
-                <th style={{ paddingLeft: '8px', paddingRight: '0px', width: '40px' }} className="py-2 text-left">#</th>
-                <th style={{ paddingLeft: '4px', paddingRight: '0px', width: '200px' }} className="py-2 text-left">Token</th>
-                <th style={{ paddingLeft: '4px', paddingRight: '0px', width: '100px' }} className="py-2 text-right hidden md:table-cell">Price</th>
-                <th style={{ paddingLeft: '4px', paddingRight: '0px', width: '120px' }} className="py-2 text-right hidden md:table-cell">Market Cap</th>
-                <th style={{ paddingLeft: '24px', width: 'auto' }} className="py-2 text-left">Graduation</th>
+                <th style={{ paddingLeft: '4px', paddingRight: '0px', width: '30px' }} className="py-1 text-left">#</th>
+                <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '120px' }} className="py-1 text-left">Token</th>
+                <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '70px' }} className="py-1 text-right">Price</th>
+                <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '80px' }} className="py-1 text-right">M Cap</th>
+                <th style={{ paddingLeft: '8px', width: 'auto' }} className="py-1 text-left">Grad</th>
               </tr>
             </thead>
             <tbody>
@@ -155,25 +143,25 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
                       onClick={() => onTokenSelect(token)}
                     >
-                      <td style={{ paddingLeft: '8px', paddingRight: '0px' }} className="py-2 font-medium text-gray-300">#{index + 1}</td>
-                      <td style={{ paddingLeft: '4px', paddingRight: '0px' }} className="py-2">
+                      <td style={{ paddingLeft: '4px', paddingRight: '0px' }} className="py-1 font-medium text-gray-300">#{index + 1}</td>
+                      <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1">
                         <div className="flex items-center">
                           {token?.logo && (
-                            <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full mr-1" onError={(e) => e.target.style.display = 'none'} />
+                            <img src={token.logo} alt={token.symbol || 'Token'} className="w-6 h-6 rounded-full" style={{ marginRight: '4px' }} onError={(e) => e.target.style.display = 'none'} />
                           )}
                           <div>
-                            <div className="font-bold text-white">{token?.symbol || 'Unknown'}</div>
-                            <div className="text-xs text-gray-400 truncate">{token?.name || 'N/A'}</div>
+                            <div className="font-bold text-white" style={{ fontSize: '11px' }}>{token?.symbol || 'Unknown'}</div>
+                            <div className="text-gray-400 truncate" style={{ fontSize: '9px' }}>{token?.name || 'N/A'}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ paddingLeft: '4px', paddingRight: '0px' }} className="py-2 text-right font-mono text-white hidden md:table-cell">
-                        {formatPrice(token?.priceUsd || 0)}
+                      <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1 text-right font-mono text-white">
+                        <div style={{ fontSize: '11px' }}>{formatPrice(token?.priceUsd || 0)}</div>
                       </td>
-                      <td style={{ paddingLeft: '4px', paddingRight: '0px' }} className="py-2 text-right font-medium text-white hidden md:table-cell">
-                        {formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}
+                      <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1 text-right font-medium text-white">
+                        <div style={{ fontSize: '11px' }}>{formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}</div>
                       </td>
-                      <td style={{ paddingLeft: '24px' }} className="py-2">
+                      <td style={{ paddingLeft: '8px' }} className="py-1">
                         <GraduationStatusBar 
                           bondingProgress={token?.bondingCurveProgress || 0} 
                           proximityLevel={token?.graduationProximity || 'FAR_FROM_GRADUATION'}
