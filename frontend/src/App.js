@@ -5,6 +5,7 @@ import BubbleMap from './components/BubbleMap';
 import TokenRankedList from './components/TokenRankedList';
 import ViewToggle from './components/ViewToggle';
 import TokenDetails from './components/TokenDetails';
+import EnhancedTokenDetails from './components/EnhancedTokenDetails';
 import Settings from './components/Settings';
 import CategoryFilters from './components/CategoryFilters';
 import TemperatureLegend from './components/TemperatureLegend';
@@ -1707,12 +1708,30 @@ function AppContent() {
 
       {/* Token Details Modal */}
       {selectedToken && !showPreTokenDetail && (
-        <TokenDetails
-          token={selectedToken}
-          fueledTokens={fueledTokens}
-          onClose={() => setSelectedToken(null)}
-          onTokenUpdated={handleTokenUpdated}
-        />
+        <>
+          {/* Enhanced Token Details (Test Mode) - ONLY for ANON token */}
+          {(() => {
+            const tokenAddress = selectedToken?.contractAddress || selectedToken?.tokenAddress;
+            const isAnonToken = tokenAddress === 'HqVZaYJnEcmKQKRf4K5N8eEuBjkTgpRzVfF7AYBFpump';
+            
+            return isAnonToken ? (
+              <EnhancedTokenDetails
+                token={selectedToken}
+                fueledTokens={fueledTokens}
+                onClose={() => setSelectedToken(null)}
+                onTokenUpdated={handleTokenUpdated}
+                onNavigateToPremium={onNavigateToPremium}
+              />
+            ) : (
+              <TokenDetails
+                token={selectedToken}
+                fueledTokens={fueledTokens}
+                onClose={() => setSelectedToken(null)}
+                onTokenUpdated={handleTokenUpdated}
+              />
+            );
+          })()}
+        </>
       )}
 
       {/* PreTokenDetail Modal for Bonding Tokens */}
