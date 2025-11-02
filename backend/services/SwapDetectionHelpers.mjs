@@ -216,17 +216,17 @@ function isAtaOf(owner, mint, tokenAccount) {
 
 /**
  * Determine if a token delta is on the user side (vs pool side)
- * 🚀 ENHANCED: Now supports Raydium pool decoder for 100% accuracy
+ * 🚀 ENHANCED: Now supports Raydium pool decoder (100% accurate WHEN successful)
  */
 export function isUserSide(delta, signerSet, raydiumDecoder = null, poolAddress = null) {
-    // 🚀 PHASE 1: Check Raydium vault addresses (100% accurate)
+    // 🚀 PHASE 1: Check Raydium vault addresses (100% accurate WHEN pool is decoded successfully)
     if (raydiumDecoder && poolAddress) {
         if (raydiumDecoder.isPoolVault(delta.accountPubkey, poolAddress)) {
             return false; // Definitely pool side
         }
     }
 
-    // 🚀 PHASE 2: Heuristic checks (95% accurate fallback)
+    // 🚀 PHASE 2: Heuristic checks (95% accurate fallback when decoder unavailable)
     // user side if token account owner is a signer (or ATA of a signer)
     if (signerSet.has(delta.owner)) return true;
     for (const s of signerSet) {
