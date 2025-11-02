@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
-import websocketService from '../services/websocketService';
 
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   const [rankings, setRankings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
 
   // Format numbers
@@ -45,123 +43,15 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     return { isFueled: false, multiplier: null };
   };
 
-  // Fetch real-time rankings
-  const fetchRankings = async () => {
-    try {
-      setLoading(true);
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
-      const data = await response.json();
-      
-      if (data.success && data.data && data.data.length > 0) {
-        // Use real-time data from gRPC
-        console.log('✅ Using real-time gRPC data:', data.data.length, 'tokens');
-        setRankings(data.data);
-        setLastUpdate(new Date());
-      } else {
-        // Merge cache tokens with any available real-time data
-        console.log('⚠️ No real-time data, using cache tokens with fallback values');
-        const enrichedTokens = tokens.map(token => ({
-          ...token,
-          address: token.contractAddress || token.tokenAddress,
-          price: token.jupiterData?.price || token.price || 0,
-          age: calculateTokenAge(token),
-          txns24h: 0,
-          volume24h: 0,
-          makers24h: 0,
-          priceChange5m: 0,
-          priceChange1h: 0,
-          priceChange6h: 0,
-          priceChange24h: token.jupiterData?.priceChange24h || 0,
-          liquidity: token.jupiterData?.liquidity || 0,
-          marketCap: token.jupiterData?.marketCap || token.jupiterData?.mcap || token.marketCap || 0,
-          isLive: false
-        }));
-        setRankings(enrichedTokens);
-      }
-    } catch (err) {
-      console.error('Error fetching rankings:', err);
-      // Fallback to provided tokens with enrichment
-      const enrichedTokens = tokens.map(token => ({
-        ...token,
-        address: token.contractAddress || token.tokenAddress,
-        price: token.jupiterData?.price || token.price || 0,
-        age: calculateTokenAge(token),
-        txns24h: 0,
-        volume24h: 0,
-        makers24h: 0,
-        priceChange5m: 0,
-        priceChange1h: 0,
-        priceChange6h: 0,
-        priceChange24h: token.jupiterData?.priceChange24h || 0,
-        liquidity: token.jupiterData?.liquidity || 0,
-        marketCap: token.jupiterData?.marketCap || token.jupiterData?.mcap || token.marketCap || 0,
-        isLive: false
-      }));
-      setRankings(enrichedTokens);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Calculate token age
-  const calculateTokenAge = (token) => {
-    const createdAt = token.createdAt || token.timestamp || token.jupiterData?.createdAt;
-    if (!createdAt) return 'N/A';
-    
-    const now = Date.now();
-    const created = typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime();
-    const diff = now - created;
-    
-    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-    const hours = Math.floor(diff / (60 * 60 * 1000));
-    const minutes = Math.floor(diff / (60 * 1000));
-    
-    if (days > 0) return `${days}d`;
-    if (hours > 0) return `${hours}h`;
-    if (minutes > 0) return `${minutes}m`;
-    return 'Just now';
-  };
-
-  // Subscribe to WebSocket updates
+  // ✅ Use tokens prop directly (already filtered by category in App.js)
   useEffect(() => {
-    fetchRankings();
-
-    // Poll every 10 seconds as fallback
-    const pollInterval = setInterval(fetchRankings, 10000);
-
-    // Subscribe to WebSocket updates
-    const handleRankingUpdate = (data) => {
-      if (data.rankings && data.rankings.length > 0) {
-        setRankings(data.rankings);
-        setLastUpdate(new Date());
-      }
-    };
-
-    websocketService.on('rankingUpdate', handleRankingUpdate);
-
-    return () => {
-      clearInterval(pollInterval);
-      websocketService.off('rankingUpdate', handleRankingUpdate);
-    };
-  }, []);
-
-  // Update when tokens prop changes
-  useEffect(() => {
-    if (rankings.length === 0 && tokens.length > 0) {
+    if (tokens && tokens.length > 0) {
       setRankings(tokens);
+      setLastUpdate(new Date());
     }
   }, [tokens]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
-
-  if (loading && displayTokens.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-400">Loading rankings...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
@@ -312,7 +202,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         </div>
 
       {/* Empty state */}
-      {displayTokens.length === 0 && !loading && (
+      {displayTokens.length === 0 && (
         <div className="flex items-center justify-center p-8">
           <div className="text-gray-400">No tokens available</div>
         </div>

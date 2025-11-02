@@ -13686,10 +13686,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
         const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
         
-        console.log(`📊 [RankingData] Request received`);
-        console.log(`📊 [RankingData] realTimeTokenMonitor exists: ${!!this.realTimeTokenMonitor}`);
-        console.log(`📊 [RankingData] hybridPriceService exists: ${!!priceService}`);
-        
         if (!priceService) {
           console.error(`❌ [RankingData] No price service available!`);
           return res.status(503).json({
@@ -13698,13 +13694,68 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        const rankingData = priceService.getRealTimeRankingData();
-        console.log(`📊 [RankingData] Returning ${rankingData.length} tokens`);
+        // ✅ NEW: Get full token cache with Overall Score
+        const allTokens = await this.getTokensFromCache();
+        console.log(`📊 [RankingData] Loaded ${allTokens.length} tokens from cache`);
+        
+        // ✅ NEW: Get real-time metrics for monitored tokens
+        const realTimeMetrics = new Map();
+        if (priceService.poolAddresses) {
+          for (const [tokenAddress] of priceService.poolAddresses.entries()) {
+            const tooltipData = priceService.getRealTimeTooltipData(tokenAddress);
+            if (tooltipData) {
+              realTimeMetrics.set(tokenAddress, tooltipData);
+            }
+          }
+        }
+        console.log(`📊 [RankingData] Found ${realTimeMetrics.size} tokens with real-time data`);
+        
+        // ✅ NEW: Merge cache tokens with real-time metrics
+        const rankings = allTokens.map(token => {
+          const address = token.contractAddress || token.tokenAddress;
+          const realTimeData = realTimeMetrics.get(address);
+          
+          return {
+            ...token,
+            // Override with real-time data if available
+            price: realTimeData?.price || token.jupiterData?.price || token.price || 0,
+            volume24h: realTimeData?.volume24h || 0,
+            txns24h: realTimeData?.txns24h || 0,
+            makers24h: realTimeData?.makers24h || 0,
+            priceChange5m: realTimeData?.priceChange5m || 0,
+            priceChange1h: realTimeData?.priceChange1h || 0,
+            priceChange6h: realTimeData?.priceChange6h || 0,
+            priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
+            marketCap: realTimeData?.marketCap || token.marketCap || token.jupiterData?.mcap || 0,
+            liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
+            isLive: !!realTimeData,
+            // ✅ CRITICAL: Preserve Overall Score for sorting
+            overallScore: token.overallScore || token.score || 0,
+            rank: 0 // Will be set after sorting
+          };
+        });
+        
+        // ✅ CRITICAL: Sort by Overall Score (not volume!)
+        rankings.sort((a, b) => {
+          const scoreA = a.overallScore || 0;
+          const scoreB = b.overallScore || 0;
+          if (scoreB !== scoreA) {
+            return scoreB - scoreA;
+          }
+          return (b.marketCap || 0) - (a.marketCap || 0);
+        });
+        
+        // Assign ranks
+        rankings.forEach((token, index) => {
+          token.rank = index + 1;
+        });
+        
+        console.log(`📊 [RankingData] Returning ${rankings.length} tokens ranked by Overall Score`);
         
         res.json({
           success: true,
-          data: rankingData,
-          count: rankingData.length,
+          data: rankings,
+          count: rankings.length,
           timestamp: new Date().toISOString()
         });
 
