@@ -96,7 +96,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   const displayTokens = rankings.length > 0 ? rankings : tokens;
   
   // Check if we're displaying bonding tokens
-  const isBondingTokens = displayTokens.length > 0 && displayTokens[0].isBondingToken;
+  const isBondingTokens = displayTokens && displayTokens.length > 0 && displayTokens[0] && displayTokens[0].isBondingToken;
 
   // Simple bonding token UI with graduation bar
   if (isBondingTokens) {
@@ -129,29 +129,29 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             <tbody>
               {displayTokens.map((token, index) => (
                 <tr
-                  key={token.contractAddress || index}
+                  key={token?.contractAddress || index}
                   className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
                   onClick={() => onTokenSelect(token)}
                 >
                   <td className="px-2 py-2 font-medium text-gray-300">#{index + 1}</td>
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-2">
-                      {token.logo && (
-                        <img src={token.logo} alt={token.symbol} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
+                      {token?.logo && (
+                        <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
                       )}
                       <div>
-                        <div className="font-bold text-white">{token.symbol}</div>
-                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                        <div className="font-bold text-white">{token?.symbol || 'Unknown'}</div>
+                        <div className="text-xs text-gray-400 truncate">{token?.name || 'N/A'}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-white">
-                    {formatPrice(token.priceUsd)}
+                    {formatPrice(token?.priceUsd || 0)}
                   </td>
                   <td className="px-2 py-2">
                     <GraduationStatusBar 
-                      bondingProgress={token.bondingCurveProgress} 
-                      proximityLevel={token.graduationProximity}
+                      bondingProgress={token?.bondingCurveProgress || 0} 
+                      proximityLevel={token?.graduationProximity || 'FAR_FROM_GRADUATION'}
                       compact={true}
                     />
                   </td>
