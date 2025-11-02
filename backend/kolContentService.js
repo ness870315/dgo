@@ -1330,6 +1330,28 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
         console.warn(`⚠️ [MEME] Tavily sentiment search failed:`, err.message);
       }
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            `${token.symbol} crypto memes jokes`,
+            { type: 'meme', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST MEMES ON $${token.symbol} (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [MEME] Found ${relevantOpinions.length} relevant past memes for $${token.symbol}`);
+          }
+        } catch (error) {
+          console.error('❌ [MEME] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const memePrompt = `You're a crypto KOL with a great sense of humor. Generate a funny tweet about $${token.symbol}.
 
 TOKEN CONTEXT:
@@ -1338,7 +1360,7 @@ TOKEN CONTEXT:
 - Volume/MCap: ${volumeToMcap}%
 
 🔍 TWITTER SENTIMENT & COMMUNITY VIBES:
-${tavilySentiment || 'General crypto Twitter vibes'}
+${tavilySentiment || 'General crypto Twitter vibes'}${pastOpinionsContext}
 
 HUMOR STYLES (pick one that fits):
 - If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
@@ -1347,6 +1369,8 @@ HUMOR STYLES (pick one that fits):
 - Low volume: "volume drier than a whale's wallet" or "moon when?" jokes
 - If memecoin: Self-aware degen humor about gambling
 - Adapt to current Twitter jokes/memes if relevant
+- Build on your past takes naturally when relevant for consistency
+- Show consistency or acknowledge if your view changed
 
 CRITICAL RULES:
 - Stay 100% crypto-focused, NO personal/life analogies (no "Monday morning", "my dog", etc.)
