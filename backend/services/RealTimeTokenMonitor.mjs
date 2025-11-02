@@ -222,12 +222,61 @@ class RealTimeTokenMonitor {
             this.hybridPriceService.poolAddresses.set(contractAddress, poolAddress);
             this.hybridPriceService.swapHistory.set(contractAddress, []);
             
+            // ✅ CRITICAL: Populate metadata cache (same logic as loadTopTokens)
+            const price = tokenData.currentPrice || 
+                         tokenData.price || 
+                         tokenData.jupiterData?.price || 
+                         tokenData.birdEyeRaw?.price || 
+                         0;
+            
+            const marketCap = tokenData.marketCap || 
+                            tokenData.jupiterData?.marketCap || 
+                            tokenData.jupiterData?.mcap ||
+                            tokenData.birdEyeRaw?.marketcap ||
+                            tokenData.birdEyeRaw?.fdv ||
+                            0;
+            
+            const liquidity = tokenData.jupiterData?.liquidity || 
+                            tokenData.birdEyeRaw?.liquidity || 
+                            0;
+            
+            const supply = tokenData.jupiterData?.totalSupply || 
+                          tokenData.jupiterData?.circSupply ||
+                          tokenData.supply || 
+                          0;
+            
+            const createdAt = tokenData.jupiterData?.firstPool?.createdAt || 
+                             tokenData.birdEyeRaw?.firstPool?.createdAt ||
+                             tokenData.createdAt || 
+                             tokenData.timestamp ||
+                             Date.now();
+            
+            this.hybridPriceService.tokenMetadataCache.set(contractAddress, {
+                symbol: tokenData.symbol,
+                name: tokenData.name,
+                address: contractAddress,
+                price: price,
+                priceSol: tokenData.priceSol || 0,
+                marketCap: marketCap,
+                liquidity: liquidity,
+                supply: supply,
+                createdAt: createdAt,
+                graduatedPool: tokenData.graduatedPool || tokenData.jupiterData?.graduatedPool,
+                logo: tokenData.logo || tokenData.jupiterData?.icon,
+                jupiterData: tokenData.jupiterData
+            });
+            
+            // Initialize mid-price for outlier detection
+            if (price && price > 0) {
+                this.hybridPriceService.midPriceUsd.set(contractAddress, price);
+            }
+            
             // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
             console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to include new token ${tokenData.symbol}`);
             await this.hybridPriceService.stopRealTimeMonitoring();
             await this.hybridPriceService.startRealTimeMonitoring();
             
-            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring`);
+            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring with metadata`);
             return true;
         } else {
             console.log(`⚠️ [RealTimeTokenMonitor] No pool found for token ${tokenData.symbol}`);

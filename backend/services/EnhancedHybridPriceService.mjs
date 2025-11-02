@@ -193,7 +193,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Also register in ChartDatabase for API access
             await this.chartDatabase.setPoolMapping('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
             
-            // 🚀 NEW: Load and add top 200 tokens from cache for gRPC monitoring
+            // 🚀 NEW: Load and add ALL tokens from cache for gRPC monitoring
             await this.loadTopTokens();
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
@@ -1934,6 +1934,78 @@ class EnhancedHybridPriceService extends EventEmitter {
         return rankings;
     }
 
+    // ✅ NEW: Get ALL rankings (all tokens from cache merged with real-time data)
+    async getAllRankingsData() {
+        try {
+            // Reload token cache to get latest tokens
+            await this.loadTokenCache();
+            
+            // Get real-time metrics for monitored tokens
+            const realTimeMetrics = new Map();
+            for (const [tokenAddress] of this.poolAddresses.entries()) {
+                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
+                if (tooltipData) {
+                    realTimeMetrics.set(tokenAddress, tooltipData);
+                }
+            }
+            
+            // Merge cache tokens with real-time metrics
+            const rankings = this.tokenCache.map(token => {
+                const address = token.contractAddress || token.tokenAddress;
+                const realTimeData = realTimeMetrics.get(address);
+                
+                // Get Jupiter data for fallback
+                const jupiter24h = token.jupiterData?.stats24h || {};
+                const jupiter5m = token.jupiterData?.stats5m || {};
+                const jupiter1h = token.jupiterData?.stats1h || {};
+                const jupiter6h = token.jupiterData?.stats6h || {};
+                
+                // Calculate safe sums for Jupiter stats
+                const jupiterVolume24h = (jupiter24h.buyVolume || 0) + (jupiter24h.sellVolume || 0);
+                const jupiterTxns24h = (jupiter24h.numBuys || 0) + (jupiter24h.numSells || 0);
+                
+                return {
+                    ...token,
+                    // Override with real-time data if available
+                    price: realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0,
+                    volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
+                    txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
+                    makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
+                    priceChange5m: realTimeData?.priceChange5m || jupiter5m.priceChange || 0,
+                    priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
+                    priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
+                    priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
+                    marketCap: realTimeData?.marketCap || token.marketCap || token.jupiterData?.mcap || 0,
+                    liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
+                    isLive: !!realTimeData,
+                    overallScore: token.overallScore || token.score || 0,
+                    rank: 0 // Will be set after sorting
+                };
+            });
+            
+            // Sort by Overall Score
+            rankings.sort((a, b) => {
+                const scoreA = a.overallScore || 0;
+                const scoreB = b.overallScore || 0;
+                if (scoreB !== scoreA) {
+                    return scoreB - scoreA;
+                }
+                return (b.marketCap || 0) - (a.marketCap || 0);
+            });
+            
+            // Assign ranks
+            rankings.forEach((token, index) => {
+                token.rank = index + 1;
+            });
+            
+            return rankings;
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Error getting all rankings:', error.message);
+            // Fallback to monitored tokens only
+            return this.getRealTimeRankingData();
+        }
+    }
+
     calculateWindowMetrics(swaps, startTime, endTime) {
         const windowSwaps = swaps.filter(s => 
             s.timestamp >= startTime && s.timestamp <= endTime
@@ -1984,16 +2056,21 @@ class EnhancedHybridPriceService extends EventEmitter {
             clearInterval(this.rankingBroadcastInterval);
         }
 
-        this.rankingBroadcastInterval = setInterval(() => {
+        this.rankingBroadcastInterval = setInterval(async () => {
             if (this.webSocketServer) {
-                const rankings = this.getRealTimeRankingData();
-                if (rankings.length > 0) {
-                    this.webSocketServer.broadcastRankingUpdate(rankings);
+                try {
+                    // ✅ Use getAllRankingsData to include ALL tokens (not just monitored ones)
+                    const rankings = await this.getAllRankingsData();
+                    if (rankings.length > 0) {
+                        this.webSocketServer.broadcastRankingUpdate(rankings);
+                    }
+                } catch (error) {
+                    console.error('❌ [EnhancedHybridPriceService] Error in ranking broadcast:', error.message);
                 }
             }
         }, intervalMs);
 
-        console.log(`✅ [EnhancedHybridPriceService] Started ranking broadcasts every ${intervalMs / 1000}s`);
+        console.log(`✅ [EnhancedHybridPriceService] Started ranking broadcasts every ${intervalMs / 1000}s (ALL tokens)`);
     }
 
     // ✅ NEW: Stop ranking broadcasts
