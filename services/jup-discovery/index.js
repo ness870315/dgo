@@ -449,31 +449,91 @@ async function migrateGraduatedTokens(graduatedTokens) {
       };
     }
     
-    // Transform bonding token to normal token format
-    const migratedTokens = graduatedTokens.map(token => ({
-      contractAddress: token.tokenAddress,
-      symbol: token.symbol,
-      name: token.name,
-      logo: token.logo,
-      decimals: token.decimals,
-      priceUsd: token.priceUsd,
-      priceNative: token.priceNative,
-      marketCap: token.fullyDilutedValuation,
-      volume24h: token.liquidity,
-      // Add graduation metadata
-      graduationDate: token.graduationDate,
-      migratedFrom: token.migratedFrom,
-      originalProgress: token.originalProgress,
-      // Add normal token fields
-      score: 9.0, // High score for graduated tokens
-      priceChange24h: 0,
-      twitter: null,
-      website: null,
-      telegram: null,
-      discord: null,
-      // Add timestamp
-      lastUpdated: new Date().toISOString()
-    }));
+    // ✅ NEW: Fetch Jupiter data for all graduated tokens BEFORE migrating
+    console.log(`🔄 [Migration] Fetching Jupiter data for ${graduatedTokens.length} graduated tokens...`);
+    const tokenAddresses = graduatedTokens.map(t => t.tokenAddress);
+    let migratedTokens = [];
+    
+    try {
+      const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenAddresses.join(',')}`, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const jupiterDataMap = new Map();
+      if (response.data && response.data.length > 0) {
+        response.data.forEach(jupiterToken => {
+          if (jupiterToken.id) {
+            jupiterDataMap.set(jupiterToken.id, jupiterToken);
+          }
+        });
+        console.log(`✅ [Migration] Fetched Jupiter data for ${jupiterDataMap.size} tokens`);
+      }
+      
+      // Transform bonding token to normal token format with Jupiter data
+      migratedTokens = graduatedTokens.map(token => {
+        const jupiterData = jupiterDataMap.get(token.tokenAddress);
+        
+        return {
+          contractAddress: token.tokenAddress,
+          symbol: token.symbol,
+          name: token.name,
+          logo: token.logo,
+          decimals: token.decimals,
+          priceUsd: token.priceUsd,
+          priceNative: token.priceNative,
+          marketCap: token.fullyDilutedValuation,
+          volume24h: token.liquidity,
+          // Add graduation metadata
+          graduationDate: token.graduationDate,
+          migratedFrom: token.migratedFrom,
+          originalProgress: token.originalProgress,
+          // Add normal token fields
+          score: 9.0, // High score for graduated tokens
+          priceChange24h: 0,
+          twitter: null,
+          website: null,
+          telegram: null,
+          discord: null,
+          // ✅ CRITICAL: Include Jupiter data if available
+          jupiterData: jupiterData || null,
+          jupiterTimestamp: new Date().toISOString(),
+          // Add timestamp
+          lastUpdated: new Date().toISOString()
+        };
+      });
+      
+      const tokensWithJupiter = migratedTokens.filter(t => t.jupiterData).length;
+      console.log(`✅ [Migration] ${tokensWithJupiter}/${graduatedTokens.length} tokens have Jupiter data attached`);
+      
+    } catch (jupiterError) {
+      console.error(`❌ [Migration] Failed to fetch Jupiter data: ${jupiterError.message}`);
+      // Fall back to migration without Jupiter data (will be fetched later by periodic updates)
+      migratedTokens = graduatedTokens.map(token => ({
+        contractAddress: token.tokenAddress,
+        symbol: token.symbol,
+        name: token.name,
+        logo: token.logo,
+        decimals: token.decimals,
+        priceUsd: token.priceUsd,
+        priceNative: token.priceNative,
+        marketCap: token.fullyDilutedValuation,
+        volume24h: token.liquidity,
+        graduationDate: token.graduationDate,
+        migratedFrom: token.migratedFrom,
+        originalProgress: token.originalProgress,
+        score: 9.0,
+        priceChange24h: 0,
+        twitter: null,
+        website: null,
+        telegram: null,
+        discord: null,
+        lastUpdated: new Date().toISOString()
+      }));
+    }
     
     // 🚨 CRITICAL FIX: Atomic write: Add migrated tokens to main cache
     const updatedTokenCache = {
