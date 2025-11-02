@@ -48,14 +48,14 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   // ✅ Fetch real-time rankings and merge with category-filtered tokens
   useEffect(() => {
-    console.log('🔍 [TokenRankedList] tokens prop:', tokens?.length, 'tokens', 'Trenches filter:', categoryFilters?.trenches);
+    console.log('🔍 [TokenRankedList] tokens prop:', tokens?.length, 'tokens');
     const fetchAndMergeRankings = async () => {
       try {
-        // Check if Trenches filter is active
-        const isTrenchesActive = categoryFilters?.trenches || false;
+        // Check if ALL tokens are bonding tokens
+        const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
         
-        if (isTrenchesActive) {
-          console.log('✅ [TokenRankedList] Using bonding tokens (Trenches filter), setting rankings');
+        if (allAreBonding) {
+          console.log('✅ [TokenRankedList] All tokens are bonding, using bonding UI');
           // For bonding tokens, just use the tokens prop directly
           setRankings(tokens);
           setLastUpdate(new Date());
@@ -95,18 +95,155 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     };
     
     fetchAndMergeRankings();
-  }, [tokens, categoryFilters]);
+  }, [tokens]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
   
-  // Check if we're displaying bonding tokens (only if Trenches filter is active)
-  const isBondingTokens = categoryFilters?.trenches || false;
-  console.log('🎨 [TokenRankedList] Render - displayTokens:', displayTokens?.length, 'isBonding:', isBondingTokens);
+  // Check if we have mixed results (both bonding and regular tokens)
+  const hasMixedResults = displayTokens && displayTokens.length > 0 && 
+    displayTokens.some(t => t.isBondingToken) && 
+    displayTokens.some(t => !t.isBondingToken);
+  
+  // Check if all tokens are bonding
+  const allAreBonding = displayTokens && displayTokens.length > 0 && displayTokens.every(t => t.isBondingToken);
+  
+  console.log('🎨 [TokenRankedList] Render - displayTokens:', displayTokens?.length, 'allBonding:', allAreBonding, 'mixed:', hasMixedResults);
 
-  // Simple bonding token UI with graduation bar
-  if (isBondingTokens) {
-    console.log('🎯 Rendering bonding tokens UI with', displayTokens.length, 'tokens');
-    console.log('🎯 First token sample:', JSON.stringify(displayTokens[0], null, 2));
+  // Mixed results UI - show bonding tokens with graduation bar, regular tokens with full columns
+  if (hasMixedResults) {
+    console.log('🎯 Rendering MIXED results with', displayTokens.length, 'tokens');
+    return (
+      <div className="w-full h-full overflow-y-auto bg-gray-900">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs md:text-xs" style={{ fontSize: '11px' }}>
+            <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
+              <tr className="border-b border-gray-700">
+                <th colSpan="12" className="px-2 py-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-sm">📊 Search Results</span>
+                    </div>
+                    {lastUpdate && (
+                      <span className="text-xs text-gray-400 normal-case">
+                        Updated: {lastUpdate.toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </th>
+              </tr>
+              <tr className="border-b border-gray-700">
+                <th className="px-2 py-2 text-left w-8">#</th>
+                <th className="px-2 py-2 text-left w-32">Token</th>
+                <th className="px-2 py-2 text-right w-20">Price</th>
+                <th className="px-2 py-2 text-right w-12">Txns</th>
+                <th className="px-2 py-2 text-right w-16">Volume</th>
+                <th className="px-2 py-2 text-right w-12">Makers</th>
+                <th className="px-2 py-2 text-right w-16">5M</th>
+                <th className="px-2 py-2 text-right w-16">1H</th>
+                <th className="px-2 py-2 text-right w-16">6H</th>
+                <th className="px-2 py-2 text-right w-16">24H</th>
+                <th className="px-2 py-2 text-right w-20">Liquidity</th>
+                <th className="px-2 py-2 text-right w-20">MCap</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayTokens.map((token, index) => {
+                const fuelInfo = getFuelInfo(token.symbol);
+                const isBonding = token.isBondingToken;
+                
+                return (
+                  <tr
+                    key={token?.contractAddress || token?.address || index}
+                    className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    onClick={() => onTokenSelect(token)}
+                  >
+                    <td className="px-2 py-2 font-medium text-gray-300">#{index + 1}</td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1.5">
+                        {token.jupiterData?.icon || token.logo ? (
+                          <img 
+                            src={token.jupiterData?.icon || token.logo} 
+                            alt={token.symbol} 
+                            className="w-5 h-5 rounded-full flex-shrink-0"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs text-gray-400">{token.symbol?.charAt(0) || '?'}</span>
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-white flex items-center gap-1 text-xs">
+                            <span className="truncate">{token.symbol}</span>
+                            {fuelInfo.isFueled && (
+                              <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                                <Flame className="w-2 h-2 text-orange-400" />
+                                <span className="text-orange-400 text-xs font-bold">
+                                  {fuelInfo.multiplier}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-white text-xs">
+                      {formatPrice(isBonding ? token.priceUsd : (token.price || token.jupiterData?.price))}
+                    </td>
+                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                      {isBonding ? '-' : (token.txns24h ? token.txns24h.toLocaleString() : '0')}
+                    </td>
+                    <td className="px-2 py-2 text-right font-medium text-white text-xs">
+                      {formatNumber(isBonding ? token.volume24h : (token.volume24h || 0))}
+                    </td>
+                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                      {isBonding ? '-' : (token.makers24h ? token.makers24h.toLocaleString() : '0')}
+                    </td>
+                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                      isBonding ? 'text-gray-500' : ((token.priceChange5m || 0) >= 0 ? 'text-green-400' : 'text-red-400')
+                    }`}>
+                      {isBonding ? '-' : formatPercentage(token.priceChange5m || 0)}
+                    </td>
+                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                      isBonding ? 'text-gray-500' : ((token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
+                    }`}>
+                      {isBonding ? '-' : formatPercentage(token.priceChange1h || 0)}
+                    </td>
+                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                      isBonding ? 'text-gray-500' : ((token.priceChange6h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
+                    }`}>
+                      {isBonding ? '-' : formatPercentage(token.priceChange6h || 0)}
+                    </td>
+                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                      isBonding ? 'text-gray-500' : ((token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
+                    }`}>
+                      {isBonding ? '-' : formatPercentage(token.priceChange24h || 0)}
+                    </td>
+                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                      {formatNumber(isBonding ? token.liquidity : (token.liquidity || token.jupiterData?.liquidity || 0))}
+                    </td>
+                    <td className="px-2 py-2 text-right font-medium text-white text-xs">
+                      {formatNumber(isBonding ? (token.marketCap || token.fullyDilutedValuation || 0) : (token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0))}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {displayTokens.length === 0 && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-gray-400">No tokens available</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Simple bonding token UI with graduation bar (all tokens are bonding)
+  if (allAreBonding) {
+    console.log('🎯 Rendering all bonding tokens UI with', displayTokens.length, 'tokens');
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
         <div className="overflow-x-auto">
@@ -187,7 +324,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     );
   }
 
-  // Regular token UI with full columns
+  // Regular token UI with full columns (no bonding tokens)
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
       {/* Table */}
