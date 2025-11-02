@@ -784,68 +784,73 @@ function AppContent() {
   const handleJupiterTokenSelect = useCallback(async (jupiterToken) => {
     console.log('🚀 Importing Jupiter token:', jupiterToken);
     
-    try {
-      // Use the public endpoint (no auth required)
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/add-from-search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
-          symbol: jupiterToken.symbol || 'UNKNOWN',
-          name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token'
-        })
-      });
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to add token');
-      }
-
-      console.log('✅ Token imported:', data.message);
-      
-      // Close modal and clear search to prevent re-triggering
-      setShowJupiterSearch(false);
-      setJupiterSearchResults([]);
-      setSearchTerm(''); // Clear search term so modal doesn't re-appear
-      
-      // Create a token object from Jupiter data to show immediately
-      const importedToken = {
+    // Close modal and clear search IMMEDIATELY (don't wait for API)
+    setShowJupiterSearch(false);
+    setJupiterSearchResults([]);
+    setSearchTerm(''); // Clear search term so modal doesn't re-appear
+    
+    // Create a token object from Jupiter data to show IMMEDIATELY
+    const importedToken = {
+      contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
+      symbol: jupiterToken.symbol || 'UNKNOWN',
+      name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token',
+      priceUsd: jupiterToken.usdPrice || jupiterToken.price || 0,
+      marketCap: jupiterToken.marketCap || jupiterToken.mcap || 0,
+      liquidity: jupiterToken.liquidity || 0,
+      jupiterData: {
+        price: jupiterToken.usdPrice || jupiterToken.price,
+        mcap: jupiterToken.marketCap || jupiterToken.mcap,
+        liquidity: jupiterToken.liquidity,
+        icon: jupiterToken.icon || jupiterToken.logoURI,
+        priceChange24h: jupiterToken.priceChange?.['24h'] || 0,
+        holderCount: jupiterToken.holderCount || 0,
+        stats24h: {
+          buyVolume: jupiterToken.stats24h?.buyVolume || 0,
+          sellVolume: jupiterToken.stats24h?.sellVolume || 0,
+          priceChange: jupiterToken.priceChange?.['24h'] || 0,
+          liquidityChange: 0,
+          holderChange: 0
+        }
+      },
+      logo: jupiterToken.icon || jupiterToken.logoURI,
+      // Mark as recently imported so we know it's still processing
+      isImporting: true,
+      stage: 'Processing'
+    };
+    
+    // IMMEDIATELY show the token view (don't wait for API response)
+    setSelectedToken(importedToken);
+    setShowPreTokenDetail(false);
+    
+    // Fire-and-forget: Add token in background (no waiting, no success message)
+    const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    fetch(`${apiBase}/api/tokens/add-from-search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
         symbol: jupiterToken.symbol || 'UNKNOWN',
-        name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token',
-        priceUsd: jupiterToken.usdPrice || jupiterToken.price || 0,
-        marketCap: jupiterToken.marketCap || jupiterToken.mcap || 0,
-        liquidity: jupiterToken.liquidity || 0,
-        jupiterData: {
-          price: jupiterToken.usdPrice || jupiterToken.price,
-          mcap: jupiterToken.marketCap || jupiterToken.mcap,
-          liquidity: jupiterToken.liquidity,
-          icon: jupiterToken.icon || jupiterToken.logoURI,
-          priceChange24h: jupiterToken.priceChange?.['24h'] || 0
-        },
-        logo: jupiterToken.icon || jupiterToken.logoURI,
-        // Mark as recently imported so we know it's still processing
-        isImporting: true,
-        stage: 'Processing'
-      };
-      
-      // Immediately show the token view with Jupiter data
-      setSelectedToken(importedToken);
-      setShowPreTokenDetail(false);
-      
-      // Refresh tokens in background (no success message - modal closes and token view opens immediately)
-      setTimeout(() => {
-        loadTokens();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('❌ Failed to import Jupiter token:', error);
-      setError(`Failed to import ${jupiterToken.symbol}: ${error.message}`);
-    }
+        name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token'
+      })
+    })
+    .then(async (response) => {
+      const data = await response.json();
+      if (data.success) {
+        console.log('✅ Token imported in background:', data.message);
+        // Refresh tokens silently after processing
+        setTimeout(() => {
+          loadTokens(false); // Silent refresh - no loading spinner, no success messages
+        }, 3000);
+      } else {
+        console.warn('⚠️ Token import failed:', data.error);
+      }
+    })
+    .catch((error) => {
+      console.error('❌ Failed to import Jupiter token (non-blocking):', error);
+      // Don't show error to user - token view is already open
+    });
   }, [loadTokens]);
 
   // Handle token selection
