@@ -47,6 +47,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   useEffect(() => {
     const fetchAndMergeRankings = async () => {
       try {
+        // Check if we have bonding tokens (Trenches filter)
+        const isBondingTokens = tokens && tokens.length > 0 && tokens.some(t => t.isBondingToken);
+        
+        if (isBondingTokens) {
+          // For bonding tokens, just use the tokens prop directly
+          setRankings(tokens);
+          setLastUpdate(new Date());
+          return;
+        }
+        
         const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
         const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
         const data = await response.json();
