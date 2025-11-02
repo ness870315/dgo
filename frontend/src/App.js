@@ -1103,8 +1103,7 @@ function AppContent() {
     // Re-apply filters with the NEW category filters
     if (newCategoryFilters.trenches) {
       // ✅ For bonding tokens, sort by graduation progress (descending)
-      console.log('🏗️ [Trenches] bond\
-ingTokens count:', bondingTokens?.length || 0);
+      console.log('🏗️ [Trenches] bondingTokens count:', bondingTokens?.length || 0);
       if (!bondingTokens || bondingTokens.length === 0) {
         console.warn('⚠️ [Trenches] No bonding tokens available!');
         setFilteredTokens([]);
