@@ -128,9 +128,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
               </tr>
               <tr className="border-b border-gray-700">
                 <th className="px-2 py-2 text-left w-8">#</th>
-                <th className="px-2 py-2 text-left">Token</th>
-                <th className="px-2 py-2 text-right">Price</th>
-                <th className="px-2 py-2 text-right">Market Cap</th>
+                <th className="px-2 py-2 text-left w-48">Token</th>
+                <th className="px-2 py-2 text-right w-24">Price</th>
+                <th className="px-2 py-2 text-right w-28">Market Cap</th>
                 <th className="px-2 py-2 text-left">Graduation</th>
               </tr>
             </thead>
