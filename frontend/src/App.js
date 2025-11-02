@@ -649,6 +649,7 @@ function AppContent() {
           graduationAlerts: token.graduationAlerts,
           // Add mock data for compatibility
           score: 8.5, // High score for bonding tokens
+          mentions: 100, // Mock mentions to pass filter checks
           marketCap: token.fullyDilutedValuation || 0,
           volume24h: token.liquidity || 0,
           priceChange24h: 0,
