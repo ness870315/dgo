@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Flame } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
+import websocketService from '../services/websocketService';
 
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFilters }) => {
   const [rankings, setRankings] = useState([]);
@@ -95,14 +96,51 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   useEffect(() => {
     fetchAndMergeRankings();
-    
-    // ✅ ADDED: Polling for live updates every 30 seconds
-    const interval = setInterval(() => {
-      fetchAndMergeRankings();
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
   }, [fetchAndMergeRankings]);
+
+  // ✅ REAL-TIME: Listen to WebSocket ranking updates (replaces polling)
+  useEffect(() => {
+    const handleRankingUpdate = ({ rankings: wsRankings, timestamp }) => {
+      console.log('📊 [TokenRankedList] WebSocket ranking update received, filtering...');
+      
+      // Check if ALL tokens are bonding tokens
+      const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
+      
+      if (allAreBonding) {
+        // For bonding tokens, don't update from WS (they use their own UI)
+        return;
+      }
+      
+      // ✅ Merge WebSocket ranking data with filtered tokens
+      if (wsRankings && wsRankings.length > 0) {
+        const filteredRankings = wsRankings.filter(rankedToken => {
+          // Check if ranked token is in our filtered tokens list
+          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+          return tokens.some(filteredToken => 
+            (filteredToken.contractAddress || filteredToken.tokenAddress) === address
+          );
+        });
+        
+        if (filteredRankings.length > 0) {
+          setRankings(filteredRankings);
+          setLastUpdate(new Date(timestamp));
+        }
+      }
+    };
+
+    // Connect WebSocket service if not already connected
+    if (!websocketService.isConnected) {
+      websocketService.connect();
+    }
+
+    // Subscribe to ranking updates
+    websocketService.on('rankingUpdate', handleRankingUpdate);
+
+    // Cleanup
+    return () => {
+      websocketService.removeListener('rankingUpdate', handleRankingUpdate);
+    };
+  }, [tokens]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;
   

@@ -18597,6 +18597,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       if (this.enhancedHybridPriceService) {
         console.log('🔄 Reinitializing EnhancedHybridPriceService with WebSocket server...');
         this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
+        
+        // ✅ Start ranking broadcasts for real-time updates
+        this.enhancedHybridPriceService.startRankingBroadcasts(30000); // 30 seconds
+        console.log('📊 Started WebSocket ranking broadcasts');
       }
       
     } catch (error) {

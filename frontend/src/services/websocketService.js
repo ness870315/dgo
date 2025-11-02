@@ -165,6 +165,14 @@ class WebSocketService extends EventEmitter {
         });
         break;
         
+      case 'rankingUpdate':
+        console.log('📊 [WebSocketService] Ranking update received with', message.rankings?.length, 'tokens');
+        this.emit('rankingUpdate', {
+          rankings: message.rankings,
+          timestamp: message.timestamp
+        });
+        break;
+        
       case 'subscriptionConfirmed':
         console.log('✅ [WebSocketService] Subscription confirmed for:', message.tokenAddress);
         this.emit('subscriptionConfirmed', message);
