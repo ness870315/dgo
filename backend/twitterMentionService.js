@@ -1731,6 +1731,30 @@ Reply (without @username):`;
         return this.generateBasicOpinion(symbol, tokenData);
       }
       
+      // 💾 Save to Opinion DB for future context
+      if (this.backend && this.backend.opinionDatabase) {
+        try {
+          // Extract market context from the data sources used
+          let marketContext = `Token ${symbol} analysis: `;
+          if (catalysts) marketContext += `Catalysts: ${catalysts.substring(0, 200)}...`;
+          else if (tavilyResults) marketContext += `Twitter: ${tavilyResults.substring(0, 200)}...`;
+          else if (perplexityInsights) marketContext += `Perplexity: ${perplexityInsights.substring(0, 200)}...`;
+          else marketContext += `System data: MCap $${(mcap/1000000).toFixed(2)}M`;
+          
+          await this.backend.opinionDatabase.storeOpinion({
+            type: 'mention_reply',
+            text: cleanOpinion,
+            marketContext: marketContext,
+            sentiment: 'neutral',
+            tweetId: null, // Will be set when posted
+            timestamp: new Date().toISOString()
+          });
+          console.log(`💾 [OPINION DB] Saved mention reply for ${symbol} to Opinion Database`);
+        } catch (error) {
+          console.error('❌ [OPINION DB] Failed to save mention reply:', error.message);
+        }
+      }
+      
       return cleanOpinion;
       
     } catch (error) {
