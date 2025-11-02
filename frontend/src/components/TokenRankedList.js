@@ -129,7 +129,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
               <tr className="border-b border-gray-700">
                 <th style={{ paddingLeft: '4px', paddingRight: '0px', width: '30px' }} className="py-1 text-left">#</th>
                 <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '120px' }} className="py-1 text-left">Token</th>
-                <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '70px' }} className="py-1 text-right">Price</th>
+                <th style={{ paddingLeft: '0px', paddingRight: '0px', width: '70px' }} className="py-1 text-right">Price</th>
                 <th style={{ paddingLeft: '2px', paddingRight: '0px', width: '80px' }} className="py-1 text-right">M Cap</th>
                 <th style={{ paddingLeft: '8px', width: 'auto' }} className="py-1 text-left">Grad</th>
               </tr>
@@ -155,7 +155,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         </div>
                       </td>
-                      <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1 text-right font-mono text-white">
+                      <td style={{ paddingLeft: '0px', paddingRight: '0px' }} className="py-1 text-right font-mono text-white">
                         <div style={{ fontSize: '11px' }}>{formatPrice(token?.priceUsd || 0)}</div>
                       </td>
                       <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1 text-right font-medium text-white">
