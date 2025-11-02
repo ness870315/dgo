@@ -677,10 +677,32 @@ Tweet 3:`;
 
       console.log(`✅ [CRYPTO NEWS] Real-time news: ${perplexityResponse.content.substring(0, 100)}...`);
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            perplexityResponse.content,
+            { type: 'news', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST NEWS TAKES (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [CRYPTO NEWS] Found ${relevantOpinions.length} relevant past news opinions`);
+          }
+        } catch (error) {
+          console.error('❌ [CRYPTO NEWS] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
 📰 REAL-TIME CRYPTO NEWS:
-${perplexityResponse.content}
+${perplexityResponse.content}${pastOpinionsContext}
 
 ${personality.tone}
 
@@ -690,6 +712,8 @@ Generate a DeGen Oracle-style news recap that:
 - Adds your unique perspective/analysis
 - Uses crypto slang naturally (not forced)
 - Highlights what this means for degens
+- Build on your past takes naturally when relevant for consistency
+- Show consistency or acknowledge if your view changed
 - NO hashtags
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
@@ -907,6 +931,28 @@ Tech insights tweet:`;
       if (!perplexityResponse || !perplexityResponse.content) {
         console.log('⚠️ [KOL CONTENT] No Perplexity response for news joke');
         return null;
+      }
+
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            perplexityResponse.content,
+            { type: 'newsjoke', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST JOKES (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [NEWS JOKE] Found ${relevantOpinions.length} relevant past jokes`);
+          }
+        } catch (error) {
+          console.error('❌ [NEWS JOKE] Error retrieving past opinions:', error.message);
+        }
       }
 
       // Clean up the joke - remove markdown, citations, hashtags
