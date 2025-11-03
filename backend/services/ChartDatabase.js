@@ -45,8 +45,25 @@ class ChartDatabase {
         
         // ✅ CRITICAL FIX: Ensure data directory exists synchronously
         this.initializeDataDirSync();
-        this.loadData();
+        
+        // ✅ SWAP RETENTION: Keep only 2 days of swap history (configurable)
+        this.SWAP_RETENTION_DAYS = parseFloat(process.env.SWAP_RETENTION_DAYS || '2');
+        this.SWAP_RETENTION_MS = this.SWAP_RETENTION_DAYS * 24 * 60 * 60 * 1000; // 2 days in milliseconds
+        
+        this.loadData().then(() => {
+            // Clean up old swaps on startup
+            this.cleanupAllOldSwaps().catch(err => {
+                console.error('❌ [ChartDatabase] Error cleaning old swaps on startup:', err.message);
+            });
+        });
         this.startBatchWriter();
+        
+        // ✅ PERIODIC CLEANUP: Run cleanup every 6 hours
+        setInterval(() => {
+            this.cleanupAllOldSwaps().catch(err => {
+                console.error('❌ [ChartDatabase] Error in periodic swap cleanup:', err.message);
+            });
+        }, 6 * 60 * 60 * 1000); // 6 hours
     }
     
     /**
@@ -231,22 +248,10 @@ class ChartDatabase {
                 tokenDb.swapCount++;
             }
             
-            // ✅ CRITICAL FIX: Limit swaps to prevent massive files (keep last 1000 swaps)
-            const MAX_SWAPS_PER_TOKEN = 1000;
-            if (tokenDb.swaps.size > MAX_SWAPS_PER_TOKEN) {
-                // Convert to array, sort by timestamp, keep newest 1000
-                const swapsArray = Array.from(tokenDb.swaps.entries());
-                swapsArray.sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
-                
-                // Clear map and add back only the newest swaps
-                tokenDb.swaps.clear();
-                for (let i = 0; i < MAX_SWAPS_PER_TOKEN; i++) {
-                    if (swapsArray[i]) {
-                        tokenDb.swaps.set(swapsArray[i][0], swapsArray[i][1]);
-                    }
-                }
-                
-                console.log(`🗑️ [ChartDatabase] Token ${tokenAddress.substring(0,8)}: Trimmed to ${MAX_SWAPS_PER_TOKEN} swaps (was ${swapsArray.length})`);
+            // ✅ TIME-BASED CLEANUP: Remove swaps older than retention period (default: 2 days)
+            const removedCount = this.cleanOldSwaps(tokenAddress, tokenDb);
+            if (removedCount > 0) {
+                console.log(`🗑️ [ChartDatabase] Token ${tokenAddress.substring(0,8)}: Removed ${removedCount} old swaps (older than ${this.SWAP_RETENTION_DAYS} days)`);
             }
             
             // Atomic write to per-token file
@@ -355,6 +360,125 @@ class ChartDatabase {
             }
             throw error;
         }
+    }
+
+    /**
+     * ✅ SWAP CLEANUP: Remove swaps older than retention period for a specific token
+     * @param {string} tokenAddress - Token address
+     * @param {Object} tokenDb - Token database object (optional, will fetch if not provided)
+     * @returns {number} Number of swaps removed
+     */
+    cleanOldSwaps(tokenAddress, tokenDb = null) {
+        if (!tokenDb) {
+            tokenDb = this.getTokenDatabase(tokenAddress);
+        }
+        
+        if (!tokenDb || !tokenDb.swaps || tokenDb.swaps.size === 0) {
+            return 0;
+        }
+        
+        const now = Date.now();
+        const cutoffTime = now - this.SWAP_RETENTION_MS;
+        let removedCount = 0;
+        
+        // Iterate through swaps and remove old ones
+        for (const [key, swap] of tokenDb.swaps.entries()) {
+            const swapTimestamp = swap.timestamp || swap.createdAt || 0;
+            
+            // Convert timestamp to milliseconds if it's in seconds
+            const swapTime = swapTimestamp < 1e12 ? swapTimestamp * 1000 : swapTimestamp;
+            
+            if (swapTime < cutoffTime) {
+                tokenDb.swaps.delete(key);
+                removedCount++;
+            }
+        }
+        
+        // Update swap count
+        if (removedCount > 0) {
+            tokenDb.swapCount = tokenDb.swaps.size;
+        }
+        
+        return removedCount;
+    }
+    
+    /**
+     * ✅ SWAP CLEANUP: Clean old swaps from all tokens
+     * @returns {Promise<Object>} Summary of cleanup results
+     */
+    async cleanupAllOldSwaps() {
+        await this.ensureLoaded();
+        
+        const results = {
+            tokensProcessed: 0,
+            totalSwapsRemoved: 0,
+            tokensWithCleanup: 0,
+            errors: []
+        };
+        
+        try {
+            // Iterate through all loaded token databases
+            for (const [tokenAddress, tokenDb] of this.tokenDatabases.entries()) {
+                try {
+                    results.tokensProcessed++;
+                    const removedCount = this.cleanOldSwaps(tokenAddress, tokenDb);
+                    
+                    if (removedCount > 0) {
+                        results.totalSwapsRemoved += removedCount;
+                        results.tokensWithCleanup++;
+                        
+                        // Save the cleaned database back to disk
+                        await this.atomicWriteToken(tokenAddress);
+                    }
+                } catch (error) {
+                    console.error(`❌ [ChartDatabase] Error cleaning swaps for token ${tokenAddress.substring(0,8)}:`, error.message);
+                    results.errors.push({ tokenAddress, error: error.message });
+                }
+            }
+            
+            // Also check for token files on disk that might not be loaded in memory
+            try {
+                const files = await fs.readdir(this.chartsDir);
+                const swapFiles = files.filter(f => f.startsWith('swaps_') && f.endsWith('.json'));
+                
+                for (const file of swapFiles) {
+                    const tokenAddress = file.replace('swaps_', '').replace('.json', '');
+                    
+                    // Skip if already processed
+                    if (this.tokenDatabases.has(tokenAddress)) {
+                        continue;
+                    }
+                    
+                    try {
+                        // Load the token database from disk
+                        await this.loadTokenDatabaseFromFile(tokenAddress);
+                        const tokenDb = this.getTokenDatabase(tokenAddress);
+                        const removedCount = this.cleanOldSwaps(tokenAddress, tokenDb);
+                        
+                        if (removedCount > 0) {
+                            results.totalSwapsRemoved += removedCount;
+                            results.tokensWithCleanup++;
+                            await this.atomicWriteToken(tokenAddress);
+                        }
+                    } catch (error) {
+                        // Skip files that can't be loaded (might be corrupted or in use)
+                        console.warn(`⚠️ [ChartDatabase] Skipping file ${file}: ${error.message}`);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ [ChartDatabase] Error reading charts directory:', error.message);
+            }
+            
+            if (results.totalSwapsRemoved > 0) {
+                console.log(`✅ [ChartDatabase] Cleanup complete: Removed ${results.totalSwapsRemoved} old swaps from ${results.tokensWithCleanup} tokens (processed ${results.tokensProcessed} tokens)`);
+            }
+            
+        } catch (error) {
+            console.error('❌ [ChartDatabase] Error in cleanupAllOldSwaps:', error.message);
+            results.errors.push({ global: error.message });
+        }
+        
+        return results;
     }
 
     /**
