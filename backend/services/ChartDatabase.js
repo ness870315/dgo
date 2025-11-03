@@ -249,12 +249,13 @@ class ChartDatabase {
             }
             
             // ✅ TIME-BASED CLEANUP: Remove swaps older than retention period (default: 2 days)
+            // IMPORTANT: Cleanup runs BEFORE write/backup to free space when disk is full
             const removedCount = this.cleanOldSwaps(tokenAddress, tokenDb);
             if (removedCount > 0) {
                 console.log(`🗑️ [ChartDatabase] Token ${tokenAddress.substring(0,8)}: Removed ${removedCount} old swaps (older than ${this.SWAP_RETENTION_DAYS} days)`);
             }
             
-            // Atomic write to per-token file
+            // Atomic write to per-token file (backup will be skipped gracefully if no space)
             await this.atomicWriteToken(tokenAddress);
             
             // Update shared stats
@@ -333,11 +334,15 @@ class ChartDatabase {
                 throw new Error(`Temp file was not created: ${tempFile}`);
             }
             
-            // Create backup of current file
+            // ✅ GRACEFUL BACKUP: Skip backup if disk is full (allow cleanup to proceed)
             try {
                 await fs.copyFile(tokenFile, backupFile);
             } catch (error) {
-                // Backup might not exist yet, that's ok
+                // If backup fails due to no space, log warning but continue (cleanup needs to proceed)
+                if (error.code === 'ENOSPC') {
+                    console.warn(`⚠️ [ChartDatabase] Skipping backup for ${tokenAddress.substring(0,8)}: No space left on device (cleanup will proceed)`);
+                }
+                // Backup might not exist yet or other errors - that's ok, continue anyway
             }
             
             // Atomic rename (this is the atomic operation)
@@ -501,11 +506,15 @@ class ChartDatabase {
             // Write to temporary file first
             await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
             
-            // Create backup of current file
+            // ✅ GRACEFUL BACKUP: Skip backup if disk is full (allow cleanup to proceed)
             try {
                 await fs.copyFile(this.dbFile, backupFile);
             } catch (error) {
-                // Backup might not exist yet, that's ok
+                // If backup fails due to no space, log warning but continue
+                if (error.code === 'ENOSPC') {
+                    console.warn(`⚠️ [ChartDatabase] Skipping backup for charts.json: No space left on device`);
+                }
+                // Backup might not exist yet or other errors - that's ok, continue anyway
             }
             
             // Atomic rename (this is the atomic operation)
