@@ -47,9 +47,10 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     return { isFueled: false, multiplier: null };
   };
 
-  // ✅ Fetch real-time rankings and merge with category-filtered tokens
-  const fetchAndMergeRankings = useCallback(async () => {
-    console.log('🔍 [TokenRankedList] Fetching rankings for:', tokens?.length, 'tokens');
+  // ✅ Fetch INITIAL rankings ONCE on mount (NO polling when tokens prop changes)
+  // Real-time updates come via WebSocket rankingUpdate events below
+  const fetchInitialRankings = useCallback(async () => {
+    console.log('🔍 [TokenRankedList] Fetching INITIAL rankings (one-time only):', tokens?.length, 'tokens');
     try {
       // Check if ALL tokens are bonding tokens
       const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
@@ -86,22 +87,26 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
         }
       }
     } catch (err) {
-      console.error('Error fetching rankings:', err);
+      console.error('Error fetching initial rankings:', err);
       // Fallback to tokens prop on error
       if (tokens && tokens.length > 0) {
         setRankings(tokens);
       }
     }
-  }, [tokens]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ✅ EMPTY DEPS - only run ONCE on mount, NOT when tokens prop changes
 
+  // ✅ INITIAL FETCH: Only fetch once on mount, not on every tokens change
+  // This prevents HTTP polling when tokens prop updates
   useEffect(() => {
-    fetchAndMergeRankings();
-  }, [fetchAndMergeRankings]);
+    fetchInitialRankings();
+  }, [fetchInitialRankings]);
 
-  // ✅ REAL-TIME: Listen to WebSocket ranking updates (replaces polling)
+  // ✅ REAL-TIME: Listen to WebSocket ranking updates (NO HTTP POLLING)
+  // This provides LIVE updates for volume, marketcap, makers, price changes without page refreshes
   useEffect(() => {
     const handleRankingUpdate = ({ rankings: wsRankings, timestamp }) => {
-      console.log('📊 [TokenRankedList] WebSocket ranking update received, filtering...');
+      console.log('📡 [TokenRankedList] WebSocket ranking update received (LIVE volume/marketcap/makers update), filtering...');
       
       // Check if ALL tokens are bonding tokens
       const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
