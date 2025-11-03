@@ -15198,11 +15198,49 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Get recent swaps for TX table
-    this.app.get('/api/charts/swaps/:token', async (req, res) => {
-      try {
-        const { token } = req.params;
-        const { limit = 50, since } = req.query;
+          // ✅ IMMEDIATE CLEANUP: Manually trigger swap cleanup to free space NOW
+      this.app.post('/api/charts/swaps/cleanup', async (req, res) => {
+        try {
+          console.log('🗑️ [CLEANUP-API] Manual cleanup triggered');
+          
+          if (!this.enhancedHybridPriceService || !this.enhancedHybridPriceService.chartDatabase) {
+            return res.status(500).json({
+              success: false,
+              error: 'ChartDatabase not available'
+            });
+          }
+          
+          // Run cleanup immediately
+          const results = await this.enhancedHybridPriceService.chartDatabase.cleanupAllOldSwaps();
+          
+          console.log(`✅ [CLEANUP-API] Cleanup completed: ${results.totalSwapsRemoved} swaps removed from ${results.tokensWithCleanup} tokens`);
+          
+          res.json({
+            success: true,
+            message: `Cleanup completed successfully`,
+            results: {
+              tokensProcessed: results.tokensProcessed,
+              totalSwapsRemoved: results.totalSwapsRemoved,
+              tokensWithCleanup: results.tokensWithCleanup,
+              errors: results.errors.length > 0 ? results.errors : undefined
+            },
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error('❌ [CLEANUP-API] Error:', error.message);
+          res.status(500).json({
+            success: false,
+            error: 'Failed to run cleanup',
+            message: error.message
+          });
+        }
+      });
+
+      // Get recent swaps for TX table
+      this.app.get('/api/charts/swaps/:token', async (req, res) => {
+        try {
+          const { token } = req.params;
+          const { limit = 50, since } = req.query;
         
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
