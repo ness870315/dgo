@@ -769,6 +769,11 @@ function AppContent() {
   // Handle search
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
+    // Clear selected token when searching to prevent overlay from showing
+    if (term && term.trim()) {
+      setSelectedToken(null);
+      setShowPreTokenDetail(false);
+    }
     // Search is now global - always use regular tokens as base, search will combine with bonding tokens
     applyFiltersAndSearch(tokens, filters, term);
   }, [tokens, filters, applyFiltersAndSearch]);

@@ -17,10 +17,22 @@ import { getTokenStatus } from '../utils/statusUtils';
 const TEST_TOKEN_ADDRESS = 'HqVZaYJnEcmKQKRf4K5N8eEuBjkTgpRzVfF7AYBFpump'; // ANON
 
 const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdated, onNavigateToPremium }) => {
-  const { isAuthenticated } = useAuth();
-  const [realTimeData, setRealTimeData] = useState(null);
+  // Early validation - check BEFORE any hooks to prevent black screen
+  if (!token) {
+    return null;
+  }
+  
   const tokenAddress = token?.contractAddress || token?.tokenAddress;
   const isTestToken = tokenAddress === TEST_TOKEN_ADDRESS;
+
+  // If not the test token, don't render enhanced view (return null BEFORE hooks)
+  // This prevents the black overlay from rendering for non-ANON tokens
+  if (!isTestToken || !tokenAddress) {
+    return null;
+  }
+
+  const { isAuthenticated } = useAuth();
+  const [realTimeData, setRealTimeData] = useState(null);
 
   // Hybrid price updates
   const { 
@@ -44,11 +56,6 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [showEnhancedCallModal, setShowEnhancedCallModal] = useState(false);
-
-  // If not the test token, don't render enhanced view
-  if (!isTestToken) {
-    return null;
-  }
 
   // Watchlist management
   useEffect(() => {
@@ -533,18 +540,18 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               {/* RIGHT COLUMN - Split vertically into 2 sections */}
               <div className="col-span-12 lg:col-span-4 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
-                                  {/* RIGHT-UP: Jupiter Integrated Plugin */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '35%', minHeight: '350px', flexShrink: 0 }}>
-                    <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
-                      <h3 className="text-white font-semibold">Swap Token</h3>
-                    </div>
-                    <div className="flex-1 overflow-hidden p-4" style={{ minHeight: '250px' }}>
-                      <JupiterSwapWidget token={token} />
-                    </div>
-                  </div>
+                                   {/* RIGHT-UP: Jupiter Integrated Plugin */}
+                   <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '25%', minHeight: '280px', flexShrink: 0 }}>
+                     <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
+                       <h3 className="text-white font-semibold text-sm">Swap Token</h3>
+                     </div>
+                     <div className="flex-1 overflow-hidden p-3" style={{ minHeight: '180px' }}>
+                       <JupiterSwapWidget token={token} />
+                     </div>
+                   </div>
 
-                                  {/* RIGHT-BOTTOM: Black Section (Placeholder) - MUST BE VISIBLE */}
-                  <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '65%', minHeight: '500px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - MUST BE VISIBLE */}
+                   <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '75%', minHeight: '550px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div className="text-center">
                     <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
                     <p className="text-gray-600 text-xs">Black Section Placeholder</p>
@@ -589,140 +596,201 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
   );
 };
 
-  // Jupiter Swap Widget Component - Using Official Plugin
-  const JupiterSwapWidget = ({ token }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const initRef = useRef(false); // Track if plugin has been initialized
+    // Jupiter Swap Widget Component - Using Official Plugin
+    const JupiterSwapWidget = ({ token }) => {
+      const [isLoaded, setIsLoaded] = useState(false);
+      const [isInitialized, setIsInitialized] = useState(false);
+      const initRef = useRef(false); // Track if plugin has been initialized
+      const checkIntervalRef = useRef(null); // Track the check interval
 
-    useEffect(() => {
-      // Check if script already exists
-      if (document.querySelector('script[src="https://plugin.jup.ag/plugin-v1.js"]')) {
-        if (window.Jupiter) {
-          setIsLoaded(true);
-        }
-        return;
-      }
-
-      // Load Jupiter Plugin script
-      const script = document.createElement('script');
-      script.src = 'https://plugin.jup.ag/plugin-v1.js';
-      script.async = true;
-      script.defer = true;
-      script.setAttribute('data-preload', '');
-      script.onload = () => {
-        // Wait a bit for Jupiter to be available
-        const checkJupiter = setInterval(() => {
+      useEffect(() => {
+        // Check if script already exists
+        if (document.querySelector('script[src="https://plugin.jup.ag/plugin-v1.js"]')) {
           if (window.Jupiter) {
             setIsLoaded(true);
-            clearInterval(checkJupiter);
           }
-        }, 100);
-        
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          clearInterval(checkJupiter);
-          if (!window.Jupiter) {
-            console.error('Jupiter plugin failed to load');
-          }
-        }, 5000);
-      };
-      script.onerror = () => {
-        console.error('Failed to load Jupiter plugin script');
-      };
-      document.head.appendChild(script);
-    }, []);
-
-    useEffect(() => {
-      if (!isLoaded || !window.Jupiter || !token?.contractAddress || initRef.current) return;
-
-      // Wait for DOM element to be available
-      const initJupiter = () => {
-        const targetElement = document.getElementById('jupiter-plugin');
-        if (!targetElement) {
-          console.warn('Jupiter plugin target element not found, retrying...');
-          setTimeout(initJupiter, 100);
           return;
         }
 
-        try {
-          // Only close if already initialized (to prevent closing on every re-render)
-          if (initRef.current && window.Jupiter.close) {
-            try {
-              window.Jupiter.close();
-            } catch (e) {
-              // Ignore close errors
+        // Load Jupiter Plugin script
+        const script = document.createElement('script');
+        script.src = 'https://plugin.jup.ag/plugin-v1.js';
+        script.async = true;
+        script.defer = true;
+        script.setAttribute('data-preload', '');
+        script.onload = () => {
+          // Wait a bit for Jupiter to be available
+          const checkJupiter = setInterval(() => {
+            if (window.Jupiter) {
+              setIsLoaded(true);
+              clearInterval(checkJupiter);
             }
+          }, 100);
+          
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            clearInterval(checkJupiter);
+            if (!window.Jupiter) {
+              console.error('Jupiter plugin failed to load');
+            }
+          }, 5000);
+        };
+        script.onerror = () => {
+          console.error('Failed to load Jupiter plugin script');
+        };
+        document.head.appendChild(script);
+      }, []);
+
+      // Initialize Jupiter plugin
+      useEffect(() => {
+        if (!isLoaded || !window.Jupiter || !token?.contractAddress) return;
+        
+        // If already initialized, just verify it's still there
+        if (initRef.current) {
+          const targetElement = document.getElementById('jupiter-plugin');
+          if (targetElement && targetElement.children.length > 0) {
+            // Plugin is already initialized and rendered
+            return;
+          }
+          // Plugin disappeared, reset and re-initialize
+          console.warn('Jupiter plugin disappeared, re-initializing...');
+          initRef.current = false;
+          setIsInitialized(false);
+        }
+
+        // Wait for DOM element to be available
+        const initJupiter = () => {
+          const targetElement = document.getElementById('jupiter-plugin');
+          if (!targetElement) {
+            console.warn('Jupiter plugin target element not found, retrying...');
+            setTimeout(initJupiter, 100);
+            return;
           }
 
-          // Initialize Jupiter Plugin with integrated mode
-          window.Jupiter.init({
-            displayMode: "integrated",
-            integratedTargetId: "jupiter-plugin",
-            formProps: {
-              initialInputMint: "So11111111111111111111111111111111111111112", // SOL
-              initialOutputMint: token.contractAddress,
-              swapMode: "ExactIn",
-            },
-            containerStyles: {
-              width: "100%",
-              height: "100%",
-            },
-            containerClassName: "jupiter-plugin-container"
-          });
-          
-          initRef.current = true;
-          setIsInitialized(true);
-          console.log('Jupiter plugin initialized successfully');
-        } catch (error) {
-          console.error("Error initializing Jupiter plugin:", error);
-        }
-      };
-
-      // Small delay to ensure DOM is ready
-      const timeoutId = setTimeout(initJupiter, 100);
-
-      // Only cleanup on actual unmount, not on re-renders
-      return () => {
-        clearTimeout(timeoutId);
-        // Don't close here - let it persist across re-renders
-        // Only cleanup will happen on actual component unmount
-      };
-    }, [isLoaded, token?.contractAddress]);
-
-    // Cleanup on actual unmount only
-    useEffect(() => {
-      return () => {
-        if (initRef.current && window.Jupiter && window.Jupiter.close) {
           try {
-            window.Jupiter.close();
+            // Initialize Jupiter Plugin with integrated mode
+            window.Jupiter.init({
+              displayMode: "integrated",
+              integratedTargetId: "jupiter-plugin",
+              formProps: {
+                initialInputMint: "So11111111111111111111111111111111111111112", // SOL
+                initialOutputMint: token.contractAddress,
+                swapMode: "ExactIn",
+              },
+              containerStyles: {
+                width: "100%",
+                height: "100%",
+              },
+              containerClassName: "jupiter-plugin-container"
+            });
+            
+            initRef.current = true;
+            setIsInitialized(true);
+            console.log('Jupiter plugin initialized successfully');
+          } catch (error) {
+            console.error("Error initializing Jupiter plugin:", error);
+            // Retry after a delay
+            setTimeout(() => {
+              if (!initRef.current) {
+                initJupiter();
+              }
+            }, 1000);
+          }
+        };
+
+        // Small delay to ensure DOM is ready
+        const timeoutId = setTimeout(initJupiter, 100);
+
+        return () => {
+          clearTimeout(timeoutId);
+        };
+      }, [isLoaded, token?.contractAddress]);
+
+      // Periodic check to ensure plugin is still rendered
+      useEffect(() => {
+        if (!isInitialized) return;
+
+        checkIntervalRef.current = setInterval(() => {
+          const targetElement = document.getElementById('jupiter-plugin');
+          if (targetElement && targetElement.children.length === 0 && initRef.current) {
+            // Plugin disappeared, re-initialize
+            console.warn('Jupiter plugin disappeared, re-initializing...');
             initRef.current = false;
             setIsInitialized(false);
-          } catch (e) {
-            // Ignore cleanup errors
+            // Trigger re-initialization by updating state
+            if (window.Jupiter && token?.contractAddress) {
+              setTimeout(() => {
+                try {
+                  window.Jupiter.init({
+                    displayMode: "integrated",
+                    integratedTargetId: "jupiter-plugin",
+                    formProps: {
+                      initialInputMint: "So11111111111111111111111111111111111111112",
+                      initialOutputMint: token.contractAddress,
+                      swapMode: "ExactIn",
+                    },
+                    containerStyles: {
+                      width: "100%",
+                      height: "100%",
+                    },
+                    containerClassName: "jupiter-plugin-container"
+                  });
+                  initRef.current = true;
+                  setIsInitialized(true);
+                } catch (error) {
+                  console.error("Error re-initializing Jupiter plugin:", error);
+                }
+              }, 100);
+            }
           }
-        }
-      };
-    }, []); // Empty deps - only runs on unmount
+        }, 2000); // Check every 2 seconds
 
-    return (
-      <div className="w-full" style={{ height: 'calc(100% - 40px)', minHeight: '250px' }}>
-        {!isLoaded && (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            Loading Jupiter swap widget...
-          </div>
-        )}
-        <div 
-          id="jupiter-plugin" 
-          className="w-full h-full" 
-          style={{ 
-            display: (isLoaded && isInitialized) ? 'block' : 'none',
-            minHeight: '250px'
-          }}
-        ></div>
-      </div>
-    );
-  };
+        return () => {
+          if (checkIntervalRef.current) {
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
+          }
+        };
+      }, [isInitialized, token?.contractAddress]);
+
+      // Cleanup on actual unmount only
+      useEffect(() => {
+        return () => {
+          if (checkIntervalRef.current) {
+            clearInterval(checkIntervalRef.current);
+          }
+          if (initRef.current && window.Jupiter && window.Jupiter.close) {
+            try {
+              window.Jupiter.close();
+              initRef.current = false;
+              setIsInitialized(false);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          }
+        };
+      }, []); // Empty deps - only runs on unmount
+
+      return (
+        <div className="w-full" style={{ height: 'calc(100% - 30px)', minHeight: '180px' }}>
+          {!isLoaded && (
+            <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+              Loading Jupiter swap widget...
+            </div>
+          )}
+          <div 
+            id="jupiter-plugin" 
+            className="w-full h-full" 
+            style={{ 
+              display: (isLoaded && isInitialized) ? 'block' : 'none',
+              minHeight: '180px',
+              transform: 'scale(0.9)',
+              transformOrigin: 'top left'
+            }}
+          ></div>
+        </div>
+      );
+    };
 
 // Social Links Component
 const SocialLinks = ({ token }) => {
