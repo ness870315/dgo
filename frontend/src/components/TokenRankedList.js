@@ -200,7 +200,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
+                          <span className="text-base text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -215,31 +215,31 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                        <div className="text-sm text-gray-400 truncate">{token.name}</div>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="font-bold text-white font-mono">{formatPrice(isBonding ? token.priceUsd : (token.price || token.jupiterData?.price))}</div>
                       <div className="flex items-center justify-end gap-2 mt-0.5">
-                        <span className={`text-xs font-semibold ${(token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className={`text-sm font-semibold ${(token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {isBonding ? '-' : formatPercentage(token.priceChange1h || 0)}
                         </span>
-                        <span className={`text-xs font-semibold ${(token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className={`text-sm font-semibold ${(token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {isBonding ? '-' : formatPercentage(token.priceChange24h || 0)}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-sm">
                       <span className="text-gray-400">VOL </span>
                       <span className="text-white font-semibold">{formatNumber(isBonding ? token.volume24h : (token.volume24h || 0))}</span>
                     </div>
-                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-sm">
                       <span className="text-gray-400">LIQ </span>
                       <span className="text-white font-semibold">{formatNumber(isBonding ? token.liquidity : (token.liquidity || token.jupiterData?.liquidity || 0))}</span>
                     </div>
-                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-sm">
                       <span className="text-gray-400">MCAP </span>
                       <span className="text-white font-semibold">{formatNumber(isBonding ? (token.marketCap || token.fullyDilutedValuation || 0) : (token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0))}</span>
                     </div>
@@ -252,16 +252,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
+            <table className="w-full text-sm">
+            <thead className="text-sm text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
                 <th colSpan="12" className="px-2 py-2 text-left">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-bold text-sm">📊 Search Results</span>
+                      <span className="text-white font-bold text-base">📊 Search Results</span>
                     </div>
                     {lastUpdate && (
-                      <span className="text-xs text-gray-400 normal-case">
+                      <span className="text-sm text-gray-400 normal-case">
                         Updated: {lastUpdate.toLocaleTimeString()}
                       </span>
                     )}
@@ -310,7 +310,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-white flex items-center gap-2 text-xs">
+                          <div className="font-bold text-white flex items-center gap-2 text-sm">
                             <span className="truncate">{token.symbol}</span>
                             {fuelInfo.isFueled && (
                               <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
@@ -321,46 +321,46 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                               </div>
                             )}
                           </div>
-                          <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                          <div className="text-sm text-gray-400 truncate">{token.name}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-2 py-2 text-right font-mono text-white text-xs">
+                    <td className="px-2 py-2 text-right font-mono text-white text-sm">
                       {formatPrice(isBonding ? token.priceUsd : (token.price || token.jupiterData?.price))}
                     </td>
-                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                    <td className="px-2 py-2 text-right text-gray-300 text-sm">
                       {isBonding ? '-' : (token.txns24h ? token.txns24h.toLocaleString() : '0')}
                     </td>
-                    <td className="px-2 py-2 text-right font-medium text-white text-xs">
+                    <td className="px-2 py-2 text-right font-medium text-white text-sm">
                       {formatNumber(isBonding ? token.volume24h : (token.volume24h || 0))}
                     </td>
-                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                    <td className="px-2 py-2 text-right text-gray-300 text-sm">
                       {isBonding ? '-' : (token.makers24h ? token.makers24h.toLocaleString() : '0')}
                     </td>
-                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                    <td className={`px-2 py-2 text-right font-medium text-sm ${
                       isBonding ? 'text-gray-500' : ((token.priceChange5m || 0) >= 0 ? 'text-green-400' : 'text-red-400')
                     }`}>
                       {isBonding ? '-' : formatPercentage(token.priceChange5m || 0)}
                     </td>
-                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                    <td className={`px-2 py-2 text-right font-medium text-sm ${
                       isBonding ? 'text-gray-500' : ((token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
                     }`}>
                       {isBonding ? '-' : formatPercentage(token.priceChange1h || 0)}
                     </td>
-                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                    <td className={`px-2 py-2 text-right font-medium text-sm ${
                       isBonding ? 'text-gray-500' : ((token.priceChange6h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
                     }`}>
                       {isBonding ? '-' : formatPercentage(token.priceChange6h || 0)}
                     </td>
-                    <td className={`px-2 py-2 text-right font-medium text-xs ${
+                    <td className={`px-2 py-2 text-right font-medium text-sm ${
                       isBonding ? 'text-gray-500' : ((token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400')
                     }`}>
                       {isBonding ? '-' : formatPercentage(token.priceChange24h || 0)}
                     </td>
-                    <td className="px-2 py-2 text-right text-gray-300 text-xs">
+                    <td className="px-2 py-2 text-right text-gray-300 text-sm">
                       {formatNumber(isBonding ? token.liquidity : (token.liquidity || token.jupiterData?.liquidity || 0))}
                     </td>
-                    <td className="px-2 py-2 text-right font-medium text-white text-xs">
+                    <td className="px-2 py-2 text-right font-medium text-white text-sm">
                       {formatNumber(isBonding ? (token.marketCap || token.fullyDilutedValuation || 0) : (token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0))}
                     </td>
                   </tr>
@@ -440,16 +440,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-xs" style={{ fontSize: '11px' }}>
+            <table className="w-full text-sm" style={{ fontSize: '14px' }}>
             <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
                 <th colSpan="5" className="px-2 py-2 text-left">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-bold text-sm">🏗️ Trenches</span>
+                      <span className="text-white font-bold text-base">🏗️ Trenches</span>
                     </div>
                     {lastUpdate && (
-                      <span className="text-xs text-gray-400 normal-case">
+                      <span className="text-sm text-gray-400 normal-case">
                         Updated: {lastUpdate.toLocaleTimeString()}
                       </span>
                     )}
@@ -480,16 +480,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                             <img src={token.logo} alt={token.symbol || 'Token'} className="w-6 h-6 rounded-full" style={{ marginRight: '4px' }} onError={(e) => e.target.style.display = 'none'} />
                           )}
                           <div>
-                            <div className="font-bold text-white" style={{ fontSize: '11px' }}>{token?.symbol || 'Unknown'}</div>
-                            <div className="text-gray-400 truncate" style={{ fontSize: '9px' }}>{token?.name || 'N/A'}</div>
+                            <div className="font-bold text-white" style={{ fontSize: '14px' }}>{token?.symbol || 'Unknown'}</div>
+                            <div className="text-gray-400 truncate" style={{ fontSize: '12px' }}>{token?.name || 'N/A'}</div>
                           </div>
                         </div>
                       </td>
                       <td style={{ paddingLeft: '0px', paddingRight: '0px' }} className="py-1 text-right font-mono text-white">
-                        <div style={{ fontSize: '11px' }}>{formatPrice(token?.priceUsd || 0)}</div>
+                         <div style={{ fontSize: '14px' }}>{formatPrice(token?.priceUsd || 0)}</div>
                       </td>
                       <td style={{ paddingLeft: '2px', paddingRight: '0px' }} className="py-1 text-right font-medium text-white">
-                        <div style={{ fontSize: '11px' }}>{formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}</div>
+                         <div style={{ fontSize: '14px' }}>{formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}</div>
                       </td>
                       <td style={{ paddingLeft: '8px' }} className="py-1">
                         <GraduationStatusBar 
@@ -568,14 +568,14 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
+                        <span className="text-base text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
                       </div>
                     )}
                     
                     {/* Token Name & Info */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="font-bold text-white text-sm truncate">{token.symbol}</span>
+                         <span className="font-bold text-white text-base truncate">{token.symbol}</span>
                         {fuelInfo.isFueled && (
                           <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-yellow-500/20 border border-yellow-500/50 rounded-full flex-shrink-0">
                             <Flame className="w-2.5 h-2.5 text-yellow-400" />
@@ -585,13 +585,13 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 truncate">{token.name || token.symbol}</div>
+                       <div className="text-sm text-gray-400 truncate">{token.name || token.symbol}</div>
                     </div>
                   </div>
                   
                   {/* Right Section - Price & Changes */}
                   <div className="flex flex-col items-end flex-shrink-0 min-w-[100px]">
-                    <div className="font-bold text-white font-mono text-base mb-1">
+                     <div className="font-bold text-white font-mono text-lg mb-1">
                       {formatPrice(price)}
                     </div>
                     <div className="flex items-center gap-2">
@@ -638,10 +638,10 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
               <th colSpan="12" className="px-2 py-2 text-left">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-bold text-sm">📊 Token Rankings</span>
+                    <span className="text-white font-bold text-base">📊 Token Rankings</span>
             </div>
                   {lastUpdate && (
-                    <span className="text-xs text-gray-400 normal-case">
+                    <span className="text-sm text-gray-400 normal-case">
                       Updated: {lastUpdate.toLocaleTimeString()}
                     </span>
                   )}
@@ -707,7 +707,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         )}
                       </div>
-                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                        <div className="text-sm text-gray-400 truncate">{token.name}</div>
                       </div>
                     </div>
                   </td>
