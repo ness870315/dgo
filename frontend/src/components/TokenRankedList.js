@@ -9,25 +9,29 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   // Format numbers
   const formatNumber = (num) => {
-    if (!num || num === 0) return '$0';
-    if (num >= 1000000000) return `$${(num / 1000000000).toFixed(2)}B`;
-    if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
-    if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`;
-    return `$${num.toFixed(2)}`;
+    // Convert to number if string, handle all edge cases
+    const numValue = typeof num === 'string' ? parseFloat(num) : Number(num);
+    if (!numValue || numValue === 0 || isNaN(numValue)) return '$0';
+    if (numValue >= 1000000000) return `$${(numValue / 1000000000).toFixed(2)}B`;
+    if (numValue >= 1000000) return `$${(numValue / 1000000).toFixed(2)}M`;
+    if (numValue >= 1000) return `$${(numValue / 1000).toFixed(2)}K`;
+    return `$${numValue.toFixed(2)}`;
   };
 
   const formatPrice = (price) => {
-    // Convert to number if string
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-    if (!numPrice || numPrice === 0) return '$0.00';
+    // Convert to number if string, handle all edge cases
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price);
+    if (!numPrice || numPrice === 0 || isNaN(numPrice)) return '$0.00';
     if (numPrice < 0.0001) return `$${numPrice.toExponential(2)}`;
     if (numPrice < 1) return `$${numPrice.toFixed(6)}`;
     return `$${numPrice.toFixed(2)}`;
   };
 
   const formatPercentage = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '0.00%';
-    return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+    // Convert to number if string, handle all edge cases
+    const numVal = typeof val === 'string' ? parseFloat(val) : Number(val);
+    if (val === null || val === undefined || isNaN(numVal)) return '0.00%';
+    return `${numVal >= 0 ? '+' : ''}${numVal.toFixed(2)}%`;
   };
 
   // Check if token is fueled
@@ -536,11 +540,11 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
           </div>
         </div>
         <div className="divide-y divide-gray-700">
-          {displayTokens.map((token, index) => {
-            const fuelInfo = getFuelInfo(token.symbol);
-            const price = token.price || token.jupiterData?.price || 0;
-            const priceChange1h = token.priceChange1h || 0;
-            const priceChange24h = token.priceChange24h || 0;
+            {displayTokens.map((token, index) => {
+              const fuelInfo = getFuelInfo(token.symbol);
+              const price = token.price || token.jupiterData?.price || 0;
+              const priceChange1h = Number(token.priceChange1h) || 0;
+              const priceChange24h = Number(token.priceChange24h) || 0;
             
             return (
               <div
@@ -595,16 +599,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       {formatPrice(price)}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[11px] font-medium ${
-                        priceChange1h >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        1H {priceChange1h >= 0 ? '+' : ''}{priceChange1h.toFixed(1)}%
-                      </span>
-                      <span className={`text-[11px] font-medium ${
-                        priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        24H {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
-                      </span>
+                        <span className={`text-[11px] font-medium ${
+                          priceChange1h >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                         1H {priceChange1h >= 0 ? '+' : ''}{formatPercentage(priceChange1h).replace('%', '')}
+                        </span>
+                        <span className={`text-[11px] font-medium ${
+                          priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                         24H {priceChange24h >= 0 ? '+' : ''}{formatPercentage(priceChange24h).replace('%', '')}
+                        </span>
                     </div>
                   </div>
                 </div>
