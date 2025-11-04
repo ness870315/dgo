@@ -949,7 +949,7 @@ class ChartDatabase {
                             if (shouldDelete) {
                                 await fs.rm(snapshotPath, { recursive: true, force: true });
                                 results.snapshotDirsDeleted++;
-                                console.log(`🗑️ [ChartDatabase] Deleted snapshot directory: ${snapshotDir} (${(stats.size || 0) / 1024 / 1024 / 1024).toFixed(2)}GB)`);
+                                console.log(`[ChartDatabase] Deleted snapshot directory: ${snapshotDir}`);
                             }
                         } catch (error) {
                             console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
