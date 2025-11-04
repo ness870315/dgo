@@ -592,7 +592,7 @@ class EnhancedBackupService {
             }
 
             await fs.rm(snapshot.path, { recursive: true, force: true });
-            console.log(`dY-`,? Deleted old snapshot: ${snapshot.snapshotId}`);
+            console.log(`Deleted old snapshot: ${snapshot.snapshotId}`);
             deletedCount++;
           }
         } catch (error) {
