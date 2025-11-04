@@ -15201,7 +15201,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // ✅ IMMEDIATE CLEANUP: Manually trigger swap cleanup to free space NOW
       this.app.post('/api/charts/swaps/cleanup', async (req, res) => {
         try {
-          console.log('🗑️ [CLEANUP-API] Manual cleanup triggered');
+          const { aggressive = false, cleanBackups = true, retentionDays } = req.body || {};
+          
+          console.log('🗑️ [CLEANUP-API] Manual cleanup triggered', { aggressive, cleanBackups, retentionDays });
           
           if (!this.enhancedHybridPriceService || !this.enhancedHybridPriceService.chartDatabase) {
             return res.status(500).json({
@@ -15210,10 +15212,16 @@ Thanks for using x402 payments on Twitter! 🚀`;
             });
           }
           
-          // Run cleanup immediately
-          const results = await this.enhancedHybridPriceService.chartDatabase.cleanupAllOldSwaps();
+          // Run cleanup with options
+          const options = {
+            retentionDays: retentionDays || (aggressive ? 1 : undefined), // 1 day for aggressive, default 2 days
+            cleanBackups: cleanBackups, // Always clean backups if requested
+            deleteAllSnapshots: aggressive // Delete ALL snapshots if aggressive mode
+          };
           
-          console.log(`✅ [CLEANUP-API] Cleanup completed: ${results.totalSwapsRemoved} swaps removed from ${results.tokensWithCleanup} tokens`);
+          const results = await this.enhancedHybridPriceService.chartDatabase.cleanupAllOldSwaps(options);
+          
+          console.log(`✅ [CLEANUP-API] Cleanup completed: ${results.totalSwapsRemoved} swaps removed, ${results.backupFilesDeleted} backup files deleted, ${results.snapshotDirsDeleted} snapshot dirs deleted`);
           
           res.json({
             success: true,
@@ -15222,6 +15230,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
               tokensProcessed: results.tokensProcessed,
               totalSwapsRemoved: results.totalSwapsRemoved,
               tokensWithCleanup: results.tokensWithCleanup,
+              backupFilesDeleted: results.backupFilesDeleted,
+              snapshotDirsDeleted: results.snapshotDirsDeleted,
               errors: results.errors.length > 0 ? results.errors : undefined
             },
             timestamp: new Date().toISOString()
