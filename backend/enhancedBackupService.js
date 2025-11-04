@@ -508,20 +508,44 @@ class EnhancedBackupService {
 
   /**
    * Clean up old snapshots beyond retention period
+   * ✅ FIXED: Now scans actual disk directory, not just metadata file
    */
   async cleanupOldSnapshots() {
     try {
-      console.log('🧹 Cleaning up old snapshots...');
+      console.log('dY1 Cleaning up old snapshots (scanning disk directory)...');
       
-      // Load metadata
-      let backupMetadata;
+      // ✅ CRITICAL FIX: Scan actual disk directory for snapshot directories
+      let snapshotDirs = [];
       try {
-        const data = await fs.readFile(this.backupMetadataPath, 'utf8');
-        backupMetadata = JSON.parse(data);
+        const items = await fs.readdir(this.localCacheDir, { withFileTypes: true });
+        for (const item of items) {
+          if (item.isDirectory() && item.name.startsWith('snapshot_')) {
+            // Extract timestamp from directory name (format: snapshot_<timestamp>)
+            const timestampMatch = item.name.match(/^snapshot_(\d+)$/);
+            if (timestampMatch) {
+              const timestamp = parseInt(timestampMatch[1], 10);
+              snapshotDirs.push({
+                snapshotId: item.name,
+                timestamp: timestamp,
+                path: path.join(this.localCacheDir, item.name)
+              });
+            }
+          }
+        }
       } catch (error) {
-        console.log('⚠️ No backup metadata found for cleanup');
+        console.error(`?O Failed to read backup directory: ${error.message}`);
         return;
       }
+
+      if (snapshotDirs.length === 0) {
+        console.log('dY"S No snapshot directories found');
+        return;
+      }
+
+      // Sort by timestamp (newest first)
+      snapshotDirs.sort((a, b) => b.timestamp - a.timestamp);
+
+      console.log(`dY"S Found ${snapshotDirs.length} snapshot directories on disk`);
 
       const now = Date.now();
       const retentionMs = this.retentionHours * 60 * 60 * 1000;
@@ -530,43 +554,146 @@ class EnhancedBackupService {
       const snapshotsToDelete = [];
       const snapshotsToKeep = [];
 
-      for (const snapshot of backupMetadata.snapshots) {
-        const snapshotTime = new Date(snapshot.timestamp).getTime();
-        const age = now - snapshotTime;
+      for (let i = 0; i < snapshotDirs.length; i++) {
+        const snapshot = snapshotDirs[i];
+        const age = now - snapshot.timestamp;
         
-        if (age > retentionMs || snapshotsToKeep.length >= this.maxSnapshots) {
-          snapshotsToDelete.push(snapshot);
-        } else {
+        // Keep if:
+        // 1. It's within retention period AND
+        // 2. We haven't reached maxSnapshots limit yet
+        const shouldKeep = age <= retentionMs && snapshotsToKeep.length < this.maxSnapshots;
+        
+        if (shouldKeep) {
           snapshotsToKeep.push(snapshot);
+        } else {
+          snapshotsToDelete.push(snapshot);
         }
       }
+
+      console.log(`dY"S Keeping ${snapshotsToKeep.length} newest snapshots (${this.maxSnapshots} max, ${this.retentionHours}h retention)`);
+      console.log(`dY"S Deleting ${snapshotsToDelete.length} old snapshots...`);
 
       // Delete old snapshot directories
+      let deletedCount = 0;
+      let deletedSize = 0;
       for (const snapshot of snapshotsToDelete) {
         try {
-          const snapshotDir = path.join(this.localCacheDir, snapshot.snapshotId);
-          if (fsSync.existsSync(snapshotDir)) {
-            await fs.rm(snapshotDir, { recursive: true, force: true });
-            console.log(`🗑️ Deleted old snapshot: ${snapshot.snapshotId}`);
+          if (fsSync.existsSync(snapshot.path)) {
+            // Calculate size before deletion (optional, for logging)
+            try {
+              const stats = await fs.stat(snapshot.path);
+              if (stats.isDirectory()) {
+                // Try to get directory size (this is approximate)
+                const size = await this.getDirectorySize(snapshot.path);
+                deletedSize += size;
+              }
+            } catch (_) {
+              // Ignore size calculation errors
+            }
+
+            await fs.rm(snapshot.path, { recursive: true, force: true });
+            console.log(`dY-`,? Deleted old snapshot: ${snapshot.snapshotId}`);
+            deletedCount++;
           }
         } catch (error) {
-          console.error(`❌ Failed to delete snapshot ${snapshot.snapshotId}: ${error.message}`);
+          console.error(`?O Failed to delete snapshot ${snapshot.snapshotId}: ${error.message}`);
         }
       }
 
-      // Update metadata with remaining snapshots
-      backupMetadata.snapshots = snapshotsToKeep;
-      backupMetadata.totalSnapshots = snapshotsToKeep.length;
+      // ✅ Update metadata file to match reality (only keep snapshots that actually exist)
+      let backupMetadata = {
+        snapshots: [],
+        lastBackup: null,
+        totalSnapshots: 0
+      };
+
+      // Try to load existing metadata to preserve snapshot details
+      try {
+        const data = await fs.readFile(this.backupMetadataPath, 'utf8');
+        const existingMetadata = JSON.parse(data);
+        
+        // Create a map of existing snapshot metadata by snapshotId
+        const metadataMap = new Map();
+        for (const snap of existingMetadata.snapshots || []) {
+          metadataMap.set(snap.snapshotId, snap);
+        }
+        
+        // Only include snapshots that still exist on disk
+        for (const snapshot of snapshotsToKeep) {
+          const existingMeta = metadataMap.get(snapshot.snapshotId);
+          if (existingMeta) {
+            backupMetadata.snapshots.push(existingMeta);
+          } else {
+            // Snapshot exists on disk but not in metadata - add basic entry
+            backupMetadata.snapshots.push({
+              snapshotId: snapshot.snapshotId,
+              timestamp: new Date(snapshot.timestamp).toISOString(),
+              duration: 0,
+              fileCount: 0,
+              totalSize: 0,
+              errorCount: 0
+            });
+          }
+        }
+        
+        // Sort by timestamp (newest first)
+        backupMetadata.snapshots.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        if (backupMetadata.snapshots.length > 0) {
+          backupMetadata.lastBackup = backupMetadata.snapshots[0].timestamp;
+        }
+      } catch (error) {
+        // If metadata doesn't exist or is corrupted, create new metadata from disk snapshots
+        for (const snapshot of snapshotsToKeep) {
+          backupMetadata.snapshots.push({
+            snapshotId: snapshot.snapshotId,
+            timestamp: new Date(snapshot.timestamp).toISOString(),
+            duration: 0,
+            fileCount: 0,
+            totalSize: 0,
+            errorCount: 0
+          });
+        }
+      }
+
+      backupMetadata.totalSnapshots = backupMetadata.snapshots.length;
+
+      // Save updated metadata
       await fs.writeFile(this.backupMetadataPath, JSON.stringify(backupMetadata, null, 2));
 
-      if (snapshotsToDelete.length > 0) {
-        console.log(`✅ Cleaned up ${snapshotsToDelete.length} old snapshots`);
-        console.log(`📊 Remaining snapshots: ${snapshotsToKeep.length}/${this.maxSnapshots}`);
+      if (deletedCount > 0) {
+        console.log(`o. Cleaned up ${deletedCount} old snapshots (freed approximately ${this.formatBytes(deletedSize)})`);
+        console.log(`dY"S Remaining snapshots: ${snapshotsToKeep.length}/${this.maxSnapshots}`);
+      } else {
+        console.log(`dY"S No snapshots to clean up (already at ${snapshotsToKeep.length}/${this.maxSnapshots})`);
       }
 
     } catch (error) {
-      console.error('❌ Cleanup failed:', error.message);
+      console.error('?O Cleanup failed:', error.message);
+      console.error(error.stack);
     }
+  }
+
+  /**
+   * Helper: Get approximate directory size recursively
+   */
+  async getDirectorySize(dirPath) {
+    let totalSize = 0;
+    try {
+      const items = await fs.readdir(dirPath, { withFileTypes: true });
+      for (const item of items) {
+        const itemPath = path.join(dirPath, item.name);
+        if (item.isDirectory()) {
+          totalSize += await this.getDirectorySize(itemPath);
+        } else if (item.isFile()) {
+          const stats = await fs.stat(itemPath);
+          totalSize += stats.size;
+        }
+      }
+    } catch (error) {
+      // Ignore errors in size calculation
+    }
+    return totalSize;
   }
 
   /**
