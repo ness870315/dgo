@@ -128,13 +128,49 @@ class TokenService {
   async fetchTokensWithRealData() {
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens`, {
-        credentials: 'include'
-      });
       
-      if (!response.ok) {
-        console.error('🚀 API Error:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // ✅ RETRY LOGIC: Retry up to 3 times for transient failures (503, network errors)
+      let response;
+      let lastError;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          response = await fetch(`${apiBase}/api/tokens`, {
+            credentials: 'include',
+            signal: AbortSignal.timeout(15000) // 15 second timeout
+          });
+          
+          // If 503 or other server errors, retry
+          if (response.status === 503 || response.status >= 500) {
+            if (attempt < maxRetries) {
+              console.warn(`⚠️ [TokenService] Server error ${response.status}, retrying (${attempt}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+              continue;
+            }
+          }
+          
+          // If not ok but not 503/5xx, break and handle normally
+          if (!response.ok && response.status < 500) {
+            break;
+          }
+          
+          // Success, break retry loop
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < maxRetries && (error.name === 'TypeError' || error.name === 'NetworkError')) {
+            console.warn(`⚠️ [TokenService] Network error, retrying (${attempt}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          throw error; // Re-throw if max retries reached or non-network error
+        }
+      }
+      
+      if (!response || !response.ok) {
+        console.error('🚀 API Error:', response?.status || 'Unknown', response?.statusText || 'Failed to fetch');
+        throw new Error(`HTTP ${response?.status || 'Unknown'}: ${response?.statusText || 'Failed to fetch'}`);
       }
       
       const data = await response.json();
