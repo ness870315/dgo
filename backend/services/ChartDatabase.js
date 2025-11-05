@@ -263,6 +263,9 @@ class ChartDatabase {
         const backupFile = `${tokenFile}.backup`;
         
         try {
+            // ✅ CRITICAL FIX: Ensure data directory exists before writing
+            await this.ensureDataDir();
+            
             // Convert token swaps to arrays for JSON serialization
             const dataToSave = {
                 swaps: Array.from(tokenDb.swaps.entries()),
@@ -285,12 +288,37 @@ class ChartDatabase {
                 // Backup might not exist yet or other errors - that's ok, continue anyway
             }
             
+            // ✅ CRITICAL FIX: Ensure directory still exists before rename (it might have been deleted)
+            await this.ensureDataDir();
+            
             // Atomic rename (this is the atomic operation)
             await fs.rename(tempFile, tokenFile);
             
             tokenDb.lastWriteTime = Date.now();
             
         } catch (error) {
+            // ✅ IMPROVED ERROR HANDLING: If directory doesn't exist, recreate it and retry once
+            if (error.code === 'ENOENT') {
+                console.warn(`⚠️ [ChartDatabase] Directory missing for ${tokenAddress.substring(0,8)}, recreating...`);
+                try {
+                    await this.ensureDataDir();
+                    // Retry the rename if temp file still exists
+                    try {
+                        const tempExists = await fs.access(tempFile).then(() => true).catch(() => false);
+                        if (tempExists) {
+                            await fs.rename(tempFile, tokenFile);
+                            tokenDb.lastWriteTime = Date.now();
+                            console.log(`✅ [ChartDatabase] Retry successful for ${tokenAddress.substring(0,8)}`);
+                            return; // Success, exit early
+                        }
+                    } catch (retryError) {
+                        console.error(`❌ [ChartDatabase] Retry failed for ${tokenAddress.substring(0,8)}:`, retryError.message);
+                    }
+                } catch (dirError) {
+                    console.error(`❌ [ChartDatabase] Failed to recreate directory for ${tokenAddress.substring(0,8)}:`, dirError.message);
+                }
+            }
+            
             // Clean up temp file if it exists
             try {
                 await fs.unlink(tempFile);
