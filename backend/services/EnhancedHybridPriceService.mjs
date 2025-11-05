@@ -14,7 +14,8 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 let GrpcWrapper = null;
 
-const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
+// Updated to new Constant K RPC endpoint with correct API key (Nov 2025)
+const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 // Updated to new Constant K gRPC endpoint (Nov 2025)
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com/';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
