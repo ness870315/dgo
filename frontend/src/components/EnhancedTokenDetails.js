@@ -513,7 +513,7 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 
                 {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT */}
                 <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '550px', flexShrink: 0 }}>
-                  <SVGChart token={token} onClose={onClose} />
+                  <SVGChart token={token} onClose={null} />
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT */}
@@ -538,20 +538,21 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections - SIGNIFICANTLY REDUCED */}
-              <div className="col-span-12 lg:col-span-2 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
+              <div className="col-span-12 lg:col-span-2 relative" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
-                                   {/* RIGHT-UP: Jupiter Integrated Plugin - REDUCED */}
-                   <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '30%', minHeight: '250px', flexShrink: 0 }}>
+                                   {/* RIGHT-UP: Jupiter Integrated Plugin - FITTED PERFECTLY */}
+                   <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: '30%', minHeight: '250px', zIndex: 1 }}>
                      <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
                        <h3 className="text-white font-semibold text-sm">Swap Token</h3>
                      </div>
-                     <div className="flex-1 overflow-hidden p-3" style={{ minHeight: '150px' }}>
+                     <div className="flex-1 overflow-hidden" style={{ minHeight: '200px', padding: '8px' }}>
                        <JupiterSwapWidget token={token} />
                      </div>
                    </div>
 
-                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - SIGNIFICANTLY REDUCED */}
-                   <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '70%', minHeight: '400px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - ALIGNED WITH SWAP TABLE */}
+                   {/* Positioned to align with swap table: starts at 50% + gap (16px) to match swap table position */}
+                   <div className="bg-black rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 16px)', minHeight: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
                   <div className="text-center">
                     <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
                     <p className="text-gray-600 text-xs">Black Section Placeholder</p>
@@ -772,7 +773,7 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
       }, []); // Empty deps - only runs on unmount
 
       return (
-        <div className="w-full" style={{ height: 'calc(100% - 30px)', minHeight: '180px' }}>
+        <div className="w-full h-full" style={{ minHeight: '200px' }}>
           {!isLoaded && (
             <div className="flex items-center justify-center h-full text-gray-400 text-xs">
               Loading Jupiter swap widget...
@@ -783,9 +784,9 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
             className="w-full h-full" 
             style={{ 
               display: (isLoaded && isInitialized) ? 'block' : 'none',
-              minHeight: '180px',
-              transform: 'scale(0.9)',
-              transformOrigin: 'top left'
+              minHeight: '200px',
+              width: '100%',
+              height: '100%'
             }}
           ></div>
         </div>
