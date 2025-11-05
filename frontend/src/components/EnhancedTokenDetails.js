@@ -508,16 +508,16 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 </div>
               </div>
 
-              {/* MIDDLE COLUMN - Split vertically - ENLARGED */}
-              <div className="col-span-12 lg:col-span-6 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
+              {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
+              <div className="col-span-12 lg:col-span-7 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
-                {/* CENTER-UP: Price Chart (Decoupled) - ENLARGED */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '500px', flexShrink: 0 }}>
+                {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT */}
+                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '550px', flexShrink: 0 }}>
                   <SVGChart token={token} onClose={onClose} />
                 </div>
 
-                {/* CENTER-DOWN: Swap Table (Decoupled) - ENLARGED */}
-                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: '50%', minHeight: '500px', flexShrink: 0 }}>
+                {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT */}
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: '50%', minHeight: '550px', flexShrink: 0 }}>
                   <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
@@ -537,21 +537,21 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 </div>
               </div>
 
-              {/* RIGHT COLUMN - Split vertically into 2 sections - REDUCED */}
-              <div className="col-span-12 lg:col-span-3 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
+              {/* RIGHT COLUMN - Split vertically into 2 sections - SIGNIFICANTLY REDUCED */}
+              <div className="col-span-12 lg:col-span-2 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
-                                   {/* RIGHT-UP: Jupiter Integrated Plugin - SLIGHTLY ENLARGED */}
-                   <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '35%', minHeight: '300px', flexShrink: 0 }}>
+                                   {/* RIGHT-UP: Jupiter Integrated Plugin - REDUCED */}
+                   <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: '30%', minHeight: '250px', flexShrink: 0 }}>
                      <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
                        <h3 className="text-white font-semibold text-sm">Swap Token</h3>
                      </div>
-                     <div className="flex-1 overflow-hidden p-3" style={{ minHeight: '200px' }}>
+                     <div className="flex-1 overflow-hidden p-3" style={{ minHeight: '150px' }}>
                        <JupiterSwapWidget token={token} />
                      </div>
                    </div>
 
-                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - REDUCED */}
-                   <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '65%', minHeight: '500px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - SIGNIFICANTLY REDUCED */}
+                   <div className="bg-black rounded-lg border-2 border-red-500" style={{ height: '70%', minHeight: '400px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div className="text-center">
                     <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
                     <p className="text-gray-600 text-xs">Black Section Placeholder</p>
