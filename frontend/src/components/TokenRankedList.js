@@ -183,24 +183,29 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             const address = rankedToken.contractAddress || rankedToken.tokenAddress;
             const existing = existingMap.get(address);
             
-            // Merge: Use WebSocket data but preserve priceChange24h from existing if WebSocket has 0
-            // Prefer WebSocket value if it exists and is not 0, otherwise use existing value
+            // Merge: Use WebSocket data but preserve priceChange24h from existing if WebSocket doesn't have it or has 0
+            // Strategy: If WebSocket has a non-zero value, use it. If WebSocket has 0 or undefined, check existing.
+            // Only use existing if it has a non-zero value (to avoid overriding valid WebSocket data with stale 0)
+            const getPriceChange = (wsValue, existingValue) => {
+              // If WebSocket has a defined value (including 0), use it UNLESS it's 0 and existing has a non-zero value
+              if (wsValue !== undefined && wsValue !== null) {
+                // If WebSocket value is 0 but existing has a non-zero value, prefer existing (might be more accurate)
+                if (wsValue === 0 && existingValue !== undefined && existingValue !== null && existingValue !== 0) {
+                  return existingValue;
+                }
+                return wsValue; // Use WebSocket value (even if 0, if existing also doesn't have better data)
+              }
+              // WebSocket doesn't have it, use existing or default to 0
+              return existingValue ?? wsValue ?? 0;
+            };
+            
             return {
               ...rankedToken,
-              // Preserve priceChange24h from existing data if WebSocket value is 0 (but not if it's a valid negative value)
-              priceChange24h: (rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== null)
-                ? (rankedToken.priceChange24h !== 0 ? rankedToken.priceChange24h : (existing?.priceChange24h ?? rankedToken.priceChange24h))
-                : (existing?.priceChange24h ?? rankedToken.priceChange24h ?? 0),
-              // Also preserve other price change fields if WebSocket has 0
-              priceChange1h: (rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== null)
-                ? (rankedToken.priceChange1h !== 0 ? rankedToken.priceChange1h : (existing?.priceChange1h ?? rankedToken.priceChange1h))
-                : (existing?.priceChange1h ?? rankedToken.priceChange1h ?? 0),
-              priceChange6h: (rankedToken.priceChange6h !== undefined && rankedToken.priceChange6h !== null)
-                ? (rankedToken.priceChange6h !== 0 ? rankedToken.priceChange6h : (existing?.priceChange6h ?? rankedToken.priceChange6h))
-                : (existing?.priceChange6h ?? rankedToken.priceChange6h ?? 0),
-              priceChange5m: (rankedToken.priceChange5m !== undefined && rankedToken.priceChange5m !== null)
-                ? (rankedToken.priceChange5m !== 0 ? rankedToken.priceChange5m : (existing?.priceChange5m ?? rankedToken.priceChange5m))
-                : (existing?.priceChange5m ?? rankedToken.priceChange5m ?? 0),
+              // Use smarter merge logic that checks if existing has better data
+              priceChange24h: getPriceChange(rankedToken.priceChange24h, existing?.priceChange24h),
+              priceChange1h: getPriceChange(rankedToken.priceChange1h, existing?.priceChange1h),
+              priceChange6h: getPriceChange(rankedToken.priceChange6h, existing?.priceChange6h),
+              priceChange5m: getPriceChange(rankedToken.priceChange5m, existing?.priceChange5m),
             };
           });
           
