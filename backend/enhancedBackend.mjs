@@ -13770,11 +13770,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // ✅ NEW: Get full token cache with Overall Score
+        // ✅ OPTION 3: Use getAllRankingsData() which includes smart monitoring + price-based market cap
+        if (priceService && typeof priceService.getAllRankingsData === 'function') {
+          const rankings = await priceService.getAllRankingsData();
+          
+          console.log(`📊 [RankingData] Returning ${rankings.length} tokens (${rankings.filter(t => t.isLive).length} with real-time data)`);
+          
+          res.json({
+            success: true,
+            data: rankings,
+            count: rankings.length,
+            timestamp: new Date().toISOString()
+          });
+          return;
+        }
+        
+        // Fallback: Manual processing (if getAllRankingsData not available)
         const allTokens = await this.getTokensFromCache();
         console.log(`📊 [RankingData] Loaded ${allTokens.length} tokens from cache`);
         
-        // ✅ NEW: Get real-time metrics for monitored tokens
+        // Get real-time metrics for monitored tokens
         const realTimeMetrics = new Map();
         if (priceService.poolAddresses) {
           for (const [tokenAddress] of priceService.poolAddresses.entries()) {
@@ -13786,7 +13801,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         console.log(`📊 [RankingData] Found ${realTimeMetrics.size} tokens with real-time data`);
         
-        // ✅ NEW: Merge cache tokens with real-time metrics
+        // Merge cache tokens with real-time metrics
         const rankings = allTokens.map(token => {
           const address = token.contractAddress || token.tokenAddress;
           const realTimeData = realTimeMetrics.get(address);
