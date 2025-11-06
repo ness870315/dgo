@@ -335,8 +335,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
           </div>
 
           {/* Main Content Grid - 3 columns as per wireframe */}
-          <div className="flex-1 overflow-y-auto p-4" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="grid grid-cols-12 gap-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
+          <div className="flex-1 overflow-y-auto p-2 sm:p-4" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+            <div className="grid grid-cols-12 gap-2 lg:gap-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
               
               {/* LEFT COLUMN - Token Detail (Full Height) - Real TokenDetails content */}
               <div className="col-span-12 lg:col-span-12 xl:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-4 lg:p-6" style={{ height: 'auto', minHeight: '400px', maxHeight: 'calc(100vh - 200px)' }}>
