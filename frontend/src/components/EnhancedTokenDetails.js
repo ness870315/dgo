@@ -519,8 +519,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 {/* Desktop/14-inch: Use flex layout for proper spacing */}
                 <div className="hidden lg:flex flex-col gap-4 h-full">
                   {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER - FIX X-AXIS */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: '300px', paddingBottom: '25px' }}>
+                  <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0, paddingBottom: '30px', overflow: 'visible' }}>
+                    <div className="flex-1" style={{ minHeight: '300px', paddingBottom: '0' }}>
                       <SVGChart token={token} onClose={null} />
                     </div>
                   </div>
@@ -592,8 +592,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                   {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - PERFECTLY ALIGNED WITH SWAP TABLE */}
                   {/* Matches swap table structure exactly for perfect alignment */}
                   <div className="bg-gray-800 rounded-lg border-2 border-red-500 flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
-                    {/* Exact header match to swap table header */}
-                    <div className="px-4 pt-2 pb-2 border-b border-red-500 flex-shrink-0" style={{ height: 'auto', minHeight: '42px' }}>
+                    {/* Exact header match to swap table header - NO RED BORDER */}
+                    <div className="px-4 pt-2 pb-2 border-b border-transparent flex-shrink-0" style={{ height: 'auto', minHeight: '42px' }}>
                       <div className="h-5"></div>
                     </div>
                     <div className="flex-1 overflow-hidden p-4" style={{ minHeight: '300px' }}>
