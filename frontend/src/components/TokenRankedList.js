@@ -308,7 +308,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   // Mixed results UI - show bonding tokens with graduation bar, regular tokens with full columns
   if (hasMixedResults) {
-    console.log('🎯 Rendering MIXED results with', displayTokens.length, 'tokens');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 Rendering MIXED results with', displayTokens.length, 'tokens');
+    }
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
         {/* Mobile Card View */}
@@ -528,7 +530,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
 
   // Simple bonding token UI with graduation bar (all tokens are bonding)
   if (allAreBonding) {
-    console.log('🎯 Rendering all bonding tokens UI with', displayTokens.length, 'tokens');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 Rendering all bonding tokens UI with', displayTokens.length, 'tokens');
+    }
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
         {/* Mobile Card View */}
