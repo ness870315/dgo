@@ -515,12 +515,12 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
-              <div className="col-span-12 lg:col-span-7 xl:col-span-7" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
+              <div className="col-span-12 lg:col-span-6 xl:col-span-7" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
                 {/* Desktop/14-inch: Fixed height layout - NO OVERLAP */}
                 <div className="hidden lg:flex flex-col h-full" style={{ gap: '12px' }}>
                   {/* CENTER-UP: Price Chart - FIXED HEIGHT WITH X-AXIS VISIBLE */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
-                    <div className="flex-1 overflow-hidden" style={{ paddingBottom: '35px', minHeight: '260px' }}>
+                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0, overflow: 'visible' }}>
+                    <div className="flex-1" style={{ minHeight: '260px', paddingBottom: '40px', overflow: 'visible' }}>
                       <SVGChart token={token} onClose={null} />
                     </div>
                   </div>
@@ -574,8 +574,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 </div>
               </div>
 
-              {/* RIGHT COLUMN - Split vertically into 2 sections - SIGNIFICANTLY REDUCED */}
-              <div className="col-span-12 lg:col-span-2" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
+              {/* RIGHT COLUMN - Split vertically into 2 sections - WIDER FOR 14-INCH */}
+              <div className="col-span-12 lg:col-span-3 xl:col-span-2" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
                 {/* Desktop/14-inch: Fixed height layout - PERFECT ALIGNMENT */}
                 <div className="hidden lg:flex flex-col h-full" style={{ gap: '12px' }}>
                   {/* RIGHT-UP: Jupiter Integrated Plugin - FIXED HEIGHT - NO SQUEEZING */}
