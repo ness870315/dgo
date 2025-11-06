@@ -114,13 +114,35 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
       const data = await response.json();
       
       if (data.success && data.data && data.data.length > 0) {
-        // ✅ Merge ranking data with filtered tokens
+        // ✅ Merge ranking data with filtered tokens, preserving priceChange24h from tokens prop if missing
+        const tokensMap = new Map();
+        tokens.forEach(t => {
+          const addr = t.contractAddress || t.tokenAddress;
+          if (addr) tokensMap.set(addr, t);
+        });
+        
         const filteredRankings = data.data.filter(rankedToken => {
           // Check if ranked token is in our filtered tokens list
           const address = rankedToken.contractAddress || rankedToken.tokenAddress;
           return tokens.some(filteredToken => 
             (filteredToken.contractAddress || filteredToken.tokenAddress) === address
           );
+        }).map(rankedToken => {
+          // Merge with tokens prop to preserve priceChange24h if rankings don't have it
+          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+          const tokenFromProp = tokensMap.get(address);
+          
+          return {
+            ...rankedToken,
+            // Preserve priceChange24h from tokens prop if rankings don't have it or it's 0
+            priceChange24h: (rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== null && rankedToken.priceChange24h !== 0)
+              ? rankedToken.priceChange24h
+              : (tokenFromProp?.priceChange24h ?? tokenFromProp?.jupiterData?.priceChange24h ?? rankedToken.priceChange24h ?? 0),
+            // Also preserve other price changes if missing
+            priceChange1h: (rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== null && rankedToken.priceChange1h !== 0)
+              ? rankedToken.priceChange1h
+              : (tokenFromProp?.priceChange1h ?? tokenFromProp?.jupiterData?.stats1h?.priceChange ?? rankedToken.priceChange1h ?? 0),
+          };
         });
         
         // Preserve the ranking order from the API (sorted by Overall Score)
