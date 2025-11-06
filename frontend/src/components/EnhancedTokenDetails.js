@@ -497,23 +497,23 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                     <h3 className="text-lg font-bold mb-3 text-white flex items-center">
                       🔍 Insights (Market Data)
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">💎 FDV:</span>
-                          <span className="text-white font-semibold text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
+                      <div className="space-y-2 lg:space-y-3">
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm">💎 FDV:</span>
+                          <span className="text-white font-semibold text-xs lg:text-sm">
                             ${formatNumber(token?.jupiterData?.fdv)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">📊 Volume (24h):</span>
-                          <span className="text-white font-semibold text-sm">
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm">📊 Volume (24h):</span>
+                          <span className="text-white font-semibold text-xs lg:text-sm">
                             ${formatNumber((token?.jupiterData?.stats24h?.buyVolume || 0) + (token?.jupiterData?.stats24h?.sellVolume || 0))}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">📈 Price Change (24h):</span>
-                          <span className={`font-semibold text-sm ${
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm">📈 Price Change (24h):</span>
+                          <span className={`font-semibold text-xs lg:text-sm ${
                             (token?.jupiterData?.stats24h?.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                           }`}>
                             {formatPercentage(token?.jupiterData?.stats24h?.priceChange)}
@@ -521,22 +521,22 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">🎯 Organic Score:</span>
-                          <span className="text-white font-semibold text-sm">
+                      <div className="space-y-2 lg:space-y-3">
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm whitespace-nowrap">🎯 Organic Score:</span>
+                          <span className="text-white font-semibold text-xs lg:text-sm">
                             {(token?.jupiterData?.organicScore || 0).toFixed(1)}/100
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">💰 Total Supply:</span>
-                          <span className="text-white font-semibold text-sm">
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm">💰 Total Supply:</span>
+                          <span className="text-white font-semibold text-xs lg:text-sm">
                             {formatNumber(token?.jupiterData?.totalSupply)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-gray-900 rounded border border-gray-700">
-                          <span className="text-gray-400 text-sm">🔄 Circulating Supply:</span>
-                          <span className="text-white font-semibold text-sm">
+                        <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                          <span className="text-gray-400 text-xs lg:text-sm whitespace-nowrap">🔄 Circulating Supply:</span>
+                          <span className="text-white font-semibold text-xs lg:text-sm">
                             {formatNumber(token?.jupiterData?.circSupply)}
                           </span>
                         </div>
@@ -761,11 +761,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                     </h3>
                     
                     {/* Top Row - Community Type and Official Profile Status */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-4">
                       {/* Community Type */}
-                      <div className="flex items-center justify-between p-3 bg-gray-900 rounded border border-gray-700">
-                        <span className="text-gray-400 text-sm">🌍 Community Type:</span>
-                        <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                      <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                        <span className="text-gray-400 text-xs lg:text-sm whitespace-nowrap">🌍 Community Type:</span>
+                        <span className={`px-2 py-1 rounded-full text-xs lg:text-sm font-medium ${
                           (token?.jupiterData?.audit?.devBalancePercentage || 0) === 0 ? 'bg-green-400/10 text-green-400' : 'bg-blue-400/10 text-blue-400'
                         }`}>
                           {(token?.jupiterData?.audit?.devBalancePercentage || 0) === 0 ? '🟢 CTO' : '🔵 Official'}
@@ -773,9 +773,9 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       </div>
 
                       {/* Official Profile Status */}
-                      <div className="flex items-center justify-between p-3 bg-gray-900 rounded border border-gray-700">
-                        <span className="text-gray-400 text-sm">🏷️ Official Profile:</span>
-                        <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                      <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gray-900 rounded border border-gray-700" style={{ minHeight: '48px', height: '48px' }}>
+                        <span className="text-gray-400 text-xs lg:text-sm whitespace-nowrap">🏷️ Official Profile:</span>
+                        <span className={`px-2 py-1 rounded-full text-xs lg:text-sm font-medium ${
                           (token?.socials?.twitter || token?.jupiterData?.twitter || token?.twitterHandle) ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'
                         }`}>
                           {(token?.socials?.twitter || token?.jupiterData?.twitter || token?.twitterHandle) ? '✅ Found' : '❌ Not Found'}
