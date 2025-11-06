@@ -903,6 +903,439 @@ Tech insights tweet:`;
   }
 
   /**
+   * Build a Perplexity query for momentum analysis
+   */
+  buildMomentumQuery(candidate) {
+    const comparables = candidate.comparables && candidate.comparables.length > 0
+      ? candidate.comparables.join(', ')
+      : 'competing protocols';
+
+    const aliases = candidate.aliases && candidate.aliases.length > 0
+      ? ` (${candidate.aliases.join(', ')})`
+      : '';
+
+    return `Provide a factual weekly performance briefing for ${candidate.name}${aliases}. 
+Focus on:
+- Transaction count growth (daily/weekly numbers with % change)
+- Fee or revenue trends (daily/weekly numbers with % change)
+- TVL or liquidity flows with absolute dollars and % change
+- Any token emissions, burns, or unlock schedules executed this week with amounts
+- New integrations, governance votes, or distribution expansions
+- Compare briefly against ${comparables}.
+Return bullet points with precise numbers, timeframes, and mention sources if possible.`;
+  }
+
+  /**
+   * Fisher–Yates shuffle helper
+   */
+  shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  /**
+   * Build candidate list for momentum analysis using live data + recent opinions
+   */
+  async buildMomentumCandidates() {
+    const candidates = [];
+    const trending = await this.getTrendingTokens(50);
+
+    const comparablesPool = trending
+      .map(token => token.name || token.symbol)
+      .filter(Boolean);
+
+    const normalizeAliases = (name, symbol) => {
+      const aliases = new Set();
+      if (name) {
+        aliases.add(name);
+        aliases.add(name.toLowerCase());
+      }
+      if (symbol) {
+        aliases.add(symbol.toUpperCase());
+        aliases.add(symbol.toLowerCase());
+        aliases.add(`${symbol.toUpperCase()} token`);
+      }
+      return Array.from(aliases).filter(Boolean);
+    };
+
+    trending.forEach((token, index) => {
+      if (!token) return;
+
+      const name = token.name || token.symbol;
+      if (!name) return;
+
+      const mcap = token.mcap || token.marketCap || 0;
+      const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
+      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) +
+        (token.jupiterData?.stats24h?.sellVolume || 0) ||
+        token.jupiterData?.volume24h ||
+        token.volume24h || 0;
+
+      const priceChange1h = token.priceChange1h ||
+        token.jupiterData?.stats1h?.priceChange || 0;
+      const priceChange24h = token.priceChange24h ||
+        token.jupiterData?.stats24h?.priceChange || 0;
+
+      const volumeToMcap = mcap > 0 ? (volume24h / mcap) * 100 : 0;
+
+      const score =
+        Math.max(priceChange1h, 0) * 3 +
+        Math.max(priceChange24h, 0) * 1.5 +
+        Math.min(volumeToMcap, 25) +
+        Math.min(liquidity / 1_000_000, 10) +
+        ((token.overallScore || 0) / 2) +
+        Math.max(0, ((token.jupiterData?.stats5m?.priceChange || 0))) * 4;
+
+      const aliases = normalizeAliases(name, token.symbol);
+      const comparables = comparablesPool
+        .filter(item => item && item !== name)
+        .slice(0, 3);
+
+      candidates.push({
+        name,
+        symbol: token.symbol,
+        aliases,
+        comparables,
+        score,
+        source: 'trending',
+        tokenData: token
+      });
+    });
+
+    if (this.opinionDatabase) {
+      try {
+        const recentMomentum = await this.opinionDatabase.getRecentMomentumEntities(168, 10);
+        recentMomentum.forEach(entry => {
+          const existing = candidates.find(candidate =>
+            candidate.name.toLowerCase() === entry.name.toLowerCase()
+          );
+          if (existing) {
+            existing.score = Math.max(existing.score, 60);
+            return;
+          }
+
+          const comparables = comparablesPool
+            .filter(item => item && item.toLowerCase() !== entry.name.toLowerCase())
+            .slice(0, 3);
+
+          candidates.push({
+            name: entry.name,
+            symbol: entry.symbol,
+            aliases: [
+              entry.name,
+              entry.name.toLowerCase(),
+              ...(entry.aliases || [])
+            ].filter(Boolean),
+            comparables: entry.comparables && entry.comparables.length > 0
+              ? entry.comparables
+              : comparables,
+            score: 55,
+            source: 'opinion-db',
+            metadata: entry.metadata || {}
+          });
+        });
+      } catch (error) {
+        console.error('❌ [MOMENTUM] Failed to load recent momentum entities:', error.message);
+      }
+    }
+
+    if (candidates.length === 0) {
+      console.warn('⚠️ [MOMENTUM] No momentum candidates available');
+      return [];
+    }
+
+    const deduped = [];
+    const seen = new Set();
+    candidates
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .forEach(candidate => {
+        const key = candidate.name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        deduped.push(candidate);
+      });
+
+    return deduped.slice(0, 12);
+  }
+
+  /**
+   * Extract structured momentum metrics from facts
+   */
+  extractMomentumMetrics(facts, candidate, competitorKeywordSet) {
+    const metrics = {
+      fees: [],
+      transactions: [],
+      volume: [],
+      tvl: [],
+      burns: [],
+      unlocks: [],
+      supply: [],
+      integrations: [],
+      governance: [],
+      comparisons: [],
+      raw: facts,
+      entity: candidate.name,
+      generatedAt: new Date().toISOString()
+    };
+
+    facts.forEach(fact => {
+      const lower = fact.toLowerCase();
+      if (/fee|revenue|income|earnings/.test(lower)) metrics.fees.push(fact);
+      if (/tx|transaction|swap count/.test(lower)) metrics.transactions.push(fact);
+      if (/volume|flow/.test(lower)) metrics.volume.push(fact);
+      if (/tvl|total value locked|liquidity/.test(lower)) metrics.tvl.push(fact);
+      if (/burn/.test(lower)) metrics.burns.push(fact);
+      if (/unlock|vesting|release/.test(lower)) metrics.unlocks.push(fact);
+      if (/circulating|supply|emission|fdv/.test(lower)) metrics.supply.push(fact);
+      if (/integration|partner|onboard|support/.test(lower)) metrics.integrations.push(fact);
+      if (/vote|governance|proposal|dao/.test(lower)) metrics.governance.push(fact);
+
+      const containsCompetitor = Array.from(competitorKeywordSet || []).some(keyword => {
+        return lower.includes(keyword) && !lower.includes(candidate.name.toLowerCase());
+      });
+      if (containsCompetitor) {
+        metrics.comparisons.push(fact);
+      }
+    });
+
+    return metrics;
+  }
+
+  /**
+   * Compose a momentum thread using OpenAI
+   */
+  async composeMomentumThread(candidate, facts, metrics, pastOpinions) {
+    try {
+      const factLines = facts.slice(0, 8).map((fact, index) => `${index + 1}. ${fact}`).join('\n');
+      const comparisonLines = metrics.comparisons && metrics.comparisons.length > 0
+        ? metrics.comparisons.join('\n')
+        : 'None provided';
+
+      const pastTakes = pastOpinions && pastOpinions.length > 0
+        ? pastOpinions.map(op => `- (${op.dateString}) ${op.text}`).join('\n')
+        : 'None';
+
+      const prompt = `You are Degen Oracle, a crypto-native analyst.
+
+Data for ${candidate.name}:
+${factLines}
+
+Comparative context:
+${comparisonLines}
+
+Your previous takes:
+${pastTakes}
+
+Rules:
+- Produce a 2 or 3 tweet thread separated by "---".
+- Tweet 1 must hook with numbers (fees, txs, burns, unlocks).
+- Tweet 2 should explain the strategic implication or compare against competitors.
+- Tweet 3 (optional) should cover distribution, upcoming catalysts, or trader takeaway.
+- Use figures above verbatim when possible, add brief interpretation.
+- Light crypto slang ok (degens, ser, LFG) but stay data-first.
+- Include $${candidate.symbol || candidate.name.toUpperCase()} in the first tweet if a ticker exists.
+- No hashtags. Max 280 characters per tweet.`;
+
+      const threadResponse = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 220,
+        temperature: 0.65,
+        model: 'gpt-4o-mini',
+        enableWebSearch: false
+      });
+
+      const raw = threadResponse
+        .split('---')
+        .map(line => line.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+      return raw;
+    } catch (error) {
+      console.error('❌ [MOMENTUM] Error composing thread:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Normalize thread tweets (length, ticker injection, cleanup)
+   */
+  normalizeMomentumThread(tweets, candidate) {
+    const normalized = tweets
+      .map(tweet => tweet.replace(/#\w+/g, '').replace(/^"|"$/g, '').trim())
+      .filter(Boolean)
+      .map(tweet => tweet.length > 280 ? tweet.substring(0, 277) + '…' : tweet);
+
+    if (normalized.length === 0) return [];
+
+    const symbol = candidate.symbol ? `$${candidate.symbol}` : candidate.name;
+    if (!normalized[0].toLowerCase().includes(candidate.name.toLowerCase()) &&
+        !normalized[0].includes(symbol)) {
+      const prefix = symbol + ' ';
+      normalized[0] = (prefix + normalized[0]).slice(0, 280);
+    }
+
+    return normalized.slice(0, 3);
+  }
+
+  /**
+   * Generate a dataset-driven momentum thread (fees, txs, burns, unlocks)
+   */
+  async generateMomentumThread() {
+    if (!this.perplexityService || !this.perplexityService.isInitialized) {
+      console.warn('⚠️ [MOMENTUM] Perplexity service not initialized');
+      return null;
+    }
+
+    const candidates = await this.buildMomentumCandidates();
+    if (!candidates || candidates.length === 0) {
+      console.warn('⚠️ [MOMENTUM] No viable dynamic candidates');
+      return null;
+    }
+
+    const competitorKeywordSet = new Set();
+    candidates.forEach(candidate => {
+      [candidate.name, candidate.symbol, ...(candidate.aliases || []), ...(candidate.comparables || [])]
+        .filter(Boolean)
+        .forEach(keyword => competitorKeywordSet.add(keyword.toLowerCase()));
+    });
+
+    for (const candidate of candidates) {
+      try {
+        // Skip if we recently posted about this entity
+        if (this.opinionDatabase) {
+          const recentTakes = await this.opinionDatabase.findMomentumOpinions({
+            entity: candidate.name,
+            hours: 48,
+            limit: 1
+          });
+          if (recentTakes.length > 0) {
+            console.log(`⏭️ [MOMENTUM] Skipping ${candidate.name} (recent take already exists)`);
+            continue;
+          }
+        }
+
+        const query = this.buildMomentumQuery(candidate);
+        console.log(`🔍 [MOMENTUM] Querying Perplexity for ${candidate.name}...`);
+        const response = await this.perplexityService.searchCrypto(query, {
+          searchRecencyFilter: 'week',
+          maxTokens: 900,
+          temperature: 0.3
+        });
+
+        if (!response || !response.content) {
+          console.warn(`⚠️ [MOMENTUM] No data for ${candidate.name}`);
+          continue;
+        }
+
+        let facts = this.perplexityService.extractKeyFacts(response);
+        if (!facts || facts.length === 0) {
+          facts = response.content
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 20);
+        }
+
+        facts = facts.filter((fact, index, arr) => fact && arr.indexOf(fact) === index);
+        if (facts.length < 2) {
+          console.warn(`⚠️ [MOMENTUM] Insufficient facts for ${candidate.name}`);
+          continue;
+        }
+
+        const metrics = this.extractMomentumMetrics(facts, candidate, competitorKeywordSet);
+        const sources = [
+          ...(response.citations?.map(cite => cite?.url).filter(Boolean) || []),
+          ...(response.searchResults?.map(result => result?.url).filter(Boolean) || [])
+        ].filter(Boolean);
+
+        const pastOpinions = this.opinionDatabase
+          ? await this.opinionDatabase.findMomentumOpinions({
+              entity: candidate.name,
+              hours: 168,
+              limit: 3
+            })
+          : [];
+
+        const thread = await this.composeMomentumThread(candidate, facts, metrics, pastOpinions);
+        if (!thread || thread.length === 0) {
+          console.warn(`⚠️ [MOMENTUM] Thread generation failed for ${candidate.name}`);
+          continue;
+        }
+
+        const normalizedThread = this.normalizeMomentumThread(thread, candidate);
+        if (!normalizedThread.length) {
+          console.warn(`⚠️ [MOMENTUM] Normalization produced empty thread for ${candidate.name}`);
+          continue;
+        }
+
+        const contextHash = this.opinionDatabase?.generateContextHash({
+          category: 'momentum',
+          entities: {
+            protocols: [candidate.name],
+            tokens: candidate.symbol ? [candidate.symbol] : []
+          },
+          metrics
+        });
+
+        if (contextHash && this.opinionDatabase?.hasContextHash(contextHash, 72)) {
+          console.log(`⏭️ [MOMENTUM] Context already exists for ${candidate.name}, skipping`);
+          continue;
+        }
+
+        if (this.opinionDatabase) {
+          const candidateMetadata = {
+            name: candidate.name,
+            symbol: candidate.symbol,
+            aliases: candidate.aliases || [],
+            comparables: candidate.comparables || [],
+            score: candidate.score || null,
+            source: candidate.source || null
+          };
+
+          await this.opinionDatabase.storeOpinion({
+            type: 'momentum_thread',
+            category: 'momentum',
+            text: normalizedThread.join('\n'),
+            marketContext: facts.join(' | ').substring(0, 800),
+            sentiment: 'neutral',
+            entities: {
+              protocols: [candidate.name],
+              tokens: candidate.symbol ? [candidate.symbol] : []
+            },
+            metrics,
+            sources,
+            format: 'momentum_thread',
+            thread: normalizedThread,
+            contextHash,
+            metadata: {
+              candidate: candidateMetadata,
+              facts,
+              generatedAt: new Date().toISOString()
+            }
+          });
+        }
+
+        console.log(`⚡ [MOMENTUM] Generated momentum thread for ${candidate.name}`);
+        return {
+          token: { symbol: candidate.symbol, name: candidate.name },
+          tweets: normalizedThread,
+          format: 'momentum',
+          metrics,
+          sources,
+          facts,
+          candidate
+        };
+      } catch (error) {
+        console.error(`❌ [MOMENTUM] Error processing ${candidate.name}:`, error.message);
+      }
+    }
+
+    console.warn('⚠️ [MOMENTUM] Unable to generate momentum thread (no viable candidates)');
+    return null;
+  }
+
+  /**
    * Generate crypto news joke using Perplexity
    */
   async generateNewsJoke() {
@@ -1232,14 +1665,15 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
 
       // Decide content format randomly (prioritize market sentiment takes)
       const contentFormats = [
-        'normal',       // 35% - Market sentiment tweet (no emojis, edgy, slang)
-        'meme',         // 20% - Meme/joke tweet
+        'momentum',     // 25% - Momentum/macro acceleration thread
+        'normal',       // 25% - Market sentiment tweet
         'news',         // 20% - Crypto news recap
         'single',       // 15% - Single tweet (token analysis)
-        'deep'          // 10% - Deep-dive thread (3 tweets)
+        'deep',         // 10% - Deep-dive thread (3 tweets)
+        'meme'          // 5%  - Meme/joke tweet
       ];
 
-      const weights = [35, 20, 20, 15, 10];
+      const weights = [25, 25, 20, 15, 10, 5];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -1256,15 +1690,14 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
 
       // Select token based on format
       let token;
+      const tokenRequiredFormats = ['single', 'deep', 'meme'];
       if (selectedFormat === 'deep') {
-        // Deep threads use top 10 with 48hr cooldown
         token = await this.selectTokenForDeepThread();
-      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke' && selectedFormat !== 'normal') {
-        // Other token-based formats use top 5
+      } else if (tokenRequiredFormats.includes(selectedFormat)) {
         token = await this.selectRandomTrendingToken();
       }
 
-      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke' && selectedFormat !== 'normal') {
+      if (!token && tokenRequiredFormats.includes(selectedFormat)) {
         console.log('⚠️ No tokens available for content');
         return null;
       }
@@ -1282,6 +1715,16 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
         content = newsContent.tweets;
         tokenInfo = newsContent.token;
         article = newsContent.article;
+      } else if (selectedFormat === 'momentum') {
+        const momentumContent = await this.generateMomentumThread();
+        if (!momentumContent) {
+          console.log('❌ Failed to generate momentum thread');
+          return null;
+        }
+        content = momentumContent.tweets;
+        tokenInfo = momentumContent.token;
+        perplexityData = { metrics: momentumContent.metrics, sources: momentumContent.sources };
+        article = { title: `${momentumContent.token?.name || 'Momentum'} Acceleration`, content: (momentumContent.facts || []).join(' | '), source: 'Perplexity', timestamp: new Date().toISOString() };
       } else if (selectedFormat === 'newsjoke') {
         // For news joke
         const jokeContent = await this.generateNewsJoke();
@@ -1694,14 +2137,15 @@ Market meme:`;
       if (contentType === 'random') {
         // Decide content format randomly (prioritize market sentiment takes)
         const contentFormats = [
-          'normal',       // 35% - Market sentiment tweet (no emojis, edgy, slang)
-          'meme',         // 20% - Meme/joke tweet
+          'momentum',     // 25% - Momentum/macro acceleration thread
+          'normal',       // 25% - Market sentiment tweet
           'news',         // 20% - Crypto news recap
           'single',       // 15% - Single tweet (token analysis)
-          'deep'          // 10% - Deep-dive thread (3 tweets)
+          'deep',         // 10% - Deep-dive thread (3 tweets)
+          'meme'          // 5%  - Meme/joke tweet
         ];
 
-        const weights = [35, 20, 20, 15, 10];
+        const weights = [25, 25, 20, 15, 10, 5];
         const random = Math.random() * 100;
         let cumulative = 0;
         selectedFormat = 'single';
@@ -1729,15 +2173,16 @@ Market meme:`;
 
       // Select token based on format
       let token;
+      const tokenRequiredFormats = ['single', 'deep', 'meme'];
       if (selectedFormat === 'deep') {
         // Deep threads use top 10 with 48hr cooldown
         token = await this.selectTokenForDeepThread();
-      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+      } else if (tokenRequiredFormats.includes(selectedFormat)) {
         // Other token-based formats use top 5
         token = await this.selectRandomTrendingToken();
       }
 
-      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+      if (!token && tokenRequiredFormats.includes(selectedFormat)) {
         console.log('⚠️ [KOL CONTENT] No tokens available for content');
         return null;
       }
@@ -1755,6 +2200,16 @@ Market meme:`;
         content = newsContent.tweets;
         tokenInfo = newsContent.token;
         article = newsContent.article;
+      } else if (selectedFormat === 'momentum') {
+        const momentumContent = await this.generateMomentumThread();
+        if (!momentumContent) {
+          console.log('❌ [KOL CONTENT] Failed to generate momentum content');
+          return null;
+        }
+        content = momentumContent.tweets;
+        tokenInfo = momentumContent.token;
+        article = { title: `${momentumContent.token?.name || 'Momentum'} Acceleration`, content: (momentumContent.facts || []).join(' | '), source: 'Perplexity', timestamp: new Date().toISOString() };
+        perplexityData = { metrics: momentumContent.metrics, sources: momentumContent.sources };
       } else if (selectedFormat === 'newsjoke') {
         // For news joke, use Perplexity directly
         const jokeContent = await this.generateNewsJoke();

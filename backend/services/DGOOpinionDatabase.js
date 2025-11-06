@@ -17,6 +17,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { createHash } from 'crypto';
 
 class DGOOpinionDatabase {
   constructor() {
@@ -29,6 +30,52 @@ class DGOOpinionDatabase {
     
     console.log('🧠 [DGO OPINIONS] Database initialized');
     console.log('   Data dir:', this.dataDir);
+  }
+
+  /**
+   * Get recent momentum entities from stored opinions
+   * @param {number} hours Lookback window in hours (default 168 = 7 days)
+   * @param {number} limit Maximum number of entities to return
+   */
+  async getRecentMomentumEntities(hours = 168, limit = 10) {
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const entityMap = new Map();
+
+    for (const opinion of this.opinions) {
+      if (opinion.category !== 'momentum') continue;
+
+      const opDate = new Date(opinion.postedAt || opinion.timestamp || Date.now());
+      if (isNaN(opDate.getTime()) || opDate < cutoff) continue;
+
+      const candidateMeta = opinion.metadata?.candidate || {};
+      const protocols = opinion.entities?.protocols || [];
+      const tokens = opinion.entities?.tokens || [];
+      const names = new Set();
+
+      if (candidateMeta.name) names.add(candidateMeta.name);
+      protocols.forEach(name => name && names.add(name));
+      tokens.forEach(symbol => symbol && names.add(symbol));
+
+      names.forEach(name => {
+        const lowerName = name.toLowerCase();
+        const existing = entityMap.get(lowerName);
+        if (!existing || opDate > existing.date) {
+          entityMap.set(lowerName, {
+            name,
+            symbol: candidateMeta.symbol || tokens[0] || null,
+            aliases: candidateMeta.aliases || [],
+            comparables: candidateMeta.comparables || [],
+            latestOpinion: opinion,
+            metadata: candidateMeta,
+            date: opDate
+          });
+        }
+      });
+    }
+
+    return Array.from(entityMap.values())
+      .sort((a, b) => b.date - a.date)
+      .slice(0, limit);
   }
 
   /**
@@ -94,6 +141,23 @@ class DGOOpinionDatabase {
     try {
       // Extract intelligence features
       const intelligenceFeatures = await this.extractIntelligenceFeatures(opinion.text);
+      const mergedEntities = this.mergeEntities(intelligenceFeatures.entities, opinion.entities);
+      const category = opinion.category || intelligenceFeatures.category || 'general';
+      const confidence = opinion.confidence ?? intelligenceFeatures.confidence ?? 0.5;
+      const metrics = opinion.metrics || {};
+      const sources = opinion.sources || [];
+      const format = opinion.format || opinion.type || 'normal';
+      const thread = opinion.thread || null;
+      const postedAt = opinion.postedAt || null;
+      const tweetUrl = opinion.tweetUrl || null;
+      const contextHash = opinion.contextHash || this.generateContextHash({
+        category,
+        entities: mergedEntities,
+        metrics,
+        text: opinion.text
+      });
+      const metadata = opinion.metadata || {};
+      const engagement = opinion.engagement || null;
       
       const opinionRecord = {
         id: `opinion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -112,10 +176,10 @@ class DGOOpinionDatabase {
         
         // 🧠 NEW: Intelligence features
         topics: intelligenceFeatures.topics || [],
-        entities: intelligenceFeatures.entities || {},
-        confidence: intelligenceFeatures.confidence || 0.5,
+        entities: mergedEntities,
+        confidence,
         timeframe: intelligenceFeatures.timeframe || 'unknown',
-        category: intelligenceFeatures.category || 'general',
+        category,
         predictions: intelligenceFeatures.predictions || [],
         patterns: intelligenceFeatures.patterns || [],
         relatedTokens: intelligenceFeatures.relatedTokens || [],
@@ -123,8 +187,27 @@ class DGOOpinionDatabase {
 
         // 📷 Image metadata (if applicable)
         images: opinion.images || [],
-        hasImages: (opinion.images && opinion.images.length > 0) || false
+        hasImages: (opinion.images && opinion.images.length > 0) || false,
+
+        // Momentum / narrative metadata
+        format,
+        metrics,
+        sources,
+        thread,
+        postedAt,
+        tweetUrl,
+        contextHash,
+        metadata,
+        engagement
       };
+
+      // Allow explicit category overrides to set sentiment/timeframe from opinion payload
+      if (opinion.timeframe) {
+        opinionRecord.timeframe = opinion.timeframe;
+      }
+      if (opinion.manualSentiment) {
+        opinionRecord.manualSentiment = opinion.manualSentiment;
+      }
 
       this.opinions.push(opinionRecord);
       await this.saveOpinions();
@@ -416,6 +499,62 @@ class DGOOpinionDatabase {
   }
 
   /**
+   * Merge intelligence-extracted entities with explicit entities from caller
+   * @param {Object} baseEntities 
+   * @param {Object} extraEntities 
+   * @returns {Object}
+   */
+  mergeEntities(baseEntities = {}, extraEntities = {}) {
+    const merged = {};
+    const keys = new Set([
+      ...Object.keys(baseEntities || {}),
+      ...Object.keys(extraEntities || {})
+    ]);
+
+    for (const key of keys) {
+      const baseVals = baseEntities?.[key] || [];
+      const extraVals = extraEntities?.[key] || [];
+      const combined = [...baseVals, ...extraVals]
+        .filter(Boolean)
+        .map(value => typeof value === 'string' ? value : JSON.stringify(value));
+      const unique = Array.from(new Set(combined));
+      merged[key] = unique.map(value => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      });
+    }
+
+    return merged;
+  }
+
+  /**
+   * Generate a deterministic context hash for an opinion payload
+   * @param {Object} contextData 
+   * @returns {string}
+   */
+  generateContextHash(contextData = {}) {
+    try {
+      const payload = {
+        category: contextData.category || 'general',
+        entities: contextData.entities || {},
+        metrics: contextData.metrics || {},
+        text: contextData.text ? contextData.text.substring(0, 180) : ''
+      };
+      const hash = createHash('sha256')
+        .update(JSON.stringify(payload))
+        .digest('hex')
+        .substring(0, 24);
+      return hash;
+    } catch (error) {
+      console.error('❌ [DGO OPINIONS] Context hash generation error:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Get all opinions
    */
   async getAllOpinions() {
@@ -519,6 +658,52 @@ class DGOOpinionDatabase {
       console.error('❌ [DGO OPINIONS] Intelligent search error:', error.message);
       return [];
     }
+  }
+
+  /**
+   * Find recent momentum opinions for a specific entity
+   * @param {Object} options 
+   * @param {string} options.entity - Protocol or token name
+   * @param {number} [options.hours=72] - Lookback window
+   * @param {number} [options.limit=5] - Max records
+   */
+  async findMomentumOpinions({ entity, hours = 72, limit = 5 }) {
+    if (!entity) return [];
+    const lowerEntity = entity.toLowerCase();
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const results = this.opinions.filter(opinion => {
+      if (opinion.category !== 'momentum') return false;
+      const opinionDate = new Date(opinion.postedAt || opinion.timestamp || Date.now());
+      if (opinionDate < cutoff) return false;
+
+      const inProtocols = opinion.entities?.protocols?.some(proto => proto.toLowerCase() === lowerEntity);
+      const inTokens = opinion.entities?.tokens?.some(token => token.toLowerCase() === lowerEntity);
+      const inText = opinion.text.toLowerCase().includes(lowerEntity);
+
+      return inProtocols || inTokens || inText;
+    }).sort((a, b) => new Date(b.postedAt || b.timestamp) - new Date(a.postedAt || a.timestamp));
+
+    return results.slice(0, limit);
+  }
+
+  /**
+   * Check if an opinion with a given context hash already exists within a timeframe
+   * @param {string} contextHash 
+   * @param {number} hours 
+   * @returns {boolean}
+   */
+  hasContextHash(contextHash, hours = 0) {
+    if (!contextHash) return false;
+
+    const cutoff = hours > 0 ? new Date(Date.now() - hours * 60 * 60 * 1000) : null;
+
+    return this.opinions.some(opinion => {
+      if (opinion.contextHash !== contextHash) return false;
+      if (!cutoff) return true;
+      const timestamp = new Date(opinion.postedAt || opinion.timestamp || Date.now());
+      return timestamp >= cutoff;
+    });
   }
 
   /**
