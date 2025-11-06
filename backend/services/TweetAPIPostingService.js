@@ -244,13 +244,20 @@ class TweetAPIPostingService {
       console.error('💥 [TWEETAPI V2] Exception posting tweet:', error.message);
       
       if (error.response) {
-        console.error('📡 [TWEETAPI V2] Response status:', error.response.status);
+        const status = error.response.status;
+        console.error('📡 [TWEETAPI V2] Response status:', status);
         console.error('📄 [TWEETAPI V2] Response data:', error.response.data);
+        
+        // Retry on 403 errors if we haven't exhausted retries
+        if (status === 403 && retryCount < maxRetries) {
+          console.warn(`⚠️ [TWEETAPI V2] Got 403 in catch block, retrying... (${retryCount + 1}/${maxRetries})`);
+          return await this.postTweet(text, retryCount + 1);
+        }
         
         return {
           success: false,
-          error: error.response.data?.message || `HTTP ${error.response.status}`,
-          status: error.response.status,
+          error: error.response.data?.message || `HTTP ${status}`,
+          status: status,
           raw: error.response.data
         };
       }
