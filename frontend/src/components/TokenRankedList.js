@@ -564,6 +564,32 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     );
   }
 
+  // Format price in Dexscreener style (e.g., "$0.0₃ 1607")
+  const formatPriceDexscreener = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price);
+    if (!numPrice || numPrice === 0 || isNaN(numPrice)) return '$0.00';
+    
+    if (numPrice < 0.0001) {
+      // For very small prices, show in scientific notation or with subscript
+      const str = numPrice.toExponential(2);
+      const match = str.match(/^(\d\.\d+)e([+-]\d+)$/);
+      if (match) {
+        const [, base, exp] = match;
+        const expNum = parseInt(exp);
+        if (expNum < 0) {
+          const zeros = Math.abs(expNum) - 1;
+          const significant = base.replace('.', '');
+          return `$0.0${String.fromCharCode(8320 + zeros)} ${significant}`;
+        }
+      }
+      return `$${numPrice.toExponential(2)}`;
+    }
+    if (numPrice < 1) {
+      return `$${numPrice.toFixed(6)}`;
+    }
+    return `$${numPrice.toFixed(2)}`;
+  };
+
   // Regular token UI with full columns (no bonding tokens)
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
@@ -587,20 +613,26 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
               const price = token.price || token.jupiterData?.price || 0;
               const priceChange1h = Number(token.priceChange1h) || 0;
               const priceChange24h = Number(token.priceChange24h) || 0;
+              const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
+              const volume = token.volume24h || 0;
+              const marketCap = token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0;
+              
+              // Determine if token should show SWAP tag (based on volume or liquidity)
+              const showSwapTag = volume > 10000 || liquidity > 50000;
             
             return (
               <div
                 key={token.address || token.contractAddress || index}
-                className="px-3 py-3 hover:bg-gray-800/30 cursor-pointer transition-colors border-b border-gray-800/50"
+                className="px-3 py-3 hover:bg-gray-800/30 cursor-pointer transition-colors"
                 onClick={() => onTokenSelect(token)}
               >
                 <div className="flex items-start justify-between gap-3">
-                  {/* Left Section - Token Info */}
-                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                    {/* Network Icon (Solana) */}
-                    <div className="flex flex-col items-center gap-1 mt-0.5 flex-shrink-0">
-                      <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                  {/* Left Section - Token Info (Dexscreener Style) */}
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    {/* Network Icon (Solana) - Small, leftmost */}
+                    <div className="mt-0.5 flex-shrink-0">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
                       </div>
                     </div>
                     
@@ -609,65 +641,78 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       <img 
                         src={token.jupiterData?.icon || token.logo} 
                         alt={token.symbol} 
-                        className="w-10 h-10 rounded-lg flex-shrink-0"
+                        className="w-8 h-8 rounded flex-shrink-0"
                         onError={(e) => e.target.style.display = 'none'}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-base text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
+                      <div className="w-8 h-8 rounded bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
                       </div>
                     )}
                     
                     {/* Token Name & Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                         <span className="font-bold text-white text-base truncate">{token.symbol}</span>
+                      <div className="flex items-center gap-1 flex-wrap mb-0.5">
+                        <span className="font-bold text-white text-base truncate">{token.symbol}</span>
+                        {/* Lightning bolt badges (like Dexscreener) */}
                         {fuelInfo.isFueled && (
-                          <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-yellow-500/20 border border-yellow-500/50 rounded-full flex-shrink-0">
-                            <Flame className="w-2.5 h-2.5 text-yellow-400" />
-                            <span className="text-yellow-400 text-[10px] font-bold">
-                              {fuelInfo.multiplier}
-                            </span>
-                          </div>
+                          <span className="text-yellow-400 text-sm">⚡{fuelInfo.multiplier.replace('x', '')}</span>
+                        )}
+                        {/* Show volume-based badge if high volume */}
+                        {volume > 1000000 && (
+                          <span className="text-yellow-400 text-sm">⚡{Math.floor(volume / 100000)}</span>
+                        )}
+                        {/* Time badge (based on recent activity) */}
+                        {token.priceChange24h > 50 && (
+                          <span className="text-yellow-400 text-xs">🌱{Math.min(24, Math.floor(Math.abs(token.priceChange24h / 2)))}h</span>
                         )}
                       </div>
-                       <div className="text-sm text-gray-400 truncate">{token.name || token.symbol}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {showSwapTag && (
+                          <span className="px-1.5 py-0.5 bg-green-500/30 text-green-400 text-[10px] font-semibold rounded">
+                            SWAP
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400 truncate">{token.name || token.symbol}</span>
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Right Section - Price & Changes */}
-                  <div className="flex flex-col items-end flex-shrink-0 min-w-[100px]">
-                     <div className="font-bold text-white font-mono text-lg mb-1">
-                      {formatPrice(price)}
+                  {/* Right Section - Price & Changes (Dexscreener Style) */}
+                  <div className="flex flex-col items-end flex-shrink-0 min-w-[90px]">
+                    {/* Price - Large, top */}
+                    <div className="font-bold text-white font-mono text-base mb-1 leading-tight">
+                      {formatPriceDexscreener(price)}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className={`text-[11px] font-medium ${
-                          priceChange1h >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                         1H {priceChange1h >= 0 ? '+' : ''}{formatPercentage(priceChange1h).replace('%', '')}
-                        </span>
-                        <span className={`text-[11px] font-medium ${
-                          priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                         24H {priceChange24h >= 0 ? '+' : ''}{formatPercentage(priceChange24h).replace('%', '')}
-                        </span>
+                    {/* Percentage Changes - Top row */}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-semibold ${
+                        priceChange1h >= 0 ? 'text-green-400' : priceChange1h < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        1H {priceChange1h >= 0 ? '+' : ''}{formatPercentage(priceChange1h).replace('%', '')}
+                      </span>
+                      <span className={`text-[10px] font-semibold ${
+                        priceChange24h >= 0 ? 'text-green-400' : priceChange24h < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        24H {priceChange24h >= 0 ? '+' : ''}{formatPercentage(priceChange24h).replace('%', '')}
+                      </span>
                     </div>
                   </div>
                 </div>
                 
-                {/* Metrics Pills */}
-                <div className="flex items-center justify-end gap-2 mt-3">
-                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
+                {/* Metrics Pills - Bottom Row (Dexscreener Style) */}
+                <div className="flex items-center justify-end gap-2 mt-2.5">
+                  <div className="px-2 py-1 bg-gray-700/60 rounded-full text-[10px]">
                     <span className="text-gray-400">LIQ </span>
-                    <span className="text-white font-semibold">{formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}</span>
+                    <span className="text-white font-semibold">{formatNumber(liquidity)}</span>
                   </div>
-                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
+                  <div className="px-2 py-1 bg-gray-700/60 rounded-full text-[10px]">
                     <span className="text-gray-400">VOL </span>
-                    <span className="text-white font-semibold">{formatNumber(token.volume24h || 0)}</span>
+                    <span className="text-white font-semibold">{formatNumber(volume)}</span>
                   </div>
-                  <div className="px-2 py-1 bg-gray-800/80 border border-gray-700 rounded-full text-[10px]">
+                  <div className="px-2 py-1 bg-gray-700/60 rounded-full text-[10px]">
                     <span className="text-gray-400">MCAP </span>
-                    <span className="text-white font-semibold">{formatNumber(token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0)}</span>
+                    <span className="text-white font-semibold">{formatNumber(marketCap)}</span>
                   </div>
                 </div>
               </div>
