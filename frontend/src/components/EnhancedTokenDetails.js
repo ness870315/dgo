@@ -339,8 +339,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
             <div className="grid grid-cols-12 gap-2 lg:gap-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
               
               {/* LEFT COLUMN - Token Detail (Full Height) - Real TokenDetails content */}
-              <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-4 lg:p-5" style={{ height: 'calc(100vh - 200px)', minHeight: '400px', maxHeight: 'calc(100vh - 200px)' }}>
-                <div className="space-y-6">
+              {/* Left Column - Performance Overview + New Sections - SCROLLABLE for 14-inch */}
+              <div className="col-span-12 lg:col-span-3 bg-gray-800 rounded-lg lg:p-5" style={{ height: 'calc(100vh - 200px)', minHeight: '400px', maxHeight: 'calc(100vh - 200px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {/* Scrollable content container for 14-inch screens */}
+                <div className="overflow-y-auto flex-1 p-4 lg:p-0" style={{ maxHeight: '100%' }}>
+                  <div className="space-y-6">
                   {/* Performance Overview */}
                   <div>
                     <h3 className="text-lg font-bold mb-4 text-white">⭐ Performance Overview</h3>
