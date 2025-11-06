@@ -551,14 +551,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                      </div>
                    </div>
 
-                                   {/* RIGHT-BOTTOM: Black Section (Placeholder) - ALIGNED WITH SWAP TABLE */}
+                                   {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
                    {/* Aligned with swap table: starts right after Jupiter widget (35% + 8px gap) */}
-                   <div className="bg-black rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(35% + 8px)', minHeight: '542px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
-                  <div className="text-center">
-                    <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
-                    <p className="text-gray-600 text-xs">Black Section Placeholder</p>
-                  </div>
-                </div>
+                   <div className="bg-gray-800 rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0 overflow-hidden" style={{ top: 'calc(35% + 8px)', minHeight: '542px', zIndex: 0 }}>
+                     <BubblemapsIframe token={token} />
+                   </div>
               </div>
             </div>
           </div>
@@ -862,7 +859,7 @@ const SocialLinks = ({ token }) => {
 
 // Bubblemaps Iframe Component
 const BubblemapsIframe = ({ token }) => {
-  const tokenAddress = token?.contractAddress || token?.tokenAddress;
+  const tokenAddress = token?.contractAddress || token?.tokenAddress || token?.mint || token?.address;
   
   if (!tokenAddress) {
     return (
@@ -872,15 +869,17 @@ const BubblemapsIframe = ({ token }) => {
     );
   }
 
-  const bubblemapsUrl = `https://app.bubblemaps.io/iframe?chain=solana&token=${tokenAddress}`;
+  // Use the new iframe.bubblemaps.io URL format with partnerId
+  const bubblemapsUrl = `https://iframe.bubblemaps.io/map?address=${tokenAddress}&chain=solana&partnerId=dgo`;
 
   return (
     <div className="w-full h-full min-h-[300px]">
       <iframe
         src={bubblemapsUrl}
-        className="w-full h-full border-0 rounded-lg"
+        className="w-full h-full border-0"
         title="Bubblemaps Holder Distribution"
         allow="clipboard-read; clipboard-write"
+        style={{ minHeight: '542px' }}
       />
     </div>
   );
