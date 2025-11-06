@@ -590,7 +590,7 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
 
                   {/* RIGHT-BOTTOM: Bubblemaps - FIXED HEIGHT - PERFECTLY ALIGNED WITH SWAP TABLE */}
                   {/* Starts at same position as swap table (50% + gap) */}
-                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
+                  <div className="bg-gray-800 rounded-lg border-2 border-gray-700 flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
                     {/* Header spacer matching swap table header exactly */}
                     <div className="px-4 pt-2 pb-2 border-b border-transparent flex-shrink-0" style={{ height: '42px' }}>
                       <div className="h-5"></div>
