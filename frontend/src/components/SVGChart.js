@@ -16,7 +16,8 @@ const WINDOW_BY_TF = {
 
 // Normalize OHLC data with proper bucketing and deduplication
 function normalizeOHLC(rows, tf) {
-  const step = TF_SEC[tf] ?? 60;
+  // For ALL timeframe, use 1D (daily) buckets for better performance
+  const step = tf === 'ALL' ? 86400 : (TF_SEC[tf] ?? 60);
   const toSecBucket = (t) => {
     const s = t > 1e12 ? t / 1000 : t;             // ms → s if needed
     return Math.floor(Math.floor(s) / step) * step; // bucket to tf
@@ -54,6 +55,10 @@ function normalizeOHLC(rows, tf) {
 function sliceWindow(candles, tf) {
   if (!candles || !Array.isArray(candles)) {
     return [];
+  }
+  // ALL shows all data, no windowing
+  if (tf === 'ALL') {
+    return candles;
   }
   const n = WINDOW_BY_TF[tf] ?? 300;
   return candles.slice(-n);
@@ -112,7 +117,7 @@ const fmtMcap = (v) => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).to
 function formatTickTime(tMs, tf, useUTC) {
   const d = new Date(tMs);
   const opts = tf==='1MIN'||tf==='5MIN'||tf==='15MIN'||tf==='1H' ? { hour:'2-digit', minute:'2-digit' } :
-              tf==='4H'||tf==='1D' ? { month:'short', day:'2-digit', hour:'2-digit' } :
+              tf==='4H'||tf==='1D'||tf==='ALL' ? { month:'short', day:'2-digit', hour:'2-digit' } :
               { month:'short', day:'2-digit' };
   return (useUTC ? new Intl.DateTimeFormat('en-US', {...opts, timeZone:'UTC'}) 
                  : new Intl.DateTimeFormat('en-US', opts)).format(d);
