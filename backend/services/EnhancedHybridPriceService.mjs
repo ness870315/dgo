@@ -1384,6 +1384,19 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Auto-start monitoring for any token when requested
     async ensureTokenMonitoring(tokenAddress) {
         try {
+            // ✅ Filter out stablecoins
+            const STABLECOIN_ADDRESSES = new Set([
+                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
+                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
+                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
+                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
+            ]);
+            
+            if (STABLECOIN_ADDRESSES.has(tokenAddress)) {
+                console.log(`⏭️ [EnhancedHybridPriceService] Skipping stablecoin: ${tokenAddress.substring(0, 8)}...`);
+                return false;
+            }
+            
             // ✅ CRITICAL FIX: Add token to poolAddresses Map so swaps are tracked
             const wasNew = !this.poolAddresses.has(tokenAddress);
             
