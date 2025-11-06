@@ -616,9 +616,6 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
               const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
               const volume = token.volume24h || 0;
               const marketCap = token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0;
-              
-              // Determine if token should show SWAP tag (based on volume or liquidity)
-              const showSwapTag = volume > 10000 || liquidity > 50000;
             
             return (
               <div
@@ -629,13 +626,6 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                 <div className="flex items-start justify-between gap-3">
                   {/* Left Section - Token Info (Dexscreener Style) */}
                   <div className="flex items-start gap-2 flex-1 min-w-0">
-                    {/* Network Icon (Solana) - Small, leftmost */}
-                    <div className="mt-0.5 flex-shrink-0">
-                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
-                      </div>
-                    </div>
-                    
                     {/* Token Icon */}
                     {token.jupiterData?.icon || token.logo ? (
                       <img 
@@ -654,27 +644,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1 flex-wrap mb-0.5">
                         <span className="font-bold text-white text-base truncate">{token.symbol}</span>
-                        {/* Lightning bolt badges (like Dexscreener) */}
+                        {/* Fuel icon for fueled tokens (using existing icon system) */}
                         {fuelInfo.isFueled && (
-                          <span className="text-yellow-400 text-sm">⚡{fuelInfo.multiplier.replace('x', '')}</span>
-                        )}
-                        {/* Show volume-based badge if high volume */}
-                        {volume > 1000000 && (
-                          <span className="text-yellow-400 text-sm">⚡{Math.floor(volume / 100000)}</span>
-                        )}
-                        {/* Time badge (based on recent activity) */}
-                        {token.priceChange24h > 50 && (
-                          <span className="text-yellow-400 text-xs">🌱{Math.min(24, Math.floor(Math.abs(token.priceChange24h / 2)))}h</span>
+                          <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                            <Flame className="w-1.5 h-1.5 text-orange-400" />
+                            <span className="text-orange-400 text-[9px] font-bold">
+                              {fuelInfo.multiplier}
+                            </span>
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {showSwapTag && (
-                          <span className="px-1.5 py-0.5 bg-green-500/30 text-green-400 text-[10px] font-semibold rounded">
-                            SWAP
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-400 truncate">{token.name || token.symbol}</span>
-                      </div>
+                      <div className="text-xs text-gray-400 truncate">{token.name || token.symbol}</div>
                     </div>
                   </div>
                   
