@@ -183,23 +183,24 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             const address = rankedToken.contractAddress || rankedToken.tokenAddress;
             const existing = existingMap.get(address);
             
-            // Merge: Use WebSocket data but preserve priceChange24h if WebSocket doesn't have it
+            // Merge: Use WebSocket data but preserve priceChange24h from existing if WebSocket has 0
+            // Prefer WebSocket value if it exists and is not 0, otherwise use existing value
             return {
               ...rankedToken,
-              // Preserve priceChange24h from existing data if WebSocket doesn't provide it
-              priceChange24h: rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== 0 
-                ? rankedToken.priceChange24h 
-                : (existing?.priceChange24h || rankedToken.priceChange24h || 0),
-              // Also preserve other price change fields if missing
-              priceChange1h: rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== 0
-                ? rankedToken.priceChange1h
-                : (existing?.priceChange1h || rankedToken.priceChange1h || 0),
-              priceChange6h: rankedToken.priceChange6h !== undefined && rankedToken.priceChange6h !== 0
-                ? rankedToken.priceChange6h
-                : (existing?.priceChange6h || rankedToken.priceChange6h || 0),
-              priceChange5m: rankedToken.priceChange5m !== undefined && rankedToken.priceChange5m !== 0
-                ? rankedToken.priceChange5m
-                : (existing?.priceChange5m || rankedToken.priceChange5m || 0),
+              // Preserve priceChange24h from existing data if WebSocket value is 0 (but not if it's a valid negative value)
+              priceChange24h: (rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== null)
+                ? (rankedToken.priceChange24h !== 0 ? rankedToken.priceChange24h : (existing?.priceChange24h ?? rankedToken.priceChange24h))
+                : (existing?.priceChange24h ?? rankedToken.priceChange24h ?? 0),
+              // Also preserve other price change fields if WebSocket has 0
+              priceChange1h: (rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== null)
+                ? (rankedToken.priceChange1h !== 0 ? rankedToken.priceChange1h : (existing?.priceChange1h ?? rankedToken.priceChange1h))
+                : (existing?.priceChange1h ?? rankedToken.priceChange1h ?? 0),
+              priceChange6h: (rankedToken.priceChange6h !== undefined && rankedToken.priceChange6h !== null)
+                ? (rankedToken.priceChange6h !== 0 ? rankedToken.priceChange6h : (existing?.priceChange6h ?? rankedToken.priceChange6h))
+                : (existing?.priceChange6h ?? rankedToken.priceChange6h ?? 0),
+              priceChange5m: (rankedToken.priceChange5m !== undefined && rankedToken.priceChange5m !== null)
+                ? (rankedToken.priceChange5m !== 0 ? rankedToken.priceChange5m : (existing?.priceChange5m ?? rankedToken.priceChange5m))
+                : (existing?.priceChange5m ?? rankedToken.priceChange5m ?? 0),
             };
           });
           
