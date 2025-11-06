@@ -509,16 +509,16 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
-              <div className="col-span-12 lg:col-span-7 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
+              <div className="col-span-12 lg:col-span-7 relative" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
                 {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col" style={{ height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
+                <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
                   <SVGChart token={token} onClose={null} />
                 </div>
 
-                {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT */}
-                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
-                  <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
+                {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BLACK SECTION */}
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 16px)', height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
+                  <div className="px-4 pt-2 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
                       Swap History
