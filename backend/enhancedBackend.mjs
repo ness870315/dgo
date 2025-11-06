@@ -13801,10 +13801,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const jupiterVolume24h = (jupiter24h.buyVolume || 0) + (jupiter24h.sellVolume || 0);
           const jupiterTxns24h = (jupiter24h.numBuys || 0) + (jupiter24h.numSells || 0);
           
+          // ✅ OPTION 4: Get price and circulating supply from existing cache (no API calls)
+          const jupiterPrice = realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0;
+          const circSupply = token.jupiterData?.circSupply || token.circSupply || 0;
+          
+          // ✅ Calculate market cap from price × circSupply if we have both (fresher than stale Jupiter mcap)
+          const calculatedMarketCap = (jupiterPrice > 0 && circSupply > 0) 
+              ? (jupiterPrice * circSupply) 
+              : null;
+          
           return {
             ...token,
             // Override with real-time data if available
-            price: realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0,
+            price: jupiterPrice,
             volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
             txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
             makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
@@ -13812,7 +13821,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
             priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
             priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
             priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
-            marketCap: realTimeData?.marketCap || token.marketCap || token.jupiterData?.mcap || 0,
+            // ✅ Market cap: Real-time (gRPC) > Calculated (price × circSupply) > Stale Jupiter mcap
+            marketCap: realTimeData?.marketCap || calculatedMarketCap || token.marketCap || token.jupiterData?.mcap || 0,
             liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
             isLive: !!realTimeData,
             // ✅ CRITICAL: Preserve Overall Score for sorting

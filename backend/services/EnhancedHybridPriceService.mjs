@@ -1942,6 +1942,56 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Reload token cache to get latest tokens
             await this.loadTokenCache();
             
+            // ✅ OPTION 3: Smart Monitoring - Auto-monitor top N tokens (prioritize by score/volume)
+            const MAX_MONITORED_TOKENS = 500; // Limit to prevent gRPC stream overload
+            const topTokens = this.tokenCache
+                .filter(token => {
+                    const address = token.contractAddress || token.tokenAddress;
+                    return address && (token.overallScore || token.score || 0) > 0;
+                })
+                .sort((a, b) => {
+                    // Sort by overall score first, then by volume
+                    const scoreA = a.overallScore || a.score || 0;
+                    const scoreB = b.overallScore || b.score || 0;
+                    if (scoreB !== scoreA) return scoreB - scoreA;
+                    
+                    const volumeA = (a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0);
+                    const volumeB = (b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0);
+                    return volumeB - volumeA;
+                })
+                .slice(0, MAX_MONITORED_TOKENS);
+            
+            // Auto-monitor top tokens that aren't already monitored (batch, non-blocking)
+            let monitoringPromises = [];
+            let newMonitoringCount = 0;
+            for (const token of topTokens) {
+                const address = token.contractAddress || token.tokenAddress;
+                if (address && !this.poolAddresses.has(address)) {
+                    // Only monitor if we have pool info (graduatedPool or firstPool)
+                    const hasPool = token.graduatedPool || token.jupiterData?.graduatedPool || token.jupiterData?.firstPool?.id;
+                    if (hasPool) {
+                        monitoringPromises.push(
+                            this.ensureTokenMonitoring(address).catch(err => {
+                                console.warn(`⚠️ [SmartMonitoring] Failed to monitor ${token.symbol}:`, err.message);
+                            })
+                        );
+                        newMonitoringCount++;
+                        // Limit concurrent monitoring to avoid overwhelming the system
+                        if (monitoringPromises.length >= 10) {
+                            await Promise.all(monitoringPromises);
+                            monitoringPromises = [];
+                        }
+                    }
+                }
+            }
+            // Wait for remaining monitoring promises
+            if (monitoringPromises.length > 0) {
+                await Promise.all(monitoringPromises);
+            }
+            if (newMonitoringCount > 0) {
+                console.log(`✅ [SmartMonitoring] Auto-monitored ${newMonitoringCount} new tokens (total monitored: ${this.poolAddresses.size})`);
+            }
+            
             // Get real-time metrics for monitored tokens
             const realTimeMetrics = new Map();
             for (const [tokenAddress] of this.poolAddresses.entries()) {
@@ -1966,10 +2016,19 @@ class EnhancedHybridPriceService extends EventEmitter {
                 const jupiterVolume24h = (jupiter24h.buyVolume || 0) + (jupiter24h.sellVolume || 0);
                 const jupiterTxns24h = (jupiter24h.numBuys || 0) + (jupiter24h.numSells || 0);
                 
+                // Get price and circulating supply from existing cache (no API calls)
+                const jupiterPrice = realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0;
+                const circSupply = token.jupiterData?.circSupply || token.circSupply || 0;
+                
+                // ✅ Calculate market cap from price × circSupply if we have both (fresher than stale Jupiter mcap)
+                const calculatedMarketCap = (jupiterPrice > 0 && circSupply > 0) 
+                    ? (jupiterPrice * circSupply) 
+                    : null;
+                
                 return {
                     ...token,
                     // Override with real-time data if available
-                    price: realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0,
+                    price: jupiterPrice,
                     volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
                     txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
                     makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
@@ -1977,7 +2036,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                     priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
                     priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
                     priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
-                    marketCap: realTimeData?.marketCap || token.marketCap || token.jupiterData?.mcap || 0,
+                    // ✅ Market cap: Real-time (gRPC) > Calculated (price × circSupply) > Stale Jupiter mcap
+                    marketCap: realTimeData?.marketCap || calculatedMarketCap || token.marketCap || token.jupiterData?.mcap || 0,
                     liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
                     isLive: !!realTimeData,
                     overallScore: token.overallScore || token.score || 0,
