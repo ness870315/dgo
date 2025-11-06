@@ -173,9 +173,12 @@ class TweetAPIPostingService {
   }
 
   /**
-   * Post a new tweet
+   * Post a new tweet with retry logic for 403 errors
    */
-  async postTweet(text) {
+  async postTweet(text, retryCount = 0) {
+    const maxRetries = 3;
+    const retryDelay = (retryCount + 1) * 5000; // 5s, 10s, 15s
+    
     try {
       // Add human-like delay before request
       await this.addHumanDelay();
@@ -187,8 +190,18 @@ class TweetAPIPostingService {
         text: text
       };
 
-      // Get fresh browser headers with rotation
+      // Get fresh browser headers with rotation (especially important on retries)
       const headers = this.getBrowserHeaders();
+      
+      // On retry, add extra delay and rotate User-Agent
+      if (retryCount > 0) {
+        console.log(`🔄 [TWEETAPI V2] Retry attempt ${retryCount}/${maxRetries} after ${retryDelay}ms delay...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        // Force User-Agent rotation on retry
+        this.currentUserAgentIndex = Math.floor(Math.random() * this.userAgents.length);
+        const retryHeaders = this.getBrowserHeaders();
+        Object.assign(headers, retryHeaders);
+      }
 
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post`, payload, {
         headers: headers,
@@ -196,6 +209,12 @@ class TweetAPIPostingService {
         maxRedirects: 5,
         validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
+
+      // Handle 403 errors with retry
+      if (response.status === 403 && retryCount < maxRetries) {
+        console.warn(`⚠️ [TWEETAPI V2] Got 403, retrying with different headers... (${retryCount + 1}/${maxRetries})`);
+        return await this.postTweet(text, retryCount + 1);
+      }
 
       if (response.data?.data?.success) {
         const tweetData = response.data.data;
