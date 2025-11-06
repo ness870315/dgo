@@ -291,17 +291,26 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     async loadTopTokens() {
         try {
+            // ✅ Filter out stablecoins (known stablecoin addresses)
+            const STABLECOIN_ADDRESSES = new Set([
+                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
+                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
+                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
+                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
+            ]);
+            
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
             const tokens = JSON.parse(cacheData);
             
-            // Filter for tokens with pools and sort by score
+            // Filter for tokens with pools, exclude stablecoins, and sort by score
             const tokensWithPools = tokens
                 .filter(token => {
+                    const address = token.contractAddress;
                     const hasPool = token.jupiterData?.firstPool?.id || 
                                    token.graduatedPool || 
                                    token.birdEyeRaw?.firstPool?.id;
-                    return hasPool && token.contractAddress;
+                    return hasPool && address && !STABLECOIN_ADDRESSES.has(address);
                 })
                 .sort((a, b) => {
                     const scoreA = a.overallScore || a.score || 0;
