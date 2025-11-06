@@ -67,6 +67,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '5000', 10);
         this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '60000', 10);
         this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '2000', 10);
+        this.sharedStreamSubscribeDelay = parseInt(process.env.CONSTANT_K_STREAM_SUBSCRIBE_DELAY || '1000', 10);
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
@@ -435,7 +436,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         const MAX_SHARED_STREAMS = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10) || 2;
-        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 300;
+        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 256;
         let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
         if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
             computedBatchSize = MAX_TOKENS_PER_STREAM;
@@ -468,6 +469,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                     failed: false
                 }
             };
+
+            if (this.sharedStreamSubscribeDelay > 0 && index > 0) {
+                await new Promise(resolve => setTimeout(resolve, this.sharedStreamSubscribeDelay));
+            }
 
             const stream = await this.grpcClient.subscribeOnce(
                 {}, {}, transactionFilters, {}, {}, {}, {},
