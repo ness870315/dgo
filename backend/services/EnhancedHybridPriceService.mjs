@@ -1943,11 +1943,25 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.loadTokenCache();
             
             // ✅ OPTION 3: Smart Monitoring - Auto-monitor top N tokens (prioritize by score/volume)
-            const MAX_MONITORED_TOKENS = 500; // Limit to prevent gRPC stream overload
+            // Constant K gRPC capacity: 5000000 channel capacity, 5000 unary concurrency
+            // We can safely monitor up to 5000 tokens (well within limits)
+            const MAX_MONITORED_TOKENS = 5000;
+            
+            // ✅ Filter out stablecoins (known stablecoin addresses)
+            const STABLECOIN_ADDRESSES = new Set([
+                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
+                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
+                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
+                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
+            ]);
+            
             const topTokens = this.tokenCache
                 .filter(token => {
                     const address = token.contractAddress || token.tokenAddress;
-                    return address && (token.overallScore || token.score || 0) > 0;
+                    // Filter out stablecoins and ensure token has address and score
+                    return address && 
+                           !STABLECOIN_ADDRESSES.has(address) &&
+                           (token.overallScore || token.score || 0) > 0;
                 })
                 .sort((a, b) => {
                     // Sort by overall score first, then by volume
@@ -1976,8 +1990,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                             })
                         );
                         newMonitoringCount++;
-                        // Limit concurrent monitoring to avoid overwhelming the system
-                        if (monitoringPromises.length >= 10) {
+                        // Limit concurrent monitoring (batch size) to avoid overwhelming the system
+                        // With 5000 unary concurrency, we can safely batch 50-100 at a time
+                        if (monitoringPromises.length >= 50) {
                             await Promise.all(monitoringPromises);
                             monitoringPromises = [];
                         }
