@@ -11,8 +11,7 @@ const WINDOW_BY_TF = {
   '1H': 240,     // ~10 days
   '4H': 180,     // ~30 days
   '1D': 120,     // ~4 months
-  '1W': 156,     // ~3 years
-  '1M': 120      // ~10 years
+  'ALL': Infinity // Show all available data
 };
 
 // Normalize OHLC data with proper bucketing and deduplication
@@ -502,14 +501,13 @@ const SVGChart = ({ token, onClose }) => {
 
   // Timeframe options
   const timeframes = [
-    { id: '1MIN', label: '1MIN' },
-    { id: '5MIN', label: '5MIN' },
-    { id: '15MIN', label: '15MIN' },
+    { id: '1MIN', label: '1Min' },
+    { id: '5MIN', label: '5Min' },
+    { id: '15MIN', label: '15Min' },
     { id: '1H', label: '1H' },
     { id: '4H', label: '4H' },
     { id: '1D', label: '1D' },
-    { id: '1W', label: '1W' },
-    { id: '1M', label: '1M' }
+    { id: 'ALL', label: 'ALL' }
   ];
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
