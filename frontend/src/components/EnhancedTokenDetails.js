@@ -509,18 +509,16 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
-              <div className="col-span-12 lg:col-span-7 xl:col-span-7 relative" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
-                {/* Desktop/14-inch: Use absolute positioning for side-by-side layout */}
-                <div className="hidden lg:block absolute inset-0 flex flex-col gap-4">
-                  {/* Desktop Layout - Using flex with gap for proper spacing */}
-                  {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
-                  <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col" style={{ height: 'calc(50% - 8px)', minHeight: '350px', flexShrink: 0 }}>
-                    <SVGChart token={token} onClose={null} />
-                  </div>
+              <div className="col-span-12 lg:col-span-7 xl:col-span-7 flex flex-col gap-4" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
+                {/* Desktop/14-inch: Use flex layout for proper spacing */}
+                {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
+                <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
+                  <SVGChart token={token} onClose={null} />
+                </div>
 
-                  {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BUBBLEMAPS */}
-                  {/* Starts after chart with gap-4 (16px) to prevent overlap */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: 'calc(50% - 8px)', minHeight: '350px', flexShrink: 0 }}>
+                {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BUBBLEMAPS */}
+                {/* Starts after chart with gap-4 (16px) to prevent overlap */}
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
                   <div className="px-4 pt-2 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
@@ -569,25 +567,22 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections - SIGNIFICANTLY REDUCED */}
-              <div className="col-span-12 lg:col-span-2 relative" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
-                {/* Desktop/14-inch: Use flex with gap for proper spacing */}
-                <div className="hidden lg:block absolute inset-0 flex flex-col gap-4">
-                  {/* Desktop Layout - Using flex with gap for proper spacing */}
-                  {/* RIGHT-UP: Jupiter Integrated Plugin - SMALLER THAN CHART - WIDER TO PREVENT SQUEEZING */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 8px)', minHeight: '200px', flexShrink: 0 }}>
-                    <div className="px-3 lg:px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
-                      <h3 className="text-white font-semibold text-xs lg:text-sm">Swap Token</h3>
-                    </div>
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: '150px', padding: '8px' }}>
-                      <JupiterSwapWidget token={token} />
-                    </div>
+              <div className="col-span-12 lg:col-span-2 flex flex-col gap-4" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
+                {/* Desktop/14-inch: Use flex layout for proper spacing */}
+                {/* RIGHT-UP: Jupiter Integrated Plugin - SMALLER THAN CHART - WIDER TO PREVENT SQUEEZING */}
+                <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '200px', flexShrink: 0 }}>
+                  <div className="px-3 lg:px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
+                    <h3 className="text-white font-semibold text-xs lg:text-sm">Swap Token</h3>
                   </div>
+                  <div className="flex-1 overflow-hidden" style={{ minHeight: '150px', padding: '10px' }}>
+                    <JupiterSwapWidget token={token} />
+                  </div>
+                </div>
 
-                  {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
-                  {/* Starts after Jupiter with gap-4 (16px) to prevent overlap, aligned with swap table */}
-                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 overflow-hidden" style={{ height: 'calc(50% - 8px)', minHeight: '350px', flexShrink: 0 }}>
-                    <BubblemapsIframe token={token} />
-                  </div>
+                {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
+                {/* Starts after Jupiter with gap-4 (16px) to prevent overlap, aligned with swap table */}
+                <div className="bg-gray-800 rounded-lg border-2 border-red-500 overflow-hidden flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
+                  <BubblemapsIframe token={token} />
                 </div>
 
                 {/* Mobile Layout - Stacked vertically (only on small screens) */}
