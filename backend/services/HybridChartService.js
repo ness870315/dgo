@@ -5,14 +5,21 @@ class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
         try {
             console.log('⚡ Initializing HybridChartService...');
+            this.useHelius = process.env.ENABLE_HELIUS === 'true' && !!heliusApiKey;
             console.log(`   Helius API Key: ${heliusApiKey ? '✅ Set' : '❌ Missing'}`);
+            console.log(`   Helius Streaming Enabled: ${this.useHelius ? '✅ Yes' : '🚫 Disabled'}`);
             console.log(`   Moralis API Key: ${moralisApiKey ? '✅ Set' : '❌ Missing'}`);
             
             this.fastChartService = new FastChartService(this); // Pass self reference
             console.log('✅ FastChartService initialized');
             
-            this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
-            console.log('✅ ChartBackgroundWorker initialized');
+            if (this.useHelius) {
+                this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
+                console.log('✅ ChartBackgroundWorker initialized');
+            } else {
+                this.backgroundWorker = null;
+                console.log('⚠️ ChartBackgroundWorker skipped (Helius disabled)');
+            }
             
             this.dataSourceStats = {
                 database: { calls: 0, success: 0, errors: 0 },
@@ -24,7 +31,7 @@ class HybridChartService {
             console.log('   Background: Continuous data ingestion');
             console.log('   Fallback: Moralis OHLCV (when database empty)');
             
-            // Start background worker
+            // Start background worker if enabled
             this.startBackgroundWorker();
         } catch (error) {
             console.error('❌ Failed to initialize HybridChartService:', error.message);
@@ -34,6 +41,10 @@ class HybridChartService {
     }
 
     async startBackgroundWorker() {
+        if (!this.backgroundWorker) {
+            console.log('⚠️ Background worker not started (Helius disabled)');
+            return;
+        }
         try {
             await this.backgroundWorker.start();
             console.log('✅ Background worker started');
@@ -164,10 +175,24 @@ class HybridChartService {
     // Background Worker methods
     async addToken(tokenAddress) {
         console.log(`➕ Adding token ${tokenAddress.substring(0, 8)} to background worker`);
+        if (!this.backgroundWorker) {
+            console.log('⚠️ Background worker unavailable (Helius disabled)');
+            return false;
+        }
         return await this.backgroundWorker.addToken(tokenAddress);
     }
 
     async getWorkerStatus() {
+        if (!this.backgroundWorker) {
+            return {
+                isRunning: false,
+                updateInterval: 0,
+                backfillInterval: 0,
+                processedPools: 0,
+                databaseStats: await this.fastChartService.getDatabaseStats(),
+                heliusEnabled: false
+            };
+        }
         return await this.backgroundWorker.getStatus();
     }
 

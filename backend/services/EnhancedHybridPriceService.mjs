@@ -63,6 +63,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreams = []; // Shared gRPC streams (batched token filters)
         this.sharedStreamPoolCount = 0; // Track how many tokens are attached to streams
         this._sharedStreamRestartScheduled = false;
+        this.sharedStreamRetryCount = 0;
+        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '5000', 10);
+        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '60000', 10);
+        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '2000', 10);
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
@@ -481,12 +485,12 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             stream.on("error", (error) => {
                 console.error(`❌ [EnhancedHybridPriceService] Shared stream error (batch ${index + 1}):`, error.message);
-                this.scheduleSharedStreamRestart();
+                this.scheduleSharedStreamRestart(index, error);
             });
 
             stream.on("end", () => {
                 console.warn(`⚠️ [EnhancedHybridPriceService] Shared stream ended (batch ${index + 1})`);
-                this.scheduleSharedStreamRestart();
+                this.scheduleSharedStreamRestart(index);
             });
 
             newStreams.push(stream);
@@ -495,6 +499,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreams = newStreams;
         this.sharedStreamPoolCount = allTokenAddresses.length;
         console.log(`✅ [EnhancedHybridPriceService] Monitoring ${this.sharedStreamPoolCount} tokens across ${this.sharedStreams.length} streams`);
+        this.sharedStreamRetryCount = 0;
     }
 
     async stopSharedStreams() {
@@ -517,11 +522,24 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreamPoolCount = 0;
     }
 
-    scheduleSharedStreamRestart(delayMs = 5000) {
+    scheduleSharedStreamRestart(batchIndex = null, lastError = null) {
         if (this._sharedStreamRestartScheduled) {
             return;
         }
+        
+        const attempt = this.sharedStreamRetryCount + 1;
+        const exponentialDelay = Math.min(
+            this.sharedStreamBaseDelay * Math.pow(2, this.sharedStreamRetryCount),
+            this.sharedStreamMaxDelay
+        );
+        const jitter = Math.floor(Math.random() * Math.max(this.sharedStreamJitter, 1));
+        const delayMs = exponentialDelay + jitter;
+        
+        this.sharedStreamRetryCount = attempt;
         this._sharedStreamRestartScheduled = true;
+        
+        const batchInfo = batchIndex !== null ? ` (batch ${batchIndex + 1})` : '';
+        console.warn(`⚠️ [EnhancedHybridPriceService] Scheduling shared stream restart${batchInfo} in ${delayMs}ms (attempt ${attempt}${lastError ? `, reason: ${lastError.message}` : ''})`);
 
         setTimeout(async () => {
             this._sharedStreamRestartScheduled = false;

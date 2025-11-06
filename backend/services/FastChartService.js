@@ -149,32 +149,10 @@ class FastChartService {
         }
         
         const logPrefix = `[FALLBACK-CHAIN] ${correctedAddress.substring(0, 8)}`;
-        console.log(`${logPrefix} 🔄 Fallback chain: Helius → Moralis → DexScreener`);
+        console.log(`${logPrefix} 🔄 Fallback chain: Moralis → DexScreener`);
 
         try {
-            // First try Helius (Professional Chart Service)
-            console.log(`${logPrefix} 🚀 Trying Helius first...`);
-            
-            // Get pool address for Helius
-            let poolAddress = await this.chartDb.getPoolAddress(correctedAddress);
-            if (!poolAddress) {
-                poolAddress = await this.discoverPoolAddress(correctedAddress);
-                if (!poolAddress) {
-                    console.log(`${logPrefix} ⚠️ No pool address found, skipping Helius`);
-                }
-            }
-            
-            if (poolAddress) {
-                try {
-                    // Skip ProfessionalChartService - use direct Helius API instead
-                    console.log(`${logPrefix} ⚠️ Skipping ProfessionalChartService (too slow), trying Moralis directly...`);
-                } catch (error) {
-                    console.log(`${logPrefix} ⚠️ Error: ${error.message}`);
-                }
-            }
-            
-            // Fallback to Moralis if Helius fails
-            console.log(`${logPrefix} 🔄 Helius failed, trying Moralis...`);
+            console.log(`${logPrefix} 🔄 Trying Moralis primary fallback...`);
             const fallbackData = await this.hybridService.getHistoricalPrices(correctedAddress, timeframe, limit);
             
             if (fallbackData && fallbackData.length > 0) {

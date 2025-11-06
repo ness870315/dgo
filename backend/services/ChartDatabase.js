@@ -169,7 +169,40 @@ class ChartDatabase {
                 console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}`);
             }
         } catch (error) {
-            if (error.code !== 'ENOENT') {
+            if (error.code === 'ENOENT') {
+                return; // File doesn't exist yet, that's ok
+            }
+            
+            if (error.name === 'SyntaxError' || /Unexpected token|Unexpected end of JSON input|Expected double-quoted property/.test(error.message)) {
+                const corruptPath = `${tokenFile}.corrupt_${Date.now()}`;
+                console.error(`❌ [ChartDatabase] Corrupted swap file detected for ${tokenAddress.substring(0, 8)}. Moving to ${path.basename(corruptPath)}. Error: ${error.message}`);
+                try {
+                    await fs.rename(tokenFile, corruptPath);
+                    console.log(`⚠️ [ChartDatabase] Moved corrupted swap file to ${corruptPath}`);
+                } catch (renameError) {
+                    console.error(`❌ [ChartDatabase] Failed to move corrupted file for ${tokenAddress.substring(0, 8)}:`, renameError.message);
+                }
+                
+                // Reset in-memory database for this token
+                let tokenDb = this.tokenDatabases.get(tokenAddress);
+                if (!tokenDb) {
+                    tokenDb = {
+                        swaps: new Map(),
+                        lastWriteTime: 0,
+                        swapCount: 0
+                    };
+                    this.tokenDatabases.set(tokenAddress, tokenDb);
+                } else {
+                    tokenDb.swaps = new Map();
+                    tokenDb.swapCount = 0;
+                    tokenDb.lastWriteTime = 0;
+                }
+                
+                // Ensure a write queue exists for future swaps
+                if (!this.writeQueues.has(tokenAddress)) {
+                    this.writeQueues.set(tokenAddress, []);
+                }
+            } else {
                 console.error(`❌ [ChartDatabase] Error loading token file for ${tokenAddress.substring(0, 8)}:`, error.message);
             }
             // File doesn't exist yet, that's ok
