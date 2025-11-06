@@ -13801,8 +13801,33 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         console.log(`📊 [RankingData] Found ${realTimeMetrics.size} tokens with real-time data`);
         
-        // Merge cache tokens with real-time metrics
-        const rankings = allTokens.map(token => {
+        // ✅ Filter out stablecoins and LSTs from display
+        const STABLECOIN_ADDRESSES = new Set([
+          'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
+          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
+          '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
+          'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
+        ]);
+        
+        // Common LST (Liquid Staking Token) addresses
+        const LST_ADDRESSES = new Set([
+          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL (already in stablecoins)
+          '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj', // stSOL
+          'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', // bSOL
+          '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', // ETH (Wormhole)
+          'So11111111111111111111111111111111111111112'   // SOL (native)
+        ]);
+        
+        // Merge cache tokens with real-time metrics, filtering out stablecoins and LSTs
+        const rankings = allTokens
+          .filter(token => {
+            const address = token.contractAddress || token.tokenAddress;
+            // Filter out stablecoins and LSTs from display
+            return address && 
+                   !STABLECOIN_ADDRESSES.has(address) && 
+                   !LST_ADDRESSES.has(address);
+          })
+          .map(token => {
           const address = token.contractAddress || token.tokenAddress;
           const realTimeData = realTimeMetrics.get(address);
           
