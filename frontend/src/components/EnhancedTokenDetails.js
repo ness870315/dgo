@@ -511,13 +511,13 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
               <div className="col-span-12 lg:col-span-7 flex flex-col gap-4" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
-                {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ height: '50%', minHeight: '550px', flexShrink: 0 }}>
+                {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
+                <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col" style={{ height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
                   <SVGChart token={token} onClose={null} />
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT */}
-                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: '50%', minHeight: '550px', flexShrink: 0 }}>
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: 'calc(50% - 8px)', minHeight: '542px', flexShrink: 0 }}>
                   <div className="px-4 pt-4 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
@@ -541,18 +541,18 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               <div className="col-span-12 lg:col-span-2 relative" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
                                    {/* RIGHT-UP: Jupiter Integrated Plugin - FITTED PERFECTLY */}
-                   <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: '30%', minHeight: '250px', zIndex: 1 }}>
+                   <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 8px)', minHeight: '250px', flexShrink: 0, zIndex: 1 }}>
                      <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
                        <h3 className="text-white font-semibold text-sm">Swap Token</h3>
                      </div>
-                     <div className="flex-1 overflow-hidden" style={{ minHeight: '200px', padding: '8px' }}>
+                     <div className="flex-1 overflow-hidden" style={{ minHeight: '200px', padding: '4px' }}>
                        <JupiterSwapWidget token={token} />
                      </div>
                    </div>
 
                                    {/* RIGHT-BOTTOM: Black Section (Placeholder) - ALIGNED WITH SWAP TABLE */}
-                   {/* Positioned to align with swap table: starts at 50% + gap (16px) to match swap table position */}
-                   <div className="bg-black rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 16px)', minHeight: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
+                   {/* Aligned with swap table: starts at 50% + gap (16px from gap-4) to match middle column layout */}
+                   <div className="bg-black rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 16px)', minHeight: '542px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
                   <div className="text-center">
                     <p className="text-gray-500 text-lg mb-2">Reserved for future content</p>
                     <p className="text-gray-600 text-xs">Black Section Placeholder</p>

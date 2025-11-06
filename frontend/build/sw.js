@@ -1,8 +1,13 @@
 // Degen Oracle PWA Service Worker
-const CACHE_VERSION = 'v1.2.0'; // Update this when deploying new versions
+// IMPORTANT: Cache version is now based on build timestamp for automatic invalidation
+const BUILD_TIMESTAMP = '__BUILD_TIMESTAMP__'; // Replaced during build
+const CACHE_VERSION = BUILD_TIMESTAMP || Date.now().toString();
 const CACHE_NAME = `degen-oracle-${CACHE_VERSION}`;
 const STATIC_CACHE = `degen-oracle-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `degen-oracle-dynamic-${CACHE_VERSION}`;
+
+console.log('🔧 Service Worker Cache Version:', CACHE_VERSION);
+console.log('🔧 Service Worker Updated:', new Date().toISOString());
 
 // Files to cache for offline use (with cache busting)
 const STATIC_FILES = [
@@ -25,34 +30,51 @@ const API_CACHE_PATTERNS = [
   /\/api\/user\/kol-calls/
 ];
 
-// Install event - cache static files
+// Install event - cache static files and force immediate activation
 self.addEventListener('install', (event) => {
-  console.log('🔧 Degen Oracle PWA: Service Worker installing...');
+  console.log('🔧 Degen Oracle PWA: Service Worker installing...', CACHE_VERSION);
   
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
+    (async () => {
+      try {
+        // Clear ALL old caches immediately on install
+        const cacheNames = await caches.keys();
+        console.log('🗑️ Clearing old caches:', cacheNames.length);
+        await Promise.all(
+          cacheNames.map(cacheName => {
+            if (!cacheName.includes(CACHE_VERSION)) {
+              console.log('🗑️ Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+        
+        // Open new cache and add static files
+        const cache = await caches.open(STATIC_CACHE);
         console.log('📦 Caching static files...');
-        return cache.addAll(STATIC_FILES);
-      })
-      .then(() => {
+        await cache.addAll(STATIC_FILES);
         console.log('✅ Static files cached successfully');
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('❌ Failed to cache static files:', error);
-      })
+        
+        // Force immediate activation - skip waiting
+        await self.skipWaiting();
+        console.log('⚡ Service Worker activated immediately');
+      } catch (error) {
+        console.error('❌ Failed to install service worker:', error);
+      }
+    })()
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('🚀 Degen Oracle PWA: Service Worker activating...');
+  console.log('🚀 Degen Oracle PWA: Service Worker activating...', CACHE_VERSION);
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
+    (async () => {
+      try {
+        // Clean up any remaining old caches
+        const cacheNames = await caches.keys();
+        await Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
               console.log('🗑️ Deleting old cache:', cacheName);
@@ -60,11 +82,26 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      })
-      .then(() => {
+        
         console.log('✅ Service Worker activated');
-        return self.clients.claim();
-      })
+        
+        // Take control of all clients immediately (force refresh)
+        await self.clients.claim();
+        console.log('⚡ Service Worker now controlling all clients');
+        
+        // Notify all clients to reload for fresh content
+        const clients = await self.clients.matchAll({ type: 'window' });
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_UPDATED',
+            version: CACHE_VERSION,
+            message: 'New version available - reloading...'
+          });
+        });
+      } catch (error) {
+        console.error('❌ Failed to activate service worker:', error);
+      }
+    })()
   );
 });
 
@@ -103,63 +140,46 @@ async function handleRequest(request) {
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   
-  // Never cache x402 payment endpoints or fuel-payment pages
-  // These should always fetch fresh from network
-  if (url.pathname.includes('/x402/') || 
-      url.pathname.includes('/fuel-payment') ||
-      url.pathname.includes('payment-details')) {
+  // CRITICAL: Never cache these endpoints - always fetch fresh
+  const neverCachePatterns = [
+    '/x402/',
+    '/fuel-payment',
+    '/payment-details',
+    '/api/tokens/bonding',  // Pre-bonding tokens - always fresh
+    '/api/user/',           // User data - always fresh
+    '/price-chart',         // Chart data - always fresh
+    '/holders/insights',    // Holder data - always fresh
+    '/hybrid-price',        // Live price data - always fresh
+    '/api/tokens/',         // All token API endpoints - always fresh
+    '/api/hybrid-price'     // Hybrid price stats/cleanup - always fresh
+  ];
+  
+  const shouldNeverCache = neverCachePatterns.some(pattern => url.pathname.includes(pattern));
+  
+  if (shouldNeverCache) {
     try {
+      // Always fetch fresh from network, no caching
       return await fetch(request);
     } catch (error) {
-      console.log('⚠️ Network error for x402 endpoint:', url.pathname, error.message);
+      console.log('⚠️ Network error for critical endpoint:', url.pathname, error.message);
       throw error; // Re-throw to let the caller handle it
     }
   }
   
-  // Check if this is a cacheable API endpoint
-  const isCacheable = API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname));
-  
-  if (!isCacheable) {
-    // For non-cacheable APIs, always go to network
-    return fetch(request);
-  }
-  
+  // For other API endpoints, use network-first with NO caching
+  // This prevents stale data issues on mobile
   try {
-    // Network-first strategy for API calls
+    // Always try network first
     const networkResponse = await fetch(request);
     
-    // Only cache successful (200-299) responses
-    if (networkResponse.ok && networkResponse.status >= 200 && networkResponse.status < 300) {
-      // Cache successful API responses
-      const cache = await caches.open(DYNAMIC_CACHE);
-      // Only put if response is not opaque and is successful
-      if (networkResponse.type !== 'opaque') {
-        cache.put(request, networkResponse.clone()).catch(err => {
-          console.log('⚠️ Failed to cache response:', err.message);
-        });
-      }
-      
-      return networkResponse;
-    }
-    
-    // For non-OK responses (4xx, 5xx), just return them without caching
+    // Don't cache API responses to prevent stale data
+    // Mobile users will always get fresh data
     return networkResponse;
     
   } catch (error) {
-    console.log('🌐 Network failed, trying cache for:', url.pathname);
+    console.log('🌐 Network failed for API:', url.pathname);
     
-    // Fallback to cache if network fails
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      // Check if cached data is still fresh (5 minutes)
-      const cacheExpiry = cachedResponse.headers.get('sw-cache-expires');
-      if (cacheExpiry && Date.now() < parseInt(cacheExpiry)) {
-        console.log('📦 Serving fresh cached API data');
-        return cachedResponse;
-      }
-    }
-    
-    // If no cache or stale cache, return offline page or error
+    // Return offline error - no cache fallback for APIs
     return new Response(
       JSON.stringify({
         error: 'Offline',

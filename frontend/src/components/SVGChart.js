@@ -515,26 +515,26 @@ const SVGChart = ({ token, onClose }) => {
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-4">
-          <h3 className="text-white text-lg font-semibold">
-            {token?.symbol || 'Token'} {displayMode === 'mcap' ? 'Market Cap' : 'Price'}
-          </h3>
-        </div>
-        {onClose && (
+    <div className={`bg-gray-900 rounded-lg h-full flex flex-col ${onClose ? 'p-4' : 'p-2'}`}>
+      {/* Header - HIDDEN when onClose is null */}
+      {onClose && (
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-4">
+            <h3 className="text-white text-lg font-semibold">
+              {token?.symbol || 'Token'} {displayMode === 'mcap' ? 'Market Cap' : 'Price'}
+            </h3>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
             ✕
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Controls */}
-      <div className="flex justify-between items-center mb-4">
+      {/* Controls - Compact when no header */}
+      <div className={`flex justify-between items-center flex-shrink-0 ${onClose ? 'mb-4' : 'mb-2'}`}>
         <div className="flex space-x-2">
           {timeframes.map(tf => (
             <button
@@ -586,15 +586,17 @@ const SVGChart = ({ token, onClose }) => {
       </div>
 
       {/* Optimized SVG Chart with proper data processing */}
-      <SvgOHLCVArea
-        contract={contract}
-        timeframe={timeframe}
-        displayMode={displayMode}
-        circulatingSupply={token?.circulatingSupply}
-        timezone={timezone}
-        height={400}
-        maxPoints={1000}
-      />
+      <div className="flex-1 min-h-0">
+        <SvgOHLCVArea
+          contract={contract}
+          timeframe={timeframe}
+          displayMode={displayMode}
+          circulatingSupply={token?.circulatingSupply}
+          timezone={timezone}
+          height={400}
+          maxPoints={1000}
+        />
+      </div>
     </div>
   );
 };
