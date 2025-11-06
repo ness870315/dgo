@@ -1015,7 +1015,9 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       );
                     })()}
                   </div>
+                  </div>
                 </div>
+                {/* End scrollable content container */}
               </div>
 
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
