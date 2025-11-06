@@ -514,12 +514,13 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 <div className="hidden lg:block absolute inset-0">
                   {/* Desktop Layout - Absolute positioned */}
                   {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
-                  <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 4px)', minHeight: '350px', flexShrink: 0 }}>
+                  <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 12px)', minHeight: '350px', flexShrink: 0 }}>
                     <SVGChart token={token} onClose={null} />
                   </div>
 
                   {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BUBBLEMAPS */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 4px)', height: 'calc(50% - 4px)', minHeight: '350px', flexShrink: 0 }}>
+                  {/* Starts after chart with proper gap to prevent overlap */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 12px)', height: 'calc(50% - 12px)', minHeight: '350px', flexShrink: 0 }}>
                   <div className="px-4 pt-2 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
@@ -572,18 +573,19 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 {/* Desktop/14-inch: Use absolute positioning for side-by-side layout */}
                 <div className="hidden lg:block absolute inset-0">
                   {/* Desktop Layout - Absolute positioned */}
-                  {/* RIGHT-UP: Jupiter Integrated Plugin - SMALLER THAN CHART */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 4px)', minHeight: '200px', flexShrink: 0, zIndex: 1 }}>
-                    <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
-                      <h3 className="text-white font-semibold text-sm">Swap Token</h3>
+                  {/* RIGHT-UP: Jupiter Integrated Plugin - SMALLER THAN CHART - WIDER TO PREVENT SQUEEZING */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(50% - 12px)', minHeight: '200px', flexShrink: 0, zIndex: 1 }}>
+                    <div className="px-3 lg:px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
+                      <h3 className="text-white font-semibold text-xs lg:text-sm">Swap Token</h3>
                     </div>
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: '150px', padding: '4px' }}>
+                    <div className="flex-1 overflow-hidden" style={{ minHeight: '150px', padding: '8px' }}>
                       <JupiterSwapWidget token={token} />
                     </div>
                   </div>
 
                   {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
-                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0 overflow-hidden" style={{ top: 'calc(50% + 4px)', height: 'calc(50% - 4px)', minHeight: '350px', zIndex: 0 }}>
+                  {/* Starts after Jupiter with proper gap to prevent overlap, aligned with swap table */}
+                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0 overflow-hidden" style={{ top: 'calc(50% + 12px)', height: 'calc(50% - 12px)', minHeight: '350px', zIndex: 0 }}>
                     <BubblemapsIframe token={token} />
                   </div>
                 </div>
