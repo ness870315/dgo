@@ -163,19 +163,52 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
       }
       
       // ✅ Merge WebSocket ranking data with filtered tokens
+      // ✅ IMPORTANT: Merge with existing rankings to preserve priceChange24h if WebSocket doesn't include it
       if (wsRankings && wsRankings.length > 0) {
-        const filteredRankings = wsRankings.filter(rankedToken => {
-          // Check if ranked token is in our filtered tokens list
-          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
-          return tokens.some(filteredToken => 
-            (filteredToken.contractAddress || filteredToken.tokenAddress) === address
-          );
+        setRankings(prevRankings => {
+          // Create a map of existing rankings by address for merging
+          const existingMap = new Map();
+          prevRankings.forEach(token => {
+            const addr = token.contractAddress || token.tokenAddress;
+            if (addr) existingMap.set(addr, token);
+          });
+          
+          // Filter and merge WebSocket rankings
+          const filteredRankings = wsRankings.filter(rankedToken => {
+            const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+            return tokens.some(filteredToken => 
+              (filteredToken.contractAddress || filteredToken.tokenAddress) === address
+            );
+          }).map(rankedToken => {
+            const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+            const existing = existingMap.get(address);
+            
+            // Merge: Use WebSocket data but preserve priceChange24h if WebSocket doesn't have it
+            return {
+              ...rankedToken,
+              // Preserve priceChange24h from existing data if WebSocket doesn't provide it
+              priceChange24h: rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== 0 
+                ? rankedToken.priceChange24h 
+                : (existing?.priceChange24h || rankedToken.priceChange24h || 0),
+              // Also preserve other price change fields if missing
+              priceChange1h: rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== 0
+                ? rankedToken.priceChange1h
+                : (existing?.priceChange1h || rankedToken.priceChange1h || 0),
+              priceChange6h: rankedToken.priceChange6h !== undefined && rankedToken.priceChange6h !== 0
+                ? rankedToken.priceChange6h
+                : (existing?.priceChange6h || rankedToken.priceChange6h || 0),
+              priceChange5m: rankedToken.priceChange5m !== undefined && rankedToken.priceChange5m !== 0
+                ? rankedToken.priceChange5m
+                : (existing?.priceChange5m || rankedToken.priceChange5m || 0),
+            };
+          });
+          
+          if (filteredRankings.length > 0) {
+            setLastUpdate(new Date(timestamp));
+            return filteredRankings;
+          }
+          return prevRankings;
         });
-        
-        if (filteredRankings.length > 0) {
-          setRankings(filteredRankings);
-          setLastUpdate(new Date(timestamp));
-        }
       }
     };
 
@@ -669,12 +702,12 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       <span className={`text-[10px] font-semibold ${
                         priceChange1h >= 0 ? 'text-green-400' : priceChange1h < 0 ? 'text-red-400' : 'text-white'
                       }`}>
-                        1H {priceChange1h >= 0 ? '+' : ''}{formatPercentage(priceChange1h).replace('%', '')}
+                        1H {formatPercentage(priceChange1h).replace('%', '')}
                       </span>
                       <span className={`text-[10px] font-semibold ${
                         priceChange24h >= 0 ? 'text-green-400' : priceChange24h < 0 ? 'text-red-400' : 'text-white'
                       }`}>
-                        24H {priceChange24h >= 0 ? '+' : ''}{formatPercentage(priceChange24h).replace('%', '')}
+                        24H {formatPercentage(priceChange24h).replace('%', '')}
                       </span>
                     </div>
                   </div>
