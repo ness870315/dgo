@@ -192,10 +192,18 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
         return;
       }
       
-      // ✅ Merge WebSocket ranking data with filtered tokens
+      // ✅ SILENT BACKGROUND UPDATE: Merge WebSocket ranking data without causing full table reconstruction
       // ✅ IMPORTANT: Merge with existing rankings to preserve priceChange24h if WebSocket doesn't include it
       if (wsRankings && wsRankings.length > 0) {
         setRankings(prevRankings => {
+          // If we don't have previous rankings yet, wait for initial fetch (prevents empty table flash)
+          if (prevRankings.length === 0) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('⏳ [TokenRankedList] Waiting for initial rankings, skipping WebSocket update');
+            }
+            return prevRankings;
+          }
+          
           // Create a map of existing rankings by address for merging
           const existingMap = new Map();
           prevRankings.forEach(token => {
@@ -203,7 +211,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             if (addr) existingMap.set(addr, token);
           });
           
-          // Filter and merge WebSocket rankings
+          // Filter and merge WebSocket rankings - SILENT UPDATE (only update changed values)
           const filteredRankings = wsRankings.filter(rankedToken => {
             const address = rankedToken.contractAddress || rankedToken.tokenAddress;
             return tokens.some(filteredToken => 
@@ -213,24 +221,37 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             const address = rankedToken.contractAddress || rankedToken.tokenAddress;
             const existing = existingMap.get(address);
             
+            // If existing token found, merge only changed fields to prevent unnecessary re-renders
+            if (existing) {
+              // Only merge if there are actual changes (optimization to prevent re-renders)
+              const hasChanges = 
+                rankedToken.price !== existing.price ||
+                rankedToken.marketCap !== existing.marketCap ||
+                rankedToken.volume24h !== existing.volume24h ||
+                rankedToken.makers24h !== existing.makers24h ||
+                rankedToken.priceChange1h !== existing.priceChange1h ||
+                rankedToken.priceChange24h !== existing.priceChange24h;
+              
+              if (!hasChanges) {
+                // No changes, return existing to prevent re-render
+                return existing;
+              }
+            }
+            
             // Merge: Use WebSocket data but preserve priceChange24h from existing if WebSocket doesn't have it or has 0
-            // Strategy: If WebSocket has a non-zero value, use it. If WebSocket has 0 or undefined, check existing.
-            // Only use existing if it has a non-zero value (to avoid overriding valid WebSocket data with stale 0)
             const getPriceChange = (wsValue, existingValue) => {
-              // If WebSocket has a defined value (including 0), use it UNLESS it's 0 and existing has a non-zero value
               if (wsValue !== undefined && wsValue !== null) {
-                // If WebSocket value is 0 but existing has a non-zero value, prefer existing (might be more accurate)
                 if (wsValue === 0 && existingValue !== undefined && existingValue !== null && existingValue !== 0) {
                   return existingValue;
                 }
-                return wsValue; // Use WebSocket value (even if 0, if existing also doesn't have better data)
+                return wsValue;
               }
-              // WebSocket doesn't have it, use existing or default to 0
               return existingValue ?? wsValue ?? 0;
             };
             
             return {
-              ...rankedToken,
+              ...(existing || rankedToken), // Start with existing to preserve order and other fields
+              ...rankedToken, // Override with WebSocket data
               // Use smarter merge logic that checks if existing has better data
               priceChange24h: getPriceChange(rankedToken.priceChange24h, existing?.priceChange24h),
               priceChange1h: getPriceChange(rankedToken.priceChange1h, existing?.priceChange1h),
@@ -240,6 +261,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
           });
           
           if (filteredRankings.length > 0) {
+            // ✅ SILENT UPDATE: Only update timestamp, don't log (reduces console noise)
             setLastUpdate(new Date(timestamp));
             return filteredRankings;
           }
