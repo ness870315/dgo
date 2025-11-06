@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Flame } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
 import websocketService from '../services/websocketService';
