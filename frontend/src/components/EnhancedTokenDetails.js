@@ -512,9 +512,11 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               <div className="col-span-12 lg:col-span-7 xl:col-span-7" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
                 {/* Desktop/14-inch: Use flex layout for proper spacing */}
                 <div className="hidden lg:flex flex-col gap-4 h-full">
-                  {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER */}
-                  <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
-                    <SVGChart token={token} onClose={null} />
+                  {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER - FIX X-AXIS */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0, overflow: 'visible', paddingBottom: '8px' }}>
+                    <div className="flex-1 overflow-hidden" style={{ minHeight: '320px' }}>
+                      <SVGChart token={token} onClose={null} />
+                    </div>
                   </div>
 
                   {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BUBBLEMAPS */}
@@ -581,10 +583,16 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                     </div>
                   </div>
 
-                  {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
-                  {/* Starts after Jupiter with gap-4 (16px) to prevent overlap, aligned with swap table */}
-                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 overflow-hidden flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
-                    <BubblemapsIframe token={token} />
+                  {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - PERFECTLY ALIGNED WITH SWAP TABLE */}
+                  {/* Matches swap table structure: header + content for perfect alignment */}
+                  <div className="bg-gray-800 rounded-lg border-2 border-red-500 flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
+                    {/* Invisible header spacer to match swap table header height */}
+                    <div className="px-4 pt-2 pb-2 border-b border-red-500 flex-shrink-0" style={{ height: '42px' }}>
+                      <div className="h-full"></div>
+                    </div>
+                    <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
+                      <BubblemapsIframe token={token} />
+                    </div>
                   </div>
                 </div>
 
