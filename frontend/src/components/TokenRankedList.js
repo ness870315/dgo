@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Flame } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
 import websocketService from '../services/websocketService';
@@ -262,17 +262,27 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     };
   }, [tokens]);
 
-  const displayTokens = rankings.length > 0 ? rankings : tokens;
+  // ✅ MEMOIZE displayTokens to prevent unnecessary recalculations
+  const displayTokens = useMemo(() => {
+    return rankings.length > 0 ? rankings : tokens;
+  }, [rankings, tokens]);
   
   // Check if we have mixed results (both bonding and regular tokens)
-  const hasMixedResults = displayTokens && displayTokens.length > 0 && 
-    displayTokens.some(t => t.isBondingToken) && 
-    displayTokens.some(t => !t.isBondingToken);
+  const hasMixedResults = useMemo(() => {
+    return displayTokens && displayTokens.length > 0 && 
+      displayTokens.some(t => t.isBondingToken) && 
+      displayTokens.some(t => !t.isBondingToken);
+  }, [displayTokens]);
   
   // Check if all tokens are bonding
-  const allAreBonding = displayTokens && displayTokens.length > 0 && displayTokens.every(t => t.isBondingToken);
+  const allAreBonding = useMemo(() => {
+    return displayTokens && displayTokens.length > 0 && displayTokens.every(t => t.isBondingToken);
+  }, [displayTokens]);
   
-  console.log('🎨 [TokenRankedList] Render - displayTokens:', displayTokens?.length, 'allBonding:', allAreBonding, 'mixed:', hasMixedResults);
+  // Only log in development to reduce console noise
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🎨 [TokenRankedList] Render - displayTokens:', displayTokens?.length, 'allBonding:', allAreBonding, 'mixed:', hasMixedResults);
+  }
 
   // Mixed results UI - show bonding tokens with graduation bar, regular tokens with full columns
   if (hasMixedResults) {
