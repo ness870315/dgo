@@ -516,17 +516,17 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
 
               {/* MIDDLE COLUMN - Split vertically - MAJOR ENLARGEMENT (PROTAGONIST) */}
               <div className="col-span-12 lg:col-span-6 xl:col-span-7" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
-                {/* Desktop/14-inch: Fixed height layout - NO OVERLAP */}
-                <div className="hidden lg:flex flex-col h-full" style={{ gap: '12px' }}>
-                  {/* CENTER-UP: Price Chart - FIXED HEIGHT WITH X-AXIS VISIBLE */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
+                {/* Desktop/14-inch: Fixed height layout - NO OVERLAP - INCREASED GAP */}
+                <div className="hidden lg:flex flex-col h-full" style={{ gap: '20px' }}>
+                  {/* CENTER-UP: Price Chart - FIXED HEIGHT WITH X-AXIS VISIBLE - REDUCED HEIGHT */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(48% - 10px)', minHeight: '300px', flexShrink: 0 }}>
                     <div className="flex-1 overflow-visible" style={{ minHeight: '260px', padding: '0 0 50px 0' }}>
                       <SVGChart token={token} onClose={null} />
                     </div>
                   </div>
 
-                  {/* CENTER-DOWN: Swap Table - FIXED HEIGHT - STARTS AT 50% + GAP */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
+                  {/* CENTER-DOWN: Swap Table - FIXED HEIGHT - STARTS LOWER WITH MORE GAP */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500" style={{ height: 'calc(52% - 10px)', minHeight: '300px', flexShrink: 0 }}>
                     <div className="px-4 pt-2 pb-2 border-b border-gray-700 flex-shrink-0" style={{ height: '42px' }}>
                       <h3 className="text-white font-semibold flex items-center gap-2">
                         <BarChart3 className="w-5 h-5" />
@@ -576,10 +576,10 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
 
               {/* RIGHT COLUMN - Split vertically into 2 sections - WIDER FOR 14-INCH */}
               <div className="col-span-12 lg:col-span-3 xl:col-span-2" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
-                {/* Desktop/14-inch: Fixed height layout - PERFECT ALIGNMENT */}
-                <div className="hidden lg:flex flex-col h-full" style={{ gap: '12px' }}>
-                  {/* RIGHT-UP: Jupiter Integrated Plugin - FIXED HEIGHT - NO SQUEEZING */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '200px', flexShrink: 0 }}>
+                {/* Desktop/14-inch: Fixed height layout - PERFECT ALIGNMENT - INCREASED GAP */}
+                <div className="hidden lg:flex flex-col h-full" style={{ gap: '20px' }}>
+                  {/* RIGHT-UP: Jupiter Integrated Plugin - FIXED HEIGHT - NO SQUEEZING - REDUCED HEIGHT */}
+                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(48% - 10px)', minHeight: '200px', flexShrink: 0 }}>
                     <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0" style={{ height: '42px' }}>
                       <h3 className="text-white font-semibold text-sm">Swap Token</h3>
                     </div>
@@ -589,8 +589,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                   </div>
 
                   {/* RIGHT-BOTTOM: Bubblemaps - FIXED HEIGHT - PERFECTLY ALIGNED WITH SWAP TABLE */}
-                  {/* Starts at same position as swap table (50% + gap) */}
-                  <div className="bg-gray-800 rounded-lg border-2 border-gray-700 flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
+                  {/* Starts lower with more gap to prevent overlap */}
+                  <div className="bg-gray-800 rounded-lg border-2 border-gray-700 flex flex-col" style={{ height: 'calc(52% - 10px)', minHeight: '300px', flexShrink: 0 }}>
                     {/* Header spacer matching swap table header exactly */}
                     <div className="px-4 pt-2 pb-2 border-b border-transparent flex-shrink-0" style={{ height: '42px' }}>
                       <div className="h-5"></div>
