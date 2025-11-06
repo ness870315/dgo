@@ -1547,19 +1547,38 @@ Reply:`;
       const holderCount = tokenData.holderCount || tokenData.jupiterData?.holderCount || 0;
       const liquidityUsd = tokenData.liquidity || tokenData.jupiterData?.liquidity || 0;
       
-      // Extract volume and buy/sell pressure from Moralis Analytics
-      let volume24h = 0;
-      let buyPressure = 0;
-      let sellPressure = 0;
+      // Extract volume and buy/sell pressure - FALLBACK CHAIN for accuracy
+      // First try Jupiter stats24h (most reliable for Solana tokens)
+      let volume24h = (tokenData.jupiterData?.stats24h?.buyVolume || 0) + 
+                      (tokenData.jupiterData?.stats24h?.sellVolume || 0);
+      let buyPressure = tokenData.jupiterData?.stats24h?.buyVolume || 0;
+      let sellPressure = tokenData.jupiterData?.stats24h?.sellVolume || 0;
+      
+      // If Jupiter data is missing/zero, try other Jupiter volume fields
+      if (volume24h === 0) {
+        volume24h = tokenData.jupiterData?.volume24h || 
+                   tokenData.jupiterData?.volume_24h ||
+                   tokenData.volume24h || 0;
+      }
+      
+      // Then try Moralis Analytics (can override or supplement Jupiter data)
       if (tokenData.moralisAnalytics) {
         const analytics = tokenData.moralisAnalytics;
-        // Extract buy/sell volumes
-        buyPressure = analytics.totalBuyVolume?.['24h'] || 0;
-        sellPressure = analytics.totalSellVolume?.['24h'] || 0;
-        // Calculate total volume from buy + sell (Moralis doesn't always have totalVolume field)
-        volume24h = buyPressure + sellPressure;
-        console.log(`📊 [MENTIONS] Moralis Analytics for ${symbol}:`, {
-          volume24h,
+        const moralisBuy = analytics.totalBuyVolume?.['24h'] || 0;
+        const moralisSell = analytics.totalSellVolume?.['24h'] || 0;
+        const moralisVolume = moralisBuy + moralisSell;
+        
+        // Use Moralis if it's higher (more complete) or if Jupiter was 0
+        if (moralisVolume > volume24h || volume24h === 0) {
+          buyPressure = moralisBuy;
+          sellPressure = moralisSell;
+          volume24h = moralisVolume;
+        }
+        
+        console.log(`📊 [MENTIONS] Volume sources for ${symbol}:`, {
+          jupiterVolume: (tokenData.jupiterData?.stats24h?.buyVolume || 0) + (tokenData.jupiterData?.stats24h?.sellVolume || 0),
+          moralisVolume: moralisVolume,
+          finalVolume: volume24h,
           buyPressure,
           sellPressure,
           buyPct: (buyPressure + sellPressure) > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 0
