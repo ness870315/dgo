@@ -12,27 +12,89 @@ class TweetAPIPostingService {
     this.authToken = process.env.TWEETAPI_AUTH_TOKEN || '85aad2d6ed8ebe60c2f7501ad69d675eabea70f5';
     this.baseUrl = 'https://api.tweetapi.com';
     
-    // Browser headers to mimic real browser requests and bypass automation detection
-    this.browserHeaders = {
+    // Rotate User-Agents to avoid detection
+    this.userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    ];
+    this.currentUserAgentIndex = Math.floor(Math.random() * this.userAgents.length);
+    
+    // Last request timestamp for rate limiting
+    this.lastRequestTime = 0;
+    this.minDelayBetweenRequests = 2000; // 2 seconds minimum between requests
+    
+    console.log('🐦 [TWEETAPI V2] Service initialized with enhanced browser headers');
+  }
+
+  /**
+   * Get browser headers with randomized User-Agent and realistic browser fingerprint
+   */
+  getBrowserHeaders() {
+    // Rotate User-Agent occasionally
+    if (Math.random() < 0.3) {
+      this.currentUserAgentIndex = Math.floor(Math.random() * this.userAgents.length);
+    }
+    
+    const userAgent = this.userAgents[this.currentUserAgentIndex];
+    const isChrome = userAgent.includes('Chrome');
+    const isWindows = userAgent.includes('Windows');
+    const isMac = userAgent.includes('Macintosh');
+    
+    // Extract Chrome version from User-Agent
+    const chromeVersionMatch = userAgent.match(/Chrome\/(\d+)/);
+    const chromeVersion = chromeVersionMatch ? chromeVersionMatch[1] : '131';
+    
+    // Build comprehensive browser headers
+    const headers = {
       'X-API-Key': this.apiKey,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': userAgent,
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
       'Referer': 'https://twitter.com/',
       'Origin': 'https://twitter.com',
-      'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': '"Windows"',
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'cross-site',
+      'Connection': 'keep-alive',
+      'DNT': '1',
+      'Upgrade-Insecure-Requests': '1',
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache'
     };
     
-    console.log('🐦 [TWEETAPI V2] Service initialized with browser headers');
+    // Add Chrome-specific headers
+    if (isChrome) {
+      headers['Sec-Ch-Ua'] = `"Not_A Brand";v="8", "Chromium";v="${chromeVersion}", "Google Chrome";v="${chromeVersion}"`;
+      headers['Sec-Ch-Ua-Mobile'] = '?0';
+      headers['Sec-Ch-Ua-Platform'] = isWindows ? '"Windows"' : isMac ? '"macOS"' : '"Linux"';
+      headers['Sec-Ch-Ua-Platform-Version'] = isWindows ? '"15.0.0"' : isMac ? '"14.0.0"' : '"6.5.0"';
+      headers['Sec-Fetch-Dest'] = 'empty';
+      headers['Sec-Fetch-Mode'] = 'cors';
+      headers['Sec-Fetch-Site'] = 'same-origin';
+      headers['Sec-Fetch-User'] = '?1';
+    }
+    
+    // Add random timestamp to make requests look more natural
+    headers['X-Requested-With'] = 'XMLHttpRequest';
+    
+    return headers;
+  }
+
+  /**
+   * Add random delay to mimic human behavior
+   */
+  async addHumanDelay() {
+    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+    const delayNeeded = Math.max(0, this.minDelayBetweenRequests - timeSinceLastRequest);
+    
+    if (delayNeeded > 0) {
+      // Add random jitter (0-1 second)
+      const jitter = Math.random() * 1000;
+      await new Promise(resolve => setTimeout(resolve, delayNeeded + jitter));
+    }
+    
+    this.lastRequestTime = Date.now();
   }
 
   /**
@@ -40,6 +102,9 @@ class TweetAPIPostingService {
    */
   async postTweetWithMedia(text, mediaUrls = []) {
     try {
+      // Add human-like delay before request
+      await this.addHumanDelay();
+      
       console.log('🐦 [TWEETAPI V2] Posting tweet with media:', text.substring(0, 50) + '...');
       console.log('📷 [TWEETAPI V2] Media URLs:', mediaUrls);
       
@@ -49,9 +114,14 @@ class TweetAPIPostingService {
         media: mediaUrls.map(url => ({ url }))
       };
 
+      // Get fresh browser headers with rotation
+      const headers = this.getBrowserHeaders();
+
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post-with-media`, payload, {
-        headers: this.browserHeaders,
-        timeout: 30000
+        headers: headers,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500
       });
 
       if (response.data?.data?.success) {
@@ -107,6 +177,9 @@ class TweetAPIPostingService {
    */
   async postTweet(text) {
     try {
+      // Add human-like delay before request
+      await this.addHumanDelay();
+      
       console.log('🐦 [TWEETAPI V2] Posting tweet:', text.substring(0, 50) + '...');
       
       const payload = {
@@ -114,9 +187,14 @@ class TweetAPIPostingService {
         text: text
       };
 
+      // Get fresh browser headers with rotation
+      const headers = this.getBrowserHeaders();
+
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post`, payload, {
-        headers: this.browserHeaders,
-        timeout: 30000
+        headers: headers,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
 
       if (response.data?.data?.success) {
@@ -171,6 +249,9 @@ class TweetAPIPostingService {
    */
   async postReply(text, tweetId) {
     try {
+      // Add human-like delay before request
+      await this.addHumanDelay();
+      
       console.log('💬 [TWEETAPI V2] Posting reply to tweet:', tweetId);
       
       const payload = {
@@ -179,9 +260,14 @@ class TweetAPIPostingService {
         tweetId: tweetId
       };
 
+      // Get fresh browser headers with rotation
+      const headers = this.getBrowserHeaders();
+
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/reply-post`, payload, {
-        headers: this.browserHeaders,
-        timeout: 30000
+        headers: headers,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500
       });
 
       if (response.data?.data?.success) {
@@ -239,6 +325,9 @@ class TweetAPIPostingService {
    */
   async postQuoteTweet(text, quoteTweetId) {
     try {
+      // Add human-like delay before request
+      await this.addHumanDelay();
+      
       console.log('💭 [TWEETAPI V2] Posting quote tweet for:', quoteTweetId);
       
       const payload = {
@@ -247,9 +336,14 @@ class TweetAPIPostingService {
         quoteTweetId: quoteTweetId
       };
 
+      // Get fresh browser headers with rotation
+      const headers = this.getBrowserHeaders();
+
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/quote-post`, payload, {
-        headers: this.browserHeaders,
-        timeout: 30000
+        headers: headers,
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500
       });
 
       if (response.data?.data?.success) {
