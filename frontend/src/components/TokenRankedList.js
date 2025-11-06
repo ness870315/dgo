@@ -6,6 +6,7 @@ import websocketService from '../services/websocketService';
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFilters }) => {
   const [rankings, setRankings] = useState([]);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const hasFetchedInitialRef = useRef(false); // Prevent multiple initial fetches
 
   // Format numbers
   const formatNumber = (num) => {
@@ -54,6 +55,13 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   // ✅ Fetch INITIAL rankings ONCE on mount (NO polling when tokens prop changes)
   // Real-time updates come via WebSocket rankingUpdate events below
   const fetchInitialRankings = useCallback(async () => {
+    // Prevent duplicate calls
+    if (hasFetchedInitialRef.current) {
+      console.log('⏭️ [TokenRankedList] Skipping duplicate fetchInitialRankings call');
+      return;
+    }
+    hasFetchedInitialRef.current = true;
+    
     console.log('🔍 [TokenRankedList] Fetching INITIAL rankings (one-time only):', tokens?.length, 'tokens');
     try {
       // Check if ALL tokens are bonding tokens

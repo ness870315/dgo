@@ -7,7 +7,7 @@ const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle
 // Generate unique connection ID for this hook instance
 const generateConnectionId = () => `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebSocket = true) => {
+export const useHybridPrice = (tokenAddress, pollingInterval = 5000, enableWebSocket = true) => {
   const [priceData, setPriceData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);

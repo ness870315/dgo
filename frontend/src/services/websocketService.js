@@ -97,7 +97,7 @@ class WebSocketService extends EventEmitter {
           this.connect();
         }, 5000);
       }
-    }, 30000); // Send ping every 30 seconds
+    }, 15000); // Send ping every 15 seconds (faster heartbeat for better connection stability)
   }
 
   stopHeartbeat() {
