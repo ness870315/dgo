@@ -517,8 +517,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) - MAJOR ENLARGEMENT - ALIGNED WITH BLACK SECTION */}
-                {/* Aligned with black section: starts right after chart (50% + 8px gap) but matches black section position */}
-                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(35% + 8px)', height: 'calc(65% - 8px)', minHeight: '542px', flexShrink: 0 }}>
+                {/* Starts right after chart (50%) with 16px gap to match right column spacing */}
+                <div className="bg-gray-800 rounded-lg flex flex-col border-2 border-green-500 absolute left-0 right-0 bottom-0" style={{ top: 'calc(50% + 16px)', height: 'calc(50% - 24px)', minHeight: '542px', flexShrink: 0 }}>
                   <div className="px-4 pt-2 pb-2 border-b border-gray-700 flex-shrink-0">
                     <h3 className="text-white font-semibold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
@@ -542,7 +542,7 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               <div className="col-span-12 lg:col-span-2 relative" style={{ height: 'calc(100vh - 120px)', minHeight: '900px' }}>
                 
                                    {/* RIGHT-UP: Jupiter Integrated Plugin - SMALLER THAN CHART */}
-                   <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(35% - 4px)', minHeight: '200px', flexShrink: 0, zIndex: 1 }}>
+                   <div className="bg-gray-800 rounded-lg flex flex-col absolute top-0 left-0 right-0" style={{ height: 'calc(35% - 8px)', minHeight: '200px', flexShrink: 0, zIndex: 1 }}>
                      <div className="px-4 pt-3 pb-2 border-b border-gray-700 flex-shrink-0">
                        <h3 className="text-white font-semibold text-sm">Swap Token</h3>
                      </div>
@@ -552,8 +552,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                    </div>
 
                                    {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - ALIGNED WITH SWAP TABLE */}
-                   {/* Aligned with swap table: starts right after Jupiter widget (35% + 8px gap) */}
-                   <div className="bg-gray-800 rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0 overflow-hidden" style={{ top: 'calc(35% + 8px)', minHeight: '542px', zIndex: 0 }}>
+                   {/* Starts right after Jupiter widget (35%) with 16px gap to match middle column spacing */}
+                   <div className="bg-gray-800 rounded-lg border-2 border-red-500 absolute left-0 right-0 bottom-0 overflow-hidden" style={{ top: 'calc(35% + 16px)', height: 'calc(65% - 24px)', minHeight: '542px', zIndex: 0 }}>
                      <BubblemapsIframe token={token} />
                    </div>
               </div>
