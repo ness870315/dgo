@@ -348,7 +348,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       {/* Market Cap */}
                       <button
                         onClick={() => setShowHoldersInsightsModal(true)}
-                        className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded border border-blue-500/30 hover:from-blue-600/30 hover:to-cyan-600/30 transition-all aspect-square"
+                        className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded border border-blue-500/30 hover:from-blue-600/30 hover:to-cyan-600/30 transition-all"
+                        style={{ minHeight: '120px', height: '120px' }}
                       >
                         <span className="text-blue-200 text-sm mb-1">🏦 Market Cap</span>
                         <span className="text-white font-bold text-base">
@@ -368,7 +369,9 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       </button>
 
                       {/* Price */}
-                      <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded border border-green-500/30 aspect-square">
+                      <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded border border-green-500/30"
+                        style={{ minHeight: '120px', height: '120px' }}
+                      >
                         <span className="text-green-200 text-sm mb-1">📈 Price</span>
                         <span className="text-white font-bold text-base">
                           {formatPrice(getPriceUsd() || token?.jupiterData?.usdPrice || token?.price)}
@@ -387,7 +390,9 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       </div>
 
                       {/* Liquidity */}
-                      <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-600/20 to-violet-600/20 rounded border border-purple-500/30 aspect-square">
+                      <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-600/20 to-violet-600/20 rounded border border-purple-500/30"
+                        style={{ minHeight: '120px', height: '120px' }}
+                      >
                         <span className="text-purple-200 text-sm mb-1">💰 Liquidity</span>
                         <span className="text-white font-bold text-base">
                           {formatLiquidity(getLiquidity() || token?.jupiterData?.liquidity)}
@@ -408,7 +413,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                       {/* Holders */}
                       <button
                         onClick={() => setShowHoldersInsightsModal(true)}
-                        className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 hover:from-orange-600/30 hover:to-amber-600/30 transition-all aspect-square"
+                        className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 hover:from-orange-600/30 hover:to-amber-600/30 transition-all"
+                        style={{ minHeight: '120px', height: '120px' }}
                       >
                         <span className="text-orange-200 text-sm mb-1">👥 Holders</span>
                         <span className="text-white font-bold text-base">
@@ -513,8 +519,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 {/* Desktop/14-inch: Use flex layout for proper spacing */}
                 <div className="hidden lg:flex flex-col gap-4 h-full">
                   {/* CENTER-UP: Price Chart (Decoupled) - MAJOR ENLARGEMENT - NO HEADER - FIX X-AXIS */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0, overflow: 'visible', paddingBottom: '8px' }}>
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: '320px' }}>
+                  <div className="bg-gray-800 rounded-lg flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
+                    <div className="flex-1 overflow-hidden" style={{ minHeight: '300px', paddingBottom: '25px' }}>
                       <SVGChart token={token} onClose={null} />
                     </div>
                   </div>
@@ -584,13 +590,13 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                   </div>
 
                   {/* RIGHT-BOTTOM: Bubblemaps Holder Distribution - PERFECTLY ALIGNED WITH SWAP TABLE */}
-                  {/* Matches swap table structure: header + content for perfect alignment */}
+                  {/* Matches swap table structure exactly for perfect alignment */}
                   <div className="bg-gray-800 rounded-lg border-2 border-red-500 flex flex-col flex-1" style={{ minHeight: '350px', flexShrink: 0 }}>
-                    {/* Invisible header spacer to match swap table header height */}
-                    <div className="px-4 pt-2 pb-2 border-b border-red-500 flex-shrink-0" style={{ height: '42px' }}>
-                      <div className="h-full"></div>
+                    {/* Exact header match to swap table header */}
+                    <div className="px-4 pt-2 pb-2 border-b border-red-500 flex-shrink-0" style={{ height: 'auto', minHeight: '42px' }}>
+                      <div className="h-5"></div>
                     </div>
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
+                    <div className="flex-1 overflow-hidden p-4" style={{ minHeight: '300px' }}>
                       <BubblemapsIframe token={token} />
                     </div>
                   </div>
