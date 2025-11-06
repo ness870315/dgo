@@ -60,8 +60,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.referenceTimestamp = null;
         
         // 🚀 CRITICAL: Single shared stream for ALL tokens (efficiency!)
-        this.sharedStream = null; // One stream for all pools
-        this.sharedStreamPoolCount = 0; // Track how many pools in shared stream
+        this.sharedStreams = []; // Shared gRPC streams (batched token filters)
+        this.sharedStreamPoolCount = 0; // Track how many tokens are attached to streams
+        this._sharedStreamRestartScheduled = false;
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
@@ -407,20 +408,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
 
-        // ✅ CRITICAL FIX: Allow restart when new tokens are added
-        if (this.sharedStream && !forceRestart) {
+        const hasActiveStreams = Array.isArray(this.sharedStreams) && this.sharedStreams.length > 0;
+
+        // ✅ Allow restart when new tokens are added
+        if (hasActiveStreams && !forceRestart) {
             return;
         }
         
-        // ✅ CRITICAL FIX: End existing stream before creating new one
-        if (this.sharedStream && forceRestart) {
-            try {
-                this.sharedStream.removeAllListeners();
-                this.sharedStream.end();
-            } catch (error) {
-                console.error('⚠️ Error ending old stream:', error.message);
-            }
-            this.sharedStream = null;
+        // ✅ End existing streams before creating new ones
+        if (hasActiveStreams && forceRestart) {
+            await this.stopSharedStreams();
             // Wait a moment for cleanup
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -428,15 +425,25 @@ class EnhancedHybridPriceService extends EventEmitter {
         // ✅ CRITICAL FIX: Filter by TOKEN ADDRESSES, not pool addresses
         // Swaps often don't directly touch pool accounts, but always involve the token mint
         const allTokenAddresses = Array.from(this.poolAddresses.keys());
-        const transactionFilters = {
-            client: {
-                accountInclude: allTokenAddresses, // Monitor token mint addresses
-                accountExclude: [],
-                accountRequired: [],
-                vote: false,
-                failed: false
-            }
-        };
+        if (allTokenAddresses.length === 0) {
+            console.log('⚠️ [EnhancedHybridPriceService] No token addresses available for monitoring');
+            return;
+        }
+
+        const MAX_SHARED_STREAMS = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10) || 2;
+        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 300;
+        let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
+        if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
+            computedBatchSize = MAX_TOKENS_PER_STREAM;
+        }
+        const batches = [];
+        for (let i = 0; i < allTokenAddresses.length && batches.length < MAX_SHARED_STREAMS; i += computedBatchSize) {
+            batches.push(allTokenAddresses.slice(i, i + computedBatchSize));
+        }
+        if (batches.length === MAX_SHARED_STREAMS && (MAX_SHARED_STREAMS * computedBatchSize) < allTokenAddresses.length) {
+            const remaining = allTokenAddresses.length - (MAX_SHARED_STREAMS * computedBatchSize);
+            console.warn(`⚠️ [EnhancedHybridPriceService] Reached stream cap (${MAX_SHARED_STREAMS}). ${remaining} tokens skipped from real-time monitoring until slots free up.`);
+        }
         
         let CommitmentLevel;
         try {
@@ -445,32 +452,85 @@ class EnhancedHybridPriceService extends EventEmitter {
             CommitmentLevel = { CONFIRMED: 'confirmed' };
         }
         
-        // Create SINGLE stream for all tokens
-        this.sharedStream = await this.grpcClient.subscribeOnce(
-            {}, {}, transactionFilters, {}, {}, {}, {}, 
-            CommitmentLevel.CONFIRMED, []
-        );
-        
-        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allTokenAddresses.length} tokens`);
-        
-        // Process ALL transactions in the shared stream
-        this.sharedStream.on("data", async (msg) => {
-            await this.processSharedStreamUpdate(msg);
-        });
-        
-        this.sharedStream.on("error", (error) => {
-            console.error(`❌ [EnhancedHybridPriceService] Shared stream error:`, error.message);
-            // Attempt to reconnect
-            setTimeout(() => {
-                this.sharedStream = null;
-                this.startRealTimeMonitoring();
-            }, 5000);
-        });
-        
-        this.sharedStream.on("end", () => {
-            this.sharedStream = null;
-            this.startRealTimeMonitoring();
-        });
+        const newStreams = [];
+        for (let index = 0; index < batches.length; index++) {
+            const batch = batches[index];
+            const transactionFilters = {
+                client: {
+                    accountInclude: batch,
+                    accountExclude: [],
+                    accountRequired: [],
+                    vote: false,
+                    failed: false
+                }
+            };
+
+            const stream = await this.grpcClient.subscribeOnce(
+                {}, {}, transactionFilters, {}, {}, {}, {},
+                CommitmentLevel.CONFIRMED, []
+            );
+
+            console.log(`✅ [EnhancedHybridPriceService] Shared stream created for batch ${index + 1}/${batches.length} (${batch.length} tokens, max ${computedBatchSize})`);
+
+            stream._batchIndex = index;
+            stream._tokenCount = batch.length;
+
+            stream.on("data", async (msg) => {
+                await this.processSharedStreamUpdate(msg);
+            });
+
+            stream.on("error", (error) => {
+                console.error(`❌ [EnhancedHybridPriceService] Shared stream error (batch ${index + 1}):`, error.message);
+                this.scheduleSharedStreamRestart();
+            });
+
+            stream.on("end", () => {
+                console.warn(`⚠️ [EnhancedHybridPriceService] Shared stream ended (batch ${index + 1})`);
+                this.scheduleSharedStreamRestart();
+            });
+
+            newStreams.push(stream);
+        }
+
+        this.sharedStreams = newStreams;
+        this.sharedStreamPoolCount = allTokenAddresses.length;
+        console.log(`✅ [EnhancedHybridPriceService] Monitoring ${this.sharedStreamPoolCount} tokens across ${this.sharedStreams.length} streams`);
+    }
+
+    async stopSharedStreams() {
+        if (!Array.isArray(this.sharedStreams) || this.sharedStreams.length === 0) {
+            this.sharedStreams = [];
+            return;
+        }
+
+        for (const stream of this.sharedStreams) {
+            if (!stream) continue;
+            try {
+                stream.removeAllListeners();
+                stream.end();
+            } catch (error) {
+                console.error('⚠️ [EnhancedHybridPriceService] Error stopping stream:', error.message);
+            }
+        }
+
+        this.sharedStreams = [];
+        this.sharedStreamPoolCount = 0;
+    }
+
+    scheduleSharedStreamRestart(delayMs = 5000) {
+        if (this._sharedStreamRestartScheduled) {
+            return;
+        }
+        this._sharedStreamRestartScheduled = true;
+
+        setTimeout(async () => {
+            this._sharedStreamRestartScheduled = false;
+            try {
+                await this.startRealTimeMonitoring(true);
+            } catch (error) {
+                console.error('❌ [EnhancedHybridPriceService] Failed to restart shared streams:', error.message);
+            }
+        }, delayMs);
     }
 
     // ✅ NEW: Process updates from shared stream
@@ -1427,7 +1487,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
                 
                 // ✅ CRITICAL FIX: Restart stream to include new token's pool
-                if (this.sharedStream) {
+                if (Array.isArray(this.sharedStreams) && this.sharedStreams.length > 0) {
                     console.log(`🔄 [EnhancedHybridPriceService] Restarting stream to include ${tokenAddress}...`);
                     await this.startRealTimeMonitoring(true);  // ← Force restart
                 }
@@ -1436,7 +1496,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             // Check if stream is running (start if not)
-            if (!this.sharedStream) {
+            if (!Array.isArray(this.sharedStreams) || this.sharedStreams.length === 0) {
                 console.log(`⚠️ [EnhancedHybridPriceService] Stream not running, starting it...`);
                 await this.startRealTimeMonitoring();
             }
