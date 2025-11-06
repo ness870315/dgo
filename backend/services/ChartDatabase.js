@@ -147,7 +147,19 @@ class ChartDatabase {
             const fileData = await fs.readFile(tokenFile, 'utf8');
             const parsed = JSON.parse(fileData);
             
-            const tokenDb = this.tokenDatabases.get(tokenAddress);
+            let tokenDb = this.tokenDatabases.get(tokenAddress);
+            if (!tokenDb) {
+                tokenDb = {
+                    swaps: new Map(),
+                    lastWriteTime: 0,
+                    swapCount: 0
+                };
+                this.tokenDatabases.set(tokenAddress, tokenDb);
+            }
+            if (!this.writeQueues.has(tokenAddress)) {
+                this.writeQueues.set(tokenAddress, []);
+            }
+            
             if (parsed.swaps && Array.isArray(parsed.swaps)) {
                 // Convert array back to Map
                 tokenDb.swaps = new Map(parsed.swaps);
@@ -337,6 +349,8 @@ class ChartDatabase {
         const backupFile = `${this.dbFile}.backup`;
         
         try {
+            await this.ensureDataDir();
+            
             // Only save shared metadata (not per-token swaps)
             const dataToSave = {
                 candles: Array.from(this.sharedData.candles.entries()),
@@ -364,6 +378,20 @@ class ChartDatabase {
             await fs.rename(tempFile, this.dbFile);
             
         } catch (error) {
+            if (error.code === 'ENOENT') {
+                console.warn('⚠️ [ChartDatabase] charts.json directory missing during atomic write, attempting recovery...');
+                try {
+                    await this.ensureDataDir();
+                    const tempExists = await fs.access(tempFile).then(() => true).catch(() => false);
+                    if (tempExists) {
+                        await fs.rename(tempFile, this.dbFile);
+                        console.log('✅ [ChartDatabase] charts.json write recovered after directory recreation');
+                        return;
+                    }
+                } catch (retryError) {
+                    console.error('❌ [ChartDatabase] Failed to recover charts.json write:', retryError.message);
+                }
+            }
             // Clean up temp file if it exists
             try {
                 await fs.unlink(tempFile);
