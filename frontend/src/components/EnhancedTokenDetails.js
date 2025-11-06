@@ -568,7 +568,7 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
 
               {/* RIGHT COLUMN - Split vertically into 2 sections - SIGNIFICANTLY REDUCED */}
-              <div className="col-span-12 lg:col-span-5 xl:col-span-2 relative" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
+              <div className="col-span-12 lg:col-span-2 relative" style={{ minHeight: '600px', height: 'calc(100vh - 200px)' }}>
                 {/* Desktop/14-inch: Use absolute positioning for side-by-side layout */}
                 <div className="hidden lg:block absolute inset-0">
                   {/* Desktop Layout - Absolute positioned */}
