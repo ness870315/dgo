@@ -519,8 +519,8 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 {/* Desktop/14-inch: Fixed height layout - NO OVERLAP */}
                 <div className="hidden lg:flex flex-col h-full" style={{ gap: '12px' }}>
                   {/* CENTER-UP: Price Chart - FIXED HEIGHT WITH X-AXIS VISIBLE */}
-                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0, overflow: 'visible' }}>
-                    <div className="flex-1" style={{ minHeight: '260px', paddingBottom: '40px', overflow: 'visible' }}>
+                  <div className="bg-gray-800 rounded-lg flex flex-col" style={{ height: 'calc(50% - 6px)', minHeight: '300px', flexShrink: 0 }}>
+                    <div className="flex-1 overflow-visible" style={{ minHeight: '260px', padding: '0 0 50px 0' }}>
                       <SVGChart token={token} onClose={null} />
                     </div>
                   </div>

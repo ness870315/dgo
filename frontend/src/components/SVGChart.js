@@ -61,7 +61,7 @@ function sliceWindow(candles, tf) {
 }
 
 // Build SVG scales with correct X by time domain
-function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:28}) {
+function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:40}) {
   if (!points || !Array.isArray(points) || points.length === 0) {
     return { x: () => 0, y: () => 0, pad, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
   }
@@ -593,7 +593,7 @@ const SVGChart = ({ token, onClose }) => {
           displayMode={displayMode}
           circulatingSupply={token?.circulatingSupply}
           timezone={timezone}
-          height={400}
+          height={450}
           maxPoints={1000}
         />
       </div>
