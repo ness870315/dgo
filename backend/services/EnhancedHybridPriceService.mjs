@@ -65,10 +65,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreamPoolCount = 0; // Track how many tokens are attached to streams
         this._sharedStreamRestartScheduled = false;
         this.sharedStreamRetryCount = 0;
-        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '120000', 10); // 2 minutes base delay
-        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '180000', 10); // 3 minutes max delay
-        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '10000', 10); // 10 seconds jitter
-        this.sharedStreamSubscribeDelay = parseInt(process.env.CONSTANT_K_STREAM_SUBSCRIBE_DELAY || '1000', 10);
+        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '300000', 10); // 5 minutes base delay
+        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '600000', 10); // 10 minutes max delay
+        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '15000', 10); // 15 seconds jitter
+        this.sharedStreamSubscribeDelay = parseInt(process.env.CONSTANT_K_STREAM_SUBSCRIBE_DELAY || '2000', 10); // 2 seconds between stream subscriptions
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
@@ -627,12 +627,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         const requestedStreamCount = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10);
-        const MAX_SHARED_STREAMS = 1; // Enforce single shared stream to stay under Constant K limits
-        if (requestedStreamCount && requestedStreamCount > 1) {
-            console.warn(`⚠️ [EnhancedHybridPriceService] CONSTANT_K_MAX_STREAMS=${requestedStreamCount} overridden to ${MAX_SHARED_STREAMS} to comply with single-stream requirement.`);
+        const MAX_SHARED_STREAMS = 2; // Split into 2 streams for better stability (300 tokens each)
+        if (requestedStreamCount && requestedStreamCount > 2) {
+            console.warn(`⚠️ [EnhancedHybridPriceService] CONSTANT_K_MAX_STREAMS=${requestedStreamCount} overridden to ${MAX_SHARED_STREAMS} to prevent stream overload.`);
         }
 
-        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 1024;
+        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 300; // Max 300 tokens per stream
         let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
         if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
             computedBatchSize = MAX_TOKENS_PER_STREAM;
