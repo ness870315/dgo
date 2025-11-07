@@ -13307,10 +13307,16 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const enhancedStatus = enhancedService && typeof enhancedService.getGrpcStatus === 'function'
           ? enhancedService.getGrpcStatus()
           : null;
+        
+        // Add RPC stats if available
+        const rpcStats = enhancedService && typeof enhancedService.getRpcStats === 'function'
+          ? enhancedService.getRpcStats()
+          : null;
 
         res.json({
           success: true,
           enhancedHybrid: enhancedStatus || { available: false },
+          rpc: rpcStats || { available: false },
           trending: { available: false }
         });
       } catch (error) {
