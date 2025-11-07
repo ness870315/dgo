@@ -426,6 +426,94 @@ class ChartDatabase {
     }
 
     /**
+     * 🚀 NEW: Migrate all existing uncompressed files to compressed format
+     * Run this once after enabling compression to immediately migrate all files
+     */
+    async migrateAllToCompressed() {
+        if (!this.useCompression) {
+            console.log('⚠️ [ChartDatabase] Compression is disabled, skipping migration');
+            return { skipped: true };
+        }
+
+        console.log('🔄 [ChartDatabase] Starting migration of all uncompressed files...');
+        
+        const chartsDir = path.join(this.dataDir, 'charts');
+        const results = {
+            totalFiles: 0,
+            migrated: 0,
+            alreadyCompressed: 0,
+            errors: 0,
+            spaceSaved: 0
+        };
+
+        try {
+            const files = await fs.readdir(chartsDir);
+            
+            for (const file of files) {
+                // Only process .json files (not .json.gz)
+                if (!file.endsWith('.json') || file.endsWith('.json.gz')) {
+                    continue;
+                }
+
+                results.totalFiles++;
+                const jsonFile = path.join(chartsDir, file);
+                const gzFile = `${jsonFile}.gz`;
+
+                try {
+                    // Check if compressed version already exists
+                    try {
+                        await fs.access(gzFile);
+                        results.alreadyCompressed++;
+                        console.log(`✅ [ChartDatabase] ${file} already compressed, deleting uncompressed...`);
+                        await fs.unlink(jsonFile);
+                        continue;
+                    } catch {
+                        // Compressed doesn't exist, need to compress
+                    }
+
+                    // Read uncompressed file
+                    const uncompressedData = await fs.readFile(jsonFile, 'utf8');
+                    const uncompressedSize = Buffer.byteLength(uncompressedData);
+
+                    // Compress
+                    const compressed = await gzip(uncompressedData);
+                    const compressedSize = compressed.length;
+
+                    // Write compressed file
+                    await fs.writeFile(gzFile, compressed);
+
+                    // Delete uncompressed file
+                    await fs.unlink(jsonFile);
+
+                    results.migrated++;
+                    results.spaceSaved += (uncompressedSize - compressedSize);
+
+                    const savings = ((1 - compressedSize / uncompressedSize) * 100).toFixed(1);
+                    console.log(`✅ [ChartDatabase] Migrated ${file}: ${(uncompressedSize / 1024 / 1024).toFixed(2)} MB → ${(compressedSize / 1024 / 1024).toFixed(2)} MB (${savings}% savings)`);
+
+                } catch (error) {
+                    console.error(`❌ [ChartDatabase] Failed to migrate ${file}:`, error.message);
+                    results.errors++;
+                }
+            }
+
+            const totalSavingsMB = (results.spaceSaved / 1024 / 1024).toFixed(2);
+            console.log(`\n✅ [ChartDatabase] Migration complete!`);
+            console.log(`   Total files: ${results.totalFiles}`);
+            console.log(`   Migrated: ${results.migrated}`);
+            console.log(`   Already compressed: ${results.alreadyCompressed}`);
+            console.log(`   Errors: ${results.errors}`);
+            console.log(`   Space saved: ${totalSavingsMB} MB`);
+
+        } catch (error) {
+            console.error('❌ [ChartDatabase] Migration failed:', error.message);
+            results.errors++;
+        }
+
+        return results;
+    }
+
+    /**
      * 🚀 LEGACY METHOD - Keep for backward compatibility (shared metadata only)
      */
     async atomicWrite() {
@@ -1075,34 +1163,6 @@ class ChartDatabase {
                                 results.snapshotDirsDeleted++;
                                 const sizeGB = ((stats.size || 0) / 1024 / 1024 / 1024).toFixed(2);
                                 console.log(`🗑️ [ChartDatabase] Deleted snapshot directory: ${snapshotDir} (${sizeGB}GB)`);
-                            }
-                        } catch (error) {
-                            console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
-                            results.errors.push({ snapshotDir, error: error.message });
-                        }
-                    }
-                } catch (error) {
-                    // Backup directory might not exist, that's ok
-                    if (error.code !== 'ENOENT') {
-                        console.warn(`⚠️ [ChartDatabase] Error accessing backups directory ${backupsDir}:`, error.message);
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('❌ [ChartDatabase] Error in cleanupBackupFiles:', error.message);
-            results.errors.push({ global: error.message });
-        }
-        
-        return results;
-    }
-
-    close() {
-        console.log('🔒 Chart database closed');
-    }
-}
-
-export default ChartDatabase;
                             }
                         } catch (error) {
                             console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
