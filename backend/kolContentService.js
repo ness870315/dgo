@@ -941,100 +941,108 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
    */
   async buildMomentumCandidates() {
     const candidates = [];
-    const trending = await this.getTrendingTokens(50);
 
-    const comparablesPool = trending
-      .map(token => (token?.name || token?.symbol || '').toString().trim())
-      .filter(Boolean);
+    if (!this.perplexityService || !this.perplexityService.isInitialized) {
+      console.warn('⚠️ [MOMENTUM] Perplexity service not initialized, skipping candidate discovery');
+      return candidates;
+    }
 
-    const normalizeAliases = (name, symbol) => {
-      const aliases = new Set();
-      if (name) {
-        aliases.add(name);
-        aliases.add(name.toLowerCase());
+    const coreQueries = [
+      'Top crypto protocols showing weekly transaction accelerations and on-chain adoption growth',
+      'Fastest-growing L2 rollups or scaling solutions by fees, TVL, and developer adoption this week',
+      'Infrastructure providers or block builders gaining traction (MEV, validators, execution clients)',
+      'AI payment rails, agent settlement layers, or on-chain compute platforms gaining market share',
+      'Cross-chain messaging, bridges, and interoperability protocols with accelerating usage metrics',
+      'Stablecoin issuers or tokenized real-world asset platforms with significant inflows this month'
+    ];
+
+    const queryResults = await Promise.all(coreQueries.map(async (query) => {
+      try {
+        console.log(`🔍 [MOMENTUM] Perplexity macro query: ${query}`);
+        const response = await this.perplexityService.searchCrypto(query, {
+          searchRecencyFilter: 'month',
+          temperature: 0.2,
+          maxTokens: 600
+        });
+        if (!response || !response.content) {
+          return null;
+        }
+        return response;
+      } catch (error) {
+        console.warn(`⚠️ [MOMENTUM] Perplexity macro query failed: ${error.message}`);
+        return null;
       }
-      if (symbol) {
-        aliases.add(symbol.toUpperCase());
-        aliases.add(symbol.toLowerCase());
-        aliases.add(`${symbol.toUpperCase()} token`);
-      }
-      return Array.from(aliases).filter(Boolean);
-    };
+    }));
 
-    trending.forEach((token, index) => {
-      if (!token) return;
+    queryResults.filter(Boolean).forEach((result, index) => {
+      const lines = result.content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
 
-      const name = (token.name || token.symbol || '').toString().trim();
-      if (!name) return;
+      lines.forEach(line => {
+        const match = line.match(/^(?:[-*\d\.\)]\s*)?(.+?)(?:(?:—|-|:).*$|$)/i);
+        if (!match) {
+          return;
+        }
 
-      const symbol = token.symbol ? token.symbol.toString().trim().toUpperCase() : null;
+        const name = match[1]
+          .replace(/^[\d\.\)\-\*\s]+/, '')
+          .replace(/\s+\([^)]*\)$/, '')
+          .trim();
 
-      const mcap = Number(token.mcap || token.marketCap || 0);
-      const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
-      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) +
-        (token.jupiterData?.stats24h?.sellVolume || 0) ||
-        token.jupiterData?.volume24h ||
-        token.volume24h || 0;
+        if (!name || name.length < 3) {
+          return;
+        }
 
-      const priceChange1h = token.priceChange1h ||
-        token.jupiterData?.stats1h?.priceChange || 0;
-      const priceChange24h = token.priceChange24h ||
-        token.jupiterData?.stats24h?.priceChange || 0;
-
-      const volumeToMcap = mcap > 0 ? (volume24h / mcap) * 100 : 0;
-
-      const score =
-        Math.max(priceChange1h, 0) * 3 +
-        Math.max(priceChange24h, 0) * 1.5 +
-        Math.min(volumeToMcap, 25) +
-        Math.min(liquidity / 1_000_000, 10) +
-        ((token.overallScore || 0) / 2) +
-        Math.max(0, ((token.jupiterData?.stats5m?.priceChange || 0))) * 4;
-
-      const aliases = normalizeAliases(name, symbol);
-      const comparables = comparablesPool
-        .filter(item => item && item !== name)
-        .slice(0, 3);
-
-      candidates.push({
-        name,
-        symbol,
-        aliases,
-        comparables,
-        score,
-        source: 'trending',
-        tokenData: token
+        candidates.push({
+          name,
+          symbol: null,
+          aliases: [name],
+          comparables: [],
+          score: 100 - index * 5,
+          source: 'perplexity-macro',
+          macroContext: result.content,
+          references: result.citations || result.searchResults || []
+        });
       });
     });
 
-    if (this.opinionDatabase) {
+    if (this.opinionDatabase && candidates.length > 0) {
       try {
         const recentMomentum = await this.opinionDatabase.getRecentMomentumEntities(168, 10);
         recentMomentum.forEach(entry => {
-          const existing = candidates.find(candidate =>
-            candidate.name.toLowerCase() === entry.name.toLowerCase()
-          );
-          if (existing) {
-            existing.score = Math.max(existing.score, 60);
+          const normalizedName = entry.name?.trim();
+          if (!normalizedName) {
             return;
           }
 
-          const comparables = comparablesPool
-            .filter(item => item && item.toLowerCase() !== entry.name.toLowerCase())
-            .slice(0, 3);
+          const existing = candidates.find(candidate =>
+            candidate.name.toLowerCase() === normalizedName.toLowerCase()
+          );
+
+          if (existing) {
+            existing.score = Math.max(existing.score, 80);
+            existing.aliases = Array.from(new Set([
+              ...existing.aliases,
+              ...(entry.aliases || [])
+            ].filter(Boolean)));
+            existing.metadata = {
+              ...(existing.metadata || {}),
+              lastStoredAt: entry.metadata?.generatedAt || entry.metadata?.storedAt || null
+            };
+            return;
+          }
 
           candidates.push({
-            name: entry.name,
+            name: normalizedName,
             symbol: entry.symbol ? entry.symbol.toString().trim().toUpperCase() : null,
             aliases: [
-              entry.name,
-              entry.name.toLowerCase(),
+              normalizedName,
+              normalizedName.toLowerCase(),
               ...(entry.aliases || [])
             ].filter(Boolean),
-            comparables: entry.comparables && entry.comparables.length > 0
-              ? entry.comparables
-              : comparables,
-            score: 55,
+            comparables: entry.comparables || [],
+            score: 65,
             source: 'opinion-db',
             metadata: entry.metadata || {}
           });
@@ -1045,7 +1053,7 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
     }
 
     if (candidates.length === 0) {
-      console.warn('⚠️ [MOMENTUM] No momentum candidates available');
+      console.warn('⚠️ [MOMENTUM] No momentum candidates available after macro queries');
       return [];
     }
 
@@ -1055,7 +1063,9 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
       .sort((a, b) => (b.score || 0) - (a.score || 0))
       .forEach(candidate => {
         const key = candidate.name.toLowerCase();
-        if (seen.has(key)) return;
+        if (seen.has(key)) {
+          return;
+        }
         seen.add(key);
         deduped.push(candidate);
       });
@@ -1109,7 +1119,7 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
   /**
    * Compose a momentum thread using OpenAI
    */
-  async composeMomentumThread(candidate, facts, metrics, pastOpinions) {
+  async composeMomentumOpinion(candidate, facts, metrics, pastOpinions) {
     try {
       const factLines = facts.slice(0, 8).map((fact, index) => `${index + 1}. ${fact}`).join('\n');
       const comparisonLines = metrics.comparisons && metrics.comparisons.length > 0
@@ -1122,63 +1132,43 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
 
       const prompt = `You are Degen Oracle, a crypto-native analyst.
 
-Data for ${candidate.name}:
+Craft ONE 280-character (or shorter) momentum take about ${candidate.name} that:
+- Opens with $${candidate.symbol || candidate.name.toUpperCase()} (or the project name) and a crisp hook.
+- Weaves in 2-3 concrete stats from the data below (fees, tx growth, TVL, integrations, unlocks, comparisons) with actual numbers.
+- Highlights why this acceleration matters (monopoly risk, infra shift, new demand channel, etc.).
+- Ends with a clear stance: call it, wait for call, or add to watchlist.
+- Keeps crypto slang natural (ser, degens, LFG) but never uses hashtags.
+- Avoids lists, newlines, or markdown—just a single punchy sentence or two.
+
+DATA:
 ${factLines}
 
-Comparative context:
+Comparisons / competitors:
 ${comparisonLines}
 
-Your previous takes:
-${pastTakes}
+Your stored takes to stay consistent:
+${pastTakes}`;
 
-Rules:
-- Produce a 2 or 3 tweet thread separated by "---".
-- Tweet 1 must hook with numbers (fees, txs, burns, unlocks).
-- Tweet 2 should explain the strategic implication or compare against competitors.
-- Tweet 3 (optional) should cover distribution, upcoming catalysts, or trader takeaway.
-- Use figures above verbatim when possible, add brief interpretation.
-- Light crypto slang ok (degens, ser, LFG) but stay data-first.
-- Include $${candidate.symbol || candidate.name.toUpperCase()} in the first tweet if a ticker exists.
-- No hashtags. Max 280 characters per tweet.`;
-
-      const threadResponse = await this.openaiService.generateCompletion(prompt, {
-        maxTokens: 220,
-        temperature: 0.65,
+      const opinionResponse = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 180,
+        temperature: 0.55,
         model: 'gpt-4o-mini',
         enableWebSearch: false
       });
 
-      const raw = threadResponse
-        .split('---')
-        .map(line => line.replace(/\s+/g, ' ').trim())
-        .filter(Boolean);
+      if (!opinionResponse) {
+        return '';
+      }
 
-      return raw;
+      return opinionResponse
+        .replace(/#\w+/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/^"|"$/g, '')
+        .trim();
     } catch (error) {
-      console.error('❌ [MOMENTUM] Error composing thread:', error.message);
-      return [];
+      console.error('❌ [MOMENTUM] Error composing opinion:', error.message);
+      return '';
     }
-  }
-
-  /**
-   * Normalize thread tweets (length, ticker injection, cleanup)
-   */
-  normalizeMomentumThread(tweets, candidate) {
-    const normalized = tweets
-      .map(tweet => tweet.replace(/#\w+/g, '').replace(/^"|"$/g, '').trim())
-      .filter(Boolean)
-      .map(tweet => tweet.length > 280 ? tweet.substring(0, 277) + '…' : tweet);
-
-    if (normalized.length === 0) return [];
-
-    const symbol = candidate.symbol ? `$${candidate.symbol}` : candidate.name;
-    if (!normalized[0].toLowerCase().includes(candidate.name.toLowerCase()) &&
-        !normalized[0].includes(symbol)) {
-      const prefix = symbol + ' ';
-      normalized[0] = (prefix + normalized[0]).slice(0, 280);
-    }
-
-    return normalized.slice(0, 3);
   }
 
   /**
@@ -1259,16 +1249,20 @@ Rules:
             })
           : [];
 
-        const thread = await this.composeMomentumThread(candidate, facts, metrics, pastOpinions);
-        if (!thread || thread.length === 0) {
-          console.warn(`⚠️ [MOMENTUM] Thread generation failed for ${candidate.name}`);
+        const opinion = await this.composeMomentumOpinion(candidate, facts, metrics, pastOpinions);
+        if (!opinion || opinion.length === 0) {
+          console.warn(`⚠️ [MOMENTUM] Opinion generation failed for ${candidate.name}`);
           continue;
         }
 
-        const normalizedThread = this.normalizeMomentumThread(thread, candidate);
-        if (!normalizedThread.length) {
-          console.warn(`⚠️ [MOMENTUM] Normalization produced empty thread for ${candidate.name}`);
-          continue;
+        const symbol = candidate.symbol ? `$${candidate.symbol}` : candidate.name;
+        let normalizedOpinion = opinion;
+        if (!normalizedOpinion.toLowerCase().includes(candidate.name.toLowerCase()) &&
+            !normalizedOpinion.includes(symbol)) {
+          normalizedOpinion = `${symbol} ${normalizedOpinion}`;
+        }
+        if (normalizedOpinion.length > 280) {
+          normalizedOpinion = normalizedOpinion.substring(0, 277) + '…';
         }
 
         const contextHash = this.opinionDatabase?.generateContextHash({
@@ -1296,9 +1290,9 @@ Rules:
           };
 
           await this.opinionDatabase.storeOpinion({
-            type: 'momentum_thread',
+            type: 'momentum_opinion',
             category: 'momentum',
-            text: normalizedThread.join('\n'),
+            text: normalizedOpinion,
             marketContext: facts.join(' | ').substring(0, 800),
             sentiment: 'neutral',
             entities: {
@@ -1307,8 +1301,8 @@ Rules:
             },
             metrics,
             sources,
-            format: 'momentum_thread',
-            thread: normalizedThread,
+            format: 'momentum_opinion',
+            thread: [normalizedOpinion],
             contextHash,
             metadata: {
               candidate: candidateMetadata,
@@ -1318,10 +1312,10 @@ Rules:
           });
         }
 
-        console.log(`⚡ [MOMENTUM] Generated momentum thread for ${candidate.name}`);
+        console.log(`⚡ [MOMENTUM] Generated momentum opinion for ${candidate.name}`);
         return {
           token: { symbol: candidate.symbol, name: candidate.name },
-          tweets: normalizedThread,
+          tweets: [normalizedOpinion],
           format: 'momentum',
           metrics,
           sources,
