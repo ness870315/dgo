@@ -716,8 +716,25 @@ class EnhancedHybridPriceService extends EventEmitter {
         for (const stream of this.sharedStreams) {
             if (!stream) continue;
             try {
+                // Remove all listeners first
                 stream.removeAllListeners();
-                stream.end();
+                
+                // Cancel the stream (more forceful than end)
+                if (typeof stream.cancel === 'function') {
+                    stream.cancel();
+                    console.log(`✅ [EnhancedHybridPriceService] Stream cancelled`);
+                }
+                
+                // Also call end for good measure
+                if (typeof stream.end === 'function') {
+                    stream.end();
+                }
+                
+                // Destroy the stream if possible (most forceful)
+                if (typeof stream.destroy === 'function') {
+                    stream.destroy();
+                    console.log(`✅ [EnhancedHybridPriceService] Stream destroyed`);
+                }
             } catch (error) {
                 console.error('⚠️ [EnhancedHybridPriceService] Error stopping stream:', error.message);
             }
@@ -725,6 +742,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
         this.sharedStreams = [];
         this.sharedStreamPoolCount = 0;
+        console.log(`✅ [EnhancedHybridPriceService] All streams stopped and cleared`);
     }
 
     scheduleSharedStreamRestart(batchIndex = null, lastError = null) {
@@ -2516,6 +2534,80 @@ class EnhancedHybridPriceService extends EventEmitter {
                 connected: false
             }
         };
+    }
+
+    /**
+     * 🚀 CRITICAL: Comprehensive shutdown method
+     * Ensures all connections are properly closed before process exits
+     */
+    async shutdown() {
+        console.log('🛑 [EnhancedHybridPriceService] Initiating graceful shutdown...');
+        
+        try {
+            // 1. Stop scheduled restarts
+            if (this._sharedStreamRestartScheduled) {
+                this._sharedStreamRestartScheduled = false;
+                console.log('✅ [EnhancedHybridPriceService] Cancelled scheduled restarts');
+            }
+            
+            // 2. Stop all gRPC streams
+            await this.stopSharedStreams();
+            
+            // 3. Close gRPC client
+            if (this.grpcClient) {
+                try {
+                    if (typeof this.grpcClient.close === 'function') {
+                        await this.grpcClient.close();
+                        console.log('✅ [EnhancedHybridPriceService] gRPC client closed');
+                    } else if (typeof this.grpcClient.closeClient === 'function') {
+                        await this.grpcClient.closeClient();
+                        console.log('✅ [EnhancedHybridPriceService] gRPC client closed');
+                    }
+                } catch (error) {
+                    console.error('⚠️ [EnhancedHybridPriceService] Error closing gRPC client:', error.message);
+                }
+                this.grpcClient = null;
+                this.grpcInitialized = false;
+            }
+            
+            // 4. Disconnect SSE
+            if (this.sseService) {
+                try {
+                    await this.sseService.disconnect();
+                    console.log('✅ [EnhancedHybridPriceService] SSE disconnected');
+                } catch (error) {
+                    console.error('⚠️ [EnhancedHybridPriceService] Error disconnecting SSE:', error.message);
+                }
+            }
+            
+            // 5. Stop periodic tasks
+            if (this.rankingBroadcastInterval) {
+                clearInterval(this.rankingBroadcastInterval);
+                this.rankingBroadcastInterval = null;
+                console.log('✅ [EnhancedHybridPriceService] Stopped ranking broadcasts');
+            }
+            
+            if (this.decoderStatsInterval) {
+                clearInterval(this.decoderStatsInterval);
+                this.decoderStatsInterval = null;
+                console.log('✅ [EnhancedHybridPriceService] Stopped decoder stats logging');
+            }
+            
+            // 6. Stop ChartDatabase batch writer
+            if (this.chartDatabase) {
+                try {
+                    this.chartDatabase.stopBatchWriter();
+                    console.log('✅ [EnhancedHybridPriceService] ChartDatabase batch writer stopped');
+                } catch (error) {
+                    console.error('⚠️ [EnhancedHybridPriceService] Error stopping batch writer:', error.message);
+                }
+            }
+            
+            console.log('✅ [EnhancedHybridPriceService] Graceful shutdown complete');
+            
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Error during shutdown:', error.message);
+        }
     }
 
     // ✅ NEW: Start periodic decoder stats logging

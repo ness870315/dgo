@@ -11644,6 +11644,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           success: result.success,
           message: result.success ? 'Tweet posted successfully' : 'Failed to post tweet',
           tweetId: result.tweetId,
+          tweetUrl: result.tweetUrl || (result.tweetId ? `https://twitter.com/dgnoracle/status/${result.tweetId}` : null),
           content: result.content,
           error: result.error,
           timestamp: new Date().toISOString()
@@ -11817,11 +11818,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
           todayStats: {
             postsToday: this.dailyTweetService.todayPostCount,
             targetPosts: this.dailyTweetService.todayTargetPosts || null,
-            recentPosts: this.dailyTweetService.recentPosts.map(p => ({
-              timestamp: new Date(p.timestamp).toISOString(),
-              tweetId: p.tweetId,
-              url: `https://twitter.com/dgnoracle/status/${p.tweetId}`
-            }))
+            recentPosts: this.dailyTweetService.recentPosts.map(p => {
+              const timestamp = p.timestamp ? new Date(p.timestamp).toISOString() : new Date().toISOString();
+              const urls = Array.isArray(p.urls) && p.urls.length > 0 ? p.urls : [];
+              const primaryUrl = urls.length > 0
+                ? urls[0]
+                : p.tweetId
+                  ? `https://twitter.com/dgnoracle/status/${p.tweetId}`
+                  : null;
+
+              return {
+                timestamp,
+                tweetId: p.tweetId || null,
+                url: primaryUrl,
+                format: p.format || null,
+                manual: Boolean(p.manual),
+                token: p.token || null,
+                tweetIds: Array.isArray(p.tweetIds) ? p.tweetIds : (p.tweetId ? [p.tweetId] : []),
+                urls
+              };
+            })
           },
           nextPostAt: nextPost,
           timestamp: new Date().toISOString()
@@ -19094,6 +19110,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
   async stop() {
     try {
       console.log('[🛡️ Enhanced Backend] 🛑 Shutting down gracefully...');
+      
+      // 🚀 CRITICAL: Shutdown EnhancedHybridPriceService to close gRPC streams
+      if (this.enhancedHybridPriceService) {
+        console.log('[🛡️ Enhanced Backend] Shutting down EnhancedHybridPriceService...');
+        await this.enhancedHybridPriceService.shutdown();
+      }
       
       if (this.tokenProcessor.isProcessing) {
         this.tokenProcessor.stopProcessing();
