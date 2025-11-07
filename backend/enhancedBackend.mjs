@@ -14270,14 +14270,17 @@ Thanks for using x402 payments on Twitter! ðŸš€`;
     // Admin: Get ChartDatabase compression stats
     this.app.get('/api/admin/chart/compression-stats', adminApiAuth, async (req, res) => {
       try {
-        if (!this.chartDatabase) {
+        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        const chartDatabase = enhancedService?.chartDatabase;
+        
+        if (!chartDatabase) {
           return res.status(503).json({
             success: false,
             error: 'ChartDatabase not initialized'
           });
         }
 
-        const stats = this.chartDatabase.getCompressionStats();
+        const stats = chartDatabase.getCompressionStats();
         res.json({
           success: true,
           stats
@@ -14295,7 +14298,10 @@ Thanks for using x402 payments on Twitter! ðŸš€`;
     // Admin: Trigger compression migration for all existing files
     this.app.post('/api/admin/chart/migrate-to-compressed', adminApiAuth, async (req, res) => {
       try {
-        if (!this.chartDatabase) {
+        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        const chartDatabase = enhancedService?.chartDatabase;
+        
+        if (!chartDatabase) {
           return res.status(503).json({
             success: false,
             error: 'ChartDatabase not initialized'
@@ -14303,7 +14309,7 @@ Thanks for using x402 payments on Twitter! ðŸš€`;
         }
 
         console.log('[ðŸ›¡ï¸ Admin] ðŸ—œï¸ Starting compression migration...');
-        const results = await this.chartDatabase.migrateAllToCompressed();
+        const results = await chartDatabase.migrateAllToCompressed();
         
         console.log('[ðŸ›¡ï¸ Admin] âœ… Compression migration complete:', results);
         res.json({
