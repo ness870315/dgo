@@ -19,10 +19,6 @@ class ChartDatabase {
         // In local: ./data
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
-        // ✅ SWAP RETENTION: Keep only 2 days of swap history (configurable)
-        this.SWAP_RETENTION_DAYS = parseFloat(process.env.SWAP_RETENTION_DAYS || '2');
-        this.SWAP_RETENTION_MS = this.SWAP_RETENTION_DAYS * 24 * 60 * 60 * 1000; // 2 days in milliseconds
-        
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
         this.tokenDatabases = new Map(); // tokenAddress -> database instance
         this.sharedData = {
@@ -43,20 +39,8 @@ class ChartDatabase {
         // ✅ CRITICAL FIX: Ensure data directory exists synchronously
         this.initializeDataDirSync();
         
-        this.loadData().then(() => {
-            // Clean up old swaps on startup
-            this.cleanupAllOldSwaps().catch(err => {
-                console.error('❌ [ChartDatabase] Error cleaning old swaps on startup:', err.message);
-            });
-        });
+        this.loadData();
         this.startBatchWriter();
-        
-        // ✅ PERIODIC CLEANUP: Run cleanup every 6 hours
-        setInterval(() => {
-            this.cleanupAllOldSwaps().catch(err => {
-                console.error('❌ [ChartDatabase] Error in periodic swap cleanup:', err.message);
-            });
-        }, 6 * 60 * 60 * 1000); // 6 hours
     }
     
     /**
@@ -147,19 +131,7 @@ class ChartDatabase {
             const fileData = await fs.readFile(tokenFile, 'utf8');
             const parsed = JSON.parse(fileData);
             
-            let tokenDb = this.tokenDatabases.get(tokenAddress);
-            if (!tokenDb) {
-                tokenDb = {
-                    swaps: new Map(),
-                    lastWriteTime: 0,
-                    swapCount: 0
-                };
-                this.tokenDatabases.set(tokenAddress, tokenDb);
-            }
-            if (!this.writeQueues.has(tokenAddress)) {
-                this.writeQueues.set(tokenAddress, []);
-            }
-            
+            const tokenDb = this.tokenDatabases.get(tokenAddress);
             if (parsed.swaps && Array.isArray(parsed.swaps)) {
                 // Convert array back to Map
                 tokenDb.swaps = new Map(parsed.swaps);
@@ -169,40 +141,7 @@ class ChartDatabase {
                 console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}`);
             }
         } catch (error) {
-            if (error.code === 'ENOENT') {
-                return; // File doesn't exist yet, that's ok
-            }
-            
-            if (error.name === 'SyntaxError' || /Unexpected token|Unexpected end of JSON input|Expected double-quoted property/.test(error.message)) {
-                const corruptPath = `${tokenFile}.corrupt_${Date.now()}`;
-                console.error(`❌ [ChartDatabase] Corrupted swap file detected for ${tokenAddress.substring(0, 8)}. Moving to ${path.basename(corruptPath)}. Error: ${error.message}`);
-                try {
-                    await fs.rename(tokenFile, corruptPath);
-                    console.log(`⚠️ [ChartDatabase] Moved corrupted swap file to ${corruptPath}`);
-                } catch (renameError) {
-                    console.error(`❌ [ChartDatabase] Failed to move corrupted file for ${tokenAddress.substring(0, 8)}:`, renameError.message);
-                }
-                
-                // Reset in-memory database for this token
-                let tokenDb = this.tokenDatabases.get(tokenAddress);
-                if (!tokenDb) {
-                    tokenDb = {
-                        swaps: new Map(),
-                        lastWriteTime: 0,
-                        swapCount: 0
-                    };
-                    this.tokenDatabases.set(tokenAddress, tokenDb);
-                } else {
-                    tokenDb.swaps = new Map();
-                    tokenDb.swapCount = 0;
-                    tokenDb.lastWriteTime = 0;
-                }
-                
-                // Ensure a write queue exists for future swaps
-                if (!this.writeQueues.has(tokenAddress)) {
-                    this.writeQueues.set(tokenAddress, []);
-                }
-            } else {
+            if (error.code !== 'ENOENT') {
                 console.error(`❌ [ChartDatabase] Error loading token file for ${tokenAddress.substring(0, 8)}:`, error.message);
             }
             // File doesn't exist yet, that's ok
@@ -308,9 +247,6 @@ class ChartDatabase {
         const backupFile = `${tokenFile}.backup`;
         
         try {
-            // ✅ CRITICAL FIX: Ensure data directory exists before writing
-            await this.ensureDataDir();
-            
             // Convert token swaps to arrays for JSON serialization
             const dataToSave = {
                 swaps: Array.from(tokenDb.swaps.entries()),
@@ -333,37 +269,12 @@ class ChartDatabase {
                 // Backup might not exist yet or other errors - that's ok, continue anyway
             }
             
-            // ✅ CRITICAL FIX: Ensure directory still exists before rename (it might have been deleted)
-            await this.ensureDataDir();
-            
             // Atomic rename (this is the atomic operation)
             await fs.rename(tempFile, tokenFile);
             
             tokenDb.lastWriteTime = Date.now();
             
         } catch (error) {
-            // ✅ IMPROVED ERROR HANDLING: If directory doesn't exist, recreate it and retry once
-            if (error.code === 'ENOENT') {
-                console.warn(`⚠️ [ChartDatabase] Directory missing for ${tokenAddress.substring(0,8)}, recreating...`);
-                try {
-                    await this.ensureDataDir();
-                    // Retry the rename if temp file still exists
-                    try {
-                        const tempExists = await fs.access(tempFile).then(() => true).catch(() => false);
-                        if (tempExists) {
-                            await fs.rename(tempFile, tokenFile);
-                            tokenDb.lastWriteTime = Date.now();
-                            console.log(`✅ [ChartDatabase] Retry successful for ${tokenAddress.substring(0,8)}`);
-                            return; // Success, exit early
-                        }
-                    } catch (retryError) {
-                        console.error(`❌ [ChartDatabase] Retry failed for ${tokenAddress.substring(0,8)}:`, retryError.message);
-                    }
-                } catch (dirError) {
-                    console.error(`❌ [ChartDatabase] Failed to recreate directory for ${tokenAddress.substring(0,8)}:`, dirError.message);
-                }
-            }
-            
             // Clean up temp file if it exists
             try {
                 await fs.unlink(tempFile);
@@ -382,8 +293,6 @@ class ChartDatabase {
         const backupFile = `${this.dbFile}.backup`;
         
         try {
-            await this.ensureDataDir();
-            
             // Only save shared metadata (not per-token swaps)
             const dataToSave = {
                 candles: Array.from(this.sharedData.candles.entries()),
@@ -411,20 +320,6 @@ class ChartDatabase {
             await fs.rename(tempFile, this.dbFile);
             
         } catch (error) {
-            if (error.code === 'ENOENT') {
-                console.warn('⚠️ [ChartDatabase] charts.json directory missing during atomic write, attempting recovery...');
-                try {
-                    await this.ensureDataDir();
-                    const tempExists = await fs.access(tempFile).then(() => true).catch(() => false);
-                    if (tempExists) {
-                        await fs.rename(tempFile, this.dbFile);
-                        console.log('✅ [ChartDatabase] charts.json write recovered after directory recreation');
-                        return;
-                    }
-                } catch (retryError) {
-                    console.error('❌ [ChartDatabase] Failed to recover charts.json write:', retryError.message);
-                }
-            }
             // Clean up temp file if it exists
             try {
                 await fs.unlink(tempFile);
@@ -1038,7 +933,35 @@ class ChartDatabase {
                             if (shouldDelete) {
                                 await fs.rm(snapshotPath, { recursive: true, force: true });
                                 results.snapshotDirsDeleted++;
-                                console.log(`[ChartDatabase] Deleted snapshot directory: ${snapshotDir}`);
+                                console.log(`🗑️ [ChartDatabase] Deleted snapshot directory: ${snapshotDir} (${(stats.size || 0) / 1024 / 1024 / 1024).toFixed(2)}GB)`);
+                            }
+                        } catch (error) {
+                            console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
+                            results.errors.push({ snapshotDir, error: error.message });
+                        }
+                    }
+                } catch (error) {
+                    // Backup directory might not exist, that's ok
+                    if (error.code !== 'ENOENT') {
+                        console.warn(`⚠️ [ChartDatabase] Error accessing backups directory ${backupsDir}:`, error.message);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ [ChartDatabase] Error in cleanupBackupFiles:', error.message);
+            results.errors.push({ global: error.message });
+        }
+        
+        return results;
+    }
+
+    close() {
+        console.log('🔒 Chart database closed');
+    }
+}
+
+export default ChartDatabase;
                             }
                         } catch (error) {
                             console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
