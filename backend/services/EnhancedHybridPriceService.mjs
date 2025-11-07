@@ -627,12 +627,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         const requestedStreamCount = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10);
-        const MAX_SHARED_STREAMS = 2; // Split into 2 streams for better stability (300 tokens each)
-        if (requestedStreamCount && requestedStreamCount > 2) {
+        const MAX_SHARED_STREAMS = 1; // Single stream for all tokens (uses 1 of 3 available streams)
+        if (requestedStreamCount && requestedStreamCount > 1) {
             console.warn(`⚠️ [EnhancedHybridPriceService] CONSTANT_K_MAX_STREAMS=${requestedStreamCount} overridden to ${MAX_SHARED_STREAMS} to prevent stream overload.`);
         }
 
-        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 300; // Max 300 tokens per stream
+        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 1000; // Max 1000 tokens per stream
         let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
         if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
             computedBatchSize = MAX_TOKENS_PER_STREAM;
