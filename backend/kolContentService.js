@@ -1237,11 +1237,12 @@ Generate a DeGen Oracle-style momentum opinion tweet that:
 - Uses crypto slang naturally (not forced)
 - Builds on your past takes naturally when relevant
 - Shows consistency in your analysis approach
-- NO hashtags
+- NO hashtags, NO emojis, NO markdown (no ** or * formatting)
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
 - If there's a ticker, prefix it with $ (e.g., $SOL, $HYPE)
 - Don't all-caps entire phrases—only actual tickers
+- Plain text only—no bold, italics, or special formatting
 
 Example styles:
 - "hyperliquid generates $6.5m daily fees with zero token emissions. dydx bleeding tvl despite 50m token bribes annually. $hype token launches q1 2026."
@@ -1260,6 +1261,10 @@ Momentum opinion:`;
       // Clean up
       const cleanOpinion = opinion.trim()
         .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/\*\*/g, '') // Remove bold markdown
+        .replace(/\*/g, '')   // Remove italics markdown
+        .replace(/[🚀💰⚡🔥💎🌙📈📉👀🎯]/g, '') // Remove common emojis
+        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove all emojis (Unicode range)
         .replace(/\s+/g, ' ')
         .trim();
 
