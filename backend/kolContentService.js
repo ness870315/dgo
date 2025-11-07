@@ -1172,163 +1172,132 @@ ${pastTakes}`;
   }
 
   /**
-   * Generate a dataset-driven momentum thread (fees, txs, burns, unlocks)
+   * Generate a momentum opinion post (simplified to match Crypto Tech Insights pattern)
    */
   async generateMomentumThread() {
-    if (!this.perplexityService || !this.perplexityService.isInitialized) {
-      console.warn('⚠️ [MOMENTUM] Perplexity service not initialized');
-      return null;
-    }
+    try {
+      console.log('⚡ [MOMENTUM] Generating momentum opinion post...');
 
-    const candidates = await this.buildMomentumCandidates();
-    if (!candidates || candidates.length === 0) {
-      console.warn('⚠️ [MOMENTUM] No viable dynamic candidates');
-      return null;
-    }
+      if (!this.perplexityService || !this.perplexityService.isInitialized) {
+        console.warn('⚠️ [MOMENTUM] Perplexity service not initialized');
+        return null;
+      }
 
-    const competitorKeywordSet = new Set();
-    candidates.forEach(candidate => {
-      [candidate.name, candidate.symbol, ...(candidate.aliases || []), ...(candidate.comparables || [])]
-        .filter(Boolean)
-        .forEach(keyword => competitorKeywordSet.add(keyword.toLowerCase()));
-    });
+      // Single Perplexity query for momentum insights
+      const momentumQuery = 'What are the top crypto protocols, blockchains, L2s, or AI payment rails showing the fastest weekly transaction acceleration, fee growth, or TVL momentum? Provide specific numbers and percentages.';
+      console.log(`⚡ [MOMENTUM] Querying Perplexity for momentum insights...`);
+      
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(momentumQuery);
+      
+      if (!perplexityResponse || !perplexityResponse.content) {
+        console.log('⚠️ [MOMENTUM] No Perplexity response for momentum insights');
+        return null;
+      }
 
-    for (const candidate of candidates) {
-      try {
-        // Skip if we recently posted about this entity
-        if (this.opinionDatabase) {
-          const recentTakes = await this.opinionDatabase.findMomentumOpinions({
-            entity: candidate.name,
-            hours: 48,
-            limit: 1
-          });
-          if (recentTakes.length > 0) {
-            console.log(`⏭️ [MOMENTUM] Skipping ${candidate.name} (recent take already exists)`);
-            continue;
+      console.log(`✅ [MOMENTUM] Got insights: ${perplexityResponse.content.substring(0, 100)}...`);
+
+      // Select personality
+      const personality = this.personalities[this.currentPersonalityIndex];
+      this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+
+      // Get relevant past opinions for context
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            perplexityResponse.content,
+            { type: 'momentum_opinion', timeframe: 'recent', limit: 3 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST MOMENTUM TAKES (for context and consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [MOMENTUM] Found ${relevantOpinions.length} relevant past opinions for context`);
           }
+        } catch (error) {
+          console.error('❌ [MOMENTUM] Error retrieving past opinions:', error.message);
         }
+      }
 
-        const query = this.buildMomentumQuery(candidate);
-        console.log(`🔍 [MOMENTUM] Querying Perplexity for ${candidate.name}...`);
-        const response = await this.perplexityService.searchCrypto(query, {
-          searchRecencyFilter: 'week',
-          maxTokens: 900,
-          temperature: 0.3
-        });
+      // Compose the opinion with OpenAI
+      const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
-        if (!response || !response.content) {
-          console.warn(`⚠️ [MOMENTUM] No data for ${candidate.name}`);
-          continue;
-        }
+⚡ MOMENTUM INSIGHTS:
+${perplexityResponse.content}${pastOpinionsContext}
 
-        let facts = this.perplexityService.extractKeyFacts(response);
-        if (!facts || facts.length === 0) {
-          facts = response.content
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 20);
-        }
+${personality.tone}
 
-        facts = facts.filter((fact, index, arr) => fact && arr.indexOf(fact) === index);
-        if (facts.length < 2) {
-          console.warn(`⚠️ [MOMENTUM] Insufficient facts for ${candidate.name}`);
-          continue;
-        }
+Generate a DeGen Oracle-style momentum opinion tweet that:
+- Focuses on the most compelling acceleration story from the data
+- Uses specific numbers and percentages
+- Highlights what this means for traders
+- Uses crypto slang naturally (not forced)
+- Builds on your past takes naturally when relevant
+- Shows consistency in your analysis approach
+- NO hashtags
+- Max 280 characters
+- Sound like a real person sharing alpha, not a bot
+- If there's a ticker, prefix it with $ (e.g., $SOL, $HYPE)
+- Don't all-caps entire phrases—only actual tickers
 
-        const metrics = this.extractMomentumMetrics(facts, candidate, competitorKeywordSet);
-        const sources = [
-          ...(response.citations?.map(cite => cite?.url).filter(Boolean) || []),
-          ...(response.searchResults?.map(result => result?.url).filter(Boolean) || [])
-        ].filter(Boolean);
+Example styles:
+- "hyperliquid generates $6.5m daily fees with zero token emissions. dydx bleeding tvl despite 50m token bribes annually. $hype token launches q1 2026."
+- "x402 protocol processed 1.8m transactions last week. 10,000% growth in 4 weeks. coinbase controls 88% of all x402 agent payments."
+- "jito controls 97.87% of solana's validator stake weight with 17m sol staked. firedancer integration in december brings 4-5x faster execution."
 
-        const pastOpinions = this.opinionDatabase
-          ? await this.opinionDatabase.findMomentumOpinions({
-              entity: candidate.name,
-              hours: 168,
-              limit: 3
-            })
-          : [];
+Momentum opinion:`;
 
-        const opinion = await this.composeMomentumOpinion(candidate, facts, metrics, pastOpinions);
-        if (!opinion || opinion.length === 0) {
-          console.warn(`⚠️ [MOMENTUM] Opinion generation failed for ${candidate.name}`);
-          continue;
-        }
+      const opinion = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 120,
+        temperature: 0.8,
+        model: 'gpt-4o-mini',
+        enableWebSearch: false
+      });
 
-        const symbol = candidate.symbol ? `$${candidate.symbol}` : candidate.name;
-        let normalizedOpinion = opinion;
-        if (!normalizedOpinion.toLowerCase().includes(candidate.name.toLowerCase()) &&
-            !normalizedOpinion.includes(symbol)) {
-          normalizedOpinion = `${symbol} ${normalizedOpinion}`;
-        }
-        if (normalizedOpinion.length > 280) {
-          normalizedOpinion = normalizedOpinion.substring(0, 277) + '…';
-        }
+      // Clean up
+      const cleanOpinion = opinion.trim()
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/\s+/g, ' ')
+        .trim();
 
-        const contextHash = this.opinionDatabase?.generateContextHash({
-          category: 'momentum',
-          entities: {
-            protocols: [candidate.name],
-            tokens: candidate.symbol ? [candidate.symbol] : []
-          },
-          metrics
-        });
-
-        if (contextHash && this.opinionDatabase?.hasContextHash(contextHash, 72)) {
-          console.log(`⏭️ [MOMENTUM] Context already exists for ${candidate.name}, skipping`);
-          continue;
-        }
-
-        if (this.opinionDatabase) {
-          const candidateMetadata = {
-            name: candidate.name,
-            symbol: candidate.symbol,
-            aliases: candidate.aliases || [],
-            comparables: candidate.comparables || [],
-            score: candidate.score || null,
-            source: candidate.source || null
-          };
-
+      console.log(`✍️ [MOMENTUM] Generated opinion: "${cleanOpinion.substring(0, 80)}..."`);
+      
+      // Save to Opinion DB
+      if (this.opinionDatabase) {
+        try {
           await this.opinionDatabase.storeOpinion({
             type: 'momentum_opinion',
-            category: 'momentum',
-            text: normalizedOpinion,
-            marketContext: facts.join(' | ').substring(0, 800),
+            text: cleanOpinion,
+            marketContext: perplexityResponse.content,
             sentiment: 'neutral',
-            entities: {
-              protocols: [candidate.name],
-              tokens: candidate.symbol ? [candidate.symbol] : []
-            },
-            metrics,
-            sources,
-            format: 'momentum_opinion',
-            thread: [normalizedOpinion],
-            contextHash,
-            metadata: {
-              candidate: candidateMetadata,
-              facts,
-              generatedAt: new Date().toISOString()
-            }
+            tweetId: null,
+            timestamp: new Date().toISOString()
           });
+          console.log('💾 [OPINION DB] Saved momentum opinion to database');
+        } catch (error) {
+          console.error('❌ [OPINION DB] Failed to save momentum opinion:', error.message);
         }
-
-        console.log(`⚡ [MOMENTUM] Generated momentum opinion for ${candidate.name}`);
-        return {
-          token: { symbol: candidate.symbol, name: candidate.name },
-          tweets: [normalizedOpinion],
-          format: 'momentum',
-          metrics,
-          sources,
-          facts,
-          candidate
-        };
-      } catch (error) {
-        console.error(`❌ [MOMENTUM] Error processing ${candidate.name}:`, error.message);
       }
-    }
+      
+      return {
+        format: 'momentum',
+        tweets: [cleanOpinion],
+        token: { symbol: 'MOMENTUM', name: 'Market Momentum' },
+        article: {
+          title: 'Market Momentum',
+          content: perplexityResponse.content,
+          source: 'Perplexity',
+          timestamp: new Date().toISOString()
+        }
+      };
 
-    console.warn('⚠️ [MOMENTUM] Unable to generate momentum thread (no viable candidates)');
-    return null;
+    } catch (error) {
+      console.error('❌ [MOMENTUM] Error generating momentum opinion:', error.message);
+      return null;
+    }
   }
 
   /**
