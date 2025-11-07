@@ -1604,11 +1604,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                     this.swapHistory.set(tokenAddress, []);
                 }
                 
-                // ✅ CRITICAL FIX: Restart stream to include new token's pool
-                if (Array.isArray(this.sharedStreams) && this.sharedStreams.length > 0) {
-                    console.log(`🔄 [EnhancedHybridPriceService] Restarting stream to include ${tokenAddress}...`);
-                    await this.startRealTimeMonitoring(true);  // ← Force restart
-                }
+                // ✅ FIX: DON'T restart stream immediately - let it pick up on next natural restart
+                // Restarting the stream causes "14 UNAVAILABLE: Connection dropped" errors
+                // and 5+ minute downtime. New tokens will be included on next restart cycle.
+                console.log(`📝 [EnhancedHybridPriceService] Token ${tokenAddress} added to map. Will be included in stream on next restart cycle.`)
             } else {
                 console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} already in monitoring map`);
             }
