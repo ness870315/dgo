@@ -311,6 +311,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
+    isGrpcInitialized() {
+        return this.grpcClient !== null;
+    }
+
     async startRealTimeMonitoring() {
         if (!this.grpcClient) {
             console.error('❌ [EnhancedHybridPriceService] Cannot start monitoring - gRPC client not initialized');
@@ -1572,4 +1576,4 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 }
 
-export default EnhancedHybridPriceService;
+export default EnhancedHybridPriceService;
