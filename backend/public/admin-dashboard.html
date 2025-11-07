@@ -1015,6 +1015,7 @@
                             <option value="meme">😂 Meme/Joke</option>
                             <option value="news">📰 Crypto News</option>
                             <option value="newsjoke">🎭 News Joke (Perplexity)</option>
+                            <option value="momentum">⚡ Momentum Thread</option>
                             <option value="normal">💬 Normal (Market Sentiment, No Emojis)</option>
                             <option value="crypto-tech-news">🔬 Crypto Tech Insights</option>
                         </select>
@@ -3839,6 +3840,8 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 'meme': '😂 Meme/Joke',
                 'news': '📰 Crypto News',
                 'newsjoke': '🎭 News Joke (Perplexity)',
+                'momentum': '⚡ Momentum Thread',
+                'normal': '💬 Normal (Market Sentiment, No Emojis)',
                 'crypto-tech-news': '🔬 Crypto Tech Insights'
             };
             
@@ -4144,21 +4147,55 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 
                 // Show recent posts
                 if (data.todayStats.recentPosts && data.todayStats.recentPosts.length > 0) {
+                    const formatLabels = {
+                        'momentum': '⚡ Momentum Thread',
+                        'single': '📝 Single Tweet',
+                        'deep': '🧵 Deep Thread',
+                        'meme': '😂 Meme/Joke',
+                        'news': '📰 Crypto News',
+                        'newsjoke': '🎭 News Joke',
+                        'normal': '💬 Market Sentiment',
+                        'crypto-tech-news': '🔬 Crypto Tech Insights'
+                    };
+
+                    const recentPostsHtml = data.todayStats.recentPosts.map(post => {
+                        const timestampStr = post.timestamp ? new Date(post.timestamp).toLocaleString() : 'Unknown time';
+                        const formatLabel = formatLabels[post.format] || '📄 Content';
+                        const tokenLabel = post.token && (post.token.symbol || post.token.name)
+                            ? `${post.token.symbol ? '$' + post.token.symbol : ''}${post.token.symbol && post.token.name ? ' • ' : ''}${post.token.name || ''}`
+                            : '';
+                        const manualBadge = post.manual ? '<span style="margin-left: 6px; font-size: 0.75em; color: #a855f7;">(Manual)</span>' : '';
+                        const viewButton = post.url
+                            ? `<a href="${post.url}" target="_blank" class="btn" style="padding: 5px 10px; font-size: 0.9em;">View →</a>`
+                            : '';
+
+                        let threadInfo = '';
+                        if (post.tweetIds && post.tweetIds.length > 1) {
+                            const threadLinks = post.tweetIds.map(id => `<a href="https://twitter.com/dgnoracle/status/${id}" target="_blank">${id}</a>`).join(', ');
+                            threadInfo = `<div style="font-size: 0.75em; color: #777; margin-top: 6px;">Thread Tweets: ${threadLinks}</div>`;
+                        }
+
+                        return `
+                            <div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                    <div>
+                                        <div style="font-size: 0.95em; font-weight: 600;">
+                                            ${formatLabel}${manualBadge}
+                                        </div>
+                                        ${tokenLabel ? `<div style="font-size: 0.8em; color: #555;">${tokenLabel}</div>` : ''}
+                                        <div style="font-size: 0.8em; color: #666;">${timestampStr}</div>
+                                    </div>
+                                    ${viewButton}
+                                </div>
+                                ${threadInfo}
+                            </div>
+                        `;
+                    }).join('');
+
                     recentPostsDiv.innerHTML = `
                         <h4 style="margin-bottom: 10px;">📝 Recent Posts</h4>
                         <div style="display: flex; flex-direction: column; gap: 10px;">
-                            ${data.todayStats.recentPosts.map(post => `
-                                <div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span style="font-size: 0.9em; color: #666;">
-                                            ${new Date(post.timestamp).toLocaleString()}
-                                        </span>
-                                        <a href="${post.url}" target="_blank" class="btn" style="padding: 5px 10px; font-size: 0.9em;">
-                                            View →
-                                        </a>
-                                    </div>
-                                </div>
-                            `).join('')}
+                            ${recentPostsHtml}
                         </div>
                     `;
                     recentPostsDiv.style.display = 'block';

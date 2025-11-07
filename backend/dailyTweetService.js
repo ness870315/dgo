@@ -41,12 +41,61 @@ class DailyTweetService {
     this.recentPosts = [];
     this.todayPostCount = 0;
     this.lastPostDate = null;
+    this.todayTargetPosts = null;
     
     // Store the next scheduled post time (for status display)
     this.nextPostTime = null;
     
     // Flag to track if service should auto-restart
     this.shouldAutoRestart = false;
+  }
+
+  async recordPost({ format, token = null, tweetResults = [], manual = false }) {
+    if (!Array.isArray(tweetResults) || tweetResults.length === 0) {
+      console.warn('⚠️ [DAILY TWEET] recordPost called without tweet results');
+      return;
+    }
+
+    const timestamp = new Date();
+    const primaryTweet = tweetResults.find(result => result && result.tweet_id) || tweetResults[0] || {};
+
+    const record = {
+      timestamp: timestamp.toISOString(),
+      format: format || 'unknown',
+      manual: Boolean(manual),
+      token: token && (token.symbol || token.name)
+        ? {
+            symbol: token.symbol || null,
+            name: token.name || null
+          }
+        : null,
+      tweetId: primaryTweet.tweet_id || null,
+      tweetIds: tweetResults
+        .map(result => result && result.tweet_id)
+        .filter(Boolean),
+      urls: tweetResults
+        .map(result => result && result.url)
+        .filter(Boolean)
+    };
+
+    this.recentPosts.push(record);
+    if (this.recentPosts.length > 20) {
+      this.recentPosts = this.recentPosts.slice(-20);
+    }
+
+    if (!manual) {
+      this.resetDailyCounter();
+      this.todayPostCount += 1;
+      this.lastPostDate = timestamp.toDateString();
+    } else if (!this.lastPostDate) {
+      this.lastPostDate = timestamp.toDateString();
+    }
+
+    try {
+      await this.saveState();
+    } catch (error) {
+      console.error('❌ [DAILY TWEET] Failed to persist recent post state:', error.message);
+    }
   }
 
   // Load saved state from disk
@@ -268,26 +317,27 @@ class DailyTweetService {
         if (content && content.tweets && content.tweets.length > 0) {
           console.log(`📤 [DAILY TWEET] Posting ${content.tweets.length} tweets using TweetAPI v2...`);
 
+          const tweetResults = [];
           let lastTweetId = null;
           for (let i = 0; i < content.tweets.length; i++) {
             const tweet = content.tweets[i];
             console.log(`📝 [DAILY TWEET] Posting tweet ${i + 1}/${content.tweets.length}: ${tweet.substring(0, 50)}...`);
 
             if (i === 0) {
-              // Post first tweet
               const result = await this.tweetPostingService.postTweet(tweet);
               if (result.success) {
                 lastTweetId = result.tweet_id;
+                tweetResults.push(result);
                 console.log(`✅ [DAILY TWEET] Tweet ${i + 1} posted: ${result.url}`);
               } else {
                 console.log(`❌ [DAILY TWEET] Tweet ${i + 1} failed: ${result.error}`);
                 break;
               }
             } else {
-              // Reply to previous tweet for thread
               const result = await this.tweetPostingService.postReply(tweet, lastTweetId);
               if (result.success) {
                 lastTweetId = result.tweet_id;
+                tweetResults.push(result);
                 console.log(`✅ [DAILY TWEET] Reply ${i + 1} posted: ${result.url}`);
               } else {
                 console.log(`❌ [DAILY TWEET] Reply ${i + 1} failed: ${result.error}`);
@@ -295,16 +345,30 @@ class DailyTweetService {
               }
             }
 
-            // Wait between tweets in a thread
             if (i < content.tweets.length - 1) {
               console.log('⏳ [DAILY TWEET] Waiting 3 seconds before next tweet...');
               await new Promise(resolve => setTimeout(resolve, 3000));
             }
           }
 
-          console.log('✅ [DAILY TWEET] Content cycle completed with TweetAPI v2!');
+          if (tweetResults.length > 0) {
+            this.lastTweetTime = Date.now();
+            content.postedTweetIds = tweetResults.map(result => result.tweet_id).filter(Boolean);
+            content.postedTweetUrls = tweetResults.map(result => result.url).filter(Boolean);
+            await this.recordPost({
+              format: content.format,
+              token: content.token,
+              tweetResults,
+              manual: false
+            });
+            console.log('✅ [DAILY TWEET] Content cycle completed with TweetAPI v2!');
+          } else {
+            console.log('❌ [DAILY TWEET] Content cycle aborted - no tweets were posted');
+            return { success: false, error: 'No tweets posted' };
+          }
         } else {
           console.log('❌ [DAILY TWEET] No content generated, skipping posting...');
+          return { success: false, error: 'No content generated' };
         }
 
       return { success: true };
@@ -444,6 +508,7 @@ class DailyTweetService {
       // Use TweetAPI v2 directly for manual posting
       console.log('✅ [KOL CONTENT] Using TweetAPI v2 for manual posting...');
         
+        const tweetResults = [];
         let lastTweetId = null;
         for (let i = 0; i < content.tweets.length; i++) {
           const tweet = content.tweets[i];
@@ -453,6 +518,7 @@ class DailyTweetService {
             const result = await this.tweetPostingService.postTweet(tweet);
             if (result.success) {
               lastTweetId = result.tweet_id;
+              tweetResults.push(result);
               console.log(`✅ [KOL CONTENT] Tweet ${i + 1} posted: ${result.url}`);
             } else {
               console.log(`❌ [KOL CONTENT] Tweet ${i + 1} failed: ${result.error}`);
@@ -462,6 +528,7 @@ class DailyTweetService {
             const result = await this.tweetPostingService.postReply(tweet, lastTweetId);
             if (result.success) {
               lastTweetId = result.tweet_id;
+              tweetResults.push(result);
               console.log(`✅ [KOL CONTENT] Reply ${i + 1} posted: ${result.url}`);
             } else {
               console.log(`❌ [KOL CONTENT] Reply ${i + 1} failed: ${result.error}`);
@@ -474,16 +541,35 @@ class DailyTweetService {
           }
         }
 
+      if (tweetResults.length === 0) {
+        console.log('❌ [KOL CONTENT] Manual post failed - no tweets were posted');
+        return { success: false, error: 'No tweets were posted' };
+      }
+
       // Update tracking (but don't increment daily count since this is manual override)
       this.lastTweetTime = Date.now();
+      content.postedTweetIds = tweetResults.map(result => result.tweet_id).filter(Boolean);
+      content.postedTweetUrls = tweetResults.map(result => result.url).filter(Boolean);
+      await this.recordPost({
+        format: content.format,
+        token: content.token,
+        tweetResults,
+        manual: true
+      });
       
       console.log('✅ [KOL CONTENT] Manual post completed successfully');
       console.log(`📊 [KOL CONTENT] Posted: ${content.format} (${content.tweets.length} tweet${content.tweets.length > 1 ? 's' : ''})`);
       console.log(`🎯 [KOL CONTENT] Configuration override - daily count unchanged: ${this.todayPostCount}/${this.postsPerDay.max}`);
 
+      const tokenLabel = content.token?.symbol
+        ? `$${content.token.symbol}`
+        : content.token?.name || 'market';
+
       return { 
         success: true, 
-        message: `Posted ${content.format} content for $${content.token.symbol}`,
+        message: `Posted ${content.format} content for ${tokenLabel}`,
+        tweetId: tweetResults[0]?.tweet_id || null,
+        tweetUrl: tweetResults[0]?.url || null,
         content: content
       };
 
