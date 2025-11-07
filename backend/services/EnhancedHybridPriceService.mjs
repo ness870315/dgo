@@ -1999,7 +1999,7 @@ class EnhancedHybridPriceService extends EventEmitter {
      */
     async enhanceSwapWithRpcData(request, txData) {
         try {
-            const { tokenAddress, swapRecord } = request;
+            const { tokenAddress, poolAddress, signature, slot } = request;
             
             if (!txData || !txData.meta) {
                 return; // No metadata available
@@ -2007,82 +2007,105 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             const preBalances = txData.meta.preTokenBalances || [];
             const postBalances = txData.meta.postTokenBalances || [];
+            const WSOL = 'So11111111111111111111111111111111111111112';
             
-            // Find balance changes for our token
+            // ✅ CRITICAL: tokenAddress IS the token mint we're monitoring
+            // Find balance changes for THIS specific token mint
             let tokenIn = 0;
             let tokenOut = 0;
+            let solIn = 0;
+            let solOut = 0;
             
+            // Calculate token balance changes
             for (let i = 0; i < preBalances.length; i++) {
                 const pre = preBalances[i];
                 const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
                 
-                if (pre.mint === tokenAddress && post) {
-                    const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
-                    const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
-                    const change = postAmount - preAmount;
-                    
+                if (!post) continue;
+                
+                const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
+                const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
+                const change = postAmount - preAmount;
+                
+                // Token balance changes (for the token we're monitoring)
+                if (pre.mint === tokenAddress) {
                     if (change > 0) {
-                        tokenIn += change; // User received tokens
+                        tokenIn += change;
                     } else if (change < 0) {
-                        tokenOut += Math.abs(change); // User sent tokens
+                        tokenOut += Math.abs(change);
+                    }
+                }
+                
+                // SOL balance changes
+                if (pre.mint === WSOL) {
+                    if (change > 0) {
+                        solIn += change;
+                    } else if (change < 0) {
+                        solOut += Math.abs(change);
                     }
                 }
             }
             
-            // If we found accurate balance changes, update the swap record
-            if (tokenIn > 0 || tokenOut > 0) {
+            // If we found valid balance changes for a swap, create the enhanced swap
+            if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
                 const isBuy = tokenIn > 0;
-                const amount = isBuy ? tokenIn : tokenOut;
+                const tokenAmount = isBuy ? tokenIn : tokenOut;
+                const solAmount = isBuy ? solOut : solIn; // BUY: SOL out, SELL: SOL in
                 
-                // Calculate price if we have both token and SOL amounts
-                let enhancedPrice = swapRecord.priceUsd; // Default to heuristic price
-                
-                // Try to find SOL balance changes for price calculation
-                const WSOL = 'So11111111111111111111111111111111111111112';
-                for (let i = 0; i < preBalances.length; i++) {
-                    const pre = preBalances[i];
-                    const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
-                    
-                    if (pre.mint === WSOL && post) {
-                        const preSOL = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
-                        const postSOL = parseFloat(post.uiTokenAmount?.uiAmount || 0);
-                        const solChange = Math.abs(postSOL - preSOL);
-                        
-                        if (solChange > 0 && amount > 0) {
-                            const solPrice = this.solPriceUSD || 200;
-                            enhancedPrice = (solChange * solPrice) / amount;
-                            break;
-                        }
-                    }
-                }
+                // Calculate price from balance changes
+                const solPrice = this.solPriceUSD || 200;
+                const priceUsd = solAmount > 0 && tokenAmount > 0 
+                    ? (solAmount * solPrice) / tokenAmount 
+                    : 0;
                 
                 // Create enhanced swap record with accurate data
                 const enhancedSwap = {
                     tokenAddress,
-                    amount, // Accurate amount from balance changes
-                    priceUsd: enhancedPrice,
-                    isBuy,
-                    volumeUsd: amount * enhancedPrice,
-                    source: 'rpc-enhanced', // Mark as RPC-enhanced
-                    signature: request.signature,
-                    slot: request.slot,
-                    timestamp: Date.now()
+                    poolAddress,
+                    signature,
+                    slot,
+                    timestamp: Date.now(),
+                    type: isBuy ? 'BUY' : 'SELL',
+                    tokenAmount,
+                    baseAmount: solAmount,
+                    price: priceUsd,
+                    volumeUsd: tokenAmount * priceUsd,
+                    maker: 'Unknown', // RPC doesn't give us maker address easily
+                    source: 'rpc-enhanced'
                 };
                 
-                // 🚀 HARDENING: Update mid-price using EWMA (alpha=0.2)
-                if (enhancedPrice && isFinite(enhancedPrice) && enhancedPrice > 0) {
+                // 🚀 Update mid-price using EWMA (alpha=0.2)
+                if (priceUsd && isFinite(priceUsd) && priceUsd > 0) {
                     const currentMid = this.midPriceUsd.get(tokenAddress);
                     if (currentMid && currentMid > 0) {
                         const alpha = 0.2;
-                        const newMid = (1 - alpha) * currentMid + alpha * enhancedPrice;
+                        const newMid = (1 - alpha) * currentMid + alpha * priceUsd;
                         this.midPriceUsd.set(tokenAddress, newMid);
                     } else {
-                        this.midPriceUsd.set(tokenAddress, enhancedPrice);
+                        this.midPriceUsd.set(tokenAddress, priceUsd);
                     }
                 }
                 
                 // Save enhanced swap to database
-                await this.chartDatabase.storeSwaps([enhancedSwap]);
+                if (this.chartDatabase) {
+                    const persistentSwap = {
+                        tokenAddress,
+                        signature,
+                        timestamp: Math.floor(Date.now() / 1000),
+                        poolAddress,
+                        price: priceUsd,
+                        volume: enhancedSwap.volumeUsd,
+                        source: 'rpc-enhanced',
+                        type: enhancedSwap.type,
+                        tokenAmount,
+                        baseAmount: solAmount,
+                        volumeUsd: enhancedSwap.volumeUsd,
+                        maker: 'Unknown',
+                        rawData: enhancedSwap
+                    };
+                    await this.chartDatabase.storeSwaps([persistentSwap]);
+                }
+                
                 this.rpcStats.swapsEnhanced++;
                 
                 // Broadcast to WebSocket clients
@@ -2106,7 +2129,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     history.shift();
                 }
                 
-                console.log(`✅ [RPC] Enhanced swap for ${tokenAddress.slice(0, 8)}: ${amount.toFixed(4)} tokens @ $${enhancedPrice.toFixed(6)}`);
+                console.log(`✅ [RPC] Enhanced swap for ${tokenAddress.slice(0, 8)}: ${isBuy ? 'BUY' : 'SELL'} ${tokenAmount.toFixed(4)} tokens for ${solAmount.toFixed(4)} SOL @ $${priceUsd.toFixed(6)}`);
             }
             
         } catch (error) {
