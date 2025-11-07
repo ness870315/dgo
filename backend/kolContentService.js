@@ -944,7 +944,7 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
     const trending = await this.getTrendingTokens(50);
 
     const comparablesPool = trending
-      .map(token => token.name || token.symbol)
+      .map(token => (token?.name || token?.symbol || '').toString().trim())
       .filter(Boolean);
 
     const normalizeAliases = (name, symbol) => {
@@ -964,10 +964,12 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
     trending.forEach((token, index) => {
       if (!token) return;
 
-      const name = token.name || token.symbol;
+      const name = (token.name || token.symbol || '').toString().trim();
       if (!name) return;
 
-      const mcap = token.mcap || token.marketCap || 0;
+      const symbol = token.symbol ? token.symbol.toString().trim().toUpperCase() : null;
+
+      const mcap = Number(token.mcap || token.marketCap || 0);
       const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
       const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) +
         (token.jupiterData?.stats24h?.sellVolume || 0) ||
@@ -989,14 +991,14 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
         ((token.overallScore || 0) / 2) +
         Math.max(0, ((token.jupiterData?.stats5m?.priceChange || 0))) * 4;
 
-      const aliases = normalizeAliases(name, token.symbol);
+      const aliases = normalizeAliases(name, symbol);
       const comparables = comparablesPool
         .filter(item => item && item !== name)
         .slice(0, 3);
 
       candidates.push({
         name,
-        symbol: token.symbol,
+        symbol,
         aliases,
         comparables,
         score,
@@ -1023,7 +1025,7 @@ Return bullet points with precise numbers, timeframes, and mention sources if po
 
           candidates.push({
             name: entry.name,
-            symbol: entry.symbol,
+            symbol: entry.symbol ? entry.symbol.toString().trim().toUpperCase() : null,
             aliases: [
               entry.name,
               entry.name.toLowerCase(),

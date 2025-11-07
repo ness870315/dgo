@@ -32,6 +32,81 @@ class DGOOpinionDatabase {
     console.log('   Data dir:', this.dataDir);
   }
 
+  normalizeEntityValue(value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    if (typeof value === 'object') {
+      if (value.symbol) {
+        return String(value.symbol);
+      }
+      if (value.name) {
+        return String(value.name);
+      }
+      if (value.id) {
+        return String(value.id);
+      }
+      if (value.value) {
+        return String(value.value);
+      }
+
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+
+    return String(value);
+  }
+
+  normalizeEntityValue(value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    if (typeof value === 'object') {
+      if (value.symbol) {
+        return String(value.symbol);
+      }
+      if (value.name) {
+        return String(value.name);
+      }
+      if (value.id) {
+        return String(value.id);
+      }
+      if (value.value) {
+        return String(value.value);
+      }
+
+      // Fall back to JSON string (best effort for logging/debug)
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+
+    return String(value);
+  }
+
   /**
    * Get recent momentum entities from stored opinions
    * @param {number} hours Lookback window in hours (default 168 = 7 days)
@@ -512,19 +587,19 @@ class DGOOpinionDatabase {
     ]);
 
     for (const key of keys) {
-      const baseVals = baseEntities?.[key] || [];
-      const extraVals = extraEntities?.[key] || [];
+      const baseVals = Array.isArray(baseEntities?.[key])
+        ? baseEntities[key]
+        : baseEntities?.[key] != null ? [baseEntities[key]] : [];
+      const extraVals = Array.isArray(extraEntities?.[key])
+        ? extraEntities[key]
+        : extraEntities?.[key] != null ? [extraEntities[key]] : [];
+
       const combined = [...baseVals, ...extraVals]
-        .filter(Boolean)
-        .map(value => typeof value === 'string' ? value : JSON.stringify(value));
-      const unique = Array.from(new Set(combined));
-      merged[key] = unique.map(value => {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return value;
-        }
-      });
+        .map(val => this.normalizeEntityValue(val))
+        .filter(value => typeof value === 'string' && value.trim().length > 0)
+        .map(value => value.trim());
+
+      merged[key] = Array.from(new Set(combined));
     }
 
     return merged;
@@ -677,8 +752,21 @@ class DGOOpinionDatabase {
       const opinionDate = new Date(opinion.postedAt || opinion.timestamp || Date.now());
       if (opinionDate < cutoff) return false;
 
-      const inProtocols = opinion.entities?.protocols?.some(proto => proto.toLowerCase() === lowerEntity);
-      const inTokens = opinion.entities?.tokens?.some(token => token.toLowerCase() === lowerEntity);
+      const protocols = Array.isArray(opinion.entities?.protocols)
+        ? opinion.entities.protocols
+        : [];
+      const tokens = Array.isArray(opinion.entities?.tokens)
+        ? opinion.entities.tokens
+        : [];
+
+      const normalize = (val) => {
+        if (typeof val === 'string') return val.toLowerCase();
+        if (val == null) return '';
+        return String(val).toLowerCase();
+      };
+
+      const inProtocols = protocols.some(proto => normalize(proto) === lowerEntity);
+      const inTokens = tokens.some(token => normalize(token) === lowerEntity);
       const inText = opinion.text.toLowerCase().includes(lowerEntity);
 
       return inProtocols || inTokens || inText;
