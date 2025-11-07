@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -137,9 +137,9 @@ class EnhancedBackend {
       const liquidityUsd = typeof j.liquidity === 'number' ? j.liquidity : undefined;
 
       // Rug heuristics (conservative):
-      // - 24h drop ≤ -80%
-      // - OR 6h drop ≤ -70%
-      // - OR liquidity collapsed (≤ $1,000) AND 24h drop ≤ -60%
+      // - 24h drop â‰¤ -80%
+      // - OR 6h drop â‰¤ -70%
+      // - OR liquidity collapsed (â‰¤ $1,000) AND 24h drop â‰¤ -60%
       const big24hDrop = priceChange24h !== undefined && priceChange24h <= -80;
       const big6hDrop = priceChange6h !== undefined && priceChange6h <= -70;
       const collapsedLiq = liquidityUsd !== undefined && liquidityUsd <= 1000;
@@ -188,7 +188,7 @@ class EnhancedBackend {
     this.app = express();
     this.port = Number(process.env.PORT) || 4000;
     
-    // ✅ MEMORY CACHE: Cache tokens in memory to avoid reading from disk on every request
+    // âœ… MEMORY CACHE: Cache tokens in memory to avoid reading from disk on every request
     this.tokensCache = {
       data: null,
       timestamp: null,
@@ -209,7 +209,7 @@ class EnhancedBackend {
     
     // DISABLED: Start Enhanced Analytics Cache Service immediately (will work with empty data until KOL Service loads)
     // this.enhancedAnalyticsCache.startBackgroundProcessing();
-    console.log('⚠️ Enhanced Analytics Cache Service DISABLED');
+    console.log('âš ï¸ Enhanced Analytics Cache Service DISABLED');
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.monthlySnapshotService = new MonthlySnapshotService();
@@ -267,14 +267,14 @@ class EnhancedBackend {
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
       this.persistentCachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
-      logger.info(`🔧 Persistent cache path set to: ${this.persistentCachePath}`);
-      logger.info(`🔧 Base directory: ${baseDir}`);
-      logger.info(`🔧 DATA_DIR env: ${process.env.DATA_DIR}`);
+      logger.info(`ðŸ”§ Persistent cache path set to: ${this.persistentCachePath}`);
+      logger.info(`ðŸ”§ Base directory: ${baseDir}`);
+      logger.info(`ðŸ”§ DATA_DIR env: ${process.env.DATA_DIR}`);
     } catch (error) {
       // Fallback to local (non-persistent) path only if necessary
       this.persistentCachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
-      logger.warn(`⚠️ Fallback to local cache path: ${this.persistentCachePath}`);
-      logger.warn(`⚠️ Fallback reason: ${error.message}`);
+      logger.warn(`âš ï¸ Fallback to local cache path: ${this.persistentCachePath}`);
+      logger.warn(`âš ï¸ Fallback reason: ${error.message}`);
     }
     this.isRunning = false;
     
@@ -288,10 +288,10 @@ class EnhancedBackend {
     this.maxLogEntries = 10000;
     
     // Initialize Winston logger
-    logger.info('🚀 Enhanced Backend v3.0 starting up...');
-    logger.info('🔄 Initializing services and middleware...');
+    logger.info('ðŸš€ Enhanced Backend v3.0 starting up...');
+    logger.info('ðŸ”„ Initializing services and middleware...');
     
-    logger.info('✅ Enhanced Backend constructor completed');
+    logger.info('âœ… Enhanced Backend constructor completed');
     
     // Enhanced backup system is now initialized in start() method
   }
@@ -303,18 +303,18 @@ class EnhancedBackend {
   /*
   async initializeKOLService() {
     try {
-      console.log('🔄 Initializing KOL Service...');
+      console.log('ðŸ”„ Initializing KOL Service...');
       await this.kolService.initialize();
-      console.log('✅ KOL Service initialized successfully');
+      console.log('âœ… KOL Service initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize KOL Service:', error);
+      console.error('âŒ Failed to initialize KOL Service:', error);
     }
   }
   */
 
   async loadKOLRoutes() {
     try {
-      console.log('🔄 [BACKEND] Loading KOL routes...');
+      console.log('ðŸ”„ [BACKEND] Loading KOL routes...');
       const { default: kolRoutes } = await import('./routes/kolRoutes.js');
       
       if (!kolRoutes) {
@@ -322,7 +322,7 @@ class EnhancedBackend {
       }
       
       this.app.use('/api/kol', kolRoutes);
-      console.log('✅ [BACKEND] KOL routes registered at /api/kol');
+      console.log('âœ… [BACKEND] KOL routes registered at /api/kol');
       
       // Serve KOL Intelligence Hub page
       this.app.get('/kolsentiment', (req, res) => {
@@ -401,30 +401,30 @@ class EnhancedBackend {
 </head>
 <body>
     <div class="container">
-        <h1>🧠 KOL INTELLIGENCE HUB</h1>
+        <h1>ðŸ§  KOL INTELLIGENCE HUB</h1>
         <p class="subtitle">Who Moves What, When, and How</p>
         
         <div class="features">
             <div class="feature">
-                <span class="feature-icon">🚀</span>
+                <span class="feature-icon">ðŸš€</span>
                 <span>Momentum Board - Track coin mentions</span>
             </div>
             <div class="feature">
-                <span class="feature-icon">💭</span>
+                <span class="feature-icon">ðŸ’­</span>
                 <span>Narrative Radar - Detect emerging trends</span>
             </div>
             <div class="feature">
-                <span class="feature-icon">⚡</span>
+                <span class="feature-icon">âš¡</span>
                 <span>Alpha Signals - Real-time opportunities</span>
             </div>
             <div class="feature">
-                <span class="feature-icon">📊</span>
+                <span class="feature-icon">ðŸ“Š</span>
                 <span>Auto Influence Scores - AI-powered KOL ranking</span>
             </div>
         </div>
         
         <a href="/admin-dashboard.html" class="cta-button">
-            🎯 Launch Admin Dashboard
+            ðŸŽ¯ Launch Admin Dashboard
         </a>
         
         <p style="margin-top: 30px; color: #666; font-size: 0.9em;">
@@ -436,11 +436,11 @@ class EnhancedBackend {
         `);
       });
       
-      logger.info('✅ KOL Dashboard routes loaded');
-      console.log('✅ [BACKEND] KOL Dashboard page available at /kolsentiment');
+      logger.info('âœ… KOL Dashboard routes loaded');
+      console.log('âœ… [BACKEND] KOL Dashboard page available at /kolsentiment');
     } catch (error) {
-      console.error('❌ [BACKEND] Failed to load KOL routes:', error);
-      logger.error(`❌ Failed to load KOL routes: ${error.message}`);
+      console.error('âŒ [BACKEND] Failed to load KOL routes:', error);
+      logger.error(`âŒ Failed to load KOL routes: ${error.message}`);
       throw error; // Re-throw to prevent server from starting with broken routes
     }
   }
@@ -469,7 +469,7 @@ class EnhancedBackend {
         if (allowedOrigins.includes(origin) || cloudflarePattern.test(origin)) {
           callback(null, true);
         } else {
-          logger.warn(`🚫 CORS blocked origin: ${origin}`);
+          logger.warn(`ðŸš« CORS blocked origin: ${origin}`);
           callback(new Error('Not allowed by CORS'));
         }
       },
@@ -488,7 +488,7 @@ class EnhancedBackend {
     // Additional CORS middleware for AI endpoints with debugging
     this.app.use((req, res, next) => {
       if (req.path.startsWith('/api/ai')) {
-        console.log(`🔍 AI CORS: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
+        console.log(`ðŸ” AI CORS: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
         
         const origin = req.headers.origin;
         res.header('Access-Control-Allow-Origin', origin || '*');
@@ -497,7 +497,7 @@ class EnhancedBackend {
         res.header('Access-Control-Allow-Credentials', 'true');
         
         if (req.method === 'OPTIONS') {
-          console.log(`✅ AI CORS: Handling OPTIONS preflight for ${req.path}`);
+          console.log(`âœ… AI CORS: Handling OPTIONS preflight for ${req.path}`);
           return res.status(200).end();
         }
       }
@@ -520,7 +520,7 @@ class EnhancedBackend {
       const validUsername = process.env.ADMIN_USERNAME || 'ness870315';
       const validPassword = process.env.ADMIN_PASSWORD || '1E132730!';
       
-      console.log(`[🛡️ Admin Auth] Login attempt: ${username} (env: ${process.env.ADMIN_USERNAME ? 'SET' : 'DEFAULT'})`);
+      console.log(`[ðŸ›¡ï¸ Admin Auth] Login attempt: ${username} (env: ${process.env.ADMIN_USERNAME ? 'SET' : 'DEFAULT'})`);
       
       if (username === validUsername && password === validPassword) {
         next();
@@ -558,8 +558,8 @@ class EnhancedBackend {
     this.app.get('/api/status', async (req, res) => {
       try {
     // Log status endpoint access
-    logger.info('📊 Status endpoint accessed');
-    logger.debug('🔍 Debug: Status endpoint called at ' + new Date().toISOString());
+    logger.info('ðŸ“Š Status endpoint accessed');
+    logger.debug('ðŸ” Debug: Status endpoint called at ' + new Date().toISOString());
         const status = this.tokenProcessor.getProcessingStatus();
         let tokens = await this.getTokensFromCache();
         const priorityStats = this.priorityQueue.getPriorityStats(tokens);
@@ -585,7 +585,7 @@ class EnhancedBackend {
           notes: 'Priority queue provides near real-time updates for high-priority tokens while respecting rate limits.'
         });
       } catch (error) {
-        logger.error(`❌ Status endpoint error: ${error.message}`);
+        logger.error(`âŒ Status endpoint error: ${error.message}`);
         res.status(500).json({
           success: false,
           error: 'Failed to get status',
@@ -604,7 +604,7 @@ class EnhancedBackend {
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
 
         // Validate payment with Helio API (same structure as fuel token flow)
-        logger.info('🔐 Validating payment for premium activation...');
+        logger.info('ðŸ” Validating payment for premium activation...');
         const finalPaymentId = paymentId || receipt?.paymentId || receipt?.id || clientPaylinkId;
         if (!finalPaymentId) {
           return res.status(400).json({ success: false, error: 'Missing payment ID' });
@@ -613,7 +613,7 @@ class EnhancedBackend {
         // Use the same validation approach as fuel token flow
         const validationResult = await this.helioService.validatePayment(finalPaymentId, paymentData || receipt);
         if (!validationResult.isValid) {
-          logger.error(`❌ Payment validation failed: ${validationResult.error}`);
+          logger.error(`âŒ Payment validation failed: ${validationResult.error}`);
           return res.status(400).json({ 
             success: false, 
             error: 'Payment validation failed', 
@@ -621,14 +621,14 @@ class EnhancedBackend {
           });
         }
 
-        logger.info('✅ Payment validated successfully:', validationResult);
+        logger.info('âœ… Payment validated successfully:', validationResult);
 
         // Determine plan by paylinkId (monthly vs yearly)
         const envMonthly = process.env.HELIO_MONTHLY_PAYLINK_ID || '68b8ed60cf71471addc8adb6';
         const envYearly = process.env.HELIO_YEARLY_PAYLINK_ID || null;
         const receiptPaylinkId = receipt?.paylinkId || receipt?.paylink?.id || clientPaylinkId || null;
         
-        logger.info('🔍 Payment plan detection:', {
+        logger.info('ðŸ” Payment plan detection:', {
           envMonthly,
           envYearly,
           receiptPaylinkId,
@@ -648,12 +648,12 @@ class EnhancedBackend {
           // If fallback validation was used, it means yearly payment
           planType = 'yearly';
           durationDays = 365;
-          logger.info(`📅 Detected yearly payment via fallback validation`);
+          logger.info(`ðŸ“… Detected yearly payment via fallback validation`);
         } else {
           // Monthly payment with PayLink ID
           planType = 'monthly';
           durationDays = 30;
-          logger.info(`📅 Detected monthly payment via PayLink ID`);
+          logger.info(`ðŸ“… Detected monthly payment via PayLink ID`);
         }
 
         // Persist premium status for the selected duration
@@ -691,24 +691,24 @@ class EnhancedBackend {
           if (planType === 'monthly') {
             solAmount = 0.4; // Monthly: 0.4 SOL
           } else if (planType === 'yearly') {
-            solAmount = 0.4 * 12 * 0.8; // Yearly: 0.4 SOL × 12 - 20% discount = 3.84 SOL
+            solAmount = 0.4 * 12 * 0.8; // Yearly: 0.4 SOL Ã— 12 - 20% discount = 3.84 SOL
           }
           
           if (solAmount > 0) {
             const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', solAmount);
             if (totalSpentResult === null) {
-              console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+              console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update totalSpent stat for user ${user.username}`);
             } else {
-              console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +${solAmount} SOL (total: ${totalSpentResult} SOL)`);
+              console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated totalSpent stat for user ${user.username}: +${solAmount} SOL (total: ${totalSpentResult} SOL)`);
             }
           }
         } catch (e) {
-          logger.error('[🛡️ Enhanced Backend] ⚠️ Failed to record earning:', e.message);
+          logger.error('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to record earning:', e.message);
         }
 
         res.json({ success: true, premium: result });
       } catch (error) {
-        logger.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
+        logger.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Activate premium failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to activate premium' });
       }
     });
@@ -800,7 +800,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ NFT trait verification failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ NFT trait verification failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to verify NFT ownership with traits' });
       }
     });
@@ -826,7 +826,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ NFT traits lookup failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ NFT traits lookup failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to lookup NFT traits' });
       }
     });
@@ -891,7 +891,7 @@ class EnhancedBackend {
 
         res.json({ success: true, premium: result });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Redeem code failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Redeem code failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to redeem code' });
       }
     });
@@ -936,7 +936,7 @@ class EnhancedBackend {
 
         res.json({ success: true, total, premium, free });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Users stats failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Users stats failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get users stats' });
       }
     });
@@ -945,14 +945,14 @@ class EnhancedBackend {
     this.app.post('/api/admin/users/:username/set-free', adminApiAuth, async (req, res) => {
       try {
         const { username } = req.params;
-        console.log(`🔍 Admin: Setting user '${username}' as free`);
+        console.log(`ðŸ” Admin: Setting user '${username}' as free`);
         
         // Get all users to find the user by username
         const users = await this.oauthXService.db.getAllUsers();
         const user = users.find(u => u.username === username);
         
         if (!user) {
-          console.log(`❌ User '${username}' not found`);
+          console.log(`âŒ User '${username}' not found`);
           return res.status(404).json({ 
             success: false, 
             error: `User '${username}' not found`,
@@ -960,11 +960,11 @@ class EnhancedBackend {
           });
         }
         
-        console.log(`✅ Found user: ${user.username} (ID: ${user.id})`);
+        console.log(`âœ… Found user: ${user.username} (ID: ${user.id})`);
         
         // Get current premium status
         const currentPremium = await this.oauthXService.db.getPremiumStatus(user.id);
-        console.log(`📊 Current premium status:`, currentPremium);
+        console.log(`ðŸ“Š Current premium status:`, currentPremium);
         
         // Set user as free (non-premium)
         const freeStatus = {
@@ -980,7 +980,7 @@ class EnhancedBackend {
         
         await this.oauthXService.db.setPremiumStatus(user.id, freeStatus);
         
-        console.log(`✅ Successfully set user '${username}' as free`);
+        console.log(`âœ… Successfully set user '${username}' as free`);
         
         // Get updated status
         const updatedPremium = await this.oauthXService.db.getPremiumStatus(user.id);
@@ -994,7 +994,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Set user free failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Set user free failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to set user as free' });
       }
     });
@@ -1019,7 +1019,7 @@ class EnhancedBackend {
         }
         res.json({ success: true, users: enriched });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Users list failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Users list failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get users list' });
       }
     });
@@ -1044,14 +1044,14 @@ class EnhancedBackend {
           const baseDate = currentExpiration > now ? currentExpiration : now;
           expiresAt = new Date(baseDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
           
-          console.log(`[🛡️ Enhanced Backend] 📅 Extending Premium for user ${id}:`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“… Extending Premium for user ${id}:`);
           console.log(`  Current expiration: ${currentExpiration.toISOString()}`);
           console.log(`  Adding: ${durationDays} days`);
           console.log(`  New expiration: ${expiresAt.toISOString()}`);
         } else {
           // User doesn't have premium or it's expired - start from now
           expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
-          console.log(`[🛡️ Enhanced Backend] 🆕 Granting Premium to user ${id} for ${durationDays} days`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ†• Granting Premium to user ${id} for ${durationDays} days`);
         }
         
         const result = await this.oauthXService.db.setPremiumStatus(id, {
@@ -1065,7 +1065,7 @@ class EnhancedBackend {
         
         res.json({ success: true, premium: result });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Admin upgrade failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Admin upgrade failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to upgrade user' });
       }
     });
@@ -1073,7 +1073,7 @@ class EnhancedBackend {
     // Admin: EMERGENCY - Restore users from backup or user directories
     this.app.post('/api/admin/emergency-restore-users', adminApiAuth, async (req, res) => {
       try {
-        console.log('[🚨 EMERGENCY] Restoring users...');
+        console.log('[ðŸš¨ EMERGENCY] Restoring users...');
         
         const usersDir = this.oauthXService.db.usersDir;
         const globalDir = this.oauthXService.db.globalDir;
@@ -1084,7 +1084,7 @@ class EnhancedBackend {
         const backupFiles = globalFiles.filter(f => f.includes('users-index') && (f.includes('backup') || f.includes('_')));
         
         if (backupFiles.length > 0) {
-          console.log(`[🚨 EMERGENCY] Found ${backupFiles.length} backup files`);
+          console.log(`[ðŸš¨ EMERGENCY] Found ${backupFiles.length} backup files`);
           
           // Use the most recent backup
           const mostRecent = backupFiles.sort().reverse()[0];
@@ -1096,7 +1096,7 @@ class EnhancedBackend {
           // Convert array to object format if needed (userId as key)
           let usersIndex = {};
           if (Array.isArray(usersData)) {
-            console.log(`[🚨 EMERGENCY] Converting array format to object format`);
+            console.log(`[ðŸš¨ EMERGENCY] Converting array format to object format`);
             usersData.forEach(user => {
               usersIndex[user.id] = user;
             });
@@ -1105,7 +1105,7 @@ class EnhancedBackend {
           }
           
           const userCount = Object.keys(usersIndex).length;
-          console.log(`[🚨 EMERGENCY] Restoring ${userCount} users from ${mostRecent}`);
+          console.log(`[ðŸš¨ EMERGENCY] Restoring ${userCount} users from ${mostRecent}`);
           
           await this.oauthXService.db.writeJsonFile(usersIndexPath, usersIndex);
           
@@ -1120,7 +1120,7 @@ class EnhancedBackend {
         }
         
         // No backup - rebuild from user directories
-        console.log('[🚨 EMERGENCY] No backup found. Rebuilding from user directories...');
+        console.log('[ðŸš¨ EMERGENCY] No backup found. Rebuilding from user directories...');
         
         const userDirs = await fs.readdir(usersDir);
         const userFolders = userDirs.filter(d => d.startsWith('user-'));
@@ -1144,9 +1144,9 @@ class EnhancedBackend {
               referralCode: profile.referralCode
             };
             
-            console.log(`[🚨 EMERGENCY] Rebuilt: ${profile.username}`);
+            console.log(`[ðŸš¨ EMERGENCY] Rebuilt: ${profile.username}`);
           } catch (err) {
-            console.log(`[🚨 EMERGENCY] Could not rebuild ${folder}: ${err.message}`);
+            console.log(`[ðŸš¨ EMERGENCY] Could not rebuild ${folder}: ${err.message}`);
           }
         }
         
@@ -1170,7 +1170,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🚨 EMERGENCY] Restore failed:', error.message);
+        console.error('[ðŸš¨ EMERGENCY] Restore failed:', error.message);
         res.status(500).json({ success: false, error: 'Emergency restore failed' });
       }
     });
@@ -1179,7 +1179,7 @@ class EnhancedBackend {
     this.app.post('/api/admin/users/:username/delete', adminApiAuth, async (req, res) => {
       try {
         const { username } = req.params;
-        console.log(`[🛡️ Admin] 🗑️ Deleting user '${username}'...`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ—‘ï¸ Deleting user '${username}'...`);
         
         // Get all users to find the user by username
         const users = await this.oauthXService.db.getAllUsers();
@@ -1193,7 +1193,7 @@ class EnhancedBackend {
           });
         }
         
-        console.log(`[🛡️ Admin] ✅ Found user: ${user.username} (ID: ${user.id})`);
+        console.log(`[ðŸ›¡ï¸ Admin] âœ… Found user: ${user.username} (ID: ${user.id})`);
         
         const deletedData = {
           kolCalls: 0,
@@ -1207,16 +1207,16 @@ class EnhancedBackend {
         
         try {
           await fs.rm(userDirPath, { recursive: true, force: true });
-          console.log(`[🛡️ Admin] ✅ User directory deleted: ${userDirPath}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âœ… User directory deleted: ${userDirPath}`);
         } catch (err) {
-          console.log(`[🛡️ Admin] ⚠️ Could not delete user directory: ${err.message}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ Could not delete user directory: ${err.message}`);
         }
         
         // Remove from users index
         const updatedUsers = users.filter(u => u.id !== user.id);
         const usersIndexPath = this.oauthXService.db.getGlobalFile('users-index.json');
         await this.oauthXService.db.writeJsonFile(usersIndexPath, updatedUsers);
-        console.log(`[🛡️ Admin] ✅ Removed from users index (${users.length} → ${updatedUsers.length})`);
+        console.log(`[ðŸ›¡ï¸ Admin] âœ… Removed from users index (${users.length} â†’ ${updatedUsers.length})`);
         
         // Remove sessions
         const sessionsPath = this.oauthXService.db.getGlobalFile('sessions.json');
@@ -1229,9 +1229,9 @@ class EnhancedBackend {
           deletedData.sessions = userSessions.length;
           
           await this.oauthXService.db.writeJsonFile(sessionsPath, sessions);
-          console.log(`[🛡️ Admin] ✅ Removed ${userSessions.length} session(s)`);
+          console.log(`[ðŸ›¡ï¸ Admin] âœ… Removed ${userSessions.length} session(s)`);
         } catch (err) {
-          console.log(`[🛡️ Admin] ⚠️ Could not remove sessions: ${err.message}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ Could not remove sessions: ${err.message}`);
         }
         
         // Remove from referral codes
@@ -1244,13 +1244,13 @@ class EnhancedBackend {
           if (userCodes.length > 0) {
             await this.oauthXService.db.writeJsonFile(referralCodesPath, updatedCodes);
             deletedData.referralCodes = userCodes.length;
-            console.log(`[🛡️ Admin] ✅ Removed ${userCodes.length} referral code(s)`);
+            console.log(`[ðŸ›¡ï¸ Admin] âœ… Removed ${userCodes.length} referral code(s)`);
           }
         } catch (err) {
-          console.log(`[🛡️ Admin] ⚠️ Could not check referral codes: ${err.message}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ Could not check referral codes: ${err.message}`);
         }
         
-        console.log(`[🛡️ Admin] ✅ User '${user.username}' has been completely deleted`);
+        console.log(`[ðŸ›¡ï¸ Admin] âœ… User '${user.username}' has been completely deleted`);
         
         res.json({ 
           success: true, 
@@ -1264,7 +1264,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Delete user failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Delete user failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to delete user' });
       }
     });
@@ -1275,7 +1275,7 @@ class EnhancedBackend {
         const summary = await this.oauthXService.db.getEarningsSummary();
         res.json({ success: true, summary });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Earnings summary failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Earnings summary failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get earnings summary' });
       }
     });
@@ -1285,7 +1285,7 @@ class EnhancedBackend {
         const list = await this.oauthXService.db.getEarnings();
         res.json({ success: true, earnings: list });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Earnings list failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Earnings list failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get earnings list' });
       }
     });
@@ -1293,7 +1293,7 @@ class EnhancedBackend {
     // Admin: Reset all earnings (clear earnings.json)
     this.app.post('/api/admin/earnings/reset', adminApiAuth, async (req, res) => {
       try {
-        console.log('[🛡️ Admin] 🗑️ Resetting all earnings data...');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ—‘ï¸ Resetting all earnings data...');
         
         // Get earnings file path
         const earningsFile = this.oauthXService.db.getGlobalFile('earnings.json');
@@ -1303,15 +1303,15 @@ class EnhancedBackend {
         try {
           const currentData = await this.oauthXService.db.getEarnings();
           await fs.writeFile(backupFile, JSON.stringify(currentData, null, 2));
-          console.log(`[🛡️ Admin] 📦 Backup created: ${backupFile}`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ“¦ Backup created: ${backupFile}`);
         } catch (backupErr) {
-          console.warn('[🛡️ Admin] ⚠️ Could not create backup:', backupErr.message);
+          console.warn('[ðŸ›¡ï¸ Admin] âš ï¸ Could not create backup:', backupErr.message);
         }
         
         // Reset earnings to empty array
         await this.oauthXService.db.writeJsonFile(earningsFile, []);
         
-        console.log('[🛡️ Admin] ✅ All earnings data has been reset');
+        console.log('[ðŸ›¡ï¸ Admin] âœ… All earnings data has been reset');
         
         res.json({
           success: true,
@@ -1320,7 +1320,7 @@ class EnhancedBackend {
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to reset earnings:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to reset earnings:', error.message);
         res.status(500).json({ success: false, error: 'Failed to reset earnings' });
       }
     });
@@ -1329,14 +1329,14 @@ class EnhancedBackend {
     this.app.get('/api/fuel-image/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
-        console.log(`[🛡️ Enhanced Backend] 🖼️ Generating fuel image for ${fuelType}/${symbol}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ–¼ï¸ Generating fuel image for ${fuelType}/${symbol}`);
         
         // Generate the fuel image
         const fuelImageGenerator = new (await import('./fuelImageGenerator.js')).default();
         const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, symbol);
         
         if (!imageDataURL) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to generate image for ${fuelType}/${symbol}`);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to generate image for ${fuelType}/${symbol}`);
           res.status(500).json({ error: 'Failed to generate fuel image' });
           return;
         }
@@ -1345,7 +1345,7 @@ class EnhancedBackend {
         const base64Data = imageDataURL.split(',')[1];
         const imageBuffer = Buffer.from(base64Data, 'base64');
         
-        console.log(`[🛡️ Enhanced Backend] ✅ Generated fuel image for ${fuelType}/${symbol}, size: ${imageBuffer.length} bytes`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Generated fuel image for ${fuelType}/${symbol}, size: ${imageBuffer.length} bytes`);
         
         // Set appropriate headers for X/Twitter compatibility
         res.set({
@@ -1361,7 +1361,7 @@ class EnhancedBackend {
         
         res.send(imageBuffer);
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Fuel image generation error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Fuel image generation error:', error.message);
         res.status(500).json({ error: 'Failed to generate fuel image' });
       }
     });
@@ -1379,7 +1379,7 @@ class EnhancedBackend {
 
     // Test endpoint to verify backend deployment
     this.app.get('/test-fuel-deployment', (req, res) => {
-      console.log('[🛡️ Enhanced Backend] ✅ Test endpoint hit - backend deployment working');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Test endpoint hit - backend deployment working');
       res.json({ status: 'working', timestamp: new Date().toISOString() });
     });
 
@@ -1388,7 +1388,7 @@ class EnhancedBackend {
     this.app.get('/fuel/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
-        console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Fuel sharing page requested: ${fuelType}/${symbol}`);
         
         // Handle both main domain and API domain
         const host = req.get('host');
@@ -1403,13 +1403,13 @@ class EnhancedBackend {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔥 ${symbol} ${fuelType} Fuel - Degen Oracle</title>
+    <title>ðŸ”¥ ${symbol} ${fuelType} Fuel - Degen Oracle</title>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
-    <meta property="og:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
-    <meta property="og:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
+    <meta property="og:title" content="ðŸ”¥ ${symbol} ${fuelType} Fuel - Degen Oracle">
+    <meta property="og:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! ðŸš€">
     <meta property="og:image" content="${imageUrl}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -1421,8 +1421,8 @@ class EnhancedBackend {
     <meta name="twitter:site" content="@dgnoracle">
     <meta name="twitter:creator" content="@dgnoracle">
     <meta name="twitter:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
-    <meta name="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
-    <meta name="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
+    <meta name="twitter:title" content="ðŸ”¥ ${symbol} ${fuelType} Fuel - Degen Oracle">
+    <meta name="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! ðŸš€">
     <meta name="twitter:image" content="${imageUrl}">
     <meta name="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
     <meta name="twitter:domain" content="degen-oracle.com">
@@ -1482,10 +1482,10 @@ class EnhancedBackend {
 </head>
 <body>
     <div class="container">
-        <h1>🔥 ${symbol} ${fuelType} Fuel</h1>
+        <h1>ðŸ”¥ ${symbol} ${fuelType} Fuel</h1>
         <p class="subtitle">Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!</p>
         <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
-        <p>The degen army is assembling! 🚀</p>
+        <p>The degen army is assembling! ðŸš€</p>
         <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
     </div>
     
@@ -1501,7 +1501,7 @@ class EnhancedBackend {
         res.set('Content-Type', 'text/html');
         res.send(html);
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Fuel sharing page error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Fuel sharing page error:', error.message);
         res.redirect(301, 'https://degen-oracle.com/?from=fuel');
       }
     });
@@ -1558,7 +1558,7 @@ class EnhancedBackend {
 
         res.json({ success: true, totalCalls, users, sample });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ KOL calls summary error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ KOL calls summary error:', e.message);
         res.status(500).json({ success: false, error: 'Failed to get KOL calls summary' });
       }
     });
@@ -1566,17 +1566,17 @@ class EnhancedBackend {
     // Admin: Force reload image overrides (useful after updating override file)
     this.app.post('/api/admin/reload-image-overrides', adminApiAuth, async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🖼️ Force reloading image overrides...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ–¼ï¸ Force reloading image overrides...');
         // Force reload tokens from cache (which will apply overrides)
         const tokens = await this.getTokensFromCache();
-        console.log(`[🛡️ Enhanced Backend] ✅ Reloaded ${tokens.length} tokens with image overrides applied`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Reloaded ${tokens.length} tokens with image overrides applied`);
         res.json({ 
           success: true, 
           message: 'Image overrides reloaded successfully',
           tokensCount: tokens.length 
         });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Reload image overrides error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Reload image overrides error:', e.message);
         res.status(500).json({ error: 'Failed to reload image overrides' });
       }
     });
@@ -1587,7 +1587,7 @@ class EnhancedBackend {
         const list = await this.oauthXService.db.listReferralCodes();
         res.json({ success: true, referrals: list });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ List referrals error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ List referrals error:', e.message);
         res.status(500).json({ error: 'Failed to list referral codes' });
       }
     });
@@ -1598,7 +1598,7 @@ class EnhancedBackend {
         const created = await this.oauthXService.db.createReferralCode({ ownerUserId, code, maxUses });
         res.json({ success: true, referral: created });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Create referral error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Create referral error:', e.message);
         res.status(500).json({ error: 'Failed to create referral code' });
       }
     });
@@ -1628,18 +1628,18 @@ class EnhancedBackend {
     this.app.get('/api/tokens', async (req, res) => {
       try {
         const { search } = req.query;
-        console.log('[🛡️ Enhanced Backend] 📊 API request for tokens received...', search ? `(search: "${search}")` : '');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š API request for tokens received...', search ? `(search: "${search}")` : '');
 
         let tokens = await this.getTokensFromCache();
 
         if (tokens.length === 0) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache - checking token processor');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens found in cache - checking token processor');
           // Fallback: Try to get tokens from token processor if cache is empty
           if (this.tokenProcessor && this.tokenProcessor.processedTokens && this.tokenProcessor.processedTokens.length > 0) {
-            console.log(`[🛡️ Enhanced Backend] 🔄 Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
             tokens = this.tokenProcessor.processedTokens;
           } else {
-            console.log('[🛡️ Enhanced Backend] ⚠️ No tokens available - returning empty array');
+            console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens available - returning empty array');
             res.json([]);
             return;
           }
@@ -1650,7 +1650,7 @@ class EnhancedBackend {
 
         // Apply enhanced deduplication to ensure no duplicates are served
         const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
-        console.log(`[🛡️ Enhanced Backend] 🔄 Deduplicated API response: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Deduplicated API response: ${tokens.length} â†’ ${deduplicatedTokens.length} tokens`);
 
         // Filter out tokens without valid contract addresses
         let validTokens = deduplicatedTokens.filter(token => 
@@ -1667,14 +1667,14 @@ class EnhancedBackend {
             token.name.toLowerCase().includes(searchLower) ||
             (token.contractAddress && token.contractAddress.toLowerCase().includes(searchLower))
           );
-          console.log(`[🛡️ Enhanced Backend] 🔍 Search "${search}" matched ${validTokens.length} tokens`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” Search "${search}" matched ${validTokens.length} tokens`);
         }
         
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens${search ? ' matching search' : ''}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Returning ${validTokens.length} valid tokens${search ? ' matching search' : ''}`);
         res.json(validTokens);
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error fetching tokens:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error fetching tokens:', error);
         res.status(500).json({ error: 'Failed to fetch tokens' });
       }
     });
@@ -1685,18 +1685,18 @@ class EnhancedBackend {
         const { limit = 10 } = req.query; // Default to 10, allow custom limit
         const requestedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 100); // Between 1-100
         
-        console.log(`[🛡️ Enhanced Backend] 🔥 API request for trending tokens received (limit: ${requestedLimit})...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ API request for trending tokens received (limit: ${requestedLimit})...`);
 
         let tokens = await this.getTokensFromCache();
 
         if (tokens.length === 0) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache - checking token processor');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens found in cache - checking token processor');
           // Fallback: Try to get tokens from token processor if cache is empty
           if (this.tokenProcessor && this.tokenProcessor.processedTokens && this.tokenProcessor.processedTokens.length > 0) {
-            console.log(`[🛡️ Enhanced Backend] 🔄 Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
             tokens = this.tokenProcessor.processedTokens;
           } else {
-            console.log('[🛡️ Enhanced Backend] ⚠️ No tokens available - returning empty array');
+            console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens available - returning empty array');
             res.json([]);
             return;
           }
@@ -1724,11 +1724,11 @@ class EnhancedBackend {
           mcap: token.mcap || token.marketCap || token.jupiterData?.mcap || token.jupiterData?.marketCap || 0
         }));
 
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${normalizedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Returning ${normalizedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
         res.json(normalizedTrending);
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Trending tokens error:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Trending tokens error:', error);
         res.status(500).json({ error: 'Failed to fetch trending tokens' });
       }
     });
@@ -1736,7 +1736,7 @@ class EnhancedBackend {
     // Get Dexscreener trending tokens
     this.app.get('/api/tokens/dexscreener', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔍 API request for Dexscreener tokens received...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ” API request for Dexscreener tokens received...');
 
         // Initialize Dexscreener service if not already done
         if (!this.tokenProcessor.dexscreenerService) {
@@ -1748,7 +1748,7 @@ class EnhancedBackend {
         const dexscreenerTokens = await this.tokenProcessor.dexscreenerService.getTrendingPairs(limit);
 
         if (!dexscreenerTokens || dexscreenerTokens.length === 0) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ No Dexscreener tokens found');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No Dexscreener tokens found');
           res.json([]);
           return;
         }
@@ -1779,11 +1779,11 @@ class EnhancedBackend {
           overallScore: 0
         }));
 
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${processedTokens.length} Dexscreener tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Returning ${processedTokens.length} Dexscreener tokens`);
         res.json(processedTokens);
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error fetching Dexscreener tokens:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error fetching Dexscreener tokens:', error);
         res.status(500).json({ error: 'Failed to fetch Dexscreener tokens' });
       }
     });
@@ -1794,7 +1794,7 @@ class EnhancedBackend {
         const { contract } = req.params;
         const { range, sessionId } = req.query; // 1d | 3d | 7d | 15d | 30d
         
-        console.log(`📊 Hype API request: contract=${contract}, range=${range}, sessionId=${sessionId ? 'present' : 'none'}`);
+        console.log(`ðŸ“Š Hype API request: contract=${contract}, range=${range}, sessionId=${sessionId ? 'present' : 'none'}`);
         
         // Check authentication for premium limits
         if (sessionId) {
@@ -1806,7 +1806,7 @@ class EnhancedBackend {
             if (!isPremium) {
               const viewsThisMonth = await this.oauthXService.db.addHypeViewUsage(user.id, contract);
               if (viewsThisMonth > 5) {
-                console.log(`🚫 Hype limit exceeded for user ${user.id}: ${viewsThisMonth} views`);
+                console.log(`ðŸš« Hype limit exceeded for user ${user.id}: ${viewsThisMonth} views`);
                 return res.status(403).json({ 
                   error: 'limit_exceeded',
                   message: 'Free users can only view hype charts for 5 different tokens per month. Upgrade to Premium for unlimited access!' 
@@ -1820,14 +1820,14 @@ class EnhancedBackend {
         const days = ranges[(range || '30d').toLowerCase()] || 30;
         const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
         
-        console.log(`📊 Fetching hype data: ${days} days, sinceMs=${new Date(sinceMs).toISOString()}`);
+        console.log(`ðŸ“Š Fetching hype data: ${days} days, sinceMs=${new Date(sinceMs).toISOString()}`);
         
         const snaps = await this.hypeService.getSnapshots(contract, sinceMs);
-        console.log(`📊 Retrieved ${snaps.length} hype snapshots for ${contract}`);
+        console.log(`ðŸ“Š Retrieved ${snaps.length} hype snapshots for ${contract}`);
         
         res.json({ contract, range: `${days}d`, data: snaps });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Hype snapshots error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Hype snapshots error:', error.message);
         res.status(500).json({ error: 'Failed to fetch hype snapshots' });
       }
     });
@@ -1926,7 +1926,7 @@ class EnhancedBackend {
         return res.json({ success: true, contract, cached: false, data: payload });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Social context error:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Social context error:', error);
         return res.status(500).json({ success: false, error: 'Failed to build social context' });
       }
     });
@@ -1942,7 +1942,7 @@ class EnhancedBackend {
         const list = await this.oauthXService.db.getHypeList(user.id);
         res.json({ success: true, list });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get hype list error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get hype list error:', e.message);
         res.status(500).json({ error: 'Failed to fetch hype list' });
       }
     });
@@ -1964,7 +1964,7 @@ class EnhancedBackend {
         const list = await this.oauthXService.db.addHypeToken(user.id, contractAddress);
         res.json({ success: true, list });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Add hype token error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Add hype token error:', e.message);
         res.status(500).json({ error: 'Failed to add token to hype list' });
       }
     });
@@ -1979,7 +1979,7 @@ class EnhancedBackend {
         const list = await this.oauthXService.db.removeHypeToken(user.id, contract);
         res.json({ success: true, list });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Remove hype token error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Remove hype token error:', e.message);
         res.status(500).json({ error: 'Failed to remove token from hype list' });
       }
     });
@@ -1987,7 +1987,7 @@ class EnhancedBackend {
     // Get BirdEye trending tokens (test endpoint) - DISABLED
     // this.app.get('/api/tokens/birdeye-trending', async (req, res) => {
     //   try {
-    //     console.log('[🛡️ Enhanced Backend] 🐦 Getting BirdEye trending tokens...');
+    //     console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ¦ Getting BirdEye trending tokens...');
     //     const { limit, offset, sort_by, sort_type } = req.query;
     //     const tokens = await this.birdeyeService.fetchTrending({
     //       limit: limit ? Number(limit) : undefined,
@@ -2007,16 +2007,16 @@ class EnhancedBackend {
     //       };
     //       return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped) && !this.isExcludedMajorOrStable(mapped);
     //     });
-    //     console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens → ${filtered.length} after filters`);
+    //     console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… BirdEye trending returned ${tokens.length} tokens â†’ ${filtered.length} after filters`);
     //     res.json(filtered);
     //   } catch (error) {
-    //     console.error('[🛡️ Enhanced Backend] ❌ BirdEye trending error:', error);
+    //     console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ BirdEye trending error:', error);
     //     res.status(500).json({ error: 'Failed to fetch BirdEye trending tokens' });
     //   }
     // });
 
     // ========================================
-    // 💳 HELIO PAYMENT ENDPOINTS
+    // ðŸ’³ HELIO PAYMENT ENDPOINTS
     // ========================================
 
     // Create payment for token listing
@@ -2031,7 +2031,7 @@ class EnhancedBackend {
           });
         }
 
-        console.log('💳 Creating token listing payment:', tokenData.symbol);
+        console.log('ðŸ’³ Creating token listing payment:', tokenData.symbol);
 
         const paymentResult = await this.helioService.createTokenListingPayment(tokenData, {
           userId: userId,
@@ -2045,7 +2045,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Error creating token listing payment:', error);
+        console.error('âŒ Error creating token listing payment:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to create payment'
@@ -2065,7 +2065,7 @@ class EnhancedBackend {
           });
         }
 
-        console.log('💳 Creating social update payment for:', symbol);
+        console.log('ðŸ’³ Creating social update payment for:', symbol);
 
         const paymentResult = await this.helioService.createSocialUpdatePayment(symbol, socialData, userId);
 
@@ -2075,7 +2075,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Error creating social update payment:', error);
+        console.error('âŒ Error creating social update payment:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to create social payment'
@@ -2095,7 +2095,7 @@ class EnhancedBackend {
           });
         }
 
-        console.log('✅ Validating payment:', paymentId);
+        console.log('âœ… Validating payment:', paymentId);
 
         const validationResult = await this.helioService.validatePayment(paymentId, paymentData || {});
 
@@ -2105,7 +2105,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Error validating payment:', error);
+        console.error('âŒ Error validating payment:', error);
         res.status(500).json({
           success: false,
           error: 'Payment validation failed'
@@ -2119,19 +2119,19 @@ class EnhancedBackend {
         const webhookData = req.body;
         const signature = req.headers['x-helio-signature'];
 
-        console.log('🔔 Received Helio webhook');
+        console.log('ðŸ”” Received Helio webhook');
 
         const webhookResult = await this.helioService.processWebhook(webhookData, signature);
 
         // Process the webhook based on payment type
         if (webhookResult.metadata?.type === 'token_listing') {
-          console.log('📝 Processing token listing webhook');
+          console.log('ðŸ“ Processing token listing webhook');
 
           // Here you could automatically process the token listing
           // For now, just log the successful payment
 
         } else if (webhookResult.metadata?.type === 'social_update') {
-          console.log('📱 Processing social update webhook');
+          console.log('ðŸ“± Processing social update webhook');
 
           // Here you could automatically update social links
           // For now, just log the successful payment
@@ -2144,7 +2144,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Webhook processing error:', error);
+        console.error('âŒ Webhook processing error:', error);
         res.status(500).json({
           success: false,
           error: 'Webhook processing failed'
@@ -2157,7 +2157,7 @@ class EnhancedBackend {
       try {
         const { paymentId } = req.params;
 
-        console.log('📊 Getting payment status:', paymentId);
+        console.log('ðŸ“Š Getting payment status:', paymentId);
 
         const paymentStatus = await this.helioService.getPaymentStatus(paymentId);
 
@@ -2167,7 +2167,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Error getting payment status:', error);
+        console.error('âŒ Error getting payment status:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get payment status'
@@ -2181,7 +2181,7 @@ class EnhancedBackend {
         const { userId } = req.params;
         const { limit } = req.query;
 
-        console.log('📜 Getting payment history for:', userId);
+        console.log('ðŸ“œ Getting payment history for:', userId);
 
         const paymentHistory = await this.helioService.getPaymentHistory(userId, parseInt(limit) || 10);
 
@@ -2191,7 +2191,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Error getting payment history:', error);
+        console.error('âŒ Error getting payment history:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get payment history'
@@ -2246,7 +2246,7 @@ class EnhancedBackend {
     });
 
     // ========================================
-    // 🐦 OAUTH X AUTHENTICATION ENDPOINTS
+    // ðŸ¦ OAUTH X AUTHENTICATION ENDPOINTS
     // ========================================
 
     // OAuth X: Start authentication flow
@@ -2255,10 +2255,10 @@ class EnhancedBackend {
         const state = crypto.randomUUID();
         const authUrl = this.oauthXService.getAuthorizationUrl(state);
         
-        console.log(`🐦 OAuth X: Starting authentication flow for state: ${state}`);
+        console.log(`ðŸ¦ OAuth X: Starting authentication flow for state: ${state}`);
         res.redirect(authUrl);
       } catch (error) {
-        console.error('❌ OAuth X error:', error);
+        console.error('âŒ OAuth X error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to start OAuth flow' 
@@ -2278,7 +2278,7 @@ class EnhancedBackend {
           });
         }
 
-        console.log(`🐦 OAuth X: Processing callback with code: ${code.substring(0, 10)}...`);
+        console.log(`ðŸ¦ OAuth X: Processing callback with code: ${code.substring(0, 10)}...`);
 
         // Verify OAuth state if provided (for re-authentication)
         let userId = null;
@@ -2286,13 +2286,13 @@ class EnhancedBackend {
         if (state) {
           try {
             userId = await this.oauthXService.verifyOAuthState(state);
-            console.log(`🔐 OAuth state verified for user: ${userId}`);
+            console.log(`ðŸ” OAuth state verified for user: ${userId}`);
             isReAuthentication = true;
           } catch (stateError) {
             if (stateError.message === 'Invalid OAuth state') {
-              console.log(`ℹ️ Regular OAuth flow (no re-authentication state)`);
+              console.log(`â„¹ï¸ Regular OAuth flow (no re-authentication state)`);
             } else {
-              console.log(`⚠️ OAuth state verification failed: ${stateError.message}`);
+              console.log(`âš ï¸ OAuth state verification failed: ${stateError.message}`);
             }
             // Continue with normal flow if state verification fails
           }
@@ -2314,16 +2314,16 @@ class EnhancedBackend {
         // Create session
         const { sessionId, expiresAt } = await this.oauthXService.createSession(user.id);
         
-        console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
+        console.log(`âœ… OAuth X: User ${user.username} authenticated successfully`);
 
         // If this was a re-authentication (state was provided and verified), retry failed milestones
         if (isReAuthentication && userId && userId === user.id) {
-          console.log(`🔄 Re-authentication detected, retrying failed milestones for user ${userId}...`);
+          console.log(`ðŸ”„ Re-authentication detected, retrying failed milestones for user ${userId}...`);
           try {
             await this.milestoneTracker.retryFailedMilestones(userId);
-            console.log(`✅ Failed milestones retry completed for user ${userId}`);
+            console.log(`âœ… Failed milestones retry completed for user ${userId}`);
           } catch (retryError) {
-            console.error(`❌ Error retrying failed milestones: ${retryError.message}`);
+            console.error(`âŒ Error retrying failed milestones: ${retryError.message}`);
             // Don't fail the auth flow if milestone retry fails
           }
         }
@@ -2333,7 +2333,7 @@ class EnhancedBackend {
         res.redirect(`${frontendUrl}/?auth=success&sessionId=${sessionId}`);
         
       } catch (error) {
-        console.error('❌ OAuth X callback error:', error);
+        console.error('âŒ OAuth X callback error:', error);
         const frontendUrl = process.env.FRONTEND_URL || 'https://degen-oracle.com';
         res.redirect(`${frontendUrl}/?auth=error&message=${encodeURIComponent(error.message)}`);
       }
@@ -2342,11 +2342,11 @@ class EnhancedBackend {
     // Admin: Enable Twitter posting for all users (migration)
     this.app.post('/admin/enable-twitter-posting-all', async (req, res) => {
       try {
-        console.log('🔧 Starting Twitter posting enablement for all users...');
+        console.log('ðŸ”§ Starting Twitter posting enablement for all users...');
         
         // Get all users from the database
         const users = await this.oauthXService.db.getAllUsers();
-        console.log(`📊 Found ${users.length} users to check`);
+        console.log(`ðŸ“Š Found ${users.length} users to check`);
         
         let updatedCount = 0;
         let alreadyEnabledCount = 0;
@@ -2358,16 +2358,16 @@ class EnhancedBackend {
             if (user.twitterPostingEnabled === undefined || user.twitterPostingEnabled === null) {
               // Enable Twitter posting for this user
               await this.oauthXService.setTwitterPostingEnabled(user.id, true);
-              console.log(`✅ Enabled Twitter posting for user ${user.username} (${user.id})`);
+              console.log(`âœ… Enabled Twitter posting for user ${user.username} (${user.id})`);
               updatedCount++;
             } else if (user.twitterPostingEnabled === true) {
-              console.log(`✓ User ${user.username} already has Twitter posting enabled`);
+              console.log(`âœ“ User ${user.username} already has Twitter posting enabled`);
               alreadyEnabledCount++;
             } else {
-              console.log(`⚠️ User ${user.username} has Twitter posting explicitly disabled - skipping`);
+              console.log(`âš ï¸ User ${user.username} has Twitter posting explicitly disabled - skipping`);
             }
           } catch (error) {
-            console.error(`❌ Error updating user ${user.id}:`, error.message);
+            console.error(`âŒ Error updating user ${user.id}:`, error.message);
             errorCount++;
           }
         }
@@ -2380,7 +2380,7 @@ class EnhancedBackend {
           errors: errorCount
         };
         
-        console.log('\n🎯 Migration Summary:', summary);
+        console.log('\nðŸŽ¯ Migration Summary:', summary);
         
         res.json({
           success: true,
@@ -2389,7 +2389,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Migration failed:', error.message);
+        console.error('âŒ Migration failed:', error.message);
         res.status(500).json({ 
           success: false, 
           error: 'Migration failed: ' + error.message 
@@ -2402,7 +2402,7 @@ class EnhancedBackend {
       try {
         const { contractAddress } = req.params;
         
-        console.log(`🗑️ Removing token: ${contractAddress}`);
+        console.log(`ðŸ—‘ï¸ Removing token: ${contractAddress}`);
         
         // Load tokens from cache
         const tokens = await this.getTokensFromCache();
@@ -2424,13 +2424,13 @@ class EnhancedBackend {
           });
         }
         
-        // 🛡️ ATOMIC WRITE: Save filtered tokens back to cache
+        // ðŸ›¡ï¸ ATOMIC WRITE: Save filtered tokens back to cache
         const cachePath = this.persistentCachePath;
         const tempPath = cachePath + '.tmp';
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
-          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          // ðŸš¨ CRITICAL FIX: Ensure cache directory exists before atomic write
           const cacheDir = path.dirname(cachePath);
           await fs.mkdir(cacheDir, { recursive: true });
           
@@ -2444,8 +2444,8 @@ class EnhancedBackend {
           throw error;
         }
         
-        console.log(`✅ Removed ${removedCount} token(s) with contract: ${contractAddress}`);
-        console.log(`📊 Tokens before: ${initialCount}, after: ${filteredTokens.length}`);
+        console.log(`âœ… Removed ${removedCount} token(s) with contract: ${contractAddress}`);
+        console.log(`ðŸ“Š Tokens before: ${initialCount}, after: ${filteredTokens.length}`);
         
         res.json({
           success: true,
@@ -2457,7 +2457,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error removing token:', error.message);
+        console.error('âŒ Error removing token:', error.message);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to remove token: ' + error.message 
@@ -2468,7 +2468,7 @@ class EnhancedBackend {
     // Admin: Run liquidity cleanup to remove dead tokens
     this.app.post('/admin/run-liquidity-cleanup', async (req, res) => {
       try {
-        console.log('🧹 Starting liquidity cleanup...');
+        console.log('ðŸ§¹ Starting liquidity cleanup...');
         
         // Import and run the cleanup service
         const { default: LiquidityCleanupService } = await import('./liquidityCleanupService.js');
@@ -2477,7 +2477,7 @@ class EnhancedBackend {
         // Run cleanup
         const result = await cleanupService.cleanupLowLiquidityTokens();
         
-        console.log('🧹 Liquidity cleanup completed:', result);
+        console.log('ðŸ§¹ Liquidity cleanup completed:', result);
         
         res.json({
           success: true,
@@ -2486,7 +2486,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Liquidity cleanup failed:', error.message);
+        console.error('âŒ Liquidity cleanup failed:', error.message);
         res.status(500).json({ 
           success: false, 
           error: 'Liquidity cleanup failed: ' + error.message 
@@ -2497,13 +2497,13 @@ class EnhancedBackend {
     // Admin: Cleanup expired fuel flags
     this.app.post('/admin/cleanup-expired-fuel', async (req, res) => {
       try {
-        console.log('🧹 Starting cleanup of expired fuel flags...');
+        console.log('ðŸ§¹ Starting cleanup of expired fuel flags...');
         
         // Load tokens cache
         const tokensCachePath = path.join(process.env.DATA_DIR || '/var/data/dgo', 'cache', 'tokens-cache.json');
         const tokens = JSON.parse(await fs.readFile(tokensCachePath, 'utf8'));
         
-        console.log(`📊 Loaded ${tokens.length} tokens from cache`);
+        console.log(`ðŸ“Š Loaded ${tokens.length} tokens from cache`);
         
         let cleanedCount = 0;
         let expiredFuelTokens = [];
@@ -2536,7 +2536,7 @@ class EnhancedBackend {
             
             // If no active fuel but still flagged, clean it up
             if (!hasActiveFuel) {
-              console.log(`🧹 Cleaning expired fuel for ${token.symbol} (${token.contractAddress?.substring(0, 8)}...)`);
+              console.log(`ðŸ§¹ Cleaning expired fuel for ${token.symbol} (${token.contractAddress?.substring(0, 8)}...)`);
               
               // Remove fuel flags
               if (token.isPaid) {
@@ -2587,7 +2587,7 @@ class EnhancedBackend {
         // Save updated tokens cache
         if (cleanedCount > 0) {
           await fs.writeFile(tokensCachePath, JSON.stringify(tokens, null, 2));
-          console.log(`✅ Updated tokens cache with ${cleanedCount} cleaned tokens`);
+          console.log(`âœ… Updated tokens cache with ${cleanedCount} cleaned tokens`);
         }
         
         // Also check fueled-tokens.json file
@@ -2614,10 +2614,10 @@ class EnhancedBackend {
           if (activeFueledTokens.length !== fueledTokens.length) {
             await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
             fueledTokensCleaned = fueledTokens.length - activeFueledTokens.length;
-            console.log(`✅ Cleaned fueled-tokens.json: ${fueledTokens.length} → ${activeFueledTokens.length} active tokens`);
+            console.log(`âœ… Cleaned fueled-tokens.json: ${fueledTokens.length} â†’ ${activeFueledTokens.length} active tokens`);
           }
         } catch (error) {
-          console.log(`⚠️ Could not clean fueled-tokens.json: ${error.message}`);
+          console.log(`âš ï¸ Could not clean fueled-tokens.json: ${error.message}`);
         }
         
         res.json({
@@ -2632,7 +2632,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Cleanup failed:', error.message);
+        console.error('âŒ Cleanup failed:', error.message);
         res.status(500).json({
           success: false,
           error: 'Cleanup failed: ' + error.message
@@ -2644,7 +2644,7 @@ class EnhancedBackend {
     this.app.get('/api/leaderboard/monthly/:monthKey', async (req, res) => {
       try {
         const { monthKey } = req.params;
-        console.log(`📸 Fetching leaderboard for month: ${monthKey}`);
+        console.log(`ðŸ“¸ Fetching leaderboard for month: ${monthKey}`);
         
         // Get current leaderboard data
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
@@ -2685,14 +2685,14 @@ class EnhancedBackend {
           metadata: monthData.metadata
         });
       } catch (error) {
-        console.error('❌ Failed to fetch monthly leaderboard:', error);
+        console.error('âŒ Failed to fetch monthly leaderboard:', error);
         res.status(500).json({ success: false, error: error.message });
       }
     });
 
     this.app.get('/api/leaderboard/months', async (req, res) => {
       try {
-        console.log('📸 Fetching available months...');
+        console.log('ðŸ“¸ Fetching available months...');
         
         // Get current leaderboard data for current month
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
@@ -2720,14 +2720,14 @@ class EnhancedBackend {
           currentMonth: this.monthlySnapshotService.getCurrentMonthKey()
         });
       } catch (error) {
-        console.error('❌ Failed to fetch available months:', error);
+        console.error('âŒ Failed to fetch available months:', error);
         res.status(500).json({ success: false, error: error.message });
       }
     });
 
     this.app.post('/api/admin/take-snapshot', adminApiAuth, async (req, res) => {
       try {
-        console.log('📸 Manual snapshot request...');
+        console.log('ðŸ“¸ Manual snapshot request...');
         
         // Get current leaderboard data
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
@@ -2755,7 +2755,7 @@ class EnhancedBackend {
           message: `Snapshot taken for ${snapshot.month}`
         });
       } catch (error) {
-        console.error('❌ Failed to take manual snapshot:', error);
+        console.error('âŒ Failed to take manual snapshot:', error);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -2763,11 +2763,11 @@ class EnhancedBackend {
     // Debug: Test enhanced KOL trust system scoring
     this.app.get('/api/debug/scoring-test', async (req, res) => {
       try {
-        console.log('🔍 DEBUG: Testing Enhanced KOL Trust System Scoring...');
+        console.log('ðŸ” DEBUG: Testing Enhanced KOL Trust System Scoring...');
         
         // Get all KOL calls
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
-        console.log(`📊 Found ${allKolCalls.length} total KOL calls`);
+        console.log(`ðŸ“Š Found ${allKolCalls.length} total KOL calls`);
 
         // Group calls by user
         const userCalls = {};
@@ -2778,11 +2778,11 @@ class EnhancedBackend {
           userCalls[call.userId].push(call);
         });
 
-        console.log(`👥 Users with calls: ${Object.keys(userCalls).length}`);
+        console.log(`ðŸ‘¥ Users with calls: ${Object.keys(userCalls).length}`);
         
         // Get token data
         const tokens = await this.getTokensFromCache();
-        console.log(`📊 Found ${tokens.length} tokens in cache`);
+        console.log(`ðŸ“Š Found ${tokens.length} tokens in cache`);
         
         // Build current token data
         const currentTokenData = {};
@@ -2796,7 +2796,7 @@ class EnhancedBackend {
           return res.json({ success: false, error: 'No users with calls found' });
         }
 
-        console.log(`🔍 Testing with all ${userIds.length} users:`);
+        console.log(`ðŸ” Testing with all ${userIds.length} users:`);
         
         // Test all users
         const allUserResults = {};
@@ -2839,7 +2839,7 @@ class EnhancedBackend {
             } : null
           };
           
-          console.log(`📊 User ${user?.username || userId}:`, {
+          console.log(`ðŸ“Š User ${user?.username || userId}:`, {
             calls: userCallsData.length,
             hitRate: trustScore.performance?.hitRate,
             consistency: trustScore.consistency?.score,
@@ -2858,7 +2858,7 @@ class EnhancedBackend {
           }
         });
       } catch (error) {
-        console.error('❌ Debug test failed:', error);
+        console.error('âŒ Debug test failed:', error);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -2868,11 +2868,11 @@ class EnhancedBackend {
       try {
         const { userId } = req.params;
         
-        console.log(`🔧 Enabling Twitter posting for user ${userId}...`);
+        console.log(`ðŸ”§ Enabling Twitter posting for user ${userId}...`);
         
         // Check current status
         const currentStatus = await this.oauthXService.hasTwitterPostingEnabled(userId);
-        console.log(`📊 Current Twitter posting status: ${currentStatus}`);
+        console.log(`ðŸ“Š Current Twitter posting status: ${currentStatus}`);
         
         if (currentStatus) {
           return res.json({
@@ -2889,14 +2889,14 @@ class EnhancedBackend {
         const newStatus = await this.oauthXService.hasTwitterPostingEnabled(userId);
         
         if (newStatus) {
-          console.log('✅ Successfully enabled Twitter posting for user!');
+          console.log('âœ… Successfully enabled Twitter posting for user!');
           res.json({
             success: true,
             message: 'Successfully enabled Twitter posting for user',
             enabled: true
           });
         } else {
-          console.error('❌ Failed to enable Twitter posting - status still false');
+          console.error('âŒ Failed to enable Twitter posting - status still false');
           res.status(500).json({
             success: false,
             error: 'Failed to enable Twitter posting - status still false'
@@ -2904,7 +2904,7 @@ class EnhancedBackend {
         }
         
       } catch (error) {
-        console.error('❌ Error:', error.message);
+        console.error('âŒ Error:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -2917,7 +2917,7 @@ class EnhancedBackend {
       try {
         const { userId } = req.params;
         
-        console.log(`🔍 Getting failed milestones for user ${userId}...`);
+        console.log(`ðŸ” Getting failed milestones for user ${userId}...`);
         
         const failedMilestones = await this.oauthXService.db.getFailedMilestones(userId);
         
@@ -2929,7 +2929,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error getting failed milestones:', error.message);
+        console.error('âŒ Error getting failed milestones:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -2942,7 +2942,7 @@ class EnhancedBackend {
       try {
         const { userId } = req.params;
         
-        console.log(`🔄 Retrying failed milestones for user ${userId}...`);
+        console.log(`ðŸ”„ Retrying failed milestones for user ${userId}...`);
         
         // Retry failed milestones
         await this.milestoneTracker.retryFailedMilestones(userId);
@@ -2954,7 +2954,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error retrying milestones:', error.message);
+        console.error('âŒ Error retrying milestones:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -2967,7 +2967,7 @@ class EnhancedBackend {
       try {
         const { userId } = req.params;
         
-        console.log(`🔍 Getting failed call tweets for user ${userId}...`);
+        console.log(`ðŸ” Getting failed call tweets for user ${userId}...`);
         
         const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
         const failedCallTweets = await failedCallTweetService.getFailedCallTweets(userId);
@@ -2980,7 +2980,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error getting failed call tweets:', error.message);
+        console.error('âŒ Error getting failed call tweets:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -2993,7 +2993,7 @@ class EnhancedBackend {
       try {
         const { userId } = req.params;
         
-        console.log(`🔄 Retrying failed call tweets for user ${userId}...`);
+        console.log(`ðŸ”„ Retrying failed call tweets for user ${userId}...`);
         
         const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
         const retryResult = await failedCallTweetService.retryFailedCallTweets(userId);
@@ -3008,7 +3008,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error retrying call tweets:', error.message);
+        console.error('âŒ Error retrying call tweets:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3044,7 +3044,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error generating re-auth URL:', error.message);
+        console.error('âŒ Error generating re-auth URL:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3091,7 +3091,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        logger.error('❌ Error checking Twitter auth status:', error.message);
+        logger.error('âŒ Error checking Twitter auth status:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3136,12 +3136,12 @@ class EnhancedBackend {
           // Update user with new tokens
           await this.oauthXService.db.updateUserTokens(userId, newTokens.access_token, newTokens.refresh_token);
           
-          logger.info(`✅ Successfully refreshed Twitter tokens for user ${userId}`);
+          logger.info(`âœ… Successfully refreshed Twitter tokens for user ${userId}`);
           
           // Retry any failed milestones
           const retryResult = await this.milestoneTracker.retryFailedMilestones(userId);
           
-          // 🚨 NEW: Retry any failed call tweets
+          // ðŸš¨ NEW: Retry any failed call tweets
           const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
           const callTweetRetryResult = await failedCallTweetService.retryFailedCallTweets(userId);
           
@@ -3154,7 +3154,7 @@ class EnhancedBackend {
           });
           
         } catch (refreshError) {
-          logger.error(`❌ Token refresh failed for user ${userId}:`, refreshError.message);
+          logger.error(`âŒ Token refresh failed for user ${userId}:`, refreshError.message);
           
           // If refresh fails, user needs to re-authenticate
           return res.status(400).json({
@@ -3166,7 +3166,7 @@ class EnhancedBackend {
         }
         
       } catch (error) {
-        logger.error('❌ Error refreshing Twitter token:', error.message);
+        logger.error('âŒ Error refreshing Twitter token:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3202,7 +3202,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Error checking refresh token status:', error);
+        console.error('âŒ Error checking refresh token status:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to check refresh token status' 
@@ -3237,7 +3237,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        logger.error('❌ Error getting users with expired tokens:', error.message);
+        logger.error('âŒ Error getting users with expired tokens:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3267,15 +3267,15 @@ class EnhancedBackend {
               // Retry failed milestones
               await this.milestoneTracker.retryFailedMilestones(user.id);
               
-              // 🚨 NEW: Retry failed call tweets
+              // ðŸš¨ NEW: Retry failed call tweets
               const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
               await failedCallTweetService.retryFailedCallTweets(user.id);
               
               results.refreshed++;
-              logger.info(`✅ Refreshed tokens for user ${user.username} (${user.id})`);
+              logger.info(`âœ… Refreshed tokens for user ${user.username} (${user.id})`);
             } else {
               results.needsReauth++;
-              logger.warn(`⚠️ User ${user.username} (${user.id}) needs re-authentication - no refresh token`);
+              logger.warn(`âš ï¸ User ${user.username} (${user.id}) needs re-authentication - no refresh token`);
             }
           } catch (error) {
             results.failed++;
@@ -3284,7 +3284,7 @@ class EnhancedBackend {
               username: user.username,
               error: error.message
             });
-            logger.error(`❌ Failed to refresh tokens for user ${user.username} (${user.id}):`, error.message);
+            logger.error(`âŒ Failed to refresh tokens for user ${user.username} (${user.id}):`, error.message);
           }
         }
 
@@ -3295,7 +3295,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        logger.error('❌ Error refreshing all Twitter tokens:', error.message);
+        logger.error('âŒ Error refreshing all Twitter tokens:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -3352,7 +3352,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Session validation error:', error);
+        console.error('âŒ Session validation error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to validate session' 
@@ -3375,7 +3375,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Logout error:', error);
+        console.error('âŒ Logout error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to logout' 
@@ -3384,7 +3384,7 @@ class EnhancedBackend {
     });
 
     // ========================================
-    // 👤 USER MANAGEMENT ENDPOINTS
+    // ðŸ‘¤ USER MANAGEMENT ENDPOINTS
     // ========================================
 
     // Get user profile
@@ -3419,7 +3419,7 @@ class EnhancedBackend {
         const tokensListed = userStats.tokensListed || 0;
         const tokensUpdated = userStats.tokensUpdated || 0;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 User stats for ${user.username}:`, {
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š User stats for ${user.username}:`, {
           tokensFueled,
           tokensListed,
           tokensUpdated,
@@ -3452,7 +3452,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Get user profile error:', error);
+        console.error('âŒ Get user profile error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to get user profile' 
@@ -3489,7 +3489,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Update preferences error:', error);
+        console.error('âŒ Update preferences error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to update preferences' 
@@ -3498,7 +3498,7 @@ class EnhancedBackend {
     });
 
     // ========================================
-    // ⭐ WATCHLIST ENDPOINTS
+    // â­ WATCHLIST ENDPOINTS
     // ========================================
 
     // Get user's watchlist
@@ -3530,7 +3530,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Get watchlist error:', error);
+        console.error('âŒ Get watchlist error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to get watchlist' 
@@ -3541,38 +3541,38 @@ class EnhancedBackend {
     // Add token to watchlist
     this.app.post('/api/user/watchlist/add', async (req, res) => {
       try {
-        console.log('🎯 [WATCHLIST DEBUG] Add to watchlist request received');
-        console.log('🎯 [WATCHLIST DEBUG] Request body:', JSON.stringify(req.body, null, 2));
+        console.log('ðŸŽ¯ [WATCHLIST DEBUG] Add to watchlist request received');
+        console.log('ðŸŽ¯ [WATCHLIST DEBUG] Request body:', JSON.stringify(req.body, null, 2));
         
         const { sessionId, tokenData } = req.body;
         
         if (!sessionId) {
-          console.log('❌ [WATCHLIST DEBUG] Missing sessionId');
+          console.log('âŒ [WATCHLIST DEBUG] Missing sessionId');
           return res.status(401).json({ 
             success: false, 
             error: 'Authentication required' 
           });
         }
 
-        console.log('🎯 [WATCHLIST DEBUG] SessionId provided:', sessionId.substring(0, 8) + '...');
+        console.log('ðŸŽ¯ [WATCHLIST DEBUG] SessionId provided:', sessionId.substring(0, 8) + '...');
 
         const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
-          console.log('❌ [WATCHLIST DEBUG] Invalid session - user not found');
+          console.log('âŒ [WATCHLIST DEBUG] Invalid session - user not found');
           return res.status(401).json({ 
             success: false, 
             error: 'Invalid session' 
           });
         }
 
-        console.log('✅ [WATCHLIST DEBUG] User found:', user.id, user.username);
-        console.log('🎯 [WATCHLIST DEBUG] Token data to add:', JSON.stringify(tokenData, null, 2));
+        console.log('âœ… [WATCHLIST DEBUG] User found:', user.id, user.username);
+        console.log('ðŸŽ¯ [WATCHLIST DEBUG] Token data to add:', JSON.stringify(tokenData, null, 2));
 
         const watchlist = await this.oauthXService.addToWatchlist(user.id, tokenData);
         
-        console.log('✅ [WATCHLIST DEBUG] Successfully added to watchlist');
-        console.log('🎯 [WATCHLIST DEBUG] Updated watchlist length:', watchlist?.length || 'unknown');
+        console.log('âœ… [WATCHLIST DEBUG] Successfully added to watchlist');
+        console.log('ðŸŽ¯ [WATCHLIST DEBUG] Updated watchlist length:', watchlist?.length || 'unknown');
         
         res.json({
           success: true,
@@ -3581,8 +3581,8 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ [WATCHLIST DEBUG] Add to watchlist error:', error);
-        console.error('❌ [WATCHLIST DEBUG] Error stack:', error.stack);
+        console.error('âŒ [WATCHLIST DEBUG] Add to watchlist error:', error);
+        console.error('âŒ [WATCHLIST DEBUG] Error stack:', error.stack);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to add to watchlist',
@@ -3621,7 +3621,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Remove from watchlist error:', error);
+        console.error('âŒ Remove from watchlist error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to remove from watchlist' 
@@ -3659,7 +3659,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Check watchlist error:', error);
+        console.error('âŒ Check watchlist error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to check watchlist' 
@@ -3672,7 +3672,7 @@ class EnhancedBackend {
       try {
         const { symbol, socials, userId, paymentData } = req.body;
         
-        console.log('🔄 Update Token Socials request:', { symbol, socials, userId });
+        console.log('ðŸ”„ Update Token Socials request:', { symbol, socials, userId });
         
         if (!symbol || !socials) {
           return res.status(400).json({
@@ -3707,17 +3707,17 @@ class EnhancedBackend {
         // Update user stats for social update
         const statsUpdateResult = await this.updateUserStats(userId, 'tokensUpdated', 1);
         if (statsUpdateResult === null) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensUpdated stat for user ${userId}`);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update tokensUpdated stat for user ${userId}`);
         } else {
-          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensUpdated stat for user ${userId}: ${statsUpdateResult}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated tokensUpdated stat for user ${userId}: ${statsUpdateResult}`);
         }
 
         // Update totalSpent for social update ($35.00)
         const totalSpentResult = await this.updateUserStats(userId, 'totalSpent', 35.00);
         if (totalSpentResult === null) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${userId}`);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update totalSpent stat for user ${userId}`);
         } else {
-          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${userId}: +$35.00 (total: $${totalSpentResult})`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated totalSpent stat for user ${userId}: +$35.00 (total: $${totalSpentResult})`);
         }
 
         // Record earning for admin panel
@@ -3731,9 +3731,9 @@ class EnhancedBackend {
             symbol: symbol,
             createdAt: new Date().toISOString()
           });
-          console.log(`[🛡️ Enhanced Backend] ✅ Recorded social update earning: $35.00 from user ${userId} for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Recorded social update earning: $35.00 from user ${userId} for ${symbol}`);
         } catch (earningError) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to record social update earning:`, earningError.message);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to record social update earning:`, earningError.message);
         }
         
         res.json({
@@ -3742,7 +3742,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Update socials error:', error);
+        console.error('âŒ Update socials error:', error);
         res.status(500).json({
           success: false,
           message: error.message || 'Failed to update token socials'
@@ -3767,7 +3767,7 @@ class EnhancedBackend {
         });
 
       } catch (error) {
-        console.error('❌ Get socials error:', error);
+        console.error('âŒ Get socials error:', error);
         res.status(500).json({
           success: false,
           message: 'Failed to get token socials'
@@ -3778,7 +3778,7 @@ class EnhancedBackend {
     // KOL Calls: add a call and fetch list
     this.app.post('/api/user/kol-calls/add', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 📥 KOL call request received:', {
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“¥ KOL call request received:', {
           sessionId: !!req.body.sessionId,
           token: req.body.token,
           thesis: req.body.thesis ? req.body.thesis.substring(0, 50) + '...' : 'none',
@@ -3788,7 +3788,7 @@ class EnhancedBackend {
         
         const { sessionId, token, thesis, twitterEnabled, tone } = req.body; // token: { symbol, name, contractAddress }
         if (!sessionId || !token?.contractAddress) {
-          console.log('[🛡️ Enhanced Backend] ❌ Validation failed:', {
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âŒ Validation failed:', {
             sessionId: !!sessionId,
             tokenContractAddress: !!token?.contractAddress,
             token: token
@@ -3853,20 +3853,20 @@ class EnhancedBackend {
 
             // Use provided tone or default to bullish
             const selectedTone = tone || 'bullish';
-            console.log(`🧠 Generating ${selectedTone} thesis for ${token.symbol}...`);
+            console.log(`ðŸ§  Generating ${selectedTone} thesis for ${token.symbol}...`);
             finalThesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone: selectedTone });
             
-            console.log(`🧠 Generated ${selectedTone} thesis for ${token.symbol}: ${finalThesis}`);
+            console.log(`ðŸ§  Generated ${selectedTone} thesis for ${token.symbol}: ${finalThesis}`);
           } catch (error) {
-            console.error(`❌ Failed to generate thesis for ${token.symbol}:`, error.message);
-            finalThesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
-            console.log(`🧠 Using fallback thesis for ${token.symbol}: ${finalThesis}`);
+            console.error(`âŒ Failed to generate thesis for ${token.symbol}:`, error.message);
+            finalThesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com â€” let's see where this goes. NFA`;
+            console.log(`ðŸ§  Using fallback thesis for ${token.symbol}: ${finalThesis}`);
           }
         } else {
-          console.log(`📝 Using frontend-generated thesis for ${token.symbol}: ${finalThesis}`);
+          console.log(`ðŸ“ Using frontend-generated thesis for ${token.symbol}: ${finalThesis}`);
         }
         
-        console.log(`🧠 Final thesis for ${token.symbol}:`, {
+        console.log(`ðŸ§  Final thesis for ${token.symbol}:`, {
           thesis: finalThesis,
           length: finalThesis?.length || 0,
           hasThesis: !!finalThesis
@@ -3875,7 +3875,7 @@ class EnhancedBackend {
         // Use frontend twitterEnabled flag or check user preference
         const hasTwitterPosting = twitterEnabled !== undefined ? twitterEnabled : await this.oauthXService.hasTwitterPostingEnabled(user.id);
         
-        console.log(`🐦 Twitter posting check for ${token.symbol}:`, {
+        console.log(`ðŸ¦ Twitter posting check for ${token.symbol}:`, {
           twitterEnabled,
           hasTwitterPosting,
           hasThesis: !!finalThesis,
@@ -3885,22 +3885,22 @@ class EnhancedBackend {
         // Post to Twitter if enabled
         if (hasTwitterPosting && finalThesis) {
           try {
-            console.log(`🐦 Attempting to post tweet for ${token.symbol}...`);
+            console.log(`ðŸ¦ Attempting to post tweet for ${token.symbol}...`);
             const tweet = await this.oauthXService.postTweet(user.id, finalThesis);
             twitterPostId = tweet.id;
-            console.log(`🐦 Posted call tweet for ${token.symbol}: ${twitterPostId}`);
+            console.log(`ðŸ¦ Posted call tweet for ${token.symbol}: ${twitterPostId}`);
           } catch (error) {
-            console.error(`❌ Failed to post tweet for ${token.symbol}:`, error.message);
-            console.error(`❌ Twitter posting error details:`, error);
+            console.error(`âŒ Failed to post tweet for ${token.symbol}:`, error.message);
+            console.error(`âŒ Twitter posting error details:`, error);
             
-            // 🚨 NEW: Store failed call tweet for retry when user re-authenticates
+            // ðŸš¨ NEW: Store failed call tweet for retry when user re-authenticates
             if (error.message.includes('Access token expired') || error.message.includes('no refresh token')) {
-              console.log(`💾 Storing failed call tweet for retry when user re-authenticates...`);
+              console.log(`ðŸ’¾ Storing failed call tweet for retry when user re-authenticates...`);
               // We'll store this after we create the call data
             }
           }
         } else {
-          console.log(`🐦 Skipping Twitter post for ${token.symbol}:`, {
+          console.log(`ðŸ¦ Skipping Twitter post for ${token.symbol}:`, {
             reason: !hasTwitterPosting ? 'Twitter posting disabled' : 'No thesis available'
           });
         }
@@ -3922,7 +3922,7 @@ class EnhancedBackend {
           tone: tone || 'bullish'
         };
         
-        console.log(`💾 Saving call data for ${token.symbol}:`, {
+        console.log(`ðŸ’¾ Saving call data for ${token.symbol}:`, {
           thesis: callData.thesis,
           hasThesis: !!callData.thesis,
           twitterPostId: callData.twitterPostId,
@@ -3933,15 +3933,15 @@ class EnhancedBackend {
         
         const saved = await this.oauthXService.db.addKolCall(user.id, callData);
 
-        // 🚨 NEW: Store failed call tweet for retry if Twitter posting failed due to auth issues
+        // ðŸš¨ NEW: Store failed call tweet for retry if Twitter posting failed due to auth issues
         if (hasTwitterPosting && finalThesis && !twitterPostId) {
           try {
             // Check if we had a Twitter auth error
             const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
             await failedCallTweetService.storeFailedCallTweet(user.id, saved, new Error('Twitter authentication expired'));
-            console.log(`💾 Stored failed call tweet for ${token.symbol} - will retry when user re-authenticates`);
+            console.log(`ðŸ’¾ Stored failed call tweet for ${token.symbol} - will retry when user re-authenticates`);
           } catch (storeError) {
-            console.error(`❌ Failed to store failed call tweet:`, storeError.message);
+            console.error(`âŒ Failed to store failed call tweet:`, storeError.message);
           }
         }
 
@@ -3953,9 +3953,9 @@ class EnhancedBackend {
         // Boost token priority for 1 hour after KOL call
         try {
           await this.priorityQueue.boostTokenPriority(token.contractAddress, 3600000); // 1 hour
-          console.log(`[🛡️ Enhanced Backend] 🚀 Boosted ${token.symbol} to HIGH priority after KOL call`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Boosted ${token.symbol} to HIGH priority after KOL call`);
         } catch (error) {
-          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to boost priority after KOL call:', error.message);
+          console.error('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to boost priority after KOL call:', error.message);
         }
 
         // Send push notifications to mobile users
@@ -3978,14 +3978,14 @@ class EnhancedBackend {
           };
           
           const notificationResult = await this.pushNotificationService.sendKolCallNotification(notificationData);
-          console.log(`[🛡️ Enhanced Backend] 📱 Push notifications sent: ${notificationResult.sent}/${notificationResult.total} devices`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“± Push notifications sent: ${notificationResult.sent}/${notificationResult.total} devices`);
         } catch (error) {
-          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to send push notifications:', error.message);
+          console.error('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to send push notifications:', error.message);
         }
 
         res.json({ success: true, call: saved });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Add KOL call error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Add KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to save KOL call' });
       }
     });
@@ -4006,7 +4006,7 @@ class EnhancedBackend {
         // Debug milestone posts
         const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
         if (callsWithMilestones.length > 0) {
-          console.log(`📊 Found ${callsWithMilestones.length} calls with milestone posts:`, 
+          console.log(`ðŸ“Š Found ${callsWithMilestones.length} calls with milestone posts:`, 
             callsWithMilestones.map(c => ({
               id: c.id,
               symbol: c.token?.symbol,
@@ -4022,7 +4022,7 @@ class EnhancedBackend {
           stats: userStats
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get KOL calls error:', error.message);
         res.status(500).json({ error: 'Failed to fetch KOL calls' });
       }
     });
@@ -4037,7 +4037,7 @@ class EnhancedBackend {
         const result = await this.oauthXService.db.deleteKolCall(user.id, id);
         res.json({ success: true, ...result });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Delete KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to delete KOL call' });
       }
     });
@@ -4056,7 +4056,7 @@ class EnhancedBackend {
         await this.oauthXService.setTwitterPostingEnabled(user.id, enabled);
         res.json({ success: true, twitterPostingEnabled: enabled });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Set Twitter posting error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Set Twitter posting error:', error.message);
         res.status(500).json({ error: 'Failed to update Twitter posting preference' });
       }
     });
@@ -4071,7 +4071,7 @@ class EnhancedBackend {
         const enabled = await this.oauthXService.hasTwitterPostingEnabled(user.id);
         res.json({ success: true, twitterPostingEnabled: enabled });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get Twitter posting error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get Twitter posting error:', error.message);
         res.status(500).json({ error: 'Failed to get Twitter posting status' });
       }
     });
@@ -4102,17 +4102,17 @@ class EnhancedBackend {
             const techAnalysisService = new TechnicalAnalysisService();
             const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
             enhancedTokenData.moralisAnalytics = moralisAnalytics;
-            console.log(`📊 Fetched Moralis TokenAnalytics for thesis: ${tokenData.symbol}`);
+            console.log(`ðŸ“Š Fetched Moralis TokenAnalytics for thesis: ${tokenData.symbol}`);
           }
           
           // Fetch Holder data
           if (tokenData.contractAddress) {
             const holderData = await this.holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
             enhancedTokenData.holderData = holderData;
-            console.log(`👥 Fetched Holder data for thesis: ${tokenData.symbol}`);
+            console.log(`ðŸ‘¥ Fetched Holder data for thesis: ${tokenData.symbol}`);
           }
         } catch (error) {
-          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to fetch enhanced data for thesis:', error.message);
+          console.error('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to fetch enhanced data for thesis:', error.message);
           // Continue with basic data if enhanced data fails
         }
         
@@ -4130,7 +4130,7 @@ class EnhancedBackend {
         
         res.json({ success: true, thesis });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Generate thesis error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Generate thesis error:', error.message);
         res.status(500).json({ error: 'Failed to generate thesis' });
       }
     });
@@ -4174,7 +4174,7 @@ class EnhancedBackend {
         
         res.json({ success: true, tweetId: tweet.id, shareText });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Share call error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Share call error:', error.message);
         res.status(500).json({ error: 'Failed to share call' });
       }
     });
@@ -4194,7 +4194,7 @@ class EnhancedBackend {
           following: follows.following || [] 
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get followers error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get followers error:', error.message);
         res.status(500).json({ error: 'Failed to fetch followers' });
       }
     });
@@ -4278,7 +4278,7 @@ class EnhancedBackend {
           generatedAt: leaderboardResult.generatedAt
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Leaderboard error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Leaderboard error:', error.message);
         res.status(500).json({ error: 'Failed to fetch leaderboard' });
       }
     });
@@ -4294,7 +4294,7 @@ class EnhancedBackend {
         }
         
         // Debug: Log what user data we have
-        console.log(`🔍 User ${userId} profile data:`, {
+        console.log(`ðŸ” User ${userId} profile data:`, {
           id: user.id,
           username: user.username,
           displayName: user.displayName,
@@ -4304,32 +4304,32 @@ class EnhancedBackend {
         
         // If user data exists but doesn't have X profile info, try to fetch it
         if (user && (!user.username || user.username.startsWith('user_') || !user.profileImage)) {
-          console.log(`🔄 User ${userId} missing X profile data, attempting to fetch...`);
+          console.log(`ðŸ”„ User ${userId} missing X profile data, attempting to fetch...`);
           
           // Try to get fresh X profile data if we have access token
           if (user.sessionId) {
             try {
               const freshUser = await this.oauthXService.getUserBySession(user.sessionId);
               if (freshUser && freshUser.username && !freshUser.username.startsWith('user_')) {
-                console.log(`✅ Found fresh X data for user ${userId}:`, freshUser.username);
+                console.log(`âœ… Found fresh X data for user ${userId}:`, freshUser.username);
                 user = freshUser;
               }
             } catch (fetchError) {
-              console.warn(`⚠️ Could not fetch fresh X data for user ${userId}:`, fetchError.message);
+              console.warn(`âš ï¸ Could not fetch fresh X data for user ${userId}:`, fetchError.message);
             }
           } else {
-            console.warn(`⚠️ User ${userId} has no sessionId, trying global users index...`);
+            console.warn(`âš ï¸ User ${userId} has no sessionId, trying global users index...`);
             
             // Try to get user data from global users index
             try {
               const globalUsers = await this.oauthXService.db.getAllUsers();
               const globalUser = globalUsers.find(u => u.id === userId);
               if (globalUser && globalUser.username && !globalUser.username.startsWith('user_')) {
-                console.log(`✅ Found user ${userId} in global index:`, globalUser.username);
+                console.log(`âœ… Found user ${userId} in global index:`, globalUser.username);
                 user = globalUser;
               }
             } catch (globalError) {
-              console.warn(`⚠️ Could not fetch from global users index for user ${userId}:`, globalError.message);
+              console.warn(`âš ï¸ Could not fetch from global users index for user ${userId}:`, globalError.message);
             }
           }
         }
@@ -4341,7 +4341,7 @@ class EnhancedBackend {
           profileImage: user.profileImage || null,
         }});
       } catch (e) {
-        console.error(`❌ KOL profile fetch error for user ${req.params.userId}:`, e);
+        console.error(`âŒ KOL profile fetch error for user ${req.params.userId}:`, e);
         res.status(500).json({ success: false, error: 'Failed to fetch profile' });
       }
     });
@@ -4510,7 +4510,7 @@ class EnhancedBackend {
 
         res.json({ success: true, month: monthKey, winners, generatedAt: payload.generatedAt, cached: false });
       } catch (e) {
-        console.error('[🛡️ Enhanced Backend] ❌ Monthly winners error:', e.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Monthly winners error:', e.message);
         res.status(500).json({ success: false, error: 'Failed to compute monthly winners' });
       }
     });
@@ -4559,7 +4559,7 @@ class EnhancedBackend {
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting comprehensive analytics for @${kolHandle}`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting comprehensive analytics for @${kolHandle}`);
         
         const analytics = await this.enhancedPredictiveAnalytics.getKOLAnalytics(kolHandle);
         
@@ -4570,7 +4570,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] KOL analytics error for ${req.params.kolHandle}:`, error.message);
+        console.error(`âŒ [ENHANCED ML] KOL analytics error for ${req.params.kolHandle}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get KOL analytics',
@@ -4592,7 +4592,7 @@ class EnhancedBackend {
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting comprehensive analytics for ${coinSymbol}`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting comprehensive analytics for ${coinSymbol}`);
         
         const analytics = await this.enhancedPredictiveAnalytics.getTokenAnalytics(coinSymbol);
         
@@ -4603,7 +4603,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] Token analytics error for ${req.params.coinSymbol}:`, error.message);
+        console.error(`âŒ [ENHANCED ML] Token analytics error for ${req.params.coinSymbol}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get token analytics',
@@ -4623,7 +4623,7 @@ class EnhancedBackend {
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting market-wide analytics`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting market-wide analytics`);
         
         const analytics = await this.enhancedPredictiveAnalytics.getMarketAnalytics();
         
@@ -4634,7 +4634,7 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] Market analytics error:`, error.message);
+        console.error(`âŒ [ENHANCED ML] Market analytics error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get market analytics',
@@ -4657,7 +4657,7 @@ class EnhancedBackend {
           });
         }
 
-        console.log(`🧠 [NARRATIVE AI] Analyzing ${posts.length} posts for narrative detection`);
+        console.log(`ðŸ§  [NARRATIVE AI] Analyzing ${posts.length} posts for narrative detection`);
 
         // Initialize OpenAI service if not already done
         if (!this.openaiService) {
@@ -4718,7 +4718,7 @@ Respond in JSON format:
 
         try {
           const response = await this.openaiService.generateCompletion(prompt, {
-            model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
+            model: 'gpt-4o-mini', // ðŸš€ COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
             max_tokens: 500,
             temperature: 0.3
           });
@@ -4742,8 +4742,8 @@ Respond in JSON format:
             throw new Error('Invalid AI response format');
           }
 
-          console.log(`🧠 [NARRATIVE AI] Detected narrative: ${analysis.trendingNarrative} (${Math.round(analysis.confidence * 100)}% confidence)`);
-          console.log(`🔥 [NARRATIVE AI] Warming up: ${analysis.warmingUpNarrative || 'None'} (${Math.round((analysis.warmingUpConfidence || 0) * 100)}% confidence)`);
+          console.log(`ðŸ§  [NARRATIVE AI] Detected narrative: ${analysis.trendingNarrative} (${Math.round(analysis.confidence * 100)}% confidence)`);
+          console.log(`ðŸ”¥ [NARRATIVE AI] Warming up: ${analysis.warmingUpNarrative || 'None'} (${Math.round((analysis.warmingUpConfidence || 0) * 100)}% confidence)`);
 
           res.json({
             success: true,
@@ -4771,7 +4771,7 @@ Respond in JSON format:
         }
 
       } catch (error) {
-        console.error(`❌ [NARRATIVE AI] Analysis error:`, error.message);
+        console.error(`âŒ [NARRATIVE AI] Analysis error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to analyze narratives',
@@ -4851,7 +4851,7 @@ Respond in JSON format:
           });
         }
 
-        console.log(`🧠 [COMPREHENSIVE AI] Analyzing comprehensive data for insights`);
+        console.log(`ðŸ§  [COMPREHENSIVE AI] Analyzing comprehensive data for insights`);
 
         // Initialize OpenAI service if not already done
         if (!this.openaiService) {
@@ -4950,7 +4950,7 @@ Format as JSON:
 
         try {
           const response = await this.openaiService.generateCompletion(prompt, {
-            model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
+            model: 'gpt-4o-mini', // ðŸš€ COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
             max_tokens: 1000,
             temperature: 0.4
           });
@@ -4980,7 +4980,7 @@ Format as JSON:
             throw new Error('Invalid AI insights response format');
           }
 
-          console.log(`🧠 [COMPREHENSIVE AI] Generated ${analysis.insights.length} insights and ${analysis.recommendations.length} recommendations`);
+          console.log(`ðŸ§  [COMPREHENSIVE AI] Generated ${analysis.insights.length} insights and ${analysis.recommendations.length} recommendations`);
 
           res.json({
             success: true,
@@ -5010,7 +5010,7 @@ Format as JSON:
         }
 
       } catch (error) {
-        console.error(`❌ [COMPREHENSIVE AI] Analysis error:`, error.message);
+        console.error(`âŒ [COMPREHENSIVE AI] Analysis error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to generate comprehensive insights',
@@ -5116,7 +5116,7 @@ Format as JSON:
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting performance predictions for @${kolHandle}`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting performance predictions for @${kolHandle}`);
         
         const kol = this.oauthXService.db.getKOLs().find(k => k.handle === kolHandle);
         if (!kol) {
@@ -5136,7 +5136,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] KOL prediction error for ${req.params.kolHandle}:`, error.message);
+        console.error(`âŒ [ENHANCED ML] KOL prediction error for ${req.params.kolHandle}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get KOL predictions',
@@ -5156,7 +5156,7 @@ Format as JSON:
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting momentum forecast for ${coinSymbol}`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting momentum forecast for ${coinSymbol}`);
         
         // Get historical data (simplified for demo)
         const historicalPrices = await this.hybridPriceService.getHistoricalPrices(coinSymbol, '1D', 30);
@@ -5177,7 +5177,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] Token momentum error for ${req.params.coinSymbol}:`, error.message);
+        console.error(`âŒ [ENHANCED ML] Token momentum error for ${req.params.coinSymbol}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get token momentum',
@@ -5195,7 +5195,7 @@ Format as JSON:
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
-        console.log(`🧠 [ENHANCED ML] Getting early warning signals`);
+        console.log(`ðŸ§  [ENHANCED ML] Getting early warning signals`);
         
         const signals = await this.enhancedPredictiveAnalytics.enhancedEarlyWarningDetector.getEarlyWarningSignals();
         
@@ -5206,7 +5206,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] Early warning signals error:`, error.message);
+        console.error(`âŒ [ENHANCED ML] Early warning signals error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get early warning signals',
@@ -5229,7 +5229,7 @@ Format as JSON:
           data: kols || []
         });
       } catch (error) {
-        console.error('❌ Error fetching KOLs:', error);
+        console.error('âŒ Error fetching KOLs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch KOLs'
@@ -5248,7 +5248,7 @@ Format as JSON:
           data: posts || []
         });
       } catch (error) {
-        console.error('❌ Error fetching KOL posts:', error);
+        console.error('âŒ Error fetching KOL posts:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch KOL posts'
@@ -5267,7 +5267,7 @@ Format as JSON:
           data: {}
         });
       } catch (error) {
-        console.error('❌ Error fetching coin data:', error);
+        console.error('âŒ Error fetching coin data:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch coin data'
@@ -5285,7 +5285,7 @@ Format as JSON:
           data: []
         });
       } catch (error) {
-        console.error('❌ Error fetching alpha scores:', error);
+        console.error('âŒ Error fetching alpha scores:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch alpha scores'
@@ -5319,7 +5319,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] KOL Performance error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] KOL Performance error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get KOL Performance analytics',
@@ -5351,7 +5351,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] Market Momentum error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] Market Momentum error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get Market Momentum analytics',
@@ -5382,7 +5382,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] Predictions error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] Predictions error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get Predictions analytics',
@@ -5412,7 +5412,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] Visualizations error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] Visualizations error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get Visualizations data',
@@ -5442,7 +5442,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] Insights error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] Insights error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get Comprehensive insights',
@@ -5468,7 +5468,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('❌ [CACHED ANALYTICS] Status error:', error.message);
+        console.error('âŒ [CACHED ANALYTICS] Status error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get cache status',
@@ -5491,7 +5491,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error(`❌ [CACHED ANALYTICS] Refresh ${req.params.type} error:`, error.message);
+        console.error(`âŒ [CACHED ANALYTICS] Refresh ${req.params.type} error:`, error.message);
         res.status(500).json({
           success: false,
           error: `Failed to refresh ${req.params.type} analytics`,
@@ -5522,7 +5522,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error(`❌ [ENHANCED ML] Metrics error:`, error.message);
+        console.error(`âŒ [ENHANCED ML] Metrics error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get ML metrics',
@@ -5539,7 +5539,7 @@ Format as JSON:
         const { contract } = req.params;
         const { range = '7d' } = req.query;
         
-        console.log(`📊 Hype trend analysis request for ${contract} (${range})`);
+        console.log(`ðŸ“Š Hype trend analysis request for ${contract} (${range})`);
         
         // Get token data first
         const tokens = await this.getTokensFromCache();
@@ -5586,7 +5586,7 @@ Format as JSON:
               ewma: analysisResult.analysis?.technicalIndicators?.ewma,
               derivative: analysisResult.analysis?.technicalIndicators?.derivative,
               
-              // ✅ ADAPTIVE BAYESIAN CHANGE POINTS - Fixed structure!
+              // âœ… ADAPTIVE BAYESIAN CHANGE POINTS - Fixed structure!
               changePoints: {
                 length: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints?.length || 0,
                 hasRecentChange: analysisResult.analysis?.technicalIndicators?.changePoints?.hasRecentChange || false,
@@ -5626,12 +5626,12 @@ Format as JSON:
           }
         };
         
-        console.log(`📊 Hype Trend Analysis completed for ${contract}: ${response.analysis.technicalIndicators.changePoints.length} change points, ${response.analysis.forecast?.length || 0} forecast points`);
+        console.log(`ðŸ“Š Hype Trend Analysis completed for ${contract}: ${response.analysis.technicalIndicators.changePoints.length} change points, ${response.analysis.forecast?.length || 0} forecast points`);
         
         res.json(response);
         
       } catch (error) {
-        console.error('❌ Hype trend analysis error:', error);
+        console.error('âŒ Hype trend analysis error:', error);
         res.status(500).json({
           success: false,
           error: 'Internal server error',
@@ -5647,17 +5647,17 @@ Format as JSON:
         const { contract } = req.params;
         const { sessionId, useCache = 'true' } = req.query;
         
-        console.log(`🧠 AI social context request for ${contract}`);
+        console.log(`ðŸ§  AI social context request for ${contract}`);
         
         // Authentication and usage limit check
         let isPremium = false;
         let user = null;
-        console.log(`🧠 AI Analysis - SessionId received: ${sessionId ? sessionId.slice(-8) + '...' : 'NONE'}`);
+        console.log(`ðŸ§  AI Analysis - SessionId received: ${sessionId ? sessionId.slice(-8) + '...' : 'NONE'}`);
         
         if (sessionId) {
           try {
             user = await this.oauthXService.getUserBySession(sessionId);
-            console.log(`🧠 AI Analysis - User lookup result:`, {
+            console.log(`ðŸ§  AI Analysis - User lookup result:`, {
               found: !!user,
               username: user?.username,
               userId: user?.id
@@ -5669,7 +5669,7 @@ Format as JSON:
               isPremium = premiumStatus?.isPremium && 
                 (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
               
-              console.log(`🧠 AI Analysis - Premium Status Details:`, {
+              console.log(`ðŸ§  AI Analysis - Premium Status Details:`, {
                 premiumStatus,
                 isPremiumFlag: premiumStatus?.isPremium,
                 expiresAt: premiumStatus?.expiresAt,
@@ -5678,14 +5678,14 @@ Format as JSON:
               });
             }
             
-            console.log(`🧠 AI Analysis - Final Premium Status: ${isPremium}`);
+            console.log(`ðŸ§  AI Analysis - Final Premium Status: ${isPremium}`);
           } catch (err) {
-            console.log(`🧠 AI Analysis - Failed to get user from sessionId: ${err.message}`);
-            console.log(`🧠 AI Analysis - Error details:`, err);
+            console.log(`ðŸ§  AI Analysis - Failed to get user from sessionId: ${err.message}`);
+            console.log(`ðŸ§  AI Analysis - Error details:`, err);
             // Continue without premium features
           }
         } else {
-          console.log(`🧠 AI Analysis - No sessionId provided, treating as non-premium`);
+          console.log(`ðŸ§  AI Analysis - No sessionId provided, treating as non-premium`);
         }
         
         // Check usage limits for free users
@@ -5733,10 +5733,10 @@ Format as JSON:
           const holderInsights = await this.getHolderInsights(contract);
           if (holderInsights.success && holderInsights.data) {
             token.holderData = holderInsights.data;
-            console.log(`📊 Added holder data to AI analysis for ${token.symbol}`);
+            console.log(`ðŸ“Š Added holder data to AI analysis for ${token.symbol}`);
           }
         } catch (error) {
-          console.log(`⚠️ Could not fetch holder data for AI analysis: ${error.message}`);
+          console.log(`âš ï¸ Could not fetch holder data for AI analysis: ${error.message}`);
         }
         
         // Add Moralis TokenAnalytics data for enhanced AI analysis
@@ -5746,17 +5746,17 @@ Format as JSON:
           const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(contract);
           if (moralisAnalytics) {
             token.moralisAnalytics = moralisAnalytics;
-            console.log(`📊 Added Moralis TokenAnalytics data to AI analysis for ${token.symbol}`);
+            console.log(`ðŸ“Š Added Moralis TokenAnalytics data to AI analysis for ${token.symbol}`);
           }
         } catch (error) {
-          console.log(`⚠️ Could not fetch Moralis TokenAnalytics for AI analysis: ${error.message}`);
+          console.log(`âš ï¸ Could not fetch Moralis TokenAnalytics for AI analysis: ${error.message}`);
         }
         
         // Generate AI analysis
         const analysisOptions = {
           useCache: useCache === 'true',
           cacheExpiry: isPremium ? 3600000 : 7200000, // Premium: 1hr, Free: 2hr (much longer cache)
-          model: isPremium ? 'gpt-4o-mini' : 'gpt-3.5-turbo', // 🚀 COST OPTIMIZATION: Premium users get gpt-4o-mini instead of gpt-4
+          model: isPremium ? 'gpt-4o-mini' : 'gpt-3.5-turbo', // ðŸš€ COST OPTIMIZATION: Premium users get gpt-4o-mini instead of gpt-4
           temperature: 0.7,
           identity: { contract, symbol: token?.symbol }
         };
@@ -5794,7 +5794,7 @@ Format as JSON:
         const currentUsageCount = !isPremium && user ? await this.getAIUsageCount(user.id) : 0;
         
         // Debug: Log the analysis structure being returned
-        console.log(`🔍 AI Analysis Response for ${token.symbol}:`, {
+        console.log(`ðŸ” AI Analysis Response for ${token.symbol}:`, {
           sentiment: analysis.sentiment,
           confidence: analysis.confidence,
           keyInsights: analysis.keyInsights?.length || 0,
@@ -5823,7 +5823,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('[🧠 AI] ❌ Social context analysis error:', error.message);
+        console.error('[ðŸ§  AI] âŒ Social context analysis error:', error.message);
         res.status(500).json({ 
           error: 'AI analysis failed',
           message: error.message,
@@ -5838,7 +5838,7 @@ Format as JSON:
         const { contract } = req.params;
         const { sessionId } = req.query;
         
-        console.log(`⚡ Quick AI analysis request for ${contract}`);
+        console.log(`âš¡ Quick AI analysis request for ${contract}`);
         
         // Get token data
         const tokens = await this.getTokensFromCache();
@@ -5872,7 +5872,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('[⚡ Quick AI] ❌ Quick analysis error:', error.message);
+        console.error('[âš¡ Quick AI] âŒ Quick analysis error:', error.message);
         res.status(500).json({ 
           error: 'Quick analysis failed',
           message: error.message,
@@ -5888,7 +5888,7 @@ Format as JSON:
         const { helpful, analysisId, feedback } = req.body;
         
         // Log feedback for training purposes
-        console.log(`📊 AI Analysis Feedback for ${contract}:`, {
+        console.log(`ðŸ“Š AI Analysis Feedback for ${contract}:`, {
           analysisId,
           helpful,
           feedback,
@@ -5915,7 +5915,7 @@ Format as JSON:
           feedbackId: `feedback_${Date.now()}`
         });
       } catch (error) {
-        console.error('❌ Error recording AI feedback:', error);
+        console.error('âŒ Error recording AI feedback:', error);
         res.status(500).json({ error: 'Failed to record feedback' });
       }
     });
@@ -5938,7 +5938,7 @@ Format as JSON:
           }
         });
       } catch (error) {
-        console.error('[🧠 AI] ❌ Metrics error:', error.message);
+        console.error('[ðŸ§  AI] âŒ Metrics error:', error.message);
         res.status(500).json({ error: 'Failed to get AI metrics' });
       }
     });
@@ -5970,7 +5970,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('[🧠 AI] ❌ Feedback error:', error.message);
+        console.error('[ðŸ§  AI] âŒ Feedback error:', error.message);
         res.status(500).json({ error: 'Failed to record feedback' });
       }
     });
@@ -5991,7 +5991,7 @@ Format as JSON:
           durationMinutes: Math.round(durationMs / 60000)
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Priority boost error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Priority boost error:', error.message);
         res.status(500).json({ error: 'Failed to boost token priority' });
       }
     });
@@ -6002,7 +6002,7 @@ Format as JSON:
         const stats = this.priorityQueue.getPriorityStats(tokens);
         res.json({ success: true, data: stats });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Priority stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Priority stats error:', error.message);
         res.status(500).json({ error: 'Failed to get priority stats' });
       }
     });
@@ -6025,10 +6025,10 @@ Format as JSON:
           return res.status(400).json({ success: false, error: 'Invalid payload: tokens[] required' });
         }
 
-        console.log(`[🔍 Discovery Import] Received ${candidates.length} candidates from ${source} (${category}/${interval})`);
+        console.log(`[ðŸ” Discovery Import] Received ${candidates.length} candidates from ${source} (${category}/${interval})`);
         if (candidates.length > 0) {
           const sampleSymbols = candidates.slice(0, 5).map(c => c.symbol || 'UNKNOWN').join(', ');
-          console.log(`[🔍 Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
+          console.log(`[ðŸ” Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
         }
 
         const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD','BNSOL', 'JLP', 'JupSOL']);
@@ -6066,7 +6066,7 @@ Format as JSON:
             
             // Robust suspicious filter: check multiple possible locations/encodings of isSus
             if (this.isSuspiciousToken(c)) {
-              console.log(`[🔍 Discovery Import] 🚫 Skipping suspicious token: ${symbol} (audit flagged isSus)`);
+              console.log(`[ðŸ” Discovery Import] ðŸš« Skipping suspicious token: ${symbol} (audit flagged isSus)`);
               skipped++;
               continue;
             }
@@ -6104,7 +6104,7 @@ Format as JSON:
               existing.jupiterData = { ...(existing.jupiterData || {}), ...jupInfo };
               // Ensure suspicious tokens never leak through updates
               if (this.isSuspiciousToken(existing)) {
-                console.log(`[🔍 Discovery Import] 🚫 Update blocked (suspicious): ${symbol}`);
+                console.log(`[ðŸ” Discovery Import] ðŸš« Update blocked (suspicious): ${symbol}`);
                 skipped++;
                 continue;
               }
@@ -6124,7 +6124,7 @@ Format as JSON:
                 jupiterData: jupInfo
               };
               if (this.isSuspiciousToken(newToken)) {
-                console.log(`[🔍 Discovery Import] 🚫 Insert blocked (suspicious): ${symbol}`);
+                console.log(`[ðŸ” Discovery Import] ðŸš« Insert blocked (suspicious): ${symbol}`);
                 skipped++;
                 continue;
               }
@@ -6132,7 +6132,7 @@ Format as JSON:
               byAddress.set(key, newToken);
               inserted++;
               recentMap[lower] = nowMs;
-              console.log(`[🔍 Discovery Import] ➕ New token: ${symbol} (${name}) - MC: $${jupInfo.mcap ? (jupInfo.mcap/1000000).toFixed(1) + 'M' : 'N/A'}`);
+              console.log(`[ðŸ” Discovery Import] âž• New token: ${symbol} (${name}) - MC: $${jupInfo.mcap ? (jupInfo.mcap/1000000).toFixed(1) + 'M' : 'N/A'}`);
             }
 
             // Boost priority for near real-time updates
@@ -6141,7 +6141,7 @@ Format as JSON:
               boosted++;
             } catch (boostErr) {
               // Non-fatal
-              console.warn('[🎯 PriorityQueue] Boost failed for', contract.substring(0, 8), boostErr.message);
+              console.warn('[ðŸŽ¯ PriorityQueue] Boost failed for', contract.substring(0, 8), boostErr.message);
             }
           } catch (_err) {
             skipped++;
@@ -6161,7 +6161,7 @@ Format as JSON:
           
           const foundTargets = tokens.filter(t => targetTokens.includes(t.contractAddress));
           if (foundTargets.length > 0) {
-            console.log(`🚨 [DISCOVERY IMPORT] TARGET TOKENS FOUND IN CACHE:`, foundTargets.map(t => ({
+            console.log(`ðŸš¨ [DISCOVERY IMPORT] TARGET TOKENS FOUND IN CACHE:`, foundTargets.map(t => ({
               symbol: t.symbol,
               address: t.contractAddress,
               source: t._source || 'unknown',
@@ -6175,22 +6175,22 @@ Format as JSON:
           
           await this.saveTokensToCache(tokens);
           
-          // 🚀 AUTOMATIC PIPELINE PROCESSING for Jup-service imports
-          console.log(`[🔍 Discovery Import] 🚀 Triggering automatic pipeline processing for ${inserted} new + ${updated} updated tokens`);
+          // ðŸš€ AUTOMATIC PIPELINE PROCESSING for Jup-service imports
+          console.log(`[ðŸ” Discovery Import] ðŸš€ Triggering automatic pipeline processing for ${inserted} new + ${updated} updated tokens`);
           
           try {
             // Trigger processing for new tokens (they need full pipeline)
             if (inserted > 0) {
-              console.log(`[🔍 Discovery Import] 📊 Processing ${inserted} new tokens through full pipeline (Twitter → Scoring → Saving)`);
+              console.log(`[ðŸ” Discovery Import] ðŸ“Š Processing ${inserted} new tokens through full pipeline (Twitter â†’ Scoring â†’ Saving)`);
               await this.tokenProcessor.processNewTokensFromJupService();
             }
             
             // For updated tokens, just boost their priority for Twitter/scoring updates
             if (updated > 0) {
-              console.log(`[🔍 Discovery Import] ⚡ ${updated} existing tokens updated - priority boosted for Twitter/scoring refresh`);
+              console.log(`[ðŸ” Discovery Import] âš¡ ${updated} existing tokens updated - priority boosted for Twitter/scoring refresh`);
             }
           } catch (processingError) {
-            console.error(`[🔍 Discovery Import] ⚠️ Pipeline processing failed:`, processingError.message);
+            console.error(`[ðŸ” Discovery Import] âš ï¸ Pipeline processing failed:`, processingError.message);
             // Don't fail the import if processing fails
           }
         }
@@ -6205,27 +6205,27 @@ Format as JSON:
 
         return res.json({ success: true, stats: { inserted, updated, boosted, skipped, total: candidates.length } });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Internal discovery import error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Internal discovery import error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to import discovery tokens' });
       }
     });
 
     // ========================================
-    // 🔥 FUEL TOKEN ENDPOINTS
+    // ðŸ”¥ FUEL TOKEN ENDPOINTS
     // ========================================
 
     // Get fueled tokens
     this.app.get('/api/tokens/fuel', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔥 Getting fueled tokens...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Getting fueled tokens...');
         
         const fueledTokens = await this.getFueledTokens();
         
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${fueledTokens.length} fueled tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Returning ${fueledTokens.length} fueled tokens`);
         res.json(fueledTokens);
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error getting fueled tokens:', error);
         res.status(500).json({ error: 'Failed to get fueled tokens' });
       }
     });
@@ -6235,7 +6235,7 @@ Format as JSON:
       try {
         const { nonce } = req.params;
         
-        console.log('[🛡️ x402] 💳 Processing payment for nonce:', nonce);
+        console.log('[ðŸ›¡ï¸ x402] ðŸ’³ Processing payment for nonce:', nonce);
 
         const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
         
@@ -6256,7 +6256,7 @@ Format as JSON:
 
         // For now, simulate payment success
         // In production, this would integrate with PayAI facilitator to handle the actual payment
-        console.log('[🛡️ x402] ⚠️ DEMO MODE: Simulating payment success');
+        console.log('[ðŸ›¡ï¸ x402] âš ï¸ DEMO MODE: Simulating payment success');
         
         const txHash = 'demo_' + Date.now();
         
@@ -6267,7 +6267,7 @@ Format as JSON:
         const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
         if (token) {
           await this.fuelService.applyFuel(token, payment.fuelType);
-          console.log(`[🛡️ x402] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
+          console.log(`[ðŸ›¡ï¸ x402] âœ… Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
 
           // Post Twitter confirmation
           if (payment.originalTweetId) {
@@ -6282,7 +6282,7 @@ Format as JSON:
 
           // Public announcement for high tiers
           if (payment.fuelType === '500x' || payment.fuelType === '1000x') {
-            const announcement = `🔥 MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com 🚀\n\n#DegenMode #SolanaAlpha`;
+            const announcement = `ðŸ”¥ MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com ðŸš€\n\n#DegenMode #SolanaAlpha`;
             await this.oauthXService.postTweet(announcement);
           }
         }
@@ -6296,7 +6296,7 @@ Format as JSON:
         });
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Error processing payment:', error);
+        console.error('[ðŸ›¡ï¸ x402] âŒ Error processing payment:', error);
         res.status(500).json({ success: false, error: 'Payment processing error' });
       }
     });
@@ -6308,14 +6308,14 @@ Format as JSON:
         const { strategyId } = req.params;
         const xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
         
-        console.log('[🧠 x402 AI Router] 💳 Strategy execution requested for strategy:', strategyId);
+        console.log('[ðŸ§  x402 AI Router] ðŸ’³ Strategy execution requested for strategy:', strategyId);
         
         // Get strategy from enhanced jup-discovery background worker
-        console.log('[🧠 x402 AI Router] Getting strategy from enhanced jup-discovery background worker...');
+        console.log('[ðŸ§  x402 AI Router] Getting strategy from enhanced jup-discovery background worker...');
         
         // Since jup-discovery is a background worker, we'll create a mock strategy for now
         // In production, this would be retrieved from database or via direct module integration
-        console.log('[🧠 x402 AI Router] Creating mock strategy for testing (background worker pattern)');
+        console.log('[ðŸ§  x402 AI Router] Creating mock strategy for testing (background worker pattern)');
         
         // For testing purposes, create a mock strategy
         const strategy = {
@@ -6357,7 +6357,7 @@ Format as JSON:
         
         // Create payment requirements (needed for both 402 response and payment verification)
         if (!this.x402PaymentHandler) {
-          console.log('[🧠 x402 AI Router] ❌ x402PaymentHandler not initialized');
+          console.log('[ðŸ§  x402 AI Router] âŒ x402PaymentHandler not initialized');
           return res.status(500).json({ 
             success: false, 
             error: 'Payment handler not initialized' 
@@ -6384,9 +6384,9 @@ Format as JSON:
           };
           
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
-          console.log('[🧠 x402 AI Router] ✅ Payment requirements created successfully');
+          console.log('[ðŸ§  x402 AI Router] âœ… Payment requirements created successfully');
         } catch (createError) {
-          console.log('[🧠 x402 AI Router] ❌ Failed to create payment requirements:', createError.message);
+          console.log('[ðŸ§  x402 AI Router] âŒ Failed to create payment requirements:', createError.message);
           return res.status(500).json({ 
             success: false, 
             error: 'Failed to create payment requirements',
@@ -6396,34 +6396,34 @@ Format as JSON:
         
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
-          console.log('[🧠 x402 AI Router] 💰 Returning 402 Payment Required for strategy execution');
+          console.log('[ðŸ§  x402 AI Router] ðŸ’° Returning 402 Payment Required for strategy execution');
           
           const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
           return res.status(response402.status).json(response402.body);
         }
         
         // Verify and settle payment
-        console.log('[🧠 x402 AI Router] 🔍 Verifying payment...');
+        console.log('[ðŸ§  x402 AI Router] ðŸ” Verifying payment...');
         const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
         if (verifyResult !== true) {
-          console.log('[🧠 x402 AI Router] ❌ Payment verification failed');
+          console.log('[ðŸ§  x402 AI Router] âŒ Payment verification failed');
           return res.status(402).json({ 
             success: false, 
             error: 'Payment verification failed' 
           });
         }
         
-        console.log('[🧠 x402 AI Router] 💰 Settling payment...');
+        console.log('[ðŸ§  x402 AI Router] ðŸ’° Settling payment...');
         const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
         if (settleResult !== true) {
-          console.log('[🧠 x402 AI Router] ❌ Payment settlement failed');
+          console.log('[ðŸ§  x402 AI Router] âŒ Payment settlement failed');
           return res.status(500).json({ 
             success: false, 
             error: 'Payment settlement failed' 
           });
         }
         
-        console.log('[🧠 x402 AI Router] ✅ Payment successful, returning strategy and transactions');
+        console.log('[ðŸ§  x402 AI Router] âœ… Payment successful, returning strategy and transactions');
         
         // Payment successful - return strategy with transactions
         res.json({
@@ -6444,7 +6444,7 @@ Format as JSON:
         });
         
       } catch (error) {
-        console.error('[🧠 x402 AI Router] ❌ Strategy execution error:', error.message);
+        console.error('[ðŸ§  x402 AI Router] âŒ Strategy execution error:', error.message);
         res.status(500).json({ 
           success: false, 
           error: 'Strategy execution error',
@@ -6461,8 +6461,8 @@ Format as JSON:
         const { nonce } = req.params;
         const xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
         
-        console.log('[🛡️ x402 PayAI SDK] 💳 Merchant resource requested for nonce:', nonce);
-        console.log('[🛡️ x402 PayAI SDK] X-PAYMENT header:', xPaymentHeader ? 'Present' : 'Not present');
+        console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ’³ Merchant resource requested for nonce:', nonce);
+        console.log('[ðŸ›¡ï¸ x402 PayAI SDK] X-PAYMENT header:', xPaymentHeader ? 'Present' : 'Not present');
 
         // Get pending payment
         const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
@@ -6482,7 +6482,7 @@ Format as JSON:
 
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
-          console.log('[🛡️ x402 PayAI SDK] 💰 Generating 402 Payment Required...');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ’° Generating 402 Payment Required...');
           
           // Convert USDC amount to atomic units (6 decimals)
           const amountLamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
@@ -6508,13 +6508,13 @@ Format as JSON:
           const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
           
-          console.log('[🛡️ x402 PayAI SDK] ✅ Returning 402 with payment requirements');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âœ… Returning 402 with payment requirements');
           
           return res.status(response402.status).json(response402.body);
         }
 
         // If X-PAYMENT header is present, verify and settle the payment
-        console.log('[🛡️ x402 PayAI SDK] ✅ X-PAYMENT header present, verifying payment...');
+        console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âœ… X-PAYMENT header present, verifying payment...');
         
         try {
           // Recreate payment requirements for verification
@@ -6540,43 +6540,43 @@ Format as JSON:
           const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
 
           // Verify payment using PayAI SDK
-          console.log('[🛡️ x402 PayAI SDK] 📡 Verifying with PayAI facilitator...');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ“¡ Verifying with PayAI facilitator...');
           const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
 
-          console.log('[🛡️ x402 PayAI SDK] 📋 Verify result:', verifyResult);
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ“‹ Verify result:', verifyResult);
 
           // SDK returns boolean: true = valid, false = invalid
           if (verifyResult !== true) {
-            console.log('[🛡️ x402 PayAI SDK] ❌ Payment verification failed');
+            console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âŒ Payment verification failed');
             return res.status(402).json({
               error: 'Payment verification failed',
               details: { isValid: verifyResult }
             });
           }
           
-          console.log('[🛡️ x402 PayAI SDK] ✅ Payment verified!');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âœ… Payment verified!');
 
           // Settle payment using PayAI SDK
-          console.log('[🛡️ x402 PayAI SDK] 💰 Settling payment...');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ’° Settling payment...');
           const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
 
-          console.log('[🛡️ x402 PayAI SDK] 📋 Settlement result:', settleResult);
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ“‹ Settlement result:', settleResult);
 
           // SDK returns boolean: true = settled, false = failed
           if (settleResult !== true) {
-            console.log('[🛡️ x402 PayAI SDK] ❌ Payment settlement failed');
+            console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âŒ Payment settlement failed');
             return res.status(500).json({
               error: 'Payment settlement failed',
               details: { settled: settleResult }
             });
           }
 
-          console.log('[🛡️ x402 PayAI SDK] ✅ Payment settled successfully!');
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] âœ… Payment settled successfully!');
 
           // Payment successful! Apply fuel
           // Note: SDK returns boolean, not transaction hash
           const txHash = 'payai_' + nonce.substring(0, 16); // Generate reference ID
-          console.log('[🛡️ x402 PayAI SDK] 💚 Payment successful! Reference:', txHash);
+          console.log('[ðŸ›¡ï¸ x402 PayAI SDK] ðŸ’š Payment successful! Reference:', txHash);
 
           // Update payment status
           this.twitterMentionService.x402Service.completePayment(nonce);
@@ -6589,7 +6589,7 @@ Format as JSON:
           
           if (token) {
             await this.applyFuelToToken(payment.contractAddress, payment.fuelType);
-            console.log(`[🛡️ x402 PayAI SDK] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
+            console.log(`[ðŸ›¡ï¸ x402 PayAI SDK] âœ… Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
 
             // Post Twitter confirmation
             if (payment.originalTweetId) {
@@ -6604,7 +6604,7 @@ Format as JSON:
 
             // Public announcement for high tiers
             if (payment.fuelType === '500x' || payment.fuelType === '1000x') {
-              const announcement = `🔥 MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com 🚀\n\n#DegenMode #SolanaAlpha`;
+              const announcement = `ðŸ”¥ MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com ðŸš€\n\n#DegenMode #SolanaAlpha`;
               await this.oauthXService.postTweet(announcement);
             }
           }
@@ -6633,7 +6633,7 @@ Format as JSON:
           });
 
         } catch (verifyError) {
-          console.error('[🛡️ x402 PayAI SDK] ❌ Error verifying/settling payment:', {
+          console.error('[ðŸ›¡ï¸ x402 PayAI SDK] âŒ Error verifying/settling payment:', {
             message: verifyError.message,
             stack: verifyError.stack
           });
@@ -6645,7 +6645,7 @@ Format as JSON:
         }
 
       } catch (error) {
-        console.error('[🛡️ x402 PayAI SDK] ❌ Error in merchant resource endpoint:', error);
+        console.error('[ðŸ›¡ï¸ x402 PayAI SDK] âŒ Error in merchant resource endpoint:', error);
         res.status(500).json({ error: 'Server error' });
       }
     });
@@ -6656,7 +6656,7 @@ Format as JSON:
       try {
         const { nonce } = req.params;
         
-        console.log('[🛡️ x402] 📄 Fetching payment details for nonce:', nonce);
+        console.log('[ðŸ›¡ï¸ x402] ðŸ“„ Fetching payment details for nonce:', nonce);
 
         const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
         
@@ -6696,7 +6696,7 @@ Format as JSON:
         });
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Error fetching payment details:', error);
+        console.error('[ðŸ›¡ï¸ x402] âŒ Error fetching payment details:', error);
         res.status(500).json({ success: false, error: 'Server error' });
       }
     });
@@ -6704,7 +6704,7 @@ Format as JSON:
     // Proxy PayAI facilitator /supported endpoint (to avoid CORS)
     this.app.get('/api/x402/supported', async (req, res) => {
       try {
-        console.log('[🛡️ x402] 📡 Proxying /supported request to PayAI facilitator...');
+        console.log('[ðŸ›¡ï¸ x402] ðŸ“¡ Proxying /supported request to PayAI facilitator...');
 
         // Forward to PayAI facilitator
         const facilitatorResponse = await axios.get('https://facilitator.payai.network/supported', {
@@ -6713,13 +6713,13 @@ Format as JSON:
           }
         });
 
-        console.log('[🛡️ x402] ✅ Facilitator supported networks:', facilitatorResponse.data);
+        console.log('[ðŸ›¡ï¸ x402] âœ… Facilitator supported networks:', facilitatorResponse.data);
 
         // Return the facilitator response
         res.json(facilitatorResponse.data);
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Error proxying /supported request:', error.response?.data || error.message);
+        console.error('[ðŸ›¡ï¸ x402] âŒ Error proxying /supported request:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
           error: error.message
         });
@@ -6731,9 +6731,9 @@ Format as JSON:
       try {
         const { paymentPayload, paymentRequirements } = req.body;
         
-        console.log('[🛡️ x402] 📡 Proxying /settle request to PayAI facilitator...');
-        console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
-        console.log('[🛡️ x402] Payment requirements:', JSON.stringify(paymentRequirements, null, 2));
+        console.log('[ðŸ›¡ï¸ x402] ðŸ“¡ Proxying /settle request to PayAI facilitator...');
+        console.log('[ðŸ›¡ï¸ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
+        console.log('[ðŸ›¡ï¸ x402] Payment requirements:', JSON.stringify(paymentRequirements, null, 2));
 
         // Forward to PayAI facilitator
         const facilitatorResponse = await axios.post('https://facilitator.payai.network/settle', {
@@ -6745,13 +6745,13 @@ Format as JSON:
           }
         });
 
-        console.log('[🛡️ x402] ✅ Facilitator response:', facilitatorResponse.data);
+        console.log('[ðŸ›¡ï¸ x402] âœ… Facilitator response:', facilitatorResponse.data);
 
         // Return the facilitator response
         res.json(facilitatorResponse.data);
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Error proxying /settle request:', error.response?.data || error.message);
+        console.error('[ðŸ›¡ï¸ x402] âŒ Error proxying /settle request:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
           success: false,
           errorReason: error.response?.data?.errorReason || error.message
@@ -6764,7 +6764,7 @@ Format as JSON:
       try {
         const paymentData = req.body;
         
-        console.log('[🛡️ x402] 🔔 Received x402 fuel payment webhook:', paymentData);
+        console.log('[ðŸ›¡ï¸ x402] ðŸ”” Received x402 fuel payment webhook:', paymentData);
 
         // Extract payment metadata
         const nonce = paymentData.nonce || paymentData.metadata?.nonce;
@@ -6775,7 +6775,7 @@ Format as JSON:
         const transactionHash = paymentData.transactionHash || paymentData.txHash;
 
         if (!nonce || !tokenSymbol || !contractAddress || !fuelType) {
-          console.error('[🛡️ x402] ❌ Missing required payment metadata');
+          console.error('[ðŸ›¡ï¸ x402] âŒ Missing required payment metadata');
           return res.status(400).json({ error: 'Missing payment metadata' });
         }
 
@@ -6783,7 +6783,7 @@ Format as JSON:
         const pendingPayment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
         
         if (!pendingPayment) {
-          console.error('[🛡️ x402] ❌ Payment nonce not found or already processed');
+          console.error('[ðŸ›¡ï¸ x402] âŒ Payment nonce not found or already processed');
           return res.status(404).json({ error: 'Payment not found' });
         }
 
@@ -6791,7 +6791,7 @@ Format as JSON:
         const fuelResult = await this.applyFuelToToken(contractAddress, fuelType);
         
         if (!fuelResult.success) {
-          console.error('[🛡️ x402] ❌ Failed to apply fuel:', fuelResult.error);
+          console.error('[ðŸ›¡ï¸ x402] âŒ Failed to apply fuel:', fuelResult.error);
           return res.status(500).json({ error: 'Failed to apply fuel' });
         }
 
@@ -6817,9 +6817,9 @@ Format as JSON:
               transactionHash: transactionHash,
               createdAt: new Date().toISOString()
             });
-            console.log(`[🛡️ x402] ✅ Recorded earning: ${fuelType} - $${pricing.discountedUsd} USDC from @${userHandle}`);
+            console.log(`[ðŸ›¡ï¸ x402] âœ… Recorded earning: ${fuelType} - $${pricing.discountedUsd} USDC from @${userHandle}`);
           } catch (earningError) {
-            console.error(`[🛡️ x402] ❌ Failed to record earning:`, earningError.message);
+            console.error(`[ðŸ›¡ï¸ x402] âŒ Failed to record earning:`, earningError.message);
           }
         }
 
@@ -6837,25 +6837,25 @@ Format as JSON:
               originalTweetId,
               transactionHash
             );
-            console.log(`[🛡️ x402] ✅ Posted confirmation reply with image to tweet ${originalTweetId}`);
+            console.log(`[ðŸ›¡ï¸ x402] âœ… Posted confirmation reply with image to tweet ${originalTweetId}`);
           } else {
             // Fallback: post standalone confirmation if no original tweet ID
-            const confirmationReply = `@${userHandle} ✅ Payment confirmed! ${fuelType} Fuel applied to $${tokenSymbol} 🔥
+            const confirmationReply = `@${userHandle} âœ… Payment confirmed! ${fuelType} Fuel applied to $${tokenSymbol} ðŸ”¥
 
 TX: ${transactionHash.substring(0, 12)}...
 Boost active for 12 hours!
 
-Thanks for using x402 payments on Twitter! 🚀`;
+Thanks for using x402 payments on Twitter! ðŸš€`;
 
             await this.twitterMentionService.twitterService.oauthXService.postTweet(
               this.twitterMentionService.twitterService.dgnOracleUserId,
               confirmationReply
             );
             
-            console.log(`[🛡️ x402] ✅ Posted confirmation tweet to @${userHandle} (no original tweet ID)`);
+            console.log(`[ðŸ›¡ï¸ x402] âœ… Posted confirmation tweet to @${userHandle} (no original tweet ID)`);
           }
         } catch (replyError) {
-          console.error(`[🛡️ x402] ❌ Failed to post confirmation reply:`, replyError.message);
+          console.error(`[ðŸ›¡ï¸ x402] âŒ Failed to post confirmation reply:`, replyError.message);
         }
 
         // Auto-post PUBLIC announcement for high-tier fuels (500x and 1000x)
@@ -6863,9 +6863,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           try {
             const user = { username: userHandle };
             await this.twitterAutoPostService.postFuelAnnouncement(fuelResult.token, fuelType, user);
-            console.log(`[🛡️ x402] ✅ Auto-posted ${fuelType} public announcement`);
+            console.log(`[ðŸ›¡ï¸ x402] âœ… Auto-posted ${fuelType} public announcement`);
           } catch (twitterError) {
-            console.error(`[🛡️ x402] ❌ Failed to auto-post:`, twitterError.message);
+            console.error(`[ðŸ›¡ï¸ x402] âŒ Failed to auto-post:`, twitterError.message);
           }
         }
 
@@ -6878,7 +6878,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Webhook processing error:', error);
+        console.error('[ðŸ›¡ï¸ x402] âŒ Webhook processing error:', error);
         res.status(500).json({ error: 'Webhook processing failed' });
       }
     });
@@ -6888,7 +6888,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const paymentData = req.body;
         
-        console.log('[🧠 x402 AI Router] 🔔 Received AI Router payment webhook:', paymentData);
+        console.log('[ðŸ§  x402 AI Router] ðŸ”” Received AI Router payment webhook:', paymentData);
 
         // Extract payment metadata
         const strategyId = paymentData.metadata?.strategyId;
@@ -6898,14 +6898,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const paymentAmount = paymentData.amount || (strategyType === 'basic' ? 1.20 : 2.00);
 
         if (!strategyId || !strategyType || !userWallet) {
-          console.error('[🧠 x402 AI Router] ❌ Missing required metadata');
+          console.error('[ðŸ§  x402 AI Router] âŒ Missing required metadata');
           return res.status(400).json({ 
             success: false, 
             error: 'Missing required metadata: strategyId, strategyType, userWallet' 
           });
         }
 
-        console.log(`[🧠 x402 AI Router] 💰 Processing payment: ${strategyType} strategy for ${userWallet}`);
+        console.log(`[ðŸ§  x402 AI Router] ðŸ’° Processing payment: ${strategyType} strategy for ${userWallet}`);
 
         // Record earning for AI Router service
         try {
@@ -6920,13 +6920,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
             transactionHash: transactionHash,
             createdAt: new Date().toISOString()
           });
-          console.log(`[🧠 x402 AI Router] ✅ Recorded earning: ${strategyType} strategy - $${paymentAmount} USDC from ${userWallet}`);
+          console.log(`[ðŸ§  x402 AI Router] âœ… Recorded earning: ${strategyType} strategy - $${paymentAmount} USDC from ${userWallet}`);
         } catch (earningError) {
-          console.error(`[🧠 x402 AI Router] ❌ Failed to record earning:`, earningError.message);
+          console.error(`[ðŸ§  x402 AI Router] âŒ Failed to record earning:`, earningError.message);
         }
 
         // Log successful payment
-        console.log(`[🧠 x402 AI Router] ✅ AI Router payment processed successfully`);
+        console.log(`[ðŸ§  x402 AI Router] âœ… AI Router payment processed successfully`);
         console.log(`  - Strategy ID: ${strategyId}`);
         console.log(`  - Strategy Type: ${strategyType}`);
         console.log(`  - User Wallet: ${userWallet}`);
@@ -6941,7 +6941,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🧠 x402 AI Router] ❌ Webhook processing error:', error);
+        console.error('[ðŸ§  x402 AI Router] âŒ Webhook processing error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'AI Router webhook processing failed',
@@ -6954,7 +6954,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contractAddress, fuelType, sessionId } = req.body;
         
-        console.log(`[🛡️ Enhanced Backend] 🔥 Applying ${fuelType} fuel to token: ${contractAddress}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Applying ${fuelType} fuel to token: ${contractAddress}`);
         
         if (!contractAddress || !fuelType) {
           return res.status(400).json({ error: 'Contract address and fuel type are required' });
@@ -6965,7 +6965,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         if (sessionId) {
           user = await this.oauthXService.getUserBySession(sessionId);
           if (user) {
-            console.log(`[🛡️ Enhanced Backend] 🔥 Fuel request from user: ${user.username} (${user.id})`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Fuel request from user: ${user.username} (${user.id})`);
           }
         }
 
@@ -6977,10 +6977,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
             const statsUpdateResult = await this.updateUserStats(user.id, 'tokensFueled', 1);
             
             if (statsUpdateResult === null) {
-              console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensFueled stat for user ${user.username}`);
+              console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update tokensFueled stat for user ${user.username}`);
               // Continue with the response but log the error
             } else {
-              console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensFueled stat for user ${user.username}: ${statsUpdateResult}`);
+              console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated tokensFueled stat for user ${user.username}: ${statsUpdateResult}`);
             }
 
             // Update totalSpent based on fuel type
@@ -6995,9 +6995,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
             if (fuelPrice) {
               const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', fuelPrice);
               if (totalSpentResult === null) {
-                console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+                console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update totalSpent stat for user ${user.username}`);
               } else {
-                console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$${fuelPrice} (total: $${totalSpentResult})`);
+                console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated totalSpent stat for user ${user.username}: +$${fuelPrice} (total: $${totalSpentResult})`);
               }
             }
           }
@@ -7024,19 +7024,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 isGuest: !user, // Flag to identify guest payments
                 createdAt: new Date().toISOString()
               });
-              console.log(`[🛡️ Enhanced Backend] ✅ Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user ? user.username : 'GUEST'}`);
+              console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user ? user.username : 'GUEST'}`);
             } catch (earningError) {
-              console.error(`[🛡️ Enhanced Backend] ❌ Failed to record fuel earning:`, earningError.message);
+              console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to record fuel earning:`, earningError.message);
             }
           }
           
           // Auto-post to @dgnoracle for high-tier fuels (500x and 1000x)
           if (fuelType === '500x' || fuelType === '1000x') {
             try {
-              console.log(`[🛡️ Enhanced Backend] 🐦 Auto-posting ${fuelType} fuel to @dgnoracle...`);
+              console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ¦ Auto-posting ${fuelType} fuel to @dgnoracle...`);
               await this.twitterAutoPostService.postFuelAnnouncement(result.token, fuelType, user);
             } catch (twitterError) {
-              console.error(`[🛡️ Enhanced Backend] ❌ Failed to auto-post to Twitter:`, twitterError.message);
+              console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to auto-post to Twitter:`, twitterError.message);
               // Don't fail the fuel application if Twitter post fails - just log it
             }
           }
@@ -7047,7 +7047,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error applying fuel:', error);
         res.status(500).json({ error: 'Failed to apply fuel' });
       }
     });
@@ -7057,7 +7057,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contractAddress } = req.params;
         
-        console.log(`[🛡️ Enhanced Backend] 🗑️ Removing fuel from token: ${contractAddress}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Removing fuel from token: ${contractAddress}`);
         
         if (!contractAddress) {
           return res.status(400).json({ error: 'Contract address is required' });
@@ -7072,7 +7072,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error removing fuel:', error);
         res.status(500).json({ error: 'Failed to remove fuel from token' });
       }
     });
@@ -7082,7 +7082,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { sessionId, contractAddress, symbol, name, socialLinks } = req.body;
         
-        console.log(`[🛡️ Enhanced Backend] 📝 Token listing request received:`, {
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Token listing request received:`, {
           sessionId: sessionId ? 'present' : 'missing',
           contractAddress,
           symbol,
@@ -7091,7 +7091,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
         if (!sessionId) {
-          console.log(`[🛡️ Enhanced Backend] ❌ No sessionId provided`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âŒ No sessionId provided`);
           return res.status(401).json({ 
             success: false, 
             error: 'Authentication required' 
@@ -7100,33 +7100,33 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) {
-          console.log(`[🛡️ Enhanced Backend] ❌ Invalid session: ${sessionId}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Invalid session: ${sessionId}`);
           return res.status(401).json({
             success: false,
             error: 'Invalid session'
           });
         }
 
-        console.log(`[🛡️ Enhanced Backend] 📝 Token listing request from user: ${user.username} (${user.id})`);
-        console.log(`[🛡️ Enhanced Backend] 📝 Token: ${symbol} (${contractAddress})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Token listing request from user: ${user.username} (${user.id})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Token: ${symbol} (${contractAddress})`);
 
         // Update user stats with enhanced error handling
         const statsUpdateResult = await this.updateUserStats(user.id, 'tokensListed', 1);
         
         if (statsUpdateResult === null) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensListed stat for user ${user.username}`);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update tokensListed stat for user ${user.username}`);
           // Continue with the response but log the error
           // Don't fail the entire request just because stats update failed
         } else {
-          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensListed stat for user ${user.username}: ${statsUpdateResult}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated tokensListed stat for user ${user.username}: ${statsUpdateResult}`);
         }
 
         // Update totalSpent for token listing ($95.00)
         const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', 95.00);
         if (totalSpentResult === null) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update totalSpent stat for user ${user.username}`);
         } else {
-          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$95.00 (total: $${totalSpentResult})`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully updated totalSpent stat for user ${user.username}: +$95.00 (total: $${totalSpentResult})`);
         }
 
         // Record earning for admin panel
@@ -7141,14 +7141,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
             symbol: symbol,
             createdAt: new Date().toISOString()
           });
-          console.log(`[🛡️ Enhanced Backend] ✅ Recorded token listing earning: $95.00 from ${user.username} for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Recorded token listing earning: $95.00 from ${user.username} for ${symbol}`);
         } catch (earningError) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to record token listing earning:`, earningError.message);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to record token listing earning:`, earningError.message);
         }
 
         // Get current user stats for response
         const currentTokensListed = await this.getUserStat(user.id, 'tokensListed');
-        console.log(`[🛡️ Enhanced Backend] 📊 Current tokensListed for ${user.username}: ${currentTokensListed}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Current tokensListed for ${user.username}: ${currentTokensListed}`);
 
         res.json({ 
           success: true, 
@@ -7159,8 +7159,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error processing token listing:', error);
-        console.error('[🛡️ Enhanced Backend] ❌ Error details:', {
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error processing token listing:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error details:', {
           message: error.message,
           stack: error.stack,
           body: req.body
@@ -7194,7 +7194,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Enhanced Backend] 📱 Mobile push subscription request from: ${userAgent?.substring(0, 50)}...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“± Mobile push subscription request from: ${userAgent?.substring(0, 50)}...`);
 
         const result = await this.pushNotificationService.subscribeDevice(subscription);
         
@@ -7208,7 +7208,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error subscribing to push notifications:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error subscribing to push notifications:', error);
         res.status(500).json({ 
           success: false,
           error: 'Failed to subscribe to push notifications' 
@@ -7227,13 +7227,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Enhanced Backend] 📱 Mobile push unsubscription request`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“± Mobile push unsubscription request`);
 
         const result = await this.pushNotificationService.unsubscribeDevice(endpoint);
         res.json(result);
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error unsubscribing from push notifications:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error unsubscribing from push notifications:', error);
         res.status(500).json({ 
           success: false,
           error: 'Failed to unsubscribe from push notifications' 
@@ -7246,7 +7246,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const stats = await this.pushNotificationService.getStats();
         res.json({ success: true, stats });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error getting push notification stats:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error getting push notification stats:', error);
         res.status(500).json({ 
           success: false,
           error: 'Failed to get push notification stats' 
@@ -7259,7 +7259,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { limit = 500, proximityLevel } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens from backend cache (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš¨ Getting bonding tokens from backend cache (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
         
         // Read from backend cache file
         const fs = await import('fs/promises');
@@ -7295,7 +7295,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // Apply limit
           const limitedTokens = filteredTokens.slice(0, parseInt(limit));
           
-          console.log(`✅ [Bonding Tokens] Retrieved ${limitedTokens.length} tokens from backend cache`);
+          console.log(`âœ… [Bonding Tokens] Retrieved ${limitedTokens.length} tokens from backend cache`);
           
           res.json({
             success: true,
@@ -7308,7 +7308,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
           
         } catch (fileError) {
-          console.log(`⚠️ [Bonding Tokens] Backend cache file not found: ${fileError.message}`);
+          console.log(`âš ï¸ [Bonding Tokens] Backend cache file not found: ${fileError.message}`);
           res.json({
             success: true,
             tokens: [],
@@ -7321,7 +7321,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('❌ Failed to get bonding tokens from backend cache:', error.message);
+        console.error('âŒ Failed to get bonding tokens from backend cache:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get bonding tokens from backend cache'
@@ -7334,7 +7334,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
 
-        console.log(`[🛡️ Enhanced Backend] 📊 Getting complete token data for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Getting complete token data for: ${contract}`);
 
         // Get tokens from cache
         const tokens = await this.getTokensFromCache();
@@ -7352,7 +7352,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({ success: true, token: token });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get token error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get token error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get token data' });
       }
     });
@@ -7369,7 +7369,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const chartData = await this.mcapService.getKolCallMcapChart(contract, calledAt);
         res.json({ success: true, data: chartData });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get mcap chart error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get mcap chart error:', error.message);
         res.status(500).json({ error: 'Failed to fetch chart data' });
       }
     });
@@ -7381,7 +7381,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const { limit = 20, supply } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching top holders for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Fetching top holders for: ${contract}`);
         
         const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
         const topHoldersService = new TopHoldersService();
@@ -7395,7 +7395,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           res.status(400).json({ success: false, error: result.error });
         }
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get top holders error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get top holders error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch top holders data' });
       }
     });
@@ -7404,7 +7404,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
         
-        console.log(`[🛡️ Enhanced Backend] 📈 Fetching holder stats for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ˆ Fetching holder stats for: ${contract}`);
         
         const { default: HolderStatsService } = await import('./services/HolderStatsService.js');
         const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
@@ -7428,7 +7428,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           res.status(400).json({ success: false, error: result.error });
         }
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get holder stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get holder stats error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch holder stats data' });
       }
     });
@@ -7438,7 +7438,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const { days = 7 } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching holder timeseries for: ${contract} (${days}d)`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Fetching holder timeseries for: ${contract} (${days}d)`);
         
         const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
         const timeseriesService = new HolderTimeseriesService();
@@ -7465,7 +7465,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get holder timeseries error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get holder timeseries error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch holder timeseries data' });
       }
     });
@@ -7475,7 +7475,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const { supply, force } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🔍 Fetching complete holder insights for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” Fetching complete holder insights for: ${contract}`);
         
         // Import all holder services and cache service
         const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
@@ -7494,7 +7494,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         if (!force) {
           const cachedInsights = await cacheService.getCachedData(contract, 'insights');
           if (cachedInsights) {
-            console.log(`✅ Returning cached holder insights for ${contract}`);
+            console.log(`âœ… Returning cached holder insights for ${contract}`);
             return res.json({ 
               success: true, 
               data: cachedInsights.data,
@@ -7505,7 +7505,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         // Cache miss or force refresh - fetch fresh data
-        console.log(`🔄 Fetching fresh holder insights for ${contract}`);
+        console.log(`ðŸ”„ Fetching fresh holder insights for ${contract}`);
         
         // Fetch top holders first, then use that data for stats calculation
         const topHoldersResult = await topHoldersService.getFormattedTopHolders(contract, totalSupply, 20);
@@ -7551,7 +7551,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           fetchedAt: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get holder insights error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get holder insights error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch holder insights data' });
       }
     });
@@ -7564,7 +7564,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const requestTimeout = setTimeout(() => {
         if (!responseSent && !res.headersSent) {
           responseSent = true;
-          console.error(`⏰ Technical analysis request timeout for ${req.params.contract}`);
+          console.error(`â° Technical analysis request timeout for ${req.params.contract}`);
           res.status(503).json({ 
             success: false, 
             error: 'Technical analysis request timeout - service temporarily unavailable' 
@@ -7576,8 +7576,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const { timeframe = '1D', force = false, chartData: frontendChartData } = req.body;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract} (${timeframe})`);
-        console.log(`[🛡️ Enhanced Backend] 📊 Chart data points: ${frontendChartData ? frontendChartData.length : 0}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Fetching technical analysis for: ${contract} (${timeframe})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Chart data points: ${frontendChartData ? frontendChartData.length : 0}`);
         
         if (!contract) {
           clearTimeout(requestTimeout);
@@ -7599,18 +7599,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
         if (frontendChartData) {
           try {
             chartData = frontendChartData; // Already parsed from JSON body
-            console.log(`📊 Using frontend chart data: ${chartData.length} points for pattern detection`);
+            console.log(`ðŸ“Š Using frontend chart data: ${chartData.length} points for pattern detection`);
           } catch (error) {
-            console.log(`⚠️ Failed to parse frontend chart data: ${error.message}`);
+            console.log(`âš ï¸ Failed to parse frontend chart data: ${error.message}`);
           }
         }
         
         if (!chartData && timeframe !== '1D') {
           try {
             chartData = await this.hybridPriceService.getPriceChart(contract, timeframe, 100);
-            console.log(`📊 Fetched backend chart data: ${chartData.length} points`);
+            console.log(`ðŸ“Š Fetched backend chart data: ${chartData.length} points`);
           } catch (error) {
-            console.log(`⚠️ Could not fetch chart data for ${timeframe}, using default: ${error.message}`);
+            console.log(`âš ï¸ Could not fetch chart data for ${timeframe}, using default: ${error.message}`);
           }
         }
         
@@ -7627,7 +7627,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         }
         
-        console.log(`✅ Technical analysis completed for ${contract}`);
+        console.log(`âœ… Technical analysis completed for ${contract}`);
         clearTimeout(requestTimeout);
         if (!responseSent) {
           responseSent = true;
@@ -7636,7 +7636,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
       } catch (error) {
         clearTimeout(requestTimeout);
-        console.error(`❌ Technical analysis error for ${req.params.contract}:`, error);
+        console.error(`âŒ Technical analysis error for ${req.params.contract}:`, error);
         
         // Don't send response if timeout already sent one
         if (!responseSent && !res.headersSent) {
@@ -7654,7 +7654,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching token analytics for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Fetching token analytics for: ${contract}`);
         
         if (!contract) {
           return res.status(400).json({ 
@@ -7670,7 +7670,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const analytics = await techAnalysisService.getMoralisTokenAnalytics(contract);
           res.json({ success: true, data: analytics });
         } catch (error) {
-          console.error(`❌ Token analytics error for ${contract}:`, error);
+          console.error(`âŒ Token analytics error for ${contract}:`, error);
           res.status(500).json({
             success: false,
             error: error.message || 'Failed to fetch token analytics'
@@ -7678,7 +7678,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error(`❌ Token analytics endpoint error:`, error);
+        console.error(`âŒ Token analytics endpoint error:`, error);
         res.status(500).json({
           success: false,
           error: error.message || 'Internal server error'
@@ -7689,7 +7689,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Holder cache management endpoints
     this.app.get('/api/tokens/holders/cache/stats', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 📊 Getting holder cache stats');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Getting holder cache stats');
         
         const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
         const cacheService = new HolderCacheService();
@@ -7697,7 +7697,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const stats = await cacheService.getCacheStats();
         res.json({ success: true, data: stats });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get cache stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get cache stats error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get cache stats' });
       }
     });
@@ -7705,7 +7705,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.delete('/api/tokens/:contract/holders/cache', async (req, res) => {
       try {
         const { contract } = req.params;
-        console.log(`[🛡️ Enhanced Backend] 🗑️ Clearing holder cache for: ${contract}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Clearing holder cache for: ${contract}`);
         
         const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
         const cacheService = new HolderCacheService();
@@ -7713,14 +7713,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const deletedCount = await cacheService.clearTokenCache(contract);
         res.json({ success: true, deletedFiles: deletedCount });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Clear token cache error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Clear token cache error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to clear token cache' });
       }
     });
 
     this.app.delete('/api/tokens/holders/cache/expired', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🗑️ Clearing expired holder cache');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Clearing expired holder cache');
         
         const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
         const cacheService = new HolderCacheService();
@@ -7728,7 +7728,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const deletedCount = await cacheService.clearExpiredCache();
         res.json({ success: true, deletedFiles: deletedCount });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Clear expired cache error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Clear expired cache error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to clear expired cache' });
       }
     });
@@ -7742,7 +7742,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ error: 'Symbol and name are required' });
         }
         
-        console.log(`[🛡️ Enhanced Backend] 💰 Adding paid token: ${symbol} (${name})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ’° Adding paid token: ${symbol} (${name})`);
         
         await this.tokenProcessor.addPaidToken({
           symbol: symbol.toUpperCase(),
@@ -7755,7 +7755,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({ success: true, message: 'Paid token added to processing queue' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error adding paid token:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error adding paid token:', error);
         res.status(500).json({ error: 'Failed to add paid token' });
       }
     });
@@ -7771,7 +7771,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         // Validate payment if payment data is provided
         if (paymentData && !paymentData.validated) {
-          console.log('🔐 Validating payment data...');
+          console.log('ðŸ” Validating payment data...');
 
           const validationResult = await this.helioService.validatePayment(
             paymentData.paymentId,
@@ -7784,12 +7784,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
             });
           }
 
-          console.log('✅ Payment validation successful');
+          console.log('âœ… Payment validation successful');
         } else if (!paymentData) {
-          console.log('⚠️ No payment data provided - this may be a test or admin operation');
+          console.log('âš ï¸ No payment data provided - this may be a test or admin operation');
         }
         
-        console.log(`[🛡️ Enhanced Backend] 💰 Adding paid token with socials: ${tokenData.symbol} (${tokenData.name})`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ’° Adding paid token with socials: ${tokenData.symbol} (${tokenData.name})`);
         
         // Process paid token IMMEDIATELY in parallel
         const processedToken = await this.tokenProcessor.addPaidToken({
@@ -7801,7 +7801,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           paymentData: paymentData
         });
         
-        console.log(`✅ Paid token ${processedToken.symbol} processed immediately!`);
+        console.log(`âœ… Paid token ${processedToken.symbol} processed immediately!`);
         
         // If social links are provided, save them
         if (socialLinks && Object.values(socialLinks).some(link => link && link.trim())) {
@@ -7819,9 +7819,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
               paymentData
             );
             
-            console.log(`✅ Social links saved for ${tokenData.symbol}`);
+            console.log(`âœ… Social links saved for ${tokenData.symbol}`);
           } catch (socialError) {
-            console.error('⚠️ Failed to save social links (token still added):', socialError.message);
+            console.error('âš ï¸ Failed to save social links (token still added):', socialError.message);
           }
         }
         
@@ -7845,7 +7845,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error adding paid token:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error adding paid token:', error);
         res.status(500).json({ error: 'Failed to add paid token' });
       }
     });
@@ -7863,13 +7863,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.json({ success: false, message: 'Processing already in progress' });
         }
         
-        console.log('[🛡️ Enhanced Backend] 🚀 Manual processing start requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Manual processing start requested');
         await this.tokenProcessor.startProcessing();
         
         res.json({ success: true, message: 'Processing started' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error starting processing:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error starting processing:', error);
         res.status(500).json({ error: 'Failed to start processing' });
       }
     });
@@ -7877,13 +7877,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Stop processing
     this.app.post('/api/processing/stop', (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🛑 Manual processing stop requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ›‘ Manual processing stop requested');
         this.tokenProcessor.stopProcessing();
         
         res.json({ success: true, message: 'Processing stopped' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error stopping processing:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error stopping processing:', error);
         res.status(500).json({ error: 'Failed to stop processing' });
       }
     });
@@ -7891,7 +7891,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Force refresh all tokens (preserves existing)
     this.app.post('/api/tokens/refresh-all', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔄 Force refresh all tokens requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Force refresh all tokens requested');
         
         // Preserve existing tokens and add new ones
         await this.preserveCacheAndRefresh();
@@ -7899,7 +7899,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({ success: true, message: 'Full refresh started - existing tokens preserved' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error refreshing tokens:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error refreshing tokens:', error);
         res.status(500).json({ error: 'Failed to refresh tokens' });
       }
     });
@@ -7907,13 +7907,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Clear cache completely (for debugging - use with caution!)
     this.app.post('/api/tokens/clear-cache', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🚨 CACHE CLEAR REQUESTED - INVESTIGATING WHO IS CALLING THIS!');
-        console.log('[🛡️ Enhanced Backend] 📍 Request IP:', req.ip || req.connection.remoteAddress);
-        console.log('[🛡️ Enhanced Backend] 📍 User Agent:', req.get('User-Agent'));
-        console.log('[🛡️ Enhanced Backend] 📍 Referer:', req.get('Referer'));
-        console.log('[🛡️ Enhanced Backend] 📍 Request Headers:', JSON.stringify(req.headers, null, 2));
-        console.log('[🛡️ Enhanced Backend] 📍 Request Body:', JSON.stringify(req.body, null, 2));
-        console.log('[🛡️ Enhanced Backend] 🗑️ Complete cache clear requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš¨ CACHE CLEAR REQUESTED - INVESTIGATING WHO IS CALLING THIS!');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Request IP:', req.ip || req.connection.remoteAddress);
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ User Agent:', req.get('User-Agent'));
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Referer:', req.get('Referer'));
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Request Headers:', JSON.stringify(req.headers, null, 2));
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Request Body:', JSON.stringify(req.body, null, 2));
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Complete cache clear requested');
         
         // Clear cache and restart processing
         await this.clearCache();
@@ -7922,13 +7922,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({ success: true, message: 'Cache cleared and processing restarted' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error clearing cache:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error clearing cache:', error);
         res.status(500).json({ error: 'Failed to clear cache' });
       }
     });
 
     // ========================================
-    // 🛠️ ADMIN API DASHBOARD ENDPOINTS
+    // ðŸ› ï¸ ADMIN API DASHBOARD ENDPOINTS
     // ========================================
 
     // Admin: Add token for FREE (bypass payment) - CONTRACT ADDRESS ONLY
@@ -7941,7 +7941,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ error: 'Contract address is required' });
         }
 
-        console.log(`[🛡️ Admin] 🆓 Adding FREE token by CA: ${contractAddress}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ†“ Adding FREE token by CA: ${contractAddress}`);
 
         // Use provided symbol/name or let Jupiter API fill them in
         const tokenData = {
@@ -7952,7 +7952,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           isAdmin: true
         };
 
-        console.log(`[🛡️ Admin] 📝 Using data: ${tokenData.symbol} (${tokenData.name}) - CA: ${tokenData.contractAddress}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“ Using data: ${tokenData.symbol} (${tokenData.name}) - CA: ${tokenData.contractAddress}`);
 
         // Process admin token IMMEDIATELY (same as paid) - will fetch from Jupiter
         const processedToken = await this.tokenProcessor.addPaidToken(tokenData);
@@ -7965,7 +7965,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             amount: 0,
             currency: 'FREE'
           });
-          console.log(`[🛡️ Admin] 📱 Added social links for ${processedToken.symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ“± Added social links for ${processedToken.symbol}`);
         }
         
         res.json({ 
@@ -7987,7 +7987,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error adding free token:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error adding free token:', error);
         res.status(500).json({ error: 'Failed to add free token' });
       }
     });
@@ -7997,7 +7997,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { symbol } = req.params;
         
-        console.log(`[🛡️ Admin] 🗑️ Deleting token: ${symbol}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ—‘ï¸ Deleting token: ${symbol}`);
         
         // Remove from tokens cache
         const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -8012,12 +8012,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(404).json({ error: `Token ${symbol} not found` });
         }
         
-        // 🛡️ ATOMIC WRITE: Save updated cache
+        // ðŸ›¡ï¸ ATOMIC WRITE: Save updated cache
         const tempPath = cachePath + '.tmp';
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
-          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          // ðŸš¨ CRITICAL FIX: Ensure cache directory exists before atomic write
           const cacheDir = path.dirname(cachePath);
           await fs.mkdir(cacheDir, { recursive: true });
           
@@ -8044,9 +8044,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           keysToDelete.forEach(key => delete twitterData[key]);
           
           await fs.writeFile(twitterCachePath, JSON.stringify(twitterData, null, 2));
-          console.log(`[🛡️ Admin] 🐦 Removed Twitter data for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ¦ Removed Twitter data for ${symbol}`);
         } catch (twitterError) {
-          console.log(`[🛡️ Admin] ⚠️ No Twitter data found for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ No Twitter data found for ${symbol}`);
         }
         
         // Remove from socials cache
@@ -8057,10 +8057,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
           if (socialsData[symbol.toUpperCase()]) {
             delete socialsData[symbol.toUpperCase()];
             await fs.writeFile(socialsPath, JSON.stringify(socialsData, null, 2));
-            console.log(`[🛡️ Admin] 📱 Removed social links for ${symbol}`);
+            console.log(`[ðŸ›¡ï¸ Admin] ðŸ“± Removed social links for ${symbol}`);
           }
         } catch (socialsError) {
-          console.log(`[🛡️ Admin] ⚠️ No social data found for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ No social data found for ${symbol}`);
         }
         
         res.json({ 
@@ -8070,7 +8070,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error deleting token:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error deleting token:', error);
         res.status(500).json({ error: 'Failed to delete token' });
       }
     });
@@ -8080,7 +8080,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contractAddress } = req.params;
         
-        console.log(`[🛡️ Admin] 🗑️ Deleting token by contract: ${contractAddress}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ—‘ï¸ Deleting token by contract: ${contractAddress}`);
         
         // Remove from tokens cache
         const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -8098,12 +8098,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const symbol = tokenToDelete.symbol;
         const filteredTokens = tokens.filter(t => t.contractAddress !== contractAddress);
         
-        // 🛡️ ATOMIC WRITE: Save updated cache
+        // ðŸ›¡ï¸ ATOMIC WRITE: Save updated cache
         const tempPath = cachePath + '.tmp';
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
-          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          // ðŸš¨ CRITICAL FIX: Ensure cache directory exists before atomic write
           const cacheDir = path.dirname(cachePath);
           await fs.mkdir(cacheDir, { recursive: true });
           
@@ -8130,9 +8130,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           keysToDelete.forEach(key => delete twitterData[key]);
           
           await fs.writeFile(twitterCachePath, JSON.stringify(twitterData, null, 2));
-          console.log(`[🛡️ Admin] 🐦 Removed Twitter data for ${symbol} (${contractAddress})`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ¦ Removed Twitter data for ${symbol} (${contractAddress})`);
         } catch (twitterError) {
-          console.log(`[🛡️ Admin] ⚠️ No Twitter data found for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ No Twitter data found for ${symbol}`);
         }
         
         // Remove from socials cache
@@ -8143,13 +8143,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
           if (socialsData[symbol.toUpperCase()]) {
             delete socialsData[symbol.toUpperCase()];
             await fs.writeFile(socialsPath, JSON.stringify(socialsData, null, 2));
-            console.log(`[🛡️ Admin] 📱 Removed social links for ${symbol} (${contractAddress})`);
+            console.log(`[ðŸ›¡ï¸ Admin] ðŸ“± Removed social links for ${symbol} (${contractAddress})`);
           }
         } catch (socialsError) {
-          console.log(`[🛡️ Admin] ⚠️ No social data found for ${symbol}`);
+          console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ No social data found for ${symbol}`);
         }
         
-        console.log(`[🛡️ Admin] ✅ Successfully deleted token: ${symbol} (${contractAddress})`);
+        console.log(`[ðŸ›¡ï¸ Admin] âœ… Successfully deleted token: ${symbol} (${contractAddress})`);
         
         res.json({ 
           success: true, 
@@ -8163,7 +8163,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error deleting token by contract:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error deleting token by contract:', error);
         res.status(500).json({ error: 'Failed to delete token by contract address' });
       }
     });
@@ -8173,13 +8173,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { q, limit = 50 } = req.query;
         
-        console.log(`[🛡️ Admin] 🔍 Searching tokens: "${q}"`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ” Searching tokens: "${q}"`);
         
         const tokens = await this.getTokensFromCache();
         
         // Apply enhanced deduplication to ensure no duplicates in search results
         const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
-        console.log(`[🛡️ Admin] 🔄 Deduplicated search pool: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ”„ Deduplicated search pool: ${tokens.length} â†’ ${deduplicatedTokens.length} tokens`);
         
         let results = deduplicatedTokens;
         
@@ -8221,7 +8221,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error searching tokens:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error searching tokens:', error);
         res.status(500).json({ error: 'Failed to search tokens' });
       }
     });
@@ -8235,7 +8235,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ error: 'Symbols array is required' });
         }
         
-        console.log(`[🛡️ Admin] ⛽ Fueling tokens: ${symbols.join(', ')}`);
+        console.log(`[ðŸ›¡ï¸ Admin] â›½ Fueling tokens: ${symbols.join(', ')}`);
         
         const results = [];
         
@@ -8294,7 +8294,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error fueling tokens:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error fueling tokens:', error);
         res.status(500).json({ error: 'Failed to fuel tokens' });
       }
     });
@@ -8303,7 +8303,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.post('/api/admin/tokens/:symbol/refresh-twitter', adminApiAuth, async (req, res) => {
       try {
         const { symbol } = req.params; // may be a symbol or a contract address
-        console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for identifier: ${symbol}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ¦ Manual Twitter refresh for identifier: ${symbol}`);
         
         // Load raw tokens from cache (not the filtered/merged ones)
         const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -8359,7 +8359,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                      null
         } : null;
         
-        console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e6).toFixed(2) : '?'}M`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“Š Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e6).toFixed(2) : '?'}M`);
         
         // Force refresh Twitter data with admin bypass (ignores 5-day cooldown)
         const lookupSymbol = token.symbol || upperSym;
@@ -8369,7 +8369,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         token.twitterData = twitterData;
         token.twitterTimestamp = new Date().toISOString();
         
-        // 🚨 CRITICAL: Load social links for community score bonus
+        // ðŸš¨ CRITICAL: Load social links for community score bonus
         try {
           const { default: UpdateTokenService } = await import('./updateTokenService.js');
           const updateService = new UpdateTokenService();
@@ -8380,12 +8380,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
             const socialCount = Object.keys(token.socials).filter(key => 
               token.socials[key] && token.socials[key] !== 'not_found' && token.socials[key] !== ''
             ).length;
-            console.log(`[🛡️ Admin] 🌐 Loaded ${socialCount} social links for ${token.symbol}:`, Object.keys(token.socials).filter(k => token.socials[k] && token.socials[k] !== 'not_found'));
+            console.log(`[ðŸ›¡ï¸ Admin] ðŸŒ Loaded ${socialCount} social links for ${token.symbol}:`, Object.keys(token.socials).filter(k => token.socials[k] && token.socials[k] !== 'not_found'));
           } else {
-            console.log(`[🛡️ Admin] ⚠️ No social links found for ${token.symbol}`);
+            console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ No social links found for ${token.symbol}`);
           }
         } catch (error) {
-          console.log(`[🛡️ Admin] ❌ Could not load social links for ${token.symbol}:`, error.message);
+          console.log(`[ðŸ›¡ï¸ Admin] âŒ Could not load social links for ${token.symbol}:`, error.message);
         }
         
         // Recalculate community health score with new Twitter data using ENHANCED method
@@ -8418,7 +8418,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
               engagement: twitterData.engagement,
               officialHandle: twitterData.officialHandle,
               recentMentions: twitterData.recentMentions?.length || 0,
-              projection: metadata ? `${twitterData.mentions} sample → ${twitterData.displayMentions} projected` : 'no metadata'
+              projection: metadata ? `${twitterData.mentions} sample â†’ ${twitterData.displayMentions} projected` : 'no metadata'
             },
             communityScore: token.communityHealthScore,
             overallScore: token.overallScore
@@ -8426,7 +8426,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error refreshing Twitter data:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error refreshing Twitter data:', error);
         res.status(500).json({ error: 'Failed to refresh Twitter data' });
       }
     });
@@ -8464,7 +8464,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Backend] ❌ Twitter search error:', error);
+        console.error('[ðŸ›¡ï¸ Backend] âŒ Twitter search error:', error);
         res.status(500).json({
           success: false,
           error: 'Twitter search failed',
@@ -8499,7 +8499,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Backend] ❌ User tweets error:', error);
+        console.error('[ðŸ›¡ï¸ Backend] âŒ User tweets error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get user tweets',
@@ -8534,7 +8534,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Backend] ❌ Mentions search error:', error);
+        console.error('[ðŸ›¡ï¸ Backend] âŒ Mentions search error:', error);
         res.status(500).json({
           success: false,
           error: 'Mentions search failed',
@@ -8594,7 +8594,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting Twitter status:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting Twitter status:', error);
         res.status(500).json({ error: 'Failed to get Twitter status' });
       }
     });
@@ -8620,7 +8620,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // If queue empty, finish
         if (!job.queue || job.queue.length === 0) {
           job.running = false;
-          console.log('[🛡️ Admin] ✅ Twitter refresh queue completed');
+          console.log('[ðŸ›¡ï¸ Admin] âœ… Twitter refresh queue completed');
           return;
         }
 
@@ -8655,7 +8655,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const needsRefresh = !token || this.tokenProcessor.shouldRefreshTwitterData(token);
 
           if (!needsRefresh) {
-            console.log(`[🛡️ Admin] ⏰ Skipping ${item.symbol} (within 24h cooldown)`);
+            console.log(`[ðŸ›¡ï¸ Admin] â° Skipping ${item.symbol} (within 24h cooldown)`);
             job.skipped = (job.skipped || 0) + 1;
             job.processed++;
             // Schedule next item processing
@@ -8693,9 +8693,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
             const dataFreshness = twitterData._dataFreshness || 'unknown';
             if (dataFreshness === 'fresh') {
               token.twitterTimestamp = new Date().toISOString();
-              console.log(`[🛡️ Admin] ✅ Fresh data for ${item.symbol} (72h cooldown applied)`);
+              console.log(`[ðŸ›¡ï¸ Admin] âœ… Fresh data for ${item.symbol} (72h cooldown applied)`);
             } else {
-              console.log(`[🛡️ Admin] ⚠️ ${dataFreshness.replace('_', ' ').toUpperCase()} data for ${item.symbol} (no cooldown applied)`);
+              console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ ${dataFreshness.replace('_', ' ').toUpperCase()} data for ${item.symbol} (no cooldown applied)`);
             }
           }
 
@@ -8721,7 +8721,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           } catch (err) {
           job.errors++;
           job.lastError = err.message;
-          console.warn(`[🛡️ Admin] ⚠️ Refresh failed for ${item.symbol}: ${err.message}`);
+          console.warn(`[ðŸ›¡ï¸ Admin] âš ï¸ Refresh failed for ${item.symbol}: ${err.message}`);
         }
 
         job.processed++;
@@ -8740,18 +8740,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // After every 50 tokens, cool down 5 minutes to leave headroom
         if (job.processed % 50 === 0) {
           delayMs = 5 * 60 * 1000; // 5 minutes
-          console.log(`[🛡️ Admin] 🛑 Cooldown: 5-minute break after ${job.processed} tokens (rate limit protection)`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ›‘ Cooldown: 5-minute break after ${job.processed} tokens (rate limit protection)`);
         }
         // After every 10 tokens (but not 50), short 60s cooldown to smooth bursts
         else if (job.processed % 10 === 0) {
           delayMs = 60 * 1000; // 60 seconds
-          console.log(`[🛡️ Admin] ⏸️ Short cooldown: 60-second break after ${job.processed} tokens`);
+          console.log(`[ðŸ›¡ï¸ Admin] â¸ï¸ Short cooldown: 60-second break after ${job.processed} tokens`);
         }
 
         setTimeout(this._runTwitterRefreshWorker, delayMs);
 
       } catch (err) {
-        console.error('[🛡️ Admin] Worker error:', err);
+        console.error('[ðŸ›¡ï¸ Admin] Worker error:', err);
         setTimeout(this._runTwitterRefreshWorker, 5000);
       }
     });
@@ -8772,7 +8772,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         tokens.forEach((t, idx) => {
           if (t?.symbol && t?.name) {
-            // 🚨 QUALITY FILTER: Check if token meets quality criteria
+            // ðŸš¨ QUALITY FILTER: Check if token meets quality criteria
             const hasLaunchpad = t.jupiterData?.launchpad && t.jupiterData.launchpad !== '';
             const hasOrganicScore = t.jupiterData?.organicScore && t.jupiterData.organicScore > 0;
             const hasGraduatedAt = t.jupiterData?.graduatedAt && t.jupiterData.graduatedAt !== '';
@@ -8789,7 +8789,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         // Remove low-quality tokens from cache if any were found
         if (tokensToRemove.length > 0) {
-          console.log(`[🛡️ Enhanced Backend] 🗑️ Twitter refresh removing ${tokensToRemove.length} low-quality tokens from cache`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Twitter refresh removing ${tokensToRemove.length} low-quality tokens from cache`);
           
           const tokensToKeep = tokens.filter(token => 
             !tokensToRemove.some(removed => removed.contractAddress === token.contractAddress)
@@ -8797,7 +8797,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           
           // Save the cleaned cache
           await this.saveTokensToCache(tokensToKeep);
-          console.log(`[🛡️ Enhanced Backend] ✅ Cache cleaned: ${tokens.length} → ${tokensToKeep.length} tokens`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Cache cleaned: ${tokens.length} â†’ ${tokensToKeep.length} tokens`);
           
           // Update the tokens array for the rest of the function
           tokens.splice(0, tokens.length, ...tokensToKeep);
@@ -8817,12 +8817,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           lastError: null
         };
 
-        console.log(`[🛡️ Admin] 🐦 Queued refresh for ${queue.length} tokens`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ¦ Queued refresh for ${queue.length} tokens`);
         setTimeout(this._runTwitterRefreshWorker, 250);
 
         res.json({ success: true, message: 'Twitter refresh started', total: queue.length });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Start queue failed:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Start queue failed:', error);
         res.status(500).json({ success: false, error: 'Failed to start refresh' });
       }
     });
@@ -8904,7 +8904,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting Twitter usage:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting Twitter usage:', error);
         res.status(500).json({ error: 'Failed to get Twitter usage stats' });
       }
     });
@@ -8919,7 +8919,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         const result = await socialService.twitterApiManager.resetMonthlyCounter();
         
-        console.log('[🛡️ Admin] 🔄 Twitter API monthly counter reset by admin');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ”„ Twitter API monthly counter reset by admin');
         
         res.json({
           success: true,
@@ -8928,7 +8928,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error resetting Twitter counter:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error resetting Twitter counter:', error);
         res.status(500).json({ error: 'Failed to reset Twitter counter' });
       }
     });
@@ -8948,7 +8948,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error getting AI prediction stats:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error getting AI prediction stats:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get AI prediction statistics',
@@ -8970,7 +8970,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error cleaning AI prediction cache:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error cleaning AI prediction cache:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to clean AI prediction cache',
@@ -8988,9 +8988,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Clear the cache file
         try {
           await fs.unlink(this.aiHypePrediction.predictionCacheFile);
-          console.log('[🛡️ Enhanced Backend] 🗑️ Cleared AI prediction cache file');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Cleared AI prediction cache file');
         } catch (fileError) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ Cache file not found or already cleared');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Cache file not found or already cleared');
         }
         
         const stats = this.aiHypePrediction.getCacheStats();
@@ -9002,7 +9002,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error clearing AI prediction cache:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error clearing AI prediction cache:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to clear AI prediction cache',
@@ -9032,7 +9032,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error controlling emergency mode:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error controlling emergency mode:', error);
         res.status(500).json({ error: 'Failed to control emergency mode' });
       }
     });
@@ -9040,7 +9040,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Admin: Recalculate all token scores (no API calls)
     this.app.post('/api/admin/recalculate-all-scores', adminApiAuth, async (req, res) => {
       try {
-        console.log('[🛡️ Admin] 🧮 RECALCULATING ALL TOKEN SCORES...');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ§® RECALCULATING ALL TOKEN SCORES...');
         
         // Load tokens from cache
         const tokensPath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
@@ -9057,7 +9057,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(404).json({ error: 'No tokens found in cache' });
         }
         
-        console.log(`[🛡️ Admin] 📊 Found ${rawTokens.length} tokens to recalculate`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“Š Found ${rawTokens.length} tokens to recalculate`);
         
         let successCount = 0;
         let errorCount = 0;
@@ -9083,26 +9083,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
               
               // Log progress every 50 tokens
               if ((i + 1) % 50 === 0) {
-                console.log(`[🛡️ Admin] 📈 Progress: ${i + 1}/${rawTokens.length} tokens processed`);
+                console.log(`[ðŸ›¡ï¸ Admin] ðŸ“ˆ Progress: ${i + 1}/${rawTokens.length} tokens processed`);
               }
             } else {
-              console.log(`[🛡️ Admin] ⚠️ Skipping ${token.symbol} - missing Jupiter data`);
+              console.log(`[ðŸ›¡ï¸ Admin] âš ï¸ Skipping ${token.symbol} - missing Jupiter data`);
             }
             
           } catch (error) {
             errorCount++;
             const errorMsg = `${token.symbol}: ${error.message}`;
             errors.push(errorMsg);
-            console.error(`[🛡️ Admin] ❌ Error recalculating ${token.symbol}:`, error.message);
+            console.error(`[ðŸ›¡ï¸ Admin] âŒ Error recalculating ${token.symbol}:`, error.message);
           }
         }
         
         // Save updated tokens back to cache
         try {
           await fs.writeFile(tokensPath, JSON.stringify(rawTokens, null, 2));
-          console.log('[🛡️ Admin] 💾 Updated token cache saved successfully');
+          console.log('[ðŸ›¡ï¸ Admin] ðŸ’¾ Updated token cache saved successfully');
         } catch (saveError) {
-          console.error('[🛡️ Admin] ❌ Error saving updated cache:', saveError);
+          console.error('[ðŸ›¡ï¸ Admin] âŒ Error saving updated cache:', saveError);
           return res.status(500).json({ error: 'Failed to save updated scores' });
         }
         
@@ -9118,12 +9118,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           errors: errors.slice(0, 10) // Show first 10 errors if any
         };
         
-        console.log(`[🛡️ Admin] ✅ RECALCULATION COMPLETE: ${successCount}/${rawTokens.length} successful`);
+        console.log(`[ðŸ›¡ï¸ Admin] âœ… RECALCULATION COMPLETE: ${successCount}/${rawTokens.length} successful`);
         
         res.json(summary);
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error during score recalculation:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error during score recalculation:', error);
         res.status(500).json({ error: 'Failed to recalculate scores' });
       }
     });
@@ -9131,7 +9131,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Admin: Restart backend
     this.app.post('/api/admin/restart/backend', adminApiAuth, (req, res) => {
       try {
-        console.log('[🛡️ Admin] 🔄 BACKEND RESTART REQUESTED');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ”„ BACKEND RESTART REQUESTED');
         
         res.json({
           success: true,
@@ -9140,12 +9140,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         // Restart after sending response
         setTimeout(() => {
-          console.log('[🛡️ Admin] 🚨 RESTARTING BACKEND NOW...');
+          console.log('[ðŸ›¡ï¸ Admin] ðŸš¨ RESTARTING BACKEND NOW...');
           process.exit(0); // Exit process - PM2 or nodemon will restart it
         }, 3000);
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error restarting backend:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error restarting backend:', error);
         res.status(500).json({ error: 'Failed to restart backend' });
       }
     });
@@ -9153,7 +9153,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Admin: Restart frontend (placeholder - requires frontend implementation)
     this.app.post('/api/admin/restart/frontend', adminApiAuth, (req, res) => {
       try {
-        console.log('[🛡️ Admin] 🔄 FRONTEND RESTART REQUESTED');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ”„ FRONTEND RESTART REQUESTED');
         
         // This would need to be implemented based on your frontend setup
         // For now, just return instructions
@@ -9168,7 +9168,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error restarting frontend:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error restarting frontend:', error);
         res.status(500).json({ error: 'Failed to restart frontend' });
       }
     });
@@ -9196,7 +9196,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting recent logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting recent logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get recent logs',
@@ -9408,7 +9408,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting error logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting error logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get error logs',
@@ -9435,7 +9435,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting system logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting system logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get system logs',
@@ -9462,7 +9462,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting processing logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting processing logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get processing logs',
@@ -9489,7 +9489,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting database logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting database logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get database logs',
@@ -9524,7 +9524,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error exporting logs:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error exporting logs:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to export logs',
@@ -9580,7 +9580,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contractAddress } = req.params;
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
 
-        console.log(`🧪 Testing Jupiter API with contract: ${contractAddress}`);
+        console.log(`ðŸ§ª Testing Jupiter API with contract: ${contractAddress}`);
         const tokenData = await jupiterApiService.getTokenDetails(contractAddress);
 
         if (tokenData) {
@@ -9599,7 +9599,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('❌ Jupiter API test error:', error);
+        console.error('âŒ Jupiter API test error:', error);
         res.status(500).json({
           success: false,
           contractAddress: req.params.contractAddress,
@@ -9612,7 +9612,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Clear Jupiter cache endpoint
     this.app.post('/api/jupiter/clear-cache', async (req, res) => {
       try {
-        console.log('🧹 Clearing Jupiter API cache...');
+        console.log('ðŸ§¹ Clearing Jupiter API cache...');
         this.jupiterService.clearCache();
         res.json({
           success: true,
@@ -9620,7 +9620,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Error clearing Jupiter cache:', error);
+        console.error('âŒ Error clearing Jupiter cache:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -9631,7 +9631,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
     this.app.post('/api/admin/jupiter/refresh-all', adminApiAuth, async (req, res) => {
       try {
-        console.log('🔄 Starting Jupiter refresh for all tokens (with batch processing)...');
+        console.log('ðŸ”„ Starting Jupiter refresh for all tokens (with batch processing)...');
 
         const tokens = await this.getTokensFromCache();
         const paidTokens = tokens.filter(token => token.isPaid);
@@ -9645,7 +9645,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🚀 Processing ${paidTokens.length} paid tokens in batches of up to 100...`);
+        console.log(`ðŸš€ Processing ${paidTokens.length} paid tokens in batches of up to 100...`);
 
         // Process tokens in batches of 100 (Jupiter's limit)
         const batchSize = 100;
@@ -9659,7 +9659,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const contractAddresses = batchTokens.map(t => t.contractAddress).filter(addr => addr);
           batchCount++;
 
-          console.log(`🔄 Processing batch ${batchCount}/${Math.ceil(paidTokens.length/batchSize)}: ${contractAddresses.length} contracts`);
+          console.log(`ðŸ”„ Processing batch ${batchCount}/${Math.ceil(paidTokens.length/batchSize)}: ${contractAddresses.length} contracts`);
 
           try {
             // Use batch Jupiter API call
@@ -9675,7 +9675,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 let updatedToken;
 
                 if (jupiterData) {
-                  console.log(`✅ Jupiter data found for ${token.symbol}`);
+                  console.log(`âœ… Jupiter data found for ${token.symbol}`);
                   // Update token with Jupiter data
                   updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
                     ...token,
@@ -9688,7 +9688,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                     updatedToken.hasJupiterData = true;
                   }
                 } else {
-                  console.log(`⚠️ No Jupiter data for ${token.symbol}`);
+                  console.log(`âš ï¸ No Jupiter data for ${token.symbol}`);
                   // Still process token but mark as no Jupiter data
                   updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
                     ...token,
@@ -9705,7 +9705,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                       ...updatedToken,
                       jupiterTimestamp: new Date().toISOString() // Track when Jupiter data was updated
                     };
-                    console.log(`💾 Updated ${token.symbol} in cache with fresh Jupiter data`);
+                    console.log(`ðŸ’¾ Updated ${token.symbol} in cache with fresh Jupiter data`);
                   }
                   
                   results.push({
@@ -9726,7 +9726,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 }
 
               } catch (tokenError) {
-                console.error(`❌ Error processing ${token.symbol}:`, tokenError.message);
+                console.error(`âŒ Error processing ${token.symbol}:`, tokenError.message);
                 results.push({
                   symbol: token.symbol,
                   contractAddress: token.contractAddress,
@@ -9739,12 +9739,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
             // Rate limiting delay between batches (3 seconds)
             if (i + batchSize < paidTokens.length) {
-              console.log(`⏱️ Waiting 3 seconds before next batch...`);
+              console.log(`â±ï¸ Waiting 3 seconds before next batch...`);
               await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
           } catch (batchError) {
-            console.error(`❌ Error processing batch ${batchCount}:`, batchError.message);
+            console.error(`âŒ Error processing batch ${batchCount}:`, batchError.message);
 
             // Mark all tokens in this batch as failed
             for (const token of batchTokens) {
@@ -9775,7 +9775,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Jupiter refresh all error:', error);
+        console.error('âŒ Jupiter refresh all error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -9788,7 +9788,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contractAddress } = req.params;
 
-        console.log(`🔄 Refreshing Jupiter data for contract: ${contractAddress}`);
+        console.log(`ðŸ”„ Refreshing Jupiter data for contract: ${contractAddress}`);
 
         // Find the token in cache
         const tokens = await this.getTokensFromCache();
@@ -9839,7 +9839,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
       } catch (error) {
-        console.error('❌ Jupiter refresh single error:', error);
+        console.error('âŒ Jupiter refresh single error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -9855,7 +9855,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { HypeAnalysisTestEndpoint } = await import('./test-hype-endpoint.js');
         const testEndpoint = new HypeAnalysisTestEndpoint();
         
-        console.log('🧪 Running Hype Analysis Test in Production...');
+        console.log('ðŸ§ª Running Hype Analysis Test in Production...');
         const results = await testEndpoint.testHypeAnalysis();
         
         res.json({
@@ -9866,7 +9866,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Hype Analysis Test failed:', error);
+        console.error('âŒ Hype Analysis Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'Hype Analysis Test failed',
@@ -9882,7 +9882,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { HypePredictionTestEndpoint } = await import('./test-hype-prediction-only.js');
         const testEndpoint = new HypePredictionTestEndpoint();
         
-        console.log('🤖 Running AI Hype Prediction Service Test...');
+        console.log('ðŸ¤– Running AI Hype Prediction Service Test...');
         const results = await testEndpoint.testHypePredictionService();
         
         res.json({
@@ -9893,7 +9893,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ AI Hype Prediction Service Test failed:', error);
+        console.error('âŒ AI Hype Prediction Service Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'AI Hype Prediction Service Test failed',
@@ -9909,7 +9909,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { BayesianDebugTestEndpoint } = await import('./test-bayesian-debug.js');
         const testEndpoint = new BayesianDebugTestEndpoint();
         
-        console.log('🔍 Running Bayesian Change-Point Detection Debug...');
+        console.log('ðŸ” Running Bayesian Change-Point Detection Debug...');
         const results = await testEndpoint.debugBayesianDetection();
         
         res.json({
@@ -9920,7 +9920,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Bayesian Debug Test failed:', error);
+        console.error('âŒ Bayesian Debug Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'Bayesian Debug Test failed',
@@ -9935,7 +9935,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const testEndpoint = new ForecastDebugEndpoint();
         
-        console.log('📊 Running Forecast Calculation Debug...');
+        console.log('ðŸ“Š Running Forecast Calculation Debug...');
         const result = await testEndpoint.debugForecastCalculation();
         
         res.json({
@@ -9946,7 +9946,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Forecast Debug Test failed:', error);
+        console.error('âŒ Forecast Debug Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'Forecast Debug Test failed',
@@ -9962,7 +9962,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { callId } = req.params;
         const debugEndpoint = new CallMilestonesDebugEndpoint();
         
-        console.log(`🔍 Debugging call milestones for ID: ${callId}`);
+        console.log(`ðŸ” Debugging call milestones for ID: ${callId}`);
         const result = await debugEndpoint.debugCallMilestones(callId);
         
         res.json({
@@ -9973,7 +9973,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Call Milestones Debug failed:', error);
+        console.error('âŒ Call Milestones Debug failed:', error);
         res.status(500).json({
           success: false,
           error: 'Call Milestones Debug failed',
@@ -9987,7 +9987,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/debug/milestone-posts/:callId', async (req, res) => {
       try {
         const { callId } = req.params;
-        console.log(`🔍 Debugging milestone posts for call ${callId}`);
+        console.log(`ðŸ” Debugging milestone posts for call ${callId}`);
         
         // Get all users and search for the call
         const userIndex = await this.oauthXService.db.readJsonFile(
@@ -10037,7 +10037,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Debug milestone posts error:', error.message);
+        console.error('âŒ Debug milestone posts error:', error.message);
         res.status(500).json({ error: 'Debug failed: ' + error.message });
       }
     });
@@ -10063,7 +10063,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🤖 AI Chat request from user ${user.id}: "${prompt.substring(0, 100)}..."`);
+        console.log(`ðŸ¤– AI Chat request from user ${user.id}: "${prompt.substring(0, 100)}..."`);
 
         // Call AI chat service with user context
         const aiResponse = await this.aiChatService.chat(
@@ -10081,13 +10081,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ AI Chat error:', error);
+        console.error('âŒ AI Chat error:', error);
         res.status(500).json({
           success: false,
           error: 'AI Chat failed',
           details: error.message,
           fallbackResponse: {
-            content: "I'm having trouble connecting to my AI brain right now 🧠 Please try again in a moment!",
+            content: "I'm having trouble connecting to my AI brain right now ðŸ§  Please try again in a moment!",
             hasUserData: false,
             dataSourcesUsed: []
           }
@@ -10096,7 +10096,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🧠 AI CHAT HISTORY MANAGEMENT ENDPOINTS
+    // ðŸ§  AI CHAT HISTORY MANAGEMENT ENDPOINTS
     // ========================================
 
     // Save chat history
@@ -10120,7 +10120,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`💾 Saving chat history for user ${user.id}: ${chatHistory.length} messages`);
+        console.log(`ðŸ’¾ Saving chat history for user ${user.id}: ${chatHistory.length} messages`);
 
         // Save chat history
         const savedHistory = await this.aiChatService.saveChatHistory(user.id, chatHistory, title);
@@ -10132,7 +10132,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Save chat history error:', error);
+        console.error('âŒ Save chat history error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to save chat history',
@@ -10171,7 +10171,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Get chat histories error:', error);
+        console.error('âŒ Get chat histories error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get chat histories',
@@ -10211,7 +10211,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Load chat history error:', error);
+        console.error('âŒ Load chat history error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to load chat history',
@@ -10258,7 +10258,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Update chat history error:', error);
+        console.error('âŒ Update chat history error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to update chat history',
@@ -10299,7 +10299,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Delete chat history error:', error);
+        console.error('âŒ Delete chat history error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to delete chat history',
@@ -10338,7 +10338,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Get suggestions error:', error);
+        console.error('âŒ Get suggestions error:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to get suggestions',
@@ -10353,7 +10353,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { EagleHypeDebugTest } = await import('./test-eagle-hype.js');
         const testEndpoint = new EagleHypeDebugTest();
         
-        console.log('🦅 Running EAGLE Hype Analysis Debug...');
+        console.log('ðŸ¦… Running EAGLE Hype Analysis Debug...');
         const results = await testEndpoint.debugEagleHype();
         
         res.json({
@@ -10364,7 +10364,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ EAGLE Hype Debug Test failed:', error);
+        console.error('âŒ EAGLE Hype Debug Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'EAGLE hype debug test failed',
@@ -10386,7 +10386,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         ];
         const testMentions = new Array(20).fill(16);
         
-        console.log('🧪 Testing Adaptive Bayesian Change-Point Detection...');
+        console.log('ðŸ§ª Testing Adaptive Bayesian Change-Point Detection...');
         
         const trendAnalysis = new HypeTrendAnalysis();
         const results = trendAnalysis.detectChangePoints(testScores, testMentions);
@@ -10419,7 +10419,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Adaptive Bayesian Test failed:', error);
+        console.error('âŒ Adaptive Bayesian Test failed:', error);
         res.status(500).json({
           success: false,
           error: 'Adaptive Bayesian Test failed',
@@ -10431,7 +10431,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🎯 HYPE OVER TIME ORACLE AI ANALYSIS
+    // ðŸŽ¯ HYPE OVER TIME ORACLE AI ANALYSIS
     // ========================================
 
     // Hype Trend Analysis with Adaptive Bayesian Change-Point Detection
@@ -10440,7 +10440,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contractAddress } = req.params;
         const { range = '7d', sessionId } = req.query;
         
-        console.log(`🧠 Hype Trend Analysis requested for ${contractAddress} (${range})`);
+        console.log(`ðŸ§  Hype Trend Analysis requested for ${contractAddress} (${range})`);
         
         // Validate session for premium features
         if (!sessionId) {
@@ -10509,7 +10509,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
               analysisResult
             );
           } catch (aiError) {
-            console.error('❌ AI Prediction failed:', aiError);
+            console.error('âŒ AI Prediction failed:', aiError);
             // Continue without AI prediction
           }
         }
@@ -10530,7 +10530,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
               ewma: analysisResult.analysis?.technicalIndicators?.ewma,
               derivative: analysisResult.analysis?.technicalIndicators?.derivative,
               
-              // ✅ ADAPTIVE BAYESIAN CHANGE POINTS - This is what frontend needs!
+              // âœ… ADAPTIVE BAYESIAN CHANGE POINTS - This is what frontend needs!
               changePoints: {
                 length: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints?.length || 0,
                 hasRecentChange: analysisResult.analysis?.technicalIndicators?.changePoints?.hasRecentChange || false,
@@ -10563,12 +10563,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         };
 
-        console.log(`✅ Hype Trend Analysis completed for ${contractAddress}: ${response.analysis.technicalIndicators.changePoints.length} change points detected`);
+        console.log(`âœ… Hype Trend Analysis completed for ${contractAddress}: ${response.analysis.technicalIndicators.changePoints.length} change points detected`);
         
         res.json(response);
         
       } catch (error) {
-        console.error('❌ Hype Trend Analysis failed:', error);
+        console.error('âŒ Hype Trend Analysis failed:', error);
         res.status(500).json({
           success: false,
           error: 'Hype trend analysis failed',
@@ -10604,7 +10604,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contractAddress } = req.params;
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
 
-        console.log(`🔍 Getting raw Jupiter API data for ${contractAddress}`);
+        console.log(`ðŸ” Getting raw Jupiter API data for ${contractAddress}`);
         const rawData = await jupiterApiService.getRawJupiterData(contractAddress);
 
         res.json({
@@ -10670,7 +10670,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🚀 Batch refreshing Jupiter data for ${contractAddresses.length} specific contracts...`);
+        console.log(`ðŸš€ Batch refreshing Jupiter data for ${contractAddresses.length} specific contracts...`);
 
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
         const batchJupiterData = await jupiterApiService.getBatchTokenDetails(contractAddresses);
@@ -10685,7 +10685,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
           try {
             if (jupiterData) {
-              console.log(`✅ Jupiter data found for ${contractAddress.substring(0, 8)}: ${jupiterData.symbol}`);
+              console.log(`âœ… Jupiter data found for ${contractAddress.substring(0, 8)}: ${jupiterData.symbol}`);
               results.push({
                 contractAddress,
                 success: true,
@@ -10697,7 +10697,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
               });
               successCount++;
             } else {
-              console.log(`⚠️ No Jupiter data for ${contractAddress.substring(0, 8)}`);
+              console.log(`âš ï¸ No Jupiter data for ${contractAddress.substring(0, 8)}`);
               results.push({
                 contractAddress,
                 success: true,
@@ -10707,7 +10707,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
               successCount++; // Still successful, just no data
             }
           } catch (error) {
-            console.error(`❌ Error processing ${contractAddress.substring(0, 8)}:`, error.message);
+            console.error(`âŒ Error processing ${contractAddress.substring(0, 8)}:`, error.message);
             results.push({
               contractAddress,
               success: false,
@@ -10728,7 +10728,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ Jupiter batch refresh error:', error);
+        console.error('âŒ Jupiter batch refresh error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10740,7 +10740,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // EMERGENCY: Cache restore endpoint
     this.app.post('/api/admin/cache/emergency-restore', adminApiAuth, async (req, res) => {
       try {
-        console.log('🚨 EMERGENCY CACHE RESTORE REQUESTED');
+        console.log('ðŸš¨ EMERGENCY CACHE RESTORE REQUESTED');
         
         const { tokens, source = 'local-backup' } = req.body;
         
@@ -10751,7 +10751,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`🔄 Restoring ${tokens.length} tokens from ${source}...`);
+        console.log(`ðŸ”„ Restoring ${tokens.length} tokens from ${source}...`);
         
         // Backup current cache first
         const cachePath = this.persistentCachePath;
@@ -10760,9 +10760,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         try {
           const currentData = await fs.readFile(cachePath, 'utf8');
           await fs.writeFile(backupPath, currentData);
-          console.log(`✅ Current cache backed up to: ${backupPath}`);
+          console.log(`âœ… Current cache backed up to: ${backupPath}`);
         } catch (error) {
-          console.log(`⚠️ No existing cache to backup: ${error.message}`);
+          console.log(`âš ï¸ No existing cache to backup: ${error.message}`);
         }
         
         // Load current tokens (if any) to merge with restored tokens
@@ -10770,9 +10770,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         try {
           const data = await fs.readFile(cachePath, 'utf8');
           existingTokens = JSON.parse(data);
-          console.log(`📊 Found ${existingTokens.length} existing tokens to merge`);
+          console.log(`ðŸ“Š Found ${existingTokens.length} existing tokens to merge`);
         } catch (error) {
-          console.log(`📊 No existing tokens found, starting fresh`);
+          console.log(`ðŸ“Š No existing tokens found, starting fresh`);
         }
         
         // Merge logic: prioritize restored tokens, keep unique existing ones
@@ -10817,7 +10817,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Save to production cache
         await this.saveTokensToCache(finalTokens);
         
-        console.log(`✅ EMERGENCY RESTORE COMPLETE: ${finalTokens.length} tokens saved`);
+        console.log(`âœ… EMERGENCY RESTORE COMPLETE: ${finalTokens.length} tokens saved`);
         
         res.json({
           success: true,
@@ -10832,7 +10832,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Emergency restore failed:', error);
+        console.error('âŒ Emergency restore failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10861,7 +10861,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           backup: status
         });
       } catch (error) {
-        console.error('❌ Enhanced backup status failed:', error);
+        console.error('âŒ Enhanced backup status failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10888,7 +10888,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ List snapshots failed:', error);
+        console.error('âŒ List snapshots failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10923,7 +10923,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Manual snapshot creation failed:', error);
+        console.error('âŒ Manual snapshot creation failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10950,7 +10950,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🔄 Admin requested restoration from snapshot: ${snapshotId}`);
+        console.log(`ðŸ”„ Admin requested restoration from snapshot: ${snapshotId}`);
         const result = await this.backupIntegration.restoreWithRestart(snapshotId);
         
         res.json({
@@ -10965,7 +10965,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Snapshot restoration failed:', error);
+        console.error('âŒ Snapshot restoration failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -10986,7 +10986,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🔄 Admin requested cache-only restoration from snapshot: ${snapshotId}`);
+        console.log(`ðŸ”„ Admin requested cache-only restoration from snapshot: ${snapshotId}`);
         
         // Find the snapshot directory
         const snapshotDir = path.join(this.backupIntegration.getBackupService().localCacheDir, snapshotId);
@@ -11012,12 +11012,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const snapshotCacheData = await fs.readFile(snapshotCachePath, 'utf8');
         const snapshotTokens = JSON.parse(snapshotCacheData);
         
-        console.log(`📊 Found ${snapshotTokens.length} tokens in snapshot cache`);
+        console.log(`ðŸ“Š Found ${snapshotTokens.length} tokens in snapshot cache`);
 
         // Save to current cache (overwrite existing)
         await this.saveTokensToCache(snapshotTokens);
         
-        console.log(`✅ Cache-only restore completed: ${snapshotTokens.length} tokens restored`);
+        console.log(`âœ… Cache-only restore completed: ${snapshotTokens.length} tokens restored`);
         
         res.json({
           success: true,
@@ -11029,7 +11029,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         });
       } catch (error) {
-        console.error('❌ Cache-only restoration failed:', error);
+        console.error('âŒ Cache-only restoration failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -11055,7 +11055,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Backup health check failed:', error);
+        console.error('âŒ Backup health check failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -11084,7 +11084,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Backup cleanup failed:', error);
+        console.error('âŒ Backup cleanup failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -11106,7 +11106,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (action === 'start') {
-          // 🛡️ PREVENT MULTIPLE STARTS: Check if already running
+          // ðŸ›¡ï¸ PREVENT MULTIPLE STARTS: Check if already running
           const status = await this.backupIntegration.getStatus();
           if (status.backup?.isRunning) {
             res.json({
@@ -11136,7 +11136,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error(`❌ Backup service ${req.params.action} failed:`, error);
+        console.error(`âŒ Backup service ${req.params.action} failed:`, error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -11148,7 +11148,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // DIAGNOSTIC: Cache investigation endpoint
     this.app.get('/api/admin/cache/diagnostic', adminApiAuth, async (req, res) => {
       try {
-        console.log('🔍 PRODUCTION CACHE DIAGNOSTIC REQUESTED');
+        console.log('ðŸ” PRODUCTION CACHE DIAGNOSTIC REQUESTED');
         
         const cachePath = this.persistentCachePath;
         const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -11237,7 +11237,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Cache diagnostic failed:', error);
+        console.error('âŒ Cache diagnostic failed:', error);
         res.status(500).json({ 
           success: false, 
           error: error.message,
@@ -11283,10 +11283,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
           if (socialService && typeof socialService.getRateLimitStatus === 'function') {
             twitterStatus = socialService.getRateLimitStatus();
           } else {
-            console.log('[🛡️ Admin] ⚠️ Twitter service method not available');
+            console.log('[ðŸ›¡ï¸ Admin] âš ï¸ Twitter service method not available');
           }
         } catch (socialError) {
-          console.log('[🛡️ Admin] ⚠️ Twitter service not available:', socialError.message);
+          console.log('[ðŸ›¡ï¸ Admin] âš ï¸ Twitter service not available:', socialError.message);
         }
         
         res.json({
@@ -11307,14 +11307,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error getting system status:', error);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Error getting system status:', error);
         res.status(500).json({ error: 'Failed to get system status' });
       }
     });
 
 
     // ========================================
-    // 📅 DAILY TWEET SERVICE ENDPOINTS
+    // ðŸ“… DAILY TWEET SERVICE ENDPOINTS
     // ========================================
 
     // Start Daily Tweet Service
@@ -11378,7 +11378,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to start Daily Tweet Service:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to start Daily Tweet Service:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11401,7 +11401,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to stop Daily Tweet Service:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to stop Daily Tweet Service:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11429,7 +11429,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         };
         res.json(status);
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Mention status error:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Mention status error:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11447,7 +11447,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         await this.twitterMentionService.start();
         res.json({ success: true, message: 'Mention service started' });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to start mention service:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to start mention service:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11465,7 +11465,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         this.twitterMentionService.stop();
         res.json({ success: true, message: 'Mention service stopped' });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to stop mention service:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to stop mention service:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11486,7 +11486,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           message: 'Checked mentions'
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to check mentions:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to check mentions:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11503,7 +11503,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Admin] 📤 Post Now request - contentType: ${contentType}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“¤ Post Now request - contentType: ${contentType}`);
         const result = await this.dailyTweetService.postNow(contentType);
 
         res.json({
@@ -11515,7 +11515,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to post promotional tweet:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to post promotional tweet:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11574,9 +11574,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         }
 
-        console.log(`[🛡️ Admin] 📝 Manual post request: "${text.substring(0, 50)}..."`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“ Manual post request: "${text.substring(0, 50)}..."`);
         if (media && media.length > 0) {
-          console.log(`[🛡️ Admin] 📷 With ${media.length} media item(s)`);
+          console.log(`[ðŸ›¡ï¸ Admin] ðŸ“· With ${media.length} media item(s)`);
         }
 
         // Check if daily tweet service is initialized
@@ -11626,12 +11626,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
             }
 
             await this.opinionDatabase.storeOpinion(opinionData);
-            console.log(`[🛡️ Admin] 💾 Manual post stored in Opinion DB as insight`);
+            console.log(`[ðŸ›¡ï¸ Admin] ðŸ’¾ Manual post stored in Opinion DB as insight`);
             if (media && media.length > 0) {
-              console.log(`[🛡️ Admin] 📷 Image URLs stored for future DALL-E integration`);
+              console.log(`[ðŸ›¡ï¸ Admin] ðŸ“· Image URLs stored for future DALL-E integration`);
             }
           } catch (error) {
-            console.error('[🛡️ Admin] ❌ Failed to store manual post in Opinion DB:', error.message);
+            console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to store manual post in Opinion DB:', error.message);
             // Don't fail the request if Opinion DB storage fails
           }
         }
@@ -11648,7 +11648,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Manual post error:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Manual post error:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -11693,13 +11693,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get Daily Tweet Service status:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get Daily Tweet Service status:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
 
     // ========================================
-    // 🔍 CRYPTO ACCOUNT TRACKING ENDPOINTS
+    // ðŸ” CRYPTO ACCOUNT TRACKING ENDPOINTS
     // ========================================
 
     // Start crypto account tracking
@@ -11721,7 +11721,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to start crypto tracking:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to start crypto tracking:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11744,7 +11744,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to stop crypto tracking:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to stop crypto tracking:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11775,7 +11775,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking status:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get crypto tracking status:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11808,7 +11808,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking tweets:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get crypto tracking tweets:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11831,7 +11831,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking database stats:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get crypto tracking database stats:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11855,7 +11855,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to cleanup crypto tracking database:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to cleanup crypto tracking database:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11879,7 +11879,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to clear all crypto tracking data:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to clear all crypto tracking data:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11903,7 +11903,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to clear all tracked accounts:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to clear all tracked accounts:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11950,7 +11950,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to search crypto tracking database:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to search crypto tracking database:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -11984,7 +11984,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get sentiment trends:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get sentiment trends:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12009,7 +12009,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get account metrics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get account metrics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12033,7 +12033,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Admin] ➕ Adding crypto account @${username} to tracking...`);
+        console.log(`[ðŸ›¡ï¸ Admin] âž• Adding crypto account @${username} to tracking...`);
         
         const result = await this.twitterMentionService.addCryptoAccount(username, displayName || username, tier || 'tier1');
         
@@ -12043,7 +12043,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to add crypto account:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to add crypto account:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12067,7 +12067,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Admin] ➖ Removing crypto account @${username} from tracking...`);
+        console.log(`[ðŸ›¡ï¸ Admin] âž– Removing crypto account @${username} from tracking...`);
         
         const result = await this.twitterMentionService.removeCryptoAccount(username);
         
@@ -12077,7 +12077,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to remove crypto account:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to remove crypto account:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12100,7 +12100,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get tracked accounts:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get tracked accounts:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12140,7 +12140,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ [PUBLIC TOPICS] Error getting trending topics:', error.message);
+        console.error('âŒ [PUBLIC TOPICS] Error getting trending topics:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch trending topics'
@@ -12174,7 +12174,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ [PUBLIC TOPICS] Error getting categories:', error.message);
+        console.error('âŒ [PUBLIC TOPICS] Error getting categories:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch topic categories'
@@ -12202,7 +12202,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('❌ [PUBLIC TOPICS] Error getting statistics:', error.message);
+        console.error('âŒ [PUBLIC TOPICS] Error getting statistics:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch topic statistics'
@@ -12226,7 +12226,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`🔥 [TOP TOPICS] Starting trending topics analysis (${timeframe})`);
+        console.log(`ðŸ”¥ [TOP TOPICS] Starting trending topics analysis (${timeframe})`);
         
         // Get tweets from the specified timeframe
         const tweets = await this.cryptoTrackingDatabase.getTweetsByTimeframe(timeframe);
@@ -12256,7 +12256,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         await this.topicTrendingDatabase.storeTrendingTopics(analysis);
         
-        console.log(`✅ [TOP TOPICS] Analysis complete: ${trendingTopics.length} topics identified`);
+        console.log(`âœ… [TOP TOPICS] Analysis complete: ${trendingTopics.length} topics identified`);
         
         res.json({
           success: true,
@@ -12267,7 +12267,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to analyze trending topics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to analyze trending topics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12297,7 +12297,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get latest trending topics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get latest trending topics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12325,7 +12325,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get trending categories:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get trending categories:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12356,7 +12356,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get topic trend:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get topic trend:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12381,14 +12381,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         // If no cached insights or they're older than 1 hour, generate new ones
         if (!insights || this.isInsightStale(insights.generatedAt)) {
-          console.log(`🔍 [TOP TOPICS] Generating fresh insights for: ${topic}`);
+          console.log(`ðŸ” [TOP TOPICS] Generating fresh insights for: ${topic}`);
           insights = await this.topicAnalysisService.getTopicInsights(topic, timeframe);
           
           if (insights) {
             await this.topicTrendingDatabase.storeTopicInsights(topic, insights);
           }
         } else {
-          console.log(`📋 [TOP TOPICS] Using cached insights for: ${topic}`);
+          console.log(`ðŸ“‹ [TOP TOPICS] Using cached insights for: ${topic}`);
         }
         
         res.json({
@@ -12399,7 +12399,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get topic insights:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get topic insights:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12435,7 +12435,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to search topics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to search topics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12465,7 +12465,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get topic correlations:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get topic correlations:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12490,13 +12490,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get trending statistics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get trending statistics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
 
     // ========================================
-    // 🌐 PUBLIC TRENDING TOPICS ENDPOINTS (No Auth Required)
+    // ðŸŒ PUBLIC TRENDING TOPICS ENDPOINTS (No Auth Required)
     // ========================================
 
     /**
@@ -12506,9 +12506,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { limit = 20, category, days = 7, hours, forceRefresh = false } = req.query;
         
-        // 🎯 NEW: Force refresh if requested
+        // ðŸŽ¯ NEW: Force refresh if requested
         if (forceRefresh === 'true') {
-          console.log('[🌐 Public] 🔄 Force refreshing trending topics...');
+          console.log('[ðŸŒ Public] ðŸ”„ Force refreshing trending topics...');
           await this.runTrendingTopicsAnalysis();
         }
         
@@ -12521,7 +12521,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         let topics;
         
-        // 🎯 NEW: Support hours-based filtering for dynamic updates
+        // ðŸŽ¯ NEW: Support hours-based filtering for dynamic updates
         if (hours) {
           // Calculate time cutoff based on hours
           const cutoffTime = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
@@ -12534,7 +12534,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             new Date(post.created_at) >= cutoffTime
           );
           
-          console.log(`[🌐 Public] Filtering ${recentPosts.length} posts from last ${hours} hours`);
+          console.log(`[ðŸŒ Public] Filtering ${recentPosts.length} posts from last ${hours} hours`);
           
           // Count topics
           const topicCounts = {};
@@ -12571,7 +12571,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🌐 Public] ❌ Failed to get trending topics:', error.message);
+        console.error('[ðŸŒ Public] âŒ Failed to get trending topics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12599,7 +12599,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🌐 Public] ❌ Failed to get trending categories:', error.message);
+        console.error('[ðŸŒ Public] âŒ Failed to get trending categories:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12629,7 +12629,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🌐 Public] ❌ Failed to get topic trend:', error.message);
+        console.error('[ðŸŒ Public] âŒ Failed to get topic trend:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12665,7 +12665,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🌐 Public] ❌ Failed to search topics:', error.message);
+        console.error('[ðŸŒ Public] âŒ Failed to search topics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -12675,7 +12675,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
      */
     this.app.post('/api/trending-topics/analyze', async (req, res) => {
       try {
-        console.log('[🌐 Public] 🔥 Manual trending topics analysis triggered');
+        console.log('[ðŸŒ Public] ðŸ”¥ Manual trending topics analysis triggered');
         await this.runTrendingTopicsAnalysis();
         
         res.json({
@@ -12684,7 +12684,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🌐 Public] ❌ Manual trending topics analysis failed:', error.message);
+        console.error('[ðŸŒ Public] âŒ Manual trending topics analysis failed:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
@@ -12693,7 +12693,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🎯 PREDICTION ACCURACY ANALYSIS ENDPOINTS (DISABLED - UNUSED & COSTLY)
+    // ðŸŽ¯ PREDICTION ACCURACY ANALYSIS ENDPOINTS (DISABLED - UNUSED & COSTLY)
     // ========================================
     
     // REMOVED: All prediction endpoints disabled to save costs
@@ -12725,7 +12725,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get prediction accuracy:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get prediction accuracy:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12754,7 +12754,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get top performers:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get top performers:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12780,7 +12780,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get prediction statistics:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get prediction statistics:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12807,7 +12807,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get active predictions:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get active predictions:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12836,7 +12836,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get completed predictions:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get completed predictions:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12887,7 +12887,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to check prediction accuracy:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to check prediction accuracy:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12896,7 +12896,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🤖 AI-POWERED ACCURACY ANALYSIS ENDPOINTS
+    // ðŸ¤– AI-POWERED ACCURACY ANALYSIS ENDPOINTS
     // ========================================
 
     // Get AI-powered accuracy insights
@@ -12937,7 +12937,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get AI accuracy insights:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get AI accuracy insights:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -12977,7 +12977,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to analyze prediction outcome:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to analyze prediction outcome:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -13024,7 +13024,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get AI recommendations:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get AI recommendations:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -13034,7 +13034,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     */ // END REMOVED PREDICTION ENDPOINTS
 
     // ========================================
-    // 💰 CT MOMENTUM (CRYPTO TWITTER) ENDPOINTS
+    // ðŸ’° CT MOMENTUM (CRYPTO TWITTER) ENDPOINTS
     // ========================================
 
     // Get top tokens by momentum
@@ -13042,10 +13042,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { limit = 20, timeframe = '24h' } = req.query;
         
-        console.log(`💰 [CT MOMENTUM] Request for top tokens: limit=${limit}, timeframe=${timeframe}`);
+        console.log(`ðŸ’° [CT MOMENTUM] Request for top tokens: limit=${limit}, timeframe=${timeframe}`);
         
         if (!this.cryptoTrackingDatabase) {
-          console.error('❌ [CT MOMENTUM] CryptoTrackingDatabase not initialized');
+          console.error('âŒ [CT MOMENTUM] CryptoTrackingDatabase not initialized');
           return res.status(503).json({
             success: false,
             error: 'Crypto Tracking Database not initialized'
@@ -13053,7 +13053,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.cryptoTrackingDatabase.ctMomentumDatabase) {
-          console.error('❌ [CT MOMENTUM] CTMomentumDatabase not initialized');
+          console.error('âŒ [CT MOMENTUM] CTMomentumDatabase not initialized');
           return res.status(503).json({
             success: false,
             error: 'CT Momentum Database not initialized'
@@ -13065,7 +13065,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timeframe
         );
         
-        console.log(`✅ [CT MOMENTUM] Returning ${topTokens.length} tokens`);
+        console.log(`âœ… [CT MOMENTUM] Returning ${topTokens.length} tokens`);
         
         res.json({
           success: true,
@@ -13076,7 +13076,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get top tokens:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get top tokens:', error.message);
         console.error('Stack:', error.stack);
         res.status(500).json({
           success: false,
@@ -13116,7 +13116,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get token momentum:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get token momentum:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -13142,7 +13142,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get CT Momentum stats:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get CT Momentum stats:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -13151,19 +13151,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 📈 PRICE CHART ENDPOINTS
+    // ðŸ“ˆ PRICE CHART ENDPOINTS
     // ========================================
 
-    // ✅ DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
+    // âœ… DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
     // this.hybridPriceService = new HybridPriceService();
     
     // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
     this.enhancedHybridPriceService = new EnhancedHybridPriceService();
     
-    // 🚀 NEW: Auto-start gRPC monitoring for PROBITY
-    console.log('🔌 [AUTO-START] Starting gRPC monitoring for PROBITY...');
+    // ðŸš€ NEW: Auto-start gRPC monitoring for PROBITY
+    console.log('ðŸ”Œ [AUTO-START] Starting gRPC monitoring for PROBITY...');
     this.enhancedHybridPriceService.initializeAsync().catch(error => {
-        console.error('❌ [AUTO-START] Failed to start gRPC monitoring:', error.message);
+        console.error('âŒ [AUTO-START] Failed to start gRPC monitoring:', error.message);
     });
     
     // Initialize Real-Time Token Monitor
@@ -13180,67 +13180,67 @@ Thanks for using x402 payments on Twitter! 🚀`;
     
     // Initialize Hybrid Chart Service (Professional Architecture)
     try {
-      console.log('⚡ Initializing Hybrid Chart Service...');
+      console.log('âš¡ Initializing Hybrid Chart Service...');
       console.log(`   Environment check:`);
-      console.log(`   - HELIUS_API_KEY: ${process.env.HELIUS_API_KEY ? '✅ Set' : '❌ Missing'}`);
-      console.log(`   - MORALIS_API_KEY: ${process.env.MORALIS_API_KEY ? '✅ Set' : '❌ Missing'}`);
+      console.log(`   - HELIUS_API_KEY: ${process.env.HELIUS_API_KEY ? 'âœ… Set' : 'âŒ Missing'}`);
+      console.log(`   - MORALIS_API_KEY: ${process.env.MORALIS_API_KEY ? 'âœ… Set' : 'âŒ Missing'}`);
       console.log(`   - NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
       
       this.hybridChartService = new HybridChartService(
         process.env.HELIUS_API_KEY,
         process.env.MORALIS_API_KEY
       );
-      console.log('✅ Hybrid Chart Service initialized successfully');
+      console.log('âœ… Hybrid Chart Service initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize Hybrid Chart Service:', error.message);
+      console.error('âŒ Failed to initialize Hybrid Chart Service:', error.message);
       console.error('Stack:', error.stack);
-      console.error('⚠️ Backend will continue without chart services');
+      console.error('âš ï¸ Backend will continue without chart services');
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
     // Schedule bonding token validation to run every 5 minutes
     this.scheduleBondingValidation = () => {
       if (!this.bondingValidationService) {
-        console.log('⚠️ Bonding validation service not available, skipping scheduling');
+        console.log('âš ï¸ Bonding validation service not available, skipping scheduling');
         return;
       }
       
-      console.log('⏰ Scheduling bonding token validation every 5 minutes');
+      console.log('â° Scheduling bonding token validation every 5 minutes');
       
       // Run validation immediately on startup
       setTimeout(async () => {
         try {
-          console.log('🚀 Running initial bonding token validation...');
+          console.log('ðŸš€ Running initial bonding token validation...');
           await this.bondingValidationService.runValidation();
         } catch (error) {
-          console.error('❌ Initial bonding validation failed:', error.message);
+          console.error('âŒ Initial bonding validation failed:', error.message);
         }
       }, 30000); // Wait 30 seconds after startup
       
       // Schedule to run every 5 minutes (300000 ms)
       setInterval(async () => {
         try {
-          console.log('⏰ Running scheduled bonding token validation...');
+          console.log('â° Running scheduled bonding token validation...');
           const result = await this.bondingValidationService.runValidation();
-          console.log(`✅ Bonding validation completed: ${result.valid} valid, ${result.invalid} removed`);
+          console.log(`âœ… Bonding validation completed: ${result.valid} valid, ${result.invalid} removed`);
         } catch (error) {
-          console.error('❌ Scheduled bonding validation failed:', error.message);
+          console.error('âŒ Scheduled bonding validation failed:', error.message);
         }
       }, 300000); // 5 minutes
     };
 
     // Initialize Bonding Token Validation Service
     try {
-      console.log('🔍 Initializing Bonding Token Validation Service...');
+      console.log('ðŸ” Initializing Bonding Token Validation Service...');
       this.bondingValidationService = new BondingTokenValidationService();
-      console.log('✅ Bonding Token Validation Service initialized successfully');
+      console.log('âœ… Bonding Token Validation Service initialized successfully');
       
       // Schedule validation to run every hour
       this.scheduleBondingValidation();
       
     } catch (error) {
-      console.error('❌ Failed to initialize Bonding Token Validation Service:', error.message);
-      console.error('⚠️ Backend will continue without bonding validation');
+      console.error('âŒ Failed to initialize Bonding Token Validation Service:', error.message);
+      console.error('âš ï¸ Backend will continue without bonding validation');
       this.bondingValidationService = null;
     }
 
@@ -13248,13 +13248,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     process.on('tokenPriceUpdate', async (data) => {
       try {
         const { tokenMint, newPrice, timestamp } = data;
-        console.log(`💰 Real-time price update: ${tokenMint.substring(0, 8)} = $${newPrice}`);
+        console.log(`ðŸ’° Real-time price update: ${tokenMint.substring(0, 8)} = $${newPrice}`);
         
         // Update token cache with new price
         await this.updateTokenPriceInCache(tokenMint, newPrice);
         
       } catch (error) {
-        console.error('❌ Failed to handle price update:', error.message);
+        console.error('âŒ Failed to handle price update:', error.message);
       }
     });
 
@@ -13296,18 +13296,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // Save updated tokens
           await this.saveTokensToCache(tokens);
           
-          console.log(`✅ Updated token cache: ${token.symbol} = $${newPrice} (${tokenIndex})`);
+          console.log(`âœ… Updated token cache: ${token.symbol} = $${newPrice} (${tokenIndex})`);
         }
       } catch (error) {
-        console.error('❌ Failed to update token cache:', error.message);
+        console.error('âŒ Failed to update token cache:', error.message);
       }
     };
 
     // Get historical price data for a token (Helius + Moralis)
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
-        console.log(`🔍 [PRICE-CHART] Endpoint reached for contract: ${req.params.contract}`);
-        console.log(`🔍 [PRICE-CHART] Query params:`, req.query);
+        console.log(`ðŸ” [PRICE-CHART] Endpoint reached for contract: ${req.params.contract}`);
+        console.log(`ðŸ” [PRICE-CHART] Query params:`, req.query);
         
         const { contract } = req.params;
         const { timeframe = '5MIN', limit, before, after, preBonding } = req.query;
@@ -13325,10 +13325,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const isPreBonding = preBonding === 'true';
 
         if (isPreBonding) {
-          console.log(`📊 [PRE-BONDING-CHART] Fetching ${timeframe} Moralis-only data for ${contract.substring(0, 8)}...`);
+          console.log(`ðŸ“Š [PRE-BONDING-CHART] Fetching ${timeframe} Moralis-only data for ${contract.substring(0, 8)}...`);
         } else {
-          console.log(`📊 [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
-          console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}`);
+          console.log(`ðŸ“Š [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
+          console.log(`ðŸ“Š [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}`);
         }
 
         let chartData;
@@ -13376,7 +13376,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`📊 [HYBRID-CHART] ✅ Success: ${chartData.ohlcv.length} candles from ${chartData.dataSource}`);
+        console.log(`ðŸ“Š [HYBRID-CHART] âœ… Success: ${chartData.ohlcv.length} candles from ${chartData.dataSource}`);
 
         res.json({
           success: true,
@@ -13394,7 +13394,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Hybrid chart error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Hybrid chart error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch chart data',
@@ -13415,12 +13415,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`📊 [HYBRID-PRICE] Getting current price for ${contract.substring(0, 8)}...`);
+        console.log(`ðŸ“Š [HYBRID-PRICE] Getting current price for ${contract.substring(0, 8)}...`);
 
         // Get current price using hybrid chart service
         const priceData = await this.hybridChartService.getCurrentPrice(contract);
 
-        console.log(`📊 [HYBRID-PRICE] ✅ Success: ${priceData.price.toFixed(8)} SOL from ${priceData.dataSource}`);
+        console.log(`ðŸ“Š [HYBRID-PRICE] âœ… Success: ${priceData.price.toFixed(8)} SOL from ${priceData.dataSource}`);
 
         res.json({
           success: true,
@@ -13434,7 +13434,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Hybrid price error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Hybrid price error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch current price',
@@ -13449,7 +13449,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const connectionId = req.headers['x-connection-id'] || req.ip || 'unknown';
         
-        console.log(`🔄 [DEPRECATED] Redirecting hybrid-price to realtime-data for: ${contract} (conn: ${connectionId})`);
+        console.log(`ðŸ”„ [DEPRECATED] Redirecting hybrid-price to realtime-data for: ${contract} (conn: ${connectionId})`);
         
         if (!contract) {
           return res.status(400).json({ 
@@ -13476,7 +13476,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`✅ [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
+        console.log(`âœ… [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
           liquidity: realTimeData.liquidity,
           source: realTimeData.source,
@@ -13492,7 +13492,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [REDIRECT] Error fetching gRPC data for ${req.params.contract}:`, error.message);
+        console.error(`âŒ [REDIRECT] Error fetching gRPC data for ${req.params.contract}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch real-time data',
@@ -13501,14 +13501,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // 🚀 NEW: Hybrid Price Service stats endpoint
+    // ðŸš€ NEW: Hybrid Price Service stats endpoint
     // NEW: Real-time gRPC data endpoint for TokenDetail
     this.app.get('/api/tokens/:contract/realtime-data', async (req, res) => {
       try {
         const { contract } = req.params;
         const connectionId = req.headers['x-connection-id'] || req.ip || 'unknown';
         
-        console.log(`🔍 [RealTime] Fetching gRPC data for: ${contract} (conn: ${connectionId})`);
+        console.log(`ðŸ” [RealTime] Fetching gRPC data for: ${contract} (conn: ${connectionId})`);
         
         if (!contract) {
           return res.status(400).json({ 
@@ -13534,7 +13534,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
+        console.log(`âœ… [RealTime] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
           liquidity: realTimeData.liquidity,
           source: realTimeData.source,
@@ -13549,7 +13549,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [RealTime] Error fetching gRPC data for ${req.params.contract}:`, error.message);
+        console.error(`âŒ [RealTime] Error fetching gRPC data for ${req.params.contract}:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch real-time data',
@@ -13570,12 +13570,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         });
       } catch (error) {
-        console.error('❌ [HybridPrice] Error getting stats:', error.message);
+        console.error('âŒ [HybridPrice] Error getting stats:', error.message);
         res.status(500).json({ success: false, error: 'Failed to get stats' });
       }
     });
 
-    // 🚀 NEW: Connection cleanup endpoint
+    // ðŸš€ NEW: Connection cleanup endpoint
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {
         const { tokenAddress, connectionId } = req.body;
@@ -13587,12 +13587,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           res.status(400).json({ success: false, error: 'Token address and connection ID required' });
         }
       } catch (error) {
-        console.error('❌ [HybridPrice] Error cleaning up connection:', error.message);
+        console.error('âŒ [HybridPrice] Error cleaning up connection:', error.message);
         res.status(500).json({ success: false, error: 'Failed to cleanup connection' });
       }
     });
 
-    // 🚀 NEW: Hybrid Price Service WebSocket subscription management
+    // ðŸš€ NEW: Hybrid Price Service WebSocket subscription management
     this.app.post('/api/hybrid-price/subscribe', async (req, res) => {
       try {
         const { tokenAddress } = req.body;
@@ -13605,7 +13605,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          // âœ… CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
           const subscribed = await this.enhancedHybridPriceService.ensureTokenMonitoring(tokenAddress);
           
           res.json({
@@ -13621,7 +13621,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('❌ Error subscribing to token:', error.message);
+        console.error('âŒ Error subscribing to token:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to subscribe to token'
@@ -13641,7 +13641,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          // âœ… CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
           const unsubscribed = this.enhancedHybridPriceService.unsubscribeFromToken(tokenAddress);
           
           res.json({
@@ -13657,7 +13657,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('❌ Error unsubscribing from token:', error.message);
+        console.error('âŒ Error unsubscribing from token:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to unsubscribe from token'
@@ -13665,11 +13665,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // 🚀 NEW: Hybrid Price Service WebSocket stats endpoint
+    // ðŸš€ NEW: Hybrid Price Service WebSocket stats endpoint
     this.app.get('/api/hybrid-price/websocket-stats', (req, res) => {
       try {
         if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          // âœ… CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
           const stats = this.enhancedHybridPriceService.getRealTimeStats();
           res.json({
             success: true,
@@ -13683,7 +13683,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('❌ Error getting WebSocket stats:', error.message);
+        console.error('âŒ Error getting WebSocket stats:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get WebSocket stats'
@@ -13712,7 +13712,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
       } catch (error) {
-        console.error('❌ Error getting Meteora SDK status:', error.message);
+        console.error('âŒ Error getting Meteora SDK status:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get Meteora SDK status'
@@ -13732,7 +13732,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Timeframes error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Timeframes error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch timeframes',
@@ -13742,7 +13742,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🚨 BONDING TOKENS ENDPOINTS
+    // ðŸš¨ BONDING TOKENS ENDPOINTS
     // ========================================
 
     // Get bonding tokens (for Trenches filter)
@@ -13764,7 +13764,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ success: false, error: 'Invalid payload: tokens[] required' });
         }
 
-        console.log(`[🔍 Bonding Import] Received ${tokens.length} bonding tokens from Jupiter Service`);
+        console.log(`[ðŸ” Bonding Import] Received ${tokens.length} bonding tokens from Jupiter Service`);
 
         // Store in backend cache file
         const fs = await import('fs/promises');
@@ -13787,7 +13787,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           source: 'jupiter-service'
         };
         
-        // 🚨 CRITICAL FIX: Use atomic write to prevent data loss
+        // ðŸš¨ CRITICAL FIX: Use atomic write to prevent data loss
         const tempPath = cacheFile + '.tmp';
         const jsonData = JSON.stringify(cacheData, null, 2);
         
@@ -13806,7 +13806,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           throw error;
         }
         
-        console.log(`💾 [Bonding Import] Saved ${tokens.length} tokens to backend cache (atomic write)`);
+        console.log(`ðŸ’¾ [Bonding Import] Saved ${tokens.length} tokens to backend cache (atomic write)`);
         
         res.json({
           success: true,
@@ -13815,7 +13815,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Bonding tokens import error:', error.message);
+        console.error('âŒ Bonding tokens import error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to import bonding tokens'
@@ -13841,7 +13841,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ success: false, error: 'Invalid payload: graduatedTokens[] required' });
         }
 
-        console.log(`🎓 [Graduation Handler] Received ${graduatedTokens.length} graduated tokens and ${migratedTokens?.length || 0} migrated tokens from Jupiter Service`);
+        console.log(`ðŸŽ“ [Graduation Handler] Received ${graduatedTokens.length} graduated tokens and ${migratedTokens?.length || 0} migrated tokens from Jupiter Service`);
 
         // Read backend bonding cache
         const fs = await import('fs/promises');
@@ -13879,7 +13879,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           };
           
           await fs.writeFile(cacheFile, JSON.stringify(updatedCache, null, 2));
-          console.log(`🎓 [Graduation Handler] Removed ${removedCount} graduated tokens from backend cache`);
+          console.log(`ðŸŽ“ [Graduation Handler] Removed ${removedCount} graduated tokens from backend cache`);
           
           // Add migrated tokens to main token cache
           if (migratedTokens && migratedTokens.length > 0) {
@@ -13904,10 +13904,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
               const updatedMainCache = [...mainCacheData, ...migratedTokens];
               
               await fs.writeFile(mainCacheFile, JSON.stringify(updatedMainCache, null, 2));
-              console.log(`🎓 [Graduation Handler] Added ${migratedTokens.length} migrated tokens to main cache`);
+              console.log(`ðŸŽ“ [Graduation Handler] Added ${migratedTokens.length} migrated tokens to main cache`);
               
             } catch (mainCacheError) {
-              console.error('❌ [Graduation Handler] Error updating main cache:', mainCacheError.message);
+              console.error('âŒ [Graduation Handler] Error updating main cache:', mainCacheError.message);
             }
           }
           
@@ -13921,7 +13921,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
           
         } catch (fileError) {
-          console.log(`⚠️ [Graduation Handler] Backend cache file not found: ${fileError.message}`);
+          console.log(`âš ï¸ [Graduation Handler] Backend cache file not found: ${fileError.message}`);
           res.json({
             success: true,
             removedCount: 0,
@@ -13931,7 +13931,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
       } catch (error) {
-        console.error('❌ Graduation handler error:', error.message);
+        console.error('âŒ Graduation handler error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to handle graduated tokens'
@@ -13944,7 +13944,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding details from jupiter-service for: ${contract}...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš¨ Getting bonding details from jupiter-service for: ${contract}...`);
         
         // Fetch from jupiter-service
         const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
@@ -13974,7 +13974,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Failed to get bonding token details from jupiter-service:', error.message);
+        console.error('âŒ Failed to get bonding token details from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get bonding token details from jupiter-service'
@@ -13992,7 +13992,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log('[🛡️ Enhanced Backend] 🔍 Manual bonding token validation requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ” Manual bonding token validation requested');
         
         const result = await this.bondingValidationService.runValidation();
         
@@ -14004,7 +14004,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Manual bonding validation error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Manual bonding validation error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to run bonding validation',
@@ -14032,7 +14032,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get validation stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Get validation stats error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get validation stats',
@@ -14044,7 +14044,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get bonding tokens statistics - Fetch from jupiter-service
     this.app.get('/api/tokens/bonding/stats', async (req, res) => {
       try {
-        console.log(`[🛡️ Enhanced Backend] 📊 Getting bonding tokens statistics from jupiter-service...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Getting bonding tokens statistics from jupiter-service...`);
         
         // Fetch from jupiter-service
         const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
@@ -14074,7 +14074,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Failed to get bonding statistics from jupiter-service:', error.message);
+        console.error('âŒ Failed to get bonding statistics from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get bonding statistics from jupiter-service'
@@ -14088,7 +14088,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { threshold = 95 } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting graduation alerts from jupiter-service (threshold: ${threshold}%)...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš¨ Getting graduation alerts from jupiter-service (threshold: ${threshold}%)...`);
         
         // Fetch from jupiter-service
         const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
@@ -14119,7 +14119,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ Failed to get graduation alerts from jupiter-service:', error.message);
+        console.error('âŒ Failed to get graduation alerts from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get graduation alerts from jupiter-service'
@@ -14131,7 +14131,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/tokens/price-chart/status', async (req, res) => {
       try {
         if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          // âœ… CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
           const stats = this.enhancedHybridPriceService.getRealTimeStats();
           
           res.json({
@@ -14153,7 +14153,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Price service status error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Price service status error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch service status',
@@ -14177,7 +14177,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`📊 [TX-TABLE] Fetching transactions for ${contract.substring(0, 8)}...`);
+        console.log(`ðŸ“Š [TX-TABLE] Fetching transactions for ${contract.substring(0, 8)}...`);
 
         // Get pool address for this token
         const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
@@ -14197,7 +14197,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           sinceTimestamp ? parseInt(sinceTimestamp) : null
         );
 
-        console.log(`📊 [TX-TABLE] ✅ Found ${swaps.length} transactions`);
+        console.log(`ðŸ“Š [TX-TABLE] âœ… Found ${swaps.length} transactions`);
 
         res.json({
           success: true,
@@ -14212,7 +14212,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [TX-TABLE] Error fetching transactions:`, error.message);
+        console.error(`âŒ [TX-TABLE] Error fetching transactions:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch transactions',
@@ -14233,7 +14233,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [REALTIME-STATS] Error:`, error.message);
+        console.error(`âŒ [REALTIME-STATS] Error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get real-time stats',
@@ -14258,7 +14258,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [GRPC-STATUS] Error:`, error.message);
+        console.error(`âŒ [GRPC-STATUS] Error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get gRPC status',
@@ -14284,7 +14284,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get compression stats:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Failed to get compression stats:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -14302,17 +14302,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log('[🛡️ Admin] 🗜️ Starting compression migration...');
+        console.log('[ðŸ›¡ï¸ Admin] ðŸ—œï¸ Starting compression migration...');
         const results = await this.chartDatabase.migrateAllToCompressed();
         
-        console.log('[🛡️ Admin] ✅ Compression migration complete:', results);
+        console.log('[ðŸ›¡ï¸ Admin] âœ… Compression migration complete:', results);
         res.json({
           success: true,
           results
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Compression migration failed:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Compression migration failed:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -14330,7 +14330,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log('🔌 [GRPC-CONNECT] Manually triggering gRPC connection...');
+        console.log('ðŸ”Œ [GRPC-CONNECT] Manually triggering gRPC connection...');
         await this.enhancedHybridPriceService.initializeGrpcClient();
         
         const stats = this.enhancedHybridPriceService.getRealTimeStats();
@@ -14342,7 +14342,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [GRPC-CONNECT] Error:`, error.message);
+        console.error(`âŒ [GRPC-CONNECT] Error:`, error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to connect gRPC',
@@ -14388,11 +14388,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
         const { sinceTimestamp } = req.query;
 
-        console.log(`📡 [LIVE-UPDATES] Fetching updates for ${contract.substring(0, 8)}...`);
+        console.log(`ðŸ“¡ [LIVE-UPDATES] Fetching updates for ${contract.substring(0, 8)}...`);
 
         // Check if hybridChartService is available
         if (!this.hybridChartService) {
-          console.error(`❌ [LIVE-UPDATES] hybridChartService not available`);
+          console.error(`âŒ [LIVE-UPDATES] hybridChartService not available`);
           return res.status(500).json({
             success: false,
             error: 'Chart service not available',
@@ -14401,7 +14401,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.hybridChartService.fastChartService) {
-          console.error(`❌ [LIVE-UPDATES] fastChartService not available`);
+          console.error(`âŒ [LIVE-UPDATES] fastChartService not available`);
           return res.status(500).json({
             success: false,
             error: 'Fast chart service not available',
@@ -14410,7 +14410,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.hybridChartService.fastChartService.chartDb) {
-          console.error(`❌ [LIVE-UPDATES] chartDb not available`);
+          console.error(`âŒ [LIVE-UPDATES] chartDb not available`);
           return res.status(500).json({
             success: false,
             error: 'Chart database not available',
@@ -14451,7 +14451,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         }
 
-        console.log(`📡 [LIVE-UPDATES] ✅ Found ${swaps.length} new swaps, ${Object.keys(latestCandles).length} updated candles`);
+        console.log(`ðŸ“¡ [LIVE-UPDATES] âœ… Found ${swaps.length} new swaps, ${Object.keys(latestCandles).length} updated candles`);
 
         res.json({
           success: true,
@@ -14470,8 +14470,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [LIVE-UPDATES] Error:`, error.message);
-        console.error(`❌ [LIVE-UPDATES] Stack:`, error.stack);
+        console.error(`âŒ [LIVE-UPDATES] Error:`, error.message);
+        console.error(`âŒ [LIVE-UPDATES] Stack:`, error.stack);
         res.status(500).json({
           success: false,
           error: 'Failed to get live updates',
@@ -14492,11 +14492,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
 
-        console.log(`📡 [CHART-CLOSE] User closing chart for ${contract.substring(0, 8)}...`);
+        console.log(`ðŸ“¡ [CHART-CLOSE] User closing chart for ${contract.substring(0, 8)}...`);
 
         // Check if hybridChartService is available
         if (!this.hybridChartService) {
-          console.error(`❌ [CHART-CLOSE] hybridChartService not available`);
+          console.error(`âŒ [CHART-CLOSE] hybridChartService not available`);
           return res.status(500).json({
             success: false,
             error: 'Chart service not available',
@@ -14505,7 +14505,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.hybridChartService.fastChartService) {
-          console.error(`❌ [CHART-CLOSE] fastChartService not available`);
+          console.error(`âŒ [CHART-CLOSE] fastChartService not available`);
           return res.status(500).json({
             success: false,
             error: 'Fast chart service not available',
@@ -14514,7 +14514,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.hybridChartService.fastChartService.chartDb) {
-          console.error(`❌ [CHART-CLOSE] chartDb not available`);
+          console.error(`âŒ [CHART-CLOSE] chartDb not available`);
           return res.status(500).json({
             success: false,
             error: 'Chart database not available',
@@ -14523,7 +14523,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         if (!this.hybridChartService.backgroundWorker) {
-          console.error(`❌ [CHART-CLOSE] backgroundWorker not available`);
+          console.error(`âŒ [CHART-CLOSE] backgroundWorker not available`);
           return res.status(500).json({
             success: false,
             error: 'Background worker not available',
@@ -14545,7 +14545,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Stop real-time monitoring for this pool
         await this.hybridChartService.backgroundWorker.stopRealTimeMonitoring(poolAddress);
 
-        console.log(`📡 [CHART-CLOSE] ✅ Stopped real-time monitoring for ${poolAddress.substring(0, 8)}`);
+        console.log(`ðŸ“¡ [CHART-CLOSE] âœ… Stopped real-time monitoring for ${poolAddress.substring(0, 8)}`);
 
         res.json({
           success: true,
@@ -14556,8 +14556,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error(`❌ [CHART-CLOSE] Error:`, error.message);
-        console.error(`❌ [CHART-CLOSE] Stack:`, error.stack);
+        console.error(`âŒ [CHART-CLOSE] Error:`, error.message);
+        console.error(`âŒ [CHART-CLOSE] Stack:`, error.stack);
         res.status(500).json({
           success: false,
           error: 'Failed to close chart',
@@ -14595,7 +14595,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Cache stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Cache stats error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch cache statistics',
@@ -14616,7 +14616,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`🔄 [PROFESSIONAL] Force backfill for ${contract.substring(0, 8)}`);
+        console.log(`ðŸ”„ [PROFESSIONAL] Force backfill for ${contract.substring(0, 8)}`);
         
         const result = await this.hybridChartService.forceBackfill(contract);
         
@@ -14630,7 +14630,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Force backfill error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Force backfill error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to force backfill',
@@ -14651,7 +14651,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`🗑️ [PROFESSIONAL] Clearing cache for ${contract.substring(0, 8)}`);
+        console.log(`ðŸ—‘ï¸ [PROFESSIONAL] Clearing cache for ${contract.substring(0, 8)}`);
         
         this.hybridChartService.clearCache(contract);
         
@@ -14661,7 +14661,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Clear cache error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Clear cache error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to clear cache',
@@ -14673,7 +14673,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Clear all caches
     this.app.delete('/api/charts/professional/cache', async (req, res) => {
       try {
-        console.log(`🗑️ [PROFESSIONAL] Clearing all caches`);
+        console.log(`ðŸ—‘ï¸ [PROFESSIONAL] Clearing all caches`);
         
         this.hybridChartService.clearCache();
         
@@ -14683,7 +14683,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Clear all caches error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Clear all caches error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to clear all caches',
@@ -14703,7 +14703,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Professional stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Professional stats error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch professional statistics',
@@ -14725,7 +14725,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Database stats error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Database stats error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get database statistics',
@@ -14745,7 +14745,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Worker status error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Worker status error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get worker status',
@@ -14766,7 +14766,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`➕ [FAST-CHART] Adding token ${tokenAddress.substring(0, 8)} to background worker`);
+        console.log(`âž• [FAST-CHART] Adding token ${tokenAddress.substring(0, 8)} to background worker`);
         
         const result = await this.hybridChartService.addToken(tokenAddress);
         
@@ -14776,7 +14776,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Add token error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Add token error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to add token to background worker',
@@ -14790,7 +14790,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { contract } = req.params;
         
-        console.log(`🔄 [FAST-CHART] Refreshing data for ${contract.substring(0, 8)}`);
+        console.log(`ðŸ”„ [FAST-CHART] Refreshing data for ${contract.substring(0, 8)}`);
         
         const result = await this.hybridChartService.refreshToken(contract);
         
@@ -14800,7 +14800,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Refresh error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Refresh error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to refresh token data',
@@ -14823,7 +14823,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Transactions error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Transactions error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get recent transactions',
@@ -14838,7 +14838,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { token } = req.params;
         const { limit = 50, since } = req.query;
         
-        console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
+        console.log(`ðŸ“Š [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
         // Get pool address for the token
@@ -14852,7 +14852,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         if (!poolAddress) {
-          console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
+          console.log(`âš ï¸ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
           return res.json({
             success: true,
             swaps: [],
@@ -14868,7 +14868,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         let swaps = [];
         
         if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
-          // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
+          // âœ… FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
           const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
           
           // The database loads from file automatically when getTokenDatabase is called
@@ -14887,7 +14887,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           swaps.sort((a, b) => b.timestamp - a.timestamp);
           swaps = swaps.slice(0, parseInt(limit));
           
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
+          console.log(`âœ… [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
         } else {
           // Fallback to hybridChartService
           swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
@@ -14895,7 +14895,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             parseInt(limit), 
             sinceTimestamp
           );
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
+          console.log(`âœ… [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
         }
         
         // Format swaps for frontend
@@ -14922,7 +14922,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Swaps API error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Swaps API error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get recent swaps',
@@ -14934,7 +14934,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Re-backfill existing tokens with raw swaps
     this.app.post('/api/charts/re-backfill', async (req, res) => {
       try {
-        console.log('🔄 [RE-BACKFILL] Starting re-backfill of existing tokens...');
+        console.log('ðŸ”„ [RE-BACKFILL] Starting re-backfill of existing tokens...');
         
         await this.hybridChartService.backgroundWorker.reBackfillExistingTokens();
         
@@ -14945,7 +14945,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Re-backfill error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Re-backfill error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to re-backfill existing tokens',
@@ -14963,7 +14963,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(400).json({ success: false, error: 'Username required' });
         }
         
-        console.log(`🔧 [ADMIN] Revoking premium access for user: ${username}`);
+        console.log(`ðŸ”§ [ADMIN] Revoking premium access for user: ${username}`);
         
         // Get all users to find the target user
         const allUsers = await this.oauthXService.db.getAllUsers();
@@ -15000,7 +15000,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           revokedReason: reason
         });
         
-        console.log(`✅ [ADMIN] Premium access revoked for ${username}`);
+        console.log(`âœ… [ADMIN] Premium access revoked for ${username}`);
         
         res.json({
           success: true,
@@ -15023,7 +15023,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error('❌ [ADMIN] Error revoking premium access:', error.message);
+        console.error('âŒ [ADMIN] Error revoking premium access:', error.message);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to revoke premium access',
@@ -15047,7 +15047,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Cleanup status error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Cleanup status error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to get cleanup status',
@@ -15059,7 +15059,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Force immediate cleanup
     this.app.post('/api/cleanup/force', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔧 Force cleanup requested');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”§ Force cleanup requested');
         
         await this.automatedCleanup.forceCleanup();
         
@@ -15070,7 +15070,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Force cleanup error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Force cleanup error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to run force cleanup',
@@ -15101,7 +15101,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Update interval error:', error.message);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Update interval error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to update cleanup interval',
@@ -15123,7 +15123,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`📊 [Portfolio API] Analyzing portfolio for ${walletAddress}`);
+        console.log(`ðŸ“Š [Portfolio API] Analyzing portfolio for ${walletAddress}`);
         
         // Check if we have cached data from jup-discovery microservice
         if (this.portfolioCache && this.portfolioCache.has(walletAddress)) {
@@ -15131,7 +15131,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           const ageMinutes = (Date.now() - cached.timestamp) / (1000 * 60);
           
           if (ageMinutes < 5) { // Use cached data if less than 5 minutes old
-            console.log(`📊 [Portfolio API] Using cached data (${ageMinutes.toFixed(1)} minutes old)`);
+            console.log(`ðŸ“Š [Portfolio API] Using cached data (${ageMinutes.toFixed(1)} minutes old)`);
             return res.json({
               success: true,
               sol: cached.portfolioData.solBalance?.sol || 0,
@@ -15149,7 +15149,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         // Call twitter-service microservice for real portfolio data
-        console.log(`📊 [Portfolio API] Calling twitter-service microservice for ${walletAddress}`);
+        console.log(`ðŸ“Š [Portfolio API] Calling twitter-service microservice for ${walletAddress}`);
         
         try {
           const twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
@@ -15167,7 +15167,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           
           if (response.ok) {
             const result = await response.json();
-            console.log(`✅ [Portfolio API] Received real data from twitter-service for ${walletAddress}`);
+            console.log(`âœ… [Portfolio API] Received real data from twitter-service for ${walletAddress}`);
             
             // Cache the real data
             if (!this.portfolioCache) {
@@ -15181,14 +15181,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
             // Return the real data
             return res.json(result);
           } else {
-            console.warn(`⚠️ [Portfolio API] twitter-service returned ${response.status}, falling back to mock data`);
+            console.warn(`âš ï¸ [Portfolio API] twitter-service returned ${response.status}, falling back to mock data`);
           }
         } catch (error) {
-          console.warn(`⚠️ [Portfolio API] twitter-service call failed: ${error.message}, falling back to mock data`);
+          console.warn(`âš ï¸ [Portfolio API] twitter-service call failed: ${error.message}, falling back to mock data`);
         }
         
         // Fallback to mock data if twitter-service is not available
-        console.log(`📊 [Portfolio API] Using mock data for ${walletAddress}`);
+        console.log(`ðŸ“Š [Portfolio API] Using mock data for ${walletAddress}`);
         const mockPortfolio = {
           success: true,
           sol: 31.0,
@@ -15205,7 +15205,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json(mockPortfolio);
         
       } catch (error) {
-        console.error(`❌ [Portfolio API] Analysis failed:`, error.message);
+        console.error(`âŒ [Portfolio API] Analysis failed:`, error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -15225,7 +15225,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        console.log(`🧠 [Strategy API] Generating ${strategyType} strategy for ${walletAddress}`);
+        console.log(`ðŸ§  [Strategy API] Generating ${strategyType} strategy for ${walletAddress}`);
         
         // Call twitter-service microservice for real strategy generation
         try {
@@ -15244,19 +15244,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
           
           if (response.ok) {
             const result = await response.json();
-            console.log(`✅ [Strategy API] Received real strategy from twitter-service for ${walletAddress}`);
+            console.log(`âœ… [Strategy API] Received real strategy from twitter-service for ${walletAddress}`);
             
             // Return the real strategy
             return res.json(result.strategy);
           } else {
-            console.warn(`⚠️ [Strategy API] twitter-service returned ${response.status}, falling back to mock data`);
+            console.warn(`âš ï¸ [Strategy API] twitter-service returned ${response.status}, falling back to mock data`);
           }
         } catch (error) {
-          console.warn(`⚠️ [Strategy API] twitter-service call failed: ${error.message}, falling back to mock data`);
+          console.warn(`âš ï¸ [Strategy API] twitter-service call failed: ${error.message}, falling back to mock data`);
         }
         
         // Fallback to mock data if twitter-service is not available
-        console.log(`🧠 [Strategy API] Using mock data for ${walletAddress}`);
+        console.log(`ðŸ§  [Strategy API] Using mock data for ${walletAddress}`);
         const mockStrategy = {
           id: `strategy-${Date.now()}`,
           type: strategyType,
@@ -15283,7 +15283,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json(mockStrategy);
         
       } catch (error) {
-        console.error(`❌ [Strategy API] Generation failed:`, error.message);
+        console.error(`âŒ [Strategy API] Generation failed:`, error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -15306,7 +15306,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         const { walletAddress, portfolioData, strategyData } = req.body || {};
         
-        console.log(`📊 [Portfolio Import] Received portfolio data for ${walletAddress}`);
+        console.log(`ðŸ“Š [Portfolio Import] Received portfolio data for ${walletAddress}`);
         
         // Store the portfolio data in memory cache for the frontend to retrieve
         if (!this.portfolioCache) {
@@ -15326,7 +15326,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
         
       } catch (error) {
-        console.error(`❌ [Portfolio Import] Import failed:`, error.message);
+        console.error(`âŒ [Portfolio Import] Import failed:`, error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -15390,7 +15390,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const host = req.get('host');
         const imageUrl = `https://${host}/uploads/images/${req.file.filename}`;
 
-        console.log(`[🛡️ Admin] 📷 Image uploaded: ${req.file.originalname} -> ${imageUrl}`);
+        console.log(`[ðŸ›¡ï¸ Admin] ðŸ“· Image uploaded: ${req.file.originalname} -> ${imageUrl}`);
 
         res.json({
           success: true,
@@ -15402,7 +15402,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
 
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Image upload error:', error.message);
+        console.error('[ðŸ›¡ï¸ Admin] âŒ Image upload error:', error.message);
         res.status(500).json({
           success: false,
           error: error.message
@@ -15417,7 +15417,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     
     this.app.use('/uploads', express.static(uploadsPath));
     
-    console.log('📁 [IMAGE UPLOAD] Static file serving configured for:', uploadsPath);
+    console.log('ðŸ“ [IMAGE UPLOAD] Static file serving configured for:', uploadsPath);
   }
 
   setupBackgroundTasks() {
@@ -15429,47 +15429,47 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         await this.autoRestartTokenProcessing();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Auto-restart check failed:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Auto-restart check failed:', error);
       }
     }, 2 * 60 * 1000); // Check every 2 minutes
 
     // Periodic cache refresh (every 10 minutes)
     setInterval(async () => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔄 Periodic cache refresh...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Periodic cache refresh...');
         await this.refreshCache();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Periodic refresh failed:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Periodic refresh failed:', error);
       }
     }, 10 * 60 * 1000);
 
     // Priority-based Jupiter data update (every 60 seconds - more frequent checks, but smart filtering)
     setInterval(async () => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🎯 Priority-based Jupiter data update...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸŽ¯ Priority-based Jupiter data update...');
         await this.updateJupiterDataWithPriority();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Priority Jupiter update failed:', error);
       }
     }, 60 * 1000);
 
     // Trending Topics Analysis (every 2 hours)
     setInterval(async () => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🔥 Running trending topics analysis...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Running trending topics analysis...');
         await this.runTrendingTopicsAnalysis();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Trending topics analysis failed:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Trending topics analysis failed:', error);
       }
     }, 2 * 60 * 60 * 1000); // Every 2 hours
 
     // Run initial trending topics analysis after 5 minutes
     setTimeout(async () => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🚀 Running initial trending topics analysis...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Running initial trending topics analysis...');
         await this.runTrendingTopicsAnalysis();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Initial trending topics analysis failed:', error);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Initial trending topics analysis failed:', error);
       }
     }, 5 * 60 * 1000); // Wait 5 minutes after startup // Check every minute, but only update what needs updating based on priority
   }
@@ -15478,11 +15478,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
   async runTrendingTopicsAnalysis() {
     try {
       if (!this.topicAnalysisService || !this.topicTrendingDatabase) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ Trending topics services not initialized, skipping analysis');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Trending topics services not initialized, skipping analysis');
         return;
       }
 
-      console.log('[🛡️ Enhanced Backend] 🔥 Starting trending topics analysis...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Starting trending topics analysis...');
 
       // Try CryptoTrackingDatabase first (if available)
       let recentPosts = [];
@@ -15490,7 +15490,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       if (this.cryptoTrackingDatabase) {
         try {
           const tweets = await this.cryptoTrackingDatabase.getTweetsByTimeframe('7d');
-          console.log(`📊 [TRENDING TOPICS] Using CryptoTrackingDatabase: ${tweets.length} tweets`);
+          console.log(`ðŸ“Š [TRENDING TOPICS] Using CryptoTrackingDatabase: ${tweets.length} tweets`);
           
           // Convert tweets to posts format for consistent processing
           recentPosts = tweets.map(tweet => ({
@@ -15498,7 +15498,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             topics: tweet.topics || tweet.intelligence?.topics || []
           }));
         } catch (error) {
-          console.warn('[🛡️ Enhanced Backend] Failed to get tweets from CryptoTrackingDatabase:', error.message);
+          console.warn('[ðŸ›¡ï¸ Enhanced Backend] Failed to get tweets from CryptoTrackingDatabase:', error.message);
         }
       }
       
@@ -15511,18 +15511,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
           recentPosts = allPosts.filter(post => 
             new Date(post.created_at) >= sevenDaysAgo
           );
-          console.log(`📊 [TRENDING TOPICS] Using KOLService: ${recentPosts.length} posts`);
+          console.log(`ðŸ“Š [TRENDING TOPICS] Using KOLService: ${recentPosts.length} posts`);
         } catch (error) {
-          console.warn('[🛡️ Enhanced Backend] Failed to get posts from KOLService:', error.message);
+          console.warn('[ðŸ›¡ï¸ Enhanced Backend] Failed to get posts from KOLService:', error.message);
         }
       }
       
       if (!recentPosts || recentPosts.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No recent posts found for trending topics analysis');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No recent posts found for trending topics analysis');
         return;
       }
 
-      console.log(`[🛡️ Enhanced Backend] 🔥 Analyzing ${recentPosts.length} posts for trending topics...`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Analyzing ${recentPosts.length} posts for trending topics...`);
 
       // Extract topics from posts (they already have topics from analysis)
       const topicCounts = {};
@@ -15563,7 +15563,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         .slice(0, 20); // Top 20 topics
       
       if (!trendingTopics || trendingTopics.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No trending topics found in analysis');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No trending topics found in analysis');
         return;
       }
 
@@ -15578,15 +15578,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       await this.topicTrendingDatabase.storeTrendingTopics(analysis);
       
-      console.log(`[🛡️ Enhanced Backend] ✅ Trending topics analysis completed: ${trendingTopics.length} topics found`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Trending topics analysis completed: ${trendingTopics.length} topics found`);
       
       // Log top 5 topics for visibility
       const topTopics = trendingTopics.slice(0, 5);
-      console.log(`[🛡️ Enhanced Backend] 🔥 Top 5 trending topics:`, 
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Top 5 trending topics:`, 
         topTopics.map(t => `${t.topic} (${t.count} mentions, ${t.percentage}%)`).join(', '));
 
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Trending topics analysis failed:', error.message);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Trending topics analysis failed:', error.message);
       throw error;
     }
   }
@@ -15597,7 +15597,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const raw = await fs.readFile(this.socialContextCachePath, 'utf8');
       const obj = JSON.parse(raw);
       this.socialContextCache = new Map(Object.entries(obj));
-      console.log(`[🛡️ Enhanced Backend] 🧠 Loaded Social Context cache: ${this.socialContextCache.size} entries`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ§  Loaded Social Context cache: ${this.socialContextCache.size} entries`);
     } catch (_) {
       // ignore
     }
@@ -15608,7 +15608,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const obj = Object.fromEntries(this.socialContextCache.entries());
       await fs.writeFile(this.socialContextCachePath, JSON.stringify(obj, null, 2));
     } catch (e) {
-      console.warn('[🛡️ Enhanced Backend] ⚠️ Failed saving Social Context cache:', e.message);
+      console.warn('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed saving Social Context cache:', e.message);
     }
   }
 
@@ -15659,13 +15659,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       
     } catch (snapErr) {
-      console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
+      console.log(`âš ï¸ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
     }
   }
 
   async getHypeDataForAnalysis(contractAddress, range = '7d') {
     try {
-      console.log(`🧠 Getting hype data for analysis: ${contractAddress} (${range})`);
+      console.log(`ðŸ§  Getting hype data for analysis: ${contractAddress} (${range})`);
       
       // Get token from cache
       const tokens = await this.getTokensFromCache();
@@ -15675,7 +15675,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       );
       
       if (!token) {
-        console.log(`🧠 Token not found for hype analysis: ${contractAddress}`);
+        console.log(`ðŸ§  Token not found for hype analysis: ${contractAddress}`);
         return [];
       }
       
@@ -15687,14 +15687,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
       let realSnapshots = [];
       try {
         realSnapshots = await this.hypeService.getSnapshots(contractAddress, sinceMs);
-        console.log(`🧠 Found ${realSnapshots.length} real hype snapshots for ${contractAddress}`);
+        console.log(`ðŸ§  Found ${realSnapshots.length} real hype snapshots for ${contractAddress}`);
       } catch (error) {
-        console.log(`🧠 No real snapshots found for ${contractAddress}:`, error.message);
+        console.log(`ðŸ§  No real snapshots found for ${contractAddress}:`, error.message);
       }
       
       // If we have sufficient real data (at least 3 points), use it
       if (realSnapshots.length >= 3) {
-        console.log(`🧠 Using ${realSnapshots.length} real hype data points for analysis`);
+        console.log(`ðŸ§  Using ${realSnapshots.length} real hype data points for analysis`);
         return realSnapshots.map(snap => ({
           timestamp: snap.timestamp,
           score: snap.score || snap.communityHealthScore || 5,
@@ -15704,7 +15704,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
       
       // Fallback: Generate synthetic data based on current token metrics
-      console.log(`🧠 Insufficient real data (${realSnapshots.length} points), generating synthetic data for ${contractAddress}`);
+      console.log(`ðŸ§  Insufficient real data (${realSnapshots.length} points), generating synthetic data for ${contractAddress}`);
       
       const now = Date.now();
       const hypeData = [];
@@ -15766,11 +15766,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
       }
       
-      console.log(`🧠 Generated ${hypeData.length} synthetic hype data points for analysis`);
+      console.log(`ðŸ§  Generated ${hypeData.length} synthetic hype data points for analysis`);
       return hypeData;
       
     } catch (error) {
-      console.error('❌ Error getting hype data for analysis:', error);
+      console.error('âŒ Error getting hype data for analysis:', error);
       return [];
     }
   }
@@ -15788,24 +15788,24 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async getTokensFromCache() {
     try {
-      // ✅ CHECK MEMORY CACHE FIRST
+      // âœ… CHECK MEMORY CACHE FIRST
       if (this.tokensCache.data && this.tokensCache.timestamp && 
           Date.now() - this.tokensCache.timestamp < this.tokensCache.TTL) {
-        console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${this.tokensCache.data.length} tokens)`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“¦ Using cached tokens from memory (${this.tokensCache.data.length} tokens)`);
         return this.tokensCache.data;
       }
       
       const cachePath = this.persistentCachePath;
-      console.log(`[🛡️ Enhanced Backend] 🔍 Reading cache from: ${cachePath}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” Reading cache from: ${cachePath}`);
       
       // Check if file exists
       try {
         await fs.access(cachePath);
-        console.log(`[🛡️ Enhanced Backend] ✅ Cache file exists at: ${cachePath}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Cache file exists at: ${cachePath}`);
       } catch (accessError) {
-        console.log(`[🛡️ Enhanced Backend] ❌ Cache file NOT found at: ${cachePath}`);
-        console.log(`[🛡️ Enhanced Backend] 🔍 DATA_DIR: ${process.env.DATA_DIR}`);
-        console.log(`[🛡️ Enhanced Backend] 🔍 __dirname: ${__dirname}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Cache file NOT found at: ${cachePath}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” DATA_DIR: ${process.env.DATA_DIR}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” __dirname: ${__dirname}`);
         // Attempt automatic recovery from latest snapshot
         const restored = await this.attemptRestoreCacheFromLatestSnapshot(cachePath);
         if (!restored) {
@@ -15830,29 +15830,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
               token.jupiterData.icon = imageOverrides[token.contractAddress];
             }
           });
-          console.log(`[🛡️ Enhanced Backend] 🖼️ Applied ${Object.keys(imageOverrides).length} image overrides`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ–¼ï¸ Applied ${Object.keys(imageOverrides).length} image overrides`);
         }
       } catch (overrideError) {
         // Silently fail if no overrides file exists
         if (overrideError.code !== 'ENOENT') {
-          console.log(`[🛡️ Enhanced Backend] ⚠️ Image overrides error:`, overrideError.message);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Image overrides error:`, overrideError.message);
         }
       }
 
       if (!Array.isArray(tokens) || tokens.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ Cache is empty - attempting recovery from latest snapshot');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Cache is empty - attempting recovery from latest snapshot');
         const recovered = await this.attemptRestoreCacheFromLatestSnapshot(cachePath);
         if (recovered) {
           const recoveredData = await fs.readFile(cachePath, 'utf8');
           const recoveredTokens = JSON.parse(recoveredData || '[]');
           if (Array.isArray(recoveredTokens) && recoveredTokens.length > 0) {
-            console.log(`[🛡️ Enhanced Backend] ✅ Auto-recovered ${recoveredTokens.length} tokens from latest snapshot`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Auto-recovered ${recoveredTokens.length} tokens from latest snapshot`);
             return recoveredTokens;
           }
         }
       }
 
-      console.log(`[🛡️ Enhanced Backend] 📊 Total tokens in cache: ${tokens.length}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Total tokens in cache: ${tokens.length}`);
       
       // Count tokens by stage
       const stageCount = {};
@@ -15860,20 +15860,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const stage = token.stage || 'undefined';
         stageCount[stage] = (stageCount[stage] || 0) + 1;
       });
-      console.log(`[🛡️ Enhanced Backend] 📊 Tokens by stage:`, stageCount);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Tokens by stage:`, stageCount);
 
       // Filter only completed tokens
       const completedTokens = tokens.filter(t => t.stage === 'completed');
-      console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Completed tokens: ${completedTokens.length}`);
 
-      // 🔧 FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
+      // ðŸ”§ FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
       if (completedTokens.length === 0) {
         const jupiterTokens = tokens.filter(t => t.stage === 'jupiter' && t.contractAddress && t.symbol);
-        console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Fallback to Jupiter tokens: ${jupiterTokens.length}`);
         
         if (jupiterTokens.length > 0) {
           // Don't start processing automatically on restart - let manual triggers handle it
-          console.log('[🛡️ Enhanced Backend] 📊 Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
           
           // Return Jupiter tokens with minimal processing
           return jupiterTokens.map(token => ({
@@ -15890,20 +15890,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         // No tokens at all - only start processing if this is truly a fresh start
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens found, but not auto-starting processing to prevent duplicate API calls');
       }
 
-      // ✅ UPDATE MEMORY CACHE
+      // âœ… UPDATE MEMORY CACHE
       this.tokensCache.data = completedTokens;
       this.tokensCache.timestamp = Date.now();
       
       return completedTokens;
 
     } catch (error) {
-      console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No cache file found, starting fresh processing...');
 
       // Don't auto-start processing on cache miss to prevent duplicate API calls
-      console.log('[🛡️ Enhanced Backend] 📝 Cache file not found, but not auto-starting processing (use manual trigger or wait for scheduled run)');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ Cache file not found, but not auto-starting processing (use manual trigger or wait for scheduled run)');
 
       return [];
     }
@@ -15916,7 +15916,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     try {
       const candidate = await this.findLatestSnapshotCacheFile();
       if (!candidate) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No snapshot cache file found for recovery');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No snapshot cache file found for recovery');
         return false;
       }
       const targetDir = path.dirname(targetCachePath);
@@ -15926,19 +15926,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { snapshotCachePath, snapshotId } = candidate;
         const data = await fs.readFile(snapshotCachePath, 'utf8');
         await fs.writeFile(targetCachePath, data);
-        console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from snapshot ${snapshotId}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Restored cache from snapshot ${snapshotId}`);
       } else if (candidate.type === 'tar') {
         const { tarPath, snapshotId } = candidate;
         const extractedPath = await this.extractTokensCacheFromTar(tarPath);
         if (!extractedPath) throw new Error('Failed to extract tokens-cache.json from tar');
         const data = await fs.readFile(extractedPath, 'utf8');
         await fs.writeFile(targetCachePath, data);
-        console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from tar snapshot ${snapshotId}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Restored cache from tar snapshot ${snapshotId}`);
         try { await fs.rm(extractedPath, { force: true }); } catch (_) {}
       }
       return true;
     } catch (e) {
-      console.warn('[🛡️ Enhanced Backend] ⚠️ Auto-recovery from snapshot failed:', e.message);
+      console.warn('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Auto-recovery from snapshot failed:', e.message);
       return false;
     }
   }
@@ -16033,7 +16033,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const cachedInsights = await holderCacheService.getCachedData(contractAddress, 'insights');
       
       if (cachedInsights) {
-        console.log(`📊 Using cached holder data for AI analysis: ${contractAddress}`);
+        console.log(`ðŸ“Š Using cached holder data for AI analysis: ${contractAddress}`);
         return {
           success: true,
           data: cachedInsights
@@ -16041,13 +16041,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
       
       // If not cached, fetch fresh data and cache it
-      console.log(`📊 Fetching fresh holder data for AI analysis: ${contractAddress}`);
+      console.log(`ðŸ“Š Fetching fresh holder data for AI analysis: ${contractAddress}`);
       const freshInsights = await this.fetchFreshHolderInsights(contractAddress);
       
       if (freshInsights.success) {
         // Cache the fresh data
         await holderCacheService.setCachedData(contractAddress, 'insights', freshInsights.data);
-        console.log(`📊 Cached fresh holder data for future use: ${contractAddress}`);
+        console.log(`ðŸ“Š Cached fresh holder data for future use: ${contractAddress}`);
       }
       
       return freshInsights;
@@ -16175,7 +16175,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       };
       
     } catch (error) {
-      console.error('[🧠 AI] ❌ Error getting token call history:', error.message);
+      console.error('[ðŸ§  AI] âŒ Error getting token call history:', error.message);
       return {
         totalCalls: 0,
         recentCalls: 0,
@@ -16200,8 +16200,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       recommendations.push({
         action: 'add_to_watchlist',
         priority: 'high',
-        reason: 'This gem is showing diamond hands energy - add to watchlist to track the moon mission 🚀',
-        icon: '⭐',
+        reason: 'This gem is showing diamond hands energy - add to watchlist to track the moon mission ðŸš€',
+        icon: 'â­',
         tool: 'DeGen Oracle Watchlist'
       });
       
@@ -16210,7 +16210,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           action: 'track_hype_over_time',
           priority: 'high', 
           reason: 'Community is absolutely based - track momentum in Hype over Time for perfect entry timing',
-          icon: '📈',
+          icon: 'ðŸ“ˆ',
           tool: 'Hype over Time Analytics'
         });
       }
@@ -16220,7 +16220,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           action: 'make_kol_call',
           priority: 'high',
           reason: 'All signals bullish AF - this could be a 10x play. Make a KOL call before it moons!',
-          icon: '🎯',
+          icon: 'ðŸŽ¯',
           tool: 'KOL Call Tracker'
         });
       }
@@ -16232,7 +16232,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         action: 'monitor_closely',
         priority: 'medium',
         reason: 'Crab market vibes - wait for clearer signals before aping in',
-        icon: '👀',
+        icon: 'ðŸ‘€',
         tool: 'DeGen Oracle Watchlist'
       });
       
@@ -16241,7 +16241,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           action: 'add_to_watchlist',
           priority: 'medium',
           reason: 'Solid fundamentals but needs more confirmation - watchlist this gem',
-          icon: '⭐',
+          icon: 'â­',
           tool: 'DeGen Oracle Watchlist'
         });
       }
@@ -16252,8 +16252,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       recommendations.push({
         action: 'avoid_or_wait',
         priority: 'high',
-        reason: 'Major red flags detected - paper hands panic incoming. Wait for better entry or you might get rekt 📉',
-        icon: '⚠️',
+        reason: 'Major red flags detected - paper hands panic incoming. Wait for better entry or you might get rekt ðŸ“‰',
+        icon: 'âš ï¸',
         tool: 'Risk Management'
       });
       
@@ -16262,7 +16262,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           action: 'remove_from_watchlist',
           priority: 'medium',
           reason: 'Bearish AF - time to clean up your bags and focus on better plays',
-          icon: '🗑️',
+          icon: 'ðŸ—‘ï¸',
           tool: 'Portfolio Management'
         });
       }
@@ -16283,21 +16283,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
         action: 'add_to_watchlist',
         priority: 'medium',
         reason: 'Positive sentiment detected',
-        icon: '⭐'
+        icon: 'â­'
       });
     } else if (sentiment === 'Bearish') {
       recommendations.push({
         action: 'avoid_for_now',
         priority: 'medium', 
         reason: 'Negative sentiment suggests caution',
-        icon: '⚠️'
+        icon: 'âš ï¸'
       });
     } else {
       recommendations.push({
         action: 'monitor',
         priority: 'low',
         reason: 'Mixed signals - upgrade to Premium for detailed analysis',
-        icon: '👀'
+        icon: 'ðŸ‘€'
       });
     }
     
@@ -16347,7 +16347,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       await this.oauthXService.db.writeJsonFile(usageFile, usage);
       
-      console.log(`📊 AI usage tracked for user ${userId}: ${usage[currentMonth]}/5 this month`);
+      console.log(`ðŸ“Š AI usage tracked for user ${userId}: ${usage[currentMonth]}/5 this month`);
     } catch (error) {
       console.error('Error tracking AI usage:', error);
     }
@@ -16358,13 +16358,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
    */
   async updateUserStats(userId, statName, increment = 1) {
     try {
-      console.log(`📊 [updateUserStats] Starting update for user ${userId}, stat: ${statName}, increment: ${increment}`);
+      console.log(`ðŸ“Š [updateUserStats] Starting update for user ${userId}, stat: ${statName}, increment: ${increment}`);
       
       const profileFile = await this.oauthXService.db.getUserFile(userId, 'profile.json');
-      console.log(`📁 [updateUserStats] Profile file path: ${profileFile}`);
+      console.log(`ðŸ“ [updateUserStats] Profile file path: ${profileFile}`);
       
       const profile = await this.oauthXService.db.readJsonFile(profileFile, {});
-      console.log(`📖 [updateUserStats] Current profile stats:`, profile.stats);
+      console.log(`ðŸ“– [updateUserStats] Current profile stats:`, profile.stats);
       
       // Initialize stats if they don't exist
       if (!profile.stats) {
@@ -16377,7 +16377,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             SOL: 0
           }
         };
-        console.log(`🆕 [updateUserStats] Initialized new stats object for user ${userId}`);
+        console.log(`ðŸ†• [updateUserStats] Initialized new stats object for user ${userId}`);
       }
       
       // Store old value for logging
@@ -16402,7 +16402,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         profile.stats.totalSpent[currency] = (profile.stats.totalSpent[currency] || 0) + increment;
-        console.log(`💰 [updateUserStats] Updated totalSpent ${currency}: ${oldValue} → ${profile.stats.totalSpent[currency]}`);
+        console.log(`ðŸ’° [updateUserStats] Updated totalSpent ${currency}: ${oldValue} â†’ ${profile.stats.totalSpent[currency]}`);
       } else {
         profile.stats[statName] = (profile.stats[statName] || 0) + increment;
       }
@@ -16411,9 +16411,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
       profile.lastUpdated = new Date().toISOString();
       
       if (statName === 'totalSpent') {
-        console.log(`🔄 [updateUserStats] Updated ${statName}:`, profile.stats.totalSpent);
+        console.log(`ðŸ”„ [updateUserStats] Updated ${statName}:`, profile.stats.totalSpent);
       } else {
-        console.log(`🔄 [updateUserStats] Updating ${statName}: ${oldValue} → ${profile.stats[statName]}`);
+        console.log(`ðŸ”„ [updateUserStats] Updating ${statName}: ${oldValue} â†’ ${profile.stats[statName]}`);
       }
       
       // Save updated profile with retry logic
@@ -16424,15 +16424,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
         try {
           await this.oauthXService.db.writeJsonFile(profileFile, profile);
           saveSuccess = true;
-          console.log(`✅ [updateUserStats] Successfully saved profile on attempt ${attempt}`);
+          console.log(`âœ… [updateUserStats] Successfully saved profile on attempt ${attempt}`);
           break;
         } catch (saveError) {
           lastError = saveError;
-          console.error(`❌ [updateUserStats] Save attempt ${attempt} failed:`, saveError.message);
+          console.error(`âŒ [updateUserStats] Save attempt ${attempt} failed:`, saveError.message);
           
           if (attempt < 3) {
             const delay = attempt * 1000; // 1s, 2s delays
-            console.log(`⏳ [updateUserStats] Retrying in ${delay}ms...`);
+            console.log(`â³ [updateUserStats] Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
@@ -16461,27 +16461,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
         
         if (JSON.stringify(verifyValue) !== JSON.stringify(expectedValue)) {
-          console.error(`🚨 [updateUserStats] VERIFICATION FAILED! Expected:`, expectedValue, `Got:`, verifyValue);
+          console.error(`ðŸš¨ [updateUserStats] VERIFICATION FAILED! Expected:`, expectedValue, `Got:`, verifyValue);
           throw new Error(`Verification failed: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(verifyValue)}`);
         } else {
-          console.log(`✅ [updateUserStats] Verification successful: ${statName} =`, verifyValue);
+          console.log(`âœ… [updateUserStats] Verification successful: ${statName} =`, verifyValue);
         }
       } catch (verifyError) {
-        console.error(`❌ [updateUserStats] Verification error:`, verifyError.message);
+        console.error(`âŒ [updateUserStats] Verification error:`, verifyError.message);
         // Don't throw here, the save might have worked but verification failed
       }
       
       if (statName === 'totalSpent') {
-        console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}:`, profile.stats.totalSpent);
+        console.log(`ðŸ“Š [updateUserStats] Successfully updated ${statName} for user ${userId}:`, profile.stats.totalSpent);
         return profile.stats.totalSpent;
       } else {
-        console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
+        console.log(`ðŸ“Š [updateUserStats] Successfully updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
         return profile.stats[statName];
       }
       
     } catch (error) {
-      console.error(`❌ [updateUserStats] Error updating user stats for ${userId}:`, error);
-      console.error(`❌ [updateUserStats] Error details:`, {
+      console.error(`âŒ [updateUserStats] Error updating user stats for ${userId}:`, error);
+      console.error(`âŒ [updateUserStats] Error details:`, {
         userId,
         statName,
         increment,
@@ -16518,20 +16518,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const cacheDir = path.dirname(cachePath);
       await fs.mkdir(cacheDir, { recursive: true });
       
-      // 🛡️ ENHANCED FILE LOCKING: Create lock file to prevent concurrent access
+      // ðŸ›¡ï¸ ENHANCED FILE LOCKING: Create lock file to prevent concurrent access
       try {
         lockFile = await fs.open(lockPath, 'wx'); // Exclusive write lock
-        console.log(`[🛡️ Enhanced Backend] 🔒 Acquired cache lock`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”’ Acquired cache lock`);
       } catch (lockError) {
         if (lockError.code === 'EEXIST') {
-          console.log(`[🛡️ Enhanced Backend] ⏳ Cache lock exists, waiting... (attempt ${retryCount + 1})`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] â³ Cache lock exists, waiting... (attempt ${retryCount + 1})`);
           
           // Check if lock file is stale (older than 5 minutes)
           try {
             const lockStats = await fs.stat(lockPath);
             const lockAge = Date.now() - lockStats.mtime.getTime();
             if (lockAge > 5 * 60 * 1000) { // 5 minutes
-              console.log(`[🛡️ Enhanced Backend] 🗑️ Removing stale lock file (${Math.round(lockAge / 1000)}s old)`);
+              console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Removing stale lock file (${Math.round(lockAge / 1000)}s old)`);
               await fs.unlink(lockPath);
               // Retry immediately after removing stale lock
               return this.saveTokensToCache(tokens, retryCount);
@@ -16551,7 +16551,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             } catch (_) {
               if (i === maxWaitTime - 1) {
                 if (retryCount < 3) {
-                  console.log(`[🛡️ Enhanced Backend] ⏳ Lock timeout, retrying in 5s... (${retryCount + 1}/3)`);
+                  console.log(`[ðŸ›¡ï¸ Enhanced Backend] â³ Lock timeout, retrying in 5s... (${retryCount + 1}/3)`);
                   await new Promise(resolve => setTimeout(resolve, 5000));
                   return this.saveTokensToCache(tokens, retryCount + 1);
                 } else {
@@ -16565,7 +16565,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
       }
       
-      // 🛡️ ATOMIC WRITE: Write to temporary file first, then rename
+      // ðŸ›¡ï¸ ATOMIC WRITE: Write to temporary file first, then rename
       const tempPath = cachePath + '.tmp';
       const jsonData = JSON.stringify(tokens, null, 2);
       
@@ -16575,10 +16575,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Atomic rename (this is atomic on most file systems)
       await fs.rename(tempPath, cachePath);
       
-      console.log(`[🛡️ Enhanced Backend] ✅ Saved ${tokens.length} tokens to cache (atomic write)`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Saved ${tokens.length} tokens to cache (atomic write)`);
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error saving tokens to cache:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error saving tokens to cache:', error);
       
       // Cleanup temp file if it exists
       try {
@@ -16588,12 +16588,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       throw error;
     } finally {
-      // 🛡️ RELEASE LOCK: Always release the lock
+      // ðŸ›¡ï¸ RELEASE LOCK: Always release the lock
       if (lockFile) {
         try {
           await lockFile.close();
           await fs.unlink(lockPath);
-          console.log(`[🛡️ Enhanced Backend] 🔓 Released cache lock`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”“ Released cache lock`);
         } catch (_) {}
       }
     }
@@ -16610,10 +16610,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // (Removed redundant Recent Activity scoring - prioritizes mention volume and engagement quality)
 
     // 1. Mentions score (55% weight) - PRIMARY importance for community buzz
-    // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
+    // ðŸš¨ CRITICAL: Use displayMentions (projected) not raw mentions!
     const mentions = twitterData.displayMentions || twitterData.mentions || 0;
     
-    // 🚨 TIERED SCORING: Scale properly with projected mention counts
+    // ðŸš¨ TIERED SCORING: Scale properly with projected mention counts
     if (mentions >= 500) score += 3.5;        // 500+ = Maximum buzz
     else if (mentions >= 200) score += 3.0;   // 200+ = Massive buzz
     else if (mentions >= 100) score += 2.5;   // 100+ = Major buzz
@@ -16702,23 +16702,23 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const status = this.tokenProcessor.getProcessingStatus();
       
       if (status.processedCount > 0 && !status.isProcessing) {
-        console.log('[🛡️ Enhanced Backend] 🔄 Starting cache refresh (skipTwitter=true)...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Starting cache refresh (skipTwitter=true)...');
         await this.tokenProcessor.startProcessing({ skipTwitter: true });
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Cache refresh failed:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Cache refresh failed:', error);
     }
   }
 
   async updateJupiterData() {
     try {
-      console.log('[🛡️ Enhanced Backend] 🚀 Starting Jupiter data update cycle...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Starting Jupiter data update cycle...');
       
       // Load current tokens
       const tokens = await this.getTokensFromCache();
       if (!tokens || tokens.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found for Jupiter update');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens found for Jupiter update');
         return;
       }
       
@@ -16738,11 +16738,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       
       if (tokensToUpdate.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ✅ All Jupiter data is current (< 30 minutes old)');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… All Jupiter data is current (< 30 minutes old)');
         return;
       }
       
-      console.log(`[🛡️ Enhanced Backend] 🔄 Updating Jupiter data for ${tokensToUpdate.length} tokens...`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Updating Jupiter data for ${tokensToUpdate.length} tokens...`);
       
       // Sort by priority: tokens without Jupiter data first, then by market cap
       // Update up to 50 tokens per cycle (increased from 20)
@@ -16768,7 +16768,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const contractAddresses = batch.map(token => token.contractAddress);
         
         try {
-          console.log(`[🛡️ Enhanced Backend] 🚀 Batch updating Jupiter data for ${batch.length} tokens (batch ${Math.floor(i/batchSize) + 1})...`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Batch updating Jupiter data for ${batch.length} tokens (batch ${Math.floor(i/batchSize) + 1})...`);
           
           // Use Jupiter API batch endpoint
           const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddresses.join(',')}`, {
@@ -16802,23 +16802,23 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 const newMcap = freshData.mcap || 0;
                 if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.05) {
                   const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
-                  console.log(`[🛡️ Enhanced Backend] 📊 ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+                  console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M â†’ ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
                 }
                 
-                console.log(`[🛡️ Enhanced Backend] ✅ Updated Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+                console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Updated Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
               } else if (tokenIndex !== -1) {
-                console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data found for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+                console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No Jupiter data found for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
                 errors++;
               }
             });
           } else {
             errors += batch.length;
-            console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data returned for batch of ${batch.length} tokens`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No Jupiter data returned for batch of ${batch.length} tokens`);
           }
           
         } catch (error) {
           errors += batch.length;
-          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update Jupiter batch for ${batch.length} tokens: ${error.message}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update Jupiter batch for ${batch.length} tokens: ${error.message}`);
         }
         
         // Rate limiting: wait 3 seconds between batches (reduced from individual 1s delays)
@@ -16827,20 +16827,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
       }
       
-      // 🛡️ ATOMIC WRITE: Save updated cache
+      // ðŸ›¡ï¸ ATOMIC WRITE: Save updated cache
       if (updated > 0) {
         const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
         const tempPath = cachePath + '.tmp';
         const jsonData = JSON.stringify(tokens, null, 2);
         
         try {
-          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          // ðŸš¨ CRITICAL FIX: Ensure cache directory exists before atomic write
           const cacheDir = path.dirname(cachePath);
           await fs.mkdir(cacheDir, { recursive: true });
           
           await fs.writeFile(tempPath, jsonData, 'utf8');
           await fs.rename(tempPath, cachePath);
-          console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
         } catch (error) {
           // Cleanup temp file if it exists
           try {
@@ -16852,22 +16852,22 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Update KOL calls with new market cap data
         await this.updateKolCallsWithJupiterData(tokens);
       } else {
-        console.log(`[🛡️ Enhanced Backend] ⚠️ No tokens updated: ${errors} errors`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens updated: ${errors} errors`);
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Jupiter update failed:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Jupiter update failed:', error);
     }
   }
 
   async updateKolCallsWithJupiterData(tokens) {
     try {
-      console.log('[🛡️ Enhanced Backend] 🎯 Updating KOL calls with fresh Jupiter data...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸŽ¯ Updating KOL calls with fresh Jupiter data...');
       
       // Get all KOL calls that need updates
       const callsToUpdate = await this.oauthXService.db.getAllKolCallsForMCUpdate();
       if (callsToUpdate.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ✅ No KOL calls to update');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… No KOL calls to update');
         return;
       }
       
@@ -16904,42 +16904,42 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
       
       // Save market cap snapshots for charting
-      console.log('[🛡️ Enhanced Backend] 📊 Saving market cap snapshots for charting...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Saving market cap snapshots for charting...');
       let snapshotsSaved = 0;
       for (const [contractAddress, tokenData] of tokenDataMap) {
         try {
           await this.mcapService.saveMcapSnapshot(contractAddress, tokenData.mcap, tokenData.holderCount);
           snapshotsSaved++;
         } catch (error) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to save mcap snapshot for ${contractAddress}:`, error.message);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to save mcap snapshot for ${contractAddress}:`, error.message);
         }
       }
       if (snapshotsSaved > 0) {
-        console.log(`[🛡️ Enhanced Backend] ✅ Saved ${snapshotsSaved} market cap snapshots`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Saved ${snapshotsSaved} market cap snapshots`);
       }
       
       if (updated > 0) {
-        console.log(`[🛡️ Enhanced Backend] ✅ Updated ${updated} KOL calls across ${userUpdates.size} users`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Updated ${updated} KOL calls across ${userUpdates.size} users`);
         for (const [userId, count] of userUpdates) {
-          console.log(`[🛡️ Enhanced Backend]    User ${userId}: ${count} calls updated`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend]    User ${userId}: ${count} calls updated`);
         }
       } else {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No KOL calls updated (no matching tokens with fresh data)');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No KOL calls updated (no matching tokens with fresh data)');
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ KOL calls update failed:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ KOL calls update failed:', error);
     }
   }
 
   async updateJupiterDataWithPriority() {
     try {
-      console.log('[🛡️ Enhanced Backend] 🎯 Starting priority-based Jupiter data update...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸŽ¯ Starting priority-based Jupiter data update...');
       
       // Load current tokens
       const tokens = await this.getTokensFromCache();
       if (!tokens || tokens.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found for priority update');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens found for priority update');
         return;
       }
       
@@ -16951,11 +16951,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const tokensToUpdate = this.priorityQueue.getTokensForUpdate(tokens, watchlistTokens, kolCallTokens);
       
       if (tokensToUpdate.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ✅ No tokens need priority updates at this time');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… No tokens need priority updates at this time');
         return;
       }
 
-      // 🚨 QUALITY FILTER: Remove low-quality tokens from the update list AND from the main cache
+      // ðŸš¨ QUALITY FILTER: Remove low-quality tokens from the update list AND from the main cache
       const qualityTokens = [];
       const removedTokens = [];
       
@@ -16972,7 +16972,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       
       if (removedTokens.length > 0) {
-        console.log(`[🛡️ Enhanced Backend] 🗑️ Removed ${removedTokens.length} low-quality tokens from cache`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Removed ${removedTokens.length} low-quality tokens from cache`);
         
         // Remove these tokens from the main tokens array
         const tokensToKeep = tokens.filter(token => 
@@ -16981,29 +16981,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         // Save the cleaned cache
         await this.saveTokensToCache(tokensToKeep);
-        console.log(`[🛡️ Enhanced Backend] ✅ Cache cleaned: ${tokens.length} → ${tokensToKeep.length} tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Cache cleaned: ${tokens.length} â†’ ${tokensToKeep.length} tokens`);
         
         // Update the tokens array for the rest of the function
         tokens.splice(0, tokens.length, ...tokensToKeep);
       }
       
       if (qualityTokens.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ✅ No quality tokens need priority updates at this time');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… No quality tokens need priority updates at this time');
         return;
       }
       
-      console.log(`[🛡️ Enhanced Backend] 🔄 Priority update: ${qualityTokens.length} tokens selected`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Priority update: ${qualityTokens.length} tokens selected`);
       
       // Log priority breakdown
       const priorityBreakdown = qualityTokens.reduce((acc, token) => {
         acc[token.priority] = (acc[token.priority] || 0) + 1;
         return acc;
       }, {});
-      console.log(`[🛡️ Enhanced Backend] 📊 Priority breakdown:`, priorityBreakdown);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Priority breakdown:`, priorityBreakdown);
       
       // Check rate limiting
       if (!this.priorityQueue.canMakeRequest()) {
-        console.log('[🛡️ Enhanced Backend] ⏸️ Rate limit reached, skipping this cycle');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] â¸ï¸ Rate limit reached, skipping this cycle');
         return;
       }
       
@@ -17025,7 +17025,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const contractAddresses = batch.map(token => token.contractAddress);
         
         try {
-          console.log(`[🛡️ Enhanced Backend] 🚀 Priority batch ${Math.floor(i/batchSize) + 1}: ${batch.length} tokens (${batch.map(t => t.priority).join(', ')})...`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Priority batch ${Math.floor(i/batchSize) + 1}: ${batch.length} tokens (${batch.map(t => t.priority).join(', ')})...`);
           
           // Record request for rate limiting
           this.priorityQueue.recordRequest();
@@ -17048,14 +17048,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
               }
             });
             
-            // 🚨 CRITICAL FIX: Update tokens with their corresponding Jupiter data
+            // ðŸš¨ CRITICAL FIX: Update tokens with their corresponding Jupiter data
             const updatedTokensInBatch = [];
             batch.forEach(token => {
               const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
               if (tokenIndex !== -1 && jupiterMap.has(token.contractAddress)) {
                 const freshData = jupiterMap.get(token.contractAddress);
                 
-                // 🚨 QUALITY FILTER: Check if token meets quality criteria
+                // ðŸš¨ QUALITY FILTER: Check if token meets quality criteria
                 const hasLaunchpad = freshData.launchpad && freshData.launchpad !== '';
                 const hasOrganicScore = freshData.organicScore && freshData.organicScore > 0;
                 const hasGraduatedAt = freshData.graduatedAt && freshData.graduatedAt !== '';
@@ -17066,7 +17066,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 }
                 
                 
-                // 🚨 CRITICAL FIX: Update the original token but preserve ALL existing data including Twitter
+                // ðŸš¨ CRITICAL FIX: Update the original token but preserve ALL existing data including Twitter
                 const originalToken = tokens[tokenIndex];
                 tokens[tokenIndex] = {
                   ...originalToken,  // Preserve ALL existing data (including Twitter data)
@@ -17083,12 +17083,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
                   const newMcap = freshData.mcap || 0;
                   if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.02) { // 2% threshold for high priority
                     const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
-                    console.log(`[🛡️ Enhanced Backend] 📊 HIGH: ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+                    console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š HIGH: ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M â†’ ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
                   }
                 }
                 
               } else if (tokenIndex !== -1) {
-                console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+                console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
                 errors++;
               }
             });
@@ -17124,10 +17124,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
                   // Take hype snapshot after score recalculation
                   await this.takeHypeSnapshot(updatedToken);
                   
-                  console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - No Twitter data, Overall: ${newOverallScore.toFixed(2)}`);
+                  console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ† ${updatedToken.priority}: ${updatedToken.symbol} - No Twitter data, Overall: ${newOverallScore.toFixed(2)}`);
                 }
               } catch (scoreError) {
-                console.error(`[🛡️ Enhanced Backend] ❌ Score recalculation failed for ${updatedToken.symbol}:`, scoreError.message);
+                console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Score recalculation failed for ${updatedToken.symbol}:`, scoreError.message);
               }
             }
             
@@ -17136,12 +17136,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
             
           } else {
             errors += batch.length;
-            console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data returned for batch of ${batch.length} tokens`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No Jupiter data returned for batch of ${batch.length} tokens`);
           }
           
         } catch (error) {
           errors += batch.length;
-          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update priority batch: ${error.message}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to update priority batch: ${error.message}`);
         }
         
         // Rate limiting: wait 3 seconds between batches
@@ -17152,7 +17152,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       // Save updated cache with validation
       if (updated > 0) {
-        // 🛡️ VALIDATE DATA before saving
+        // ðŸ›¡ï¸ VALIDATE DATA before saving
         if (!Array.isArray(tokens)) {
           throw new Error('Tokens data is not an array - corruption detected');
         }
@@ -17168,18 +17168,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         }
         
-        console.log(`[🛡️ Enhanced Backend] 🔍 Data validation passed: ${tokens.length} tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ” Data validation passed: ${tokens.length} tokens`);
         
         // Save with atomic write
         await this.saveTokensToCache(tokens);
         
-        // 🛡️ VERIFY SAVE: Read back and validate
+        // ðŸ›¡ï¸ VERIFY SAVE: Read back and validate
         const savedTokens = await this.getTokensFromCache();
         if (!savedTokens || savedTokens.length !== tokens.length) {
           throw new Error(`Cache verification failed: expected ${tokens.length}, got ${savedTokens?.length || 0}`);
         }
         
-        console.log(`[🛡️ Enhanced Backend] ✅ Priority update complete: ${updated} tokens updated, ${errors} errors`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Priority update complete: ${updated} tokens updated, ${errors} errors`);
         
         // Update KOL calls with new market cap data
         await this.updateKolCallsWithJupiterData(tokens);
@@ -17187,11 +17187,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Cleanup old priority data
         await this.priorityQueue.cleanupOldPriorities(tokens);
       } else {
-        console.log(`[🛡️ Enhanced Backend] ⚠️ No tokens updated: ${errors} errors`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens updated: ${errors} errors`);
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Priority Jupiter update failed:', error);
     }
   }
 
@@ -17222,15 +17222,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
             });
           }
         } catch (error) {
-          console.error(`[🛡️ Enhanced Backend] ⚠️ Failed to get watchlist for user ${user.id}:`, error.message);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to get watchlist for user ${user.id}:`, error.message);
         }
       }
       
       const result = Array.from(watchlistTokens);
-      console.log(`[🛡️ Enhanced Backend] 📋 Found ${result.length} unique tokens in watchlists`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“‹ Found ${result.length} unique tokens in watchlists`);
       return result;
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Failed to get watchlist tokens:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to get watchlist tokens:', error);
       return [];
     }
   }
@@ -17258,34 +17258,34 @@ Thanks for using x402 payments on Twitter! 🚀`;
             });
           }
         } catch (error) {
-          console.error(`[🛡️ Enhanced Backend] ⚠️ Failed to get KOL calls for user ${user.id}:`, error.message);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Failed to get KOL calls for user ${user.id}:`, error.message);
         }
       }
       
       const result = Array.from(kolCallTokens);
-      console.log(`[🛡️ Enhanced Backend] 📞 Found ${result.length} unique tokens with recent KOL calls`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“ž Found ${result.length} unique tokens with recent KOL calls`);
       return result;
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Failed to get KOL call tokens:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to get KOL call tokens:', error);
       return [];
     }
   }
 
   async clearCache() {
     try {
-      // 🛡️ ATOMIC WRITE: Use the same persistent cache path as the rest of the system
+      // ðŸ›¡ï¸ ATOMIC WRITE: Use the same persistent cache path as the rest of the system
       const cachePath = this.persistentCachePath || path.join(process.env.DATA_DIR || '/var/data/dgo', 'cache', 'tokens-cache.json');
       const tempPath = cachePath + '.tmp';
       const jsonData = JSON.stringify([], null, 2);
       
       try {
-        // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+        // ðŸš¨ CRITICAL FIX: Ensure cache directory exists before atomic write
         const cacheDir = path.dirname(cachePath);
         await fs.mkdir(cacheDir, { recursive: true });
         
         await fs.writeFile(tempPath, jsonData, 'utf8');
         await fs.rename(tempPath, cachePath);
-        console.log(`[🛡️ Enhanced Backend] 🗑️ Cache cleared at: ${cachePath}`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Cache cleared at: ${cachePath}`);
       } catch (error) {
         // Cleanup temp file if it exists
         try {
@@ -17299,17 +17299,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.tokenProcessor.processingQueue = [];
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Failed to clear cache:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to clear cache:', error);
     }
   }
 
   async preserveCacheAndRefresh() {
     try {
-      console.log('[🛡️ Enhanced Backend] 🔄 Preserving existing tokens and refreshing...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Preserving existing tokens and refreshing...');
       
       // Load existing tokens first
       const existingTokens = await this.getTokensFromCache();
-      console.log(`[🛡️ Enhanced Backend] 📊 Preserving ${existingTokens.length} existing tokens`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Preserving ${existingTokens.length} existing tokens`);
       
       // Reset processor state but keep existing tokens
       this.tokenProcessor.processedTokens = existingTokens;
@@ -17318,10 +17318,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Start processing to add new tokens
       await this.tokenProcessor.startProcessing();
       
-      console.log('[🛡️ Enhanced Backend] ✅ Cache preserved and refresh started');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Cache preserved and refresh started');
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Failed to preserve cache and refresh:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Failed to preserve cache and refresh:', error);
     }
   }
 
@@ -17338,8 +17338,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         // If no activity for more than 10 minutes, consider it stuck
         if (timeSinceLastActivity > 10 * 60 * 1000) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ Token processing appears stuck (no activity for 10+ minutes)');
-          console.log('[🛡️ Enhanced Backend] 🔄 Restarting token processing...');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Token processing appears stuck (no activity for 10+ minutes)');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Restarting token processing...');
           
           // Stop current processing
           this.tokenProcessor.stopProcessing();
@@ -17350,7 +17350,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // Restart with preserved cache
           await this.preserveCacheAndRefresh();
           
-          console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted after being stuck');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Token processing restarted after being stuck');
         }
         return;
       }
@@ -17359,41 +17359,41 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const tokens = await this.getTokensFromCache();
       
       if (tokens.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens in cache and processing not running');
-        console.log('[🛡️ Enhanced Backend] 🚀 Starting fresh token processing...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ No tokens in cache and processing not running');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Starting fresh token processing...');
         
         // Start fresh processing
         await this.tokenProcessor.startProcessing();
         
-        console.log('[🛡️ Enhanced Backend] ✅ Fresh token processing started');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Fresh token processing started');
       } else if (tokens.length < 100) {
-        console.log('[🛡️ Enhanced Backend] ⚠️ Low token count and processing not running');
-        console.log(`[🛡️ Enhanced Backend] 📊 Current tokens: ${tokens.length}, starting processing to add more...`);
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Low token count and processing not running');
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Current tokens: ${tokens.length}, starting processing to add more...`);
         
         // Restart with preserved cache
         await this.preserveCacheAndRefresh();
         
-        console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted to add more tokens');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Token processing restarted to add more tokens');
       } else {
         // We have enough tokens, but processing stopped - restart it
-        console.log('[🛡️ Enhanced Backend] ⚠️ Token processing stopped but we have sufficient tokens');
-        console.log(`[🛡️ Enhanced Backend] 📊 Current tokens: ${tokens.length}, restarting processing...`);
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Token processing stopped but we have sufficient tokens');
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Current tokens: ${tokens.length}, restarting processing...`);
         
         // Restart with preserved cache
         await this.preserveCacheAndRefresh();
         
-        console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Token processing restarted');
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Auto-restart failed:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Auto-restart failed:', error);
       
       // If auto-restart fails, try a simple restart
       try {
-        console.log('[🛡️ Enhanced Backend] 🔄 Attempting simple restart after auto-restart failure...');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Attempting simple restart after auto-restart failure...');
         await this.preserveCacheAndRefresh();
       } catch (restartError) {
-        console.error('[🛡️ Enhanced Backend] ❌ Simple restart also failed:', restartError);
+        console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Simple restart also failed:', restartError);
       }
     }
   }
@@ -17401,20 +17401,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
   // ========================================
   // Enhanced KOL Trust System - Multi-Board Leaderboard
   async generateEnhancedLeaderboard(userCalls, currentTokenData = {}) {
-    console.log('🏆 Generating Enhanced KOL Trust Leaderboard...');
-    console.log(`📊 [Enhanced Leaderboard] Total users: ${Object.keys(userCalls).length}`);
-    console.log(`📊 [Enhanced Leaderboard] Token data available: ${Object.keys(currentTokenData).length} tokens`);
+    console.log('ðŸ† Generating Enhanced KOL Trust Leaderboard...');
+    console.log(`ðŸ“Š [Enhanced Leaderboard] Total users: ${Object.keys(userCalls).length}`);
+    console.log(`ðŸ“Š [Enhanced Leaderboard] Token data available: ${Object.keys(currentTokenData).length} tokens`);
     
     // Process all users with enhanced trust scoring
     const userTrustScores = await Promise.all(
       Object.entries(userCalls).map(async ([userId, calls]) => {
         try {
-          console.log(`🔍 [Enhanced Leaderboard] Processing user ${userId} with ${calls?.length || 0} calls`);
+          console.log(`ðŸ” [Enhanced Leaderboard] Processing user ${userId} with ${calls?.length || 0} calls`);
           
           // Debug: Show sample call data
           if (calls && calls.length > 0) {
             const sampleCall = calls[0];
-            console.log(`🔍 [Enhanced Leaderboard] Sample call for ${userId}:`, {
+            console.log(`ðŸ” [Enhanced Leaderboard] Sample call for ${userId}:`, {
               contractAddress: sampleCall.contractAddress,
               tokenContractAddress: sampleCall.token?.contractAddress,
               calledMC: sampleCall.calledMc || sampleCall.calledMC,
@@ -17424,7 +17424,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
           
           const trustScore = this.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
-          console.log(`📊 [Enhanced Leaderboard] Trust score for ${userId}:`, {
+          console.log(`ðŸ“Š [Enhanced Leaderboard] Trust score for ${userId}:`, {
             trustScore: trustScore.trustScore,
             hitRate: trustScore.performance?.hitRate,
             consistency: trustScore.consistency?.score,
@@ -17444,7 +17444,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             ...trustScore
           };
         } catch (error) {
-          console.error(`❌ Error processing user ${userId}:`, error.message);
+          console.error(`âŒ Error processing user ${userId}:`, error.message);
           return {
             userId,
             username: `User${userId.slice(-4)}`,
@@ -17498,7 +17498,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       generatedAt: new Date().toISOString()
     };
 
-    console.log(`✅ Enhanced Leaderboard Generated:`, {
+    console.log(`âœ… Enhanced Leaderboard Generated:`, {
       totalUsers: boardStats.totalUsers,
       eliteKOLs: boardStats.eliteCount,
       expertKOLs: boardStats.expertCount,
@@ -17560,7 +17560,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     const sortedX = xMultiples.sort((a, b) => a - b);
     const medianX = sortedX.length > 0 ? sortedX[Math.floor(sortedX.length / 2)] : 0;
 
-    console.log(`📊 User Stats Calculation: ${trustScore.performance?.profitableCalls || 0} hits / ${trustScore.performance?.totalCalls || 0} calls = ${(hitRate * 100).toFixed(1)}% hit rate`);
+    console.log(`ðŸ“Š User Stats Calculation: ${trustScore.performance?.profitableCalls || 0} hits / ${trustScore.performance?.totalCalls || 0} calls = ${(hitRate * 100).toFixed(1)}% hit rate`);
 
     return {
       totalCalls: calls.length,
@@ -17570,7 +17570,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     };
   }
 
-  // 🔥 FUEL TOKEN HELPER METHODS
+  // ðŸ”¥ FUEL TOKEN HELPER METHODS
   // ========================================
 
   async getFueledTokens() {
@@ -17584,14 +17584,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
         await fs.access(fueledTokensPath);
       } catch {
         // File doesn't exist, return empty array
-        console.log('[🛡️ Enhanced Backend] 🔥 No fueled-tokens.json file found, returning empty array');
+        console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ No fueled-tokens.json file found, returning empty array');
         return [];
       }
 
       const data = await fs.readFile(fueledTokensPath, 'utf8');
       const fueledTokens = JSON.parse(data);
       
-      console.log(`[🛡️ Enhanced Backend] 🔥 Loaded ${fueledTokens.length} fueled tokens from file`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Loaded ${fueledTokens.length} fueled tokens from file`);
 
       // Filter out expired tokens and handle stacked fuel applications
       const now = Date.now();
@@ -17599,7 +17599,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const expiredTokens = []; // Track tokens that need recalculation
       let hasChanges = false;
       
-      console.log(`[🛡️ Enhanced Backend] 🔥 Processing ${fueledTokens.length} fueled tokens, current time: ${new Date(now).toISOString()}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Processing ${fueledTokens.length} fueled tokens, current time: ${new Date(now).toISOString()}`);
 
       for (const token of fueledTokens) {
         if (token.fuelApplications && Array.isArray(token.fuelApplications)) {
@@ -17676,12 +17676,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Update the file if we removed expired tokens or applications
       if (hasChanges) {
         await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
-        console.log(`[🛡️ Enhanced Backend] 🔥 Updated fueled-tokens.json with ${activeFueledTokens.length} active tokens`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Updated fueled-tokens.json with ${activeFueledTokens.length} active tokens`);
       }
 
       // Recalculate scores for tokens with expired fuel (background process)
       if (expiredTokens.length > 0) {
-        console.log(`[🛡️ Enhanced Backend] 🔄 Triggering recalculation for ${expiredTokens.length} tokens with expired fuel...`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Triggering recalculation for ${expiredTokens.length} tokens with expired fuel...`);
         
         // Process recalculations in the background to avoid blocking the response
         setImmediate(async () => {
@@ -17692,14 +17692,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
       return activeFueledTokens;
 
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error getting fueled tokens:', error);
       return [];
     }
   }
 
   async applyFuelToToken(contractAddress, fuelType) {
     try {
-      console.log(`[🛡️ Enhanced Backend] 🔥 Starting fuel application: ${fuelType} to ${contractAddress}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Starting fuel application: ${fuelType} to ${contractAddress}`);
       
       // Load current tokens to check if token exists
       const tokens = await this.getTokensFromCache();
@@ -17772,7 +17772,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         existingFueledToken.fuelExpiry = expiryTime.toISOString(); // Latest expiry time
         existingFueledToken.originalScore = existingToken.overallScore || existingToken.score || 0;
         
-        console.log(`[🛡️ Enhanced Backend] 🔥 Stacked fuel: ${fuelType} + existing = ${totalFuelValue}x (${totalBoostMultiplier.toFixed(2)}x multiplier)`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Stacked fuel: ${fuelType} + existing = ${totalFuelValue}x (${totalBoostMultiplier.toFixed(2)}x multiplier)`);
       } else {
         // Add new fueled token with stacking structure
         const newFueledToken = {
@@ -17793,7 +17793,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         };
         fueledTokens.push(newFueledToken);
         
-        console.log(`[🛡️ Enhanced Backend] 🔥 New fuel applied: ${fuelType} (${(1 + config.boost).toFixed(2)}x multiplier)`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ New fuel applied: ${fuelType} (${(1 + config.boost).toFixed(2)}x multiplier)`);
       }
 
       // Save fueled tokens
@@ -17809,19 +17809,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
 
       await fs.writeFile(fueledTokensPath, JSON.stringify(fueledTokens, null, 2));
-      console.log(`[🛡️ Enhanced Backend] 🔥 Saved ${fueledTokens.length} fueled tokens to ${fueledTokensPath}`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Saved ${fueledTokens.length} fueled tokens to ${fueledTokensPath}`);
 
-      console.log(`[🛡️ Enhanced Backend] 🔥 Fuel ${fuelType} applied to ${existingToken.symbol} (${contractAddress})`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”¥ Fuel ${fuelType} applied to ${existingToken.symbol} (${contractAddress})`);
 
       // Immediately recalculate token with fresh Jupiter data (but keep existing Twitter data)
-      console.log(`[🛡️ Enhanced Backend] 🔄 Triggering immediate recalculation for fueled token ${existingToken.symbol}...`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Triggering immediate recalculation for fueled token ${existingToken.symbol}...`);
       
       try {
         // Refresh Jupiter data for this specific token
         const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(contractAddress);
         
         if (freshJupiterData) {
-          // 🚨 QUALITY FILTER: Check if token meets quality criteria
+          // ðŸš¨ QUALITY FILTER: Check if token meets quality criteria
           const hasLaunchpad = freshJupiterData.launchpad && freshJupiterData.launchpad !== '';
           const hasOrganicScore = freshJupiterData.organicScore && freshJupiterData.organicScore > 0;
           const hasGraduatedAt = freshJupiterData.graduatedAt && freshJupiterData.graduatedAt !== '';
@@ -17866,12 +17866,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // Save updated tokens to cache
           await this.saveTokensToCache(tokens);
           
-          console.log(`[🛡️ Enhanced Backend] ✅ Token ${existingToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fresh Jupiter data, existing Twitter data)`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Token ${existingToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fresh Jupiter data, existing Twitter data)`);
         } else {
-          console.log(`[🛡️ Enhanced Backend] ⚠️ Could not fetch fresh Jupiter data for ${existingToken.symbol}, using existing data`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Could not fetch fresh Jupiter data for ${existingToken.symbol}, using existing data`);
         }
       } catch (recalcError) {
-        console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating fueled token ${existingToken.symbol}:`, recalcError);
+        console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Error recalculating fueled token ${existingToken.symbol}:`, recalcError);
         // Don't fail the fuel application if recalculation fails
       }
 
@@ -17894,7 +17894,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       };
 
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error applying fuel:', error);
       return {
         success: false,
         error: 'Internal server error while applying fuel'
@@ -17938,7 +17938,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       await fs.writeFile(fueledTokensPath, JSON.stringify(fueledTokens, null, 2));
 
-      console.log(`[🛡️ Enhanced Backend] 🗑️ Fuel removed from ${fueledToken.symbol} (${contractAddress})`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ—‘ï¸ Fuel removed from ${fueledToken.symbol} (${contractAddress})`);
 
       // Optionally recalculate the token's score without fuel boost
       try {
@@ -17948,13 +17948,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         );
 
         if (existingToken) {
-          console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${existingToken.symbol} without fuel boost...`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Recalculating ${existingToken.symbol} without fuel boost...`);
           
           // Refresh Jupiter data and recalculate score
           const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(contractAddress);
           
           if (freshJupiterData) {
-            // 🚨 QUALITY FILTER: Check if token meets quality criteria
+            // ðŸš¨ QUALITY FILTER: Check if token meets quality criteria
             const hasLaunchpad = freshJupiterData.launchpad && freshJupiterData.launchpad !== '';
             const hasOrganicScore = freshJupiterData.organicScore && freshJupiterData.organicScore > 0;
             const hasGraduatedAt = freshJupiterData.graduatedAt && freshJupiterData.graduatedAt !== '';
@@ -17986,10 +17986,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // Save updated tokens to cache
           await this.saveTokensToCache(tokens);
           
-          console.log(`[🛡️ Enhanced Backend] ✅ Token ${existingToken.symbol} recalculated without fuel: ${newOverallScore.toFixed(2)}`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Token ${existingToken.symbol} recalculated without fuel: ${newOverallScore.toFixed(2)}`);
         }
       } catch (recalcError) {
-        console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating token after fuel removal:`, recalcError);
+        console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Error recalculating token after fuel removal:`, recalcError);
         // Don't fail the fuel removal if recalculation fails
       }
 
@@ -17999,7 +17999,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       };
 
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error removing fuel:', error);
       return {
         success: false,
         error: 'Internal server error while removing fuel'
@@ -18009,7 +18009,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async recalculateExpiredFuelTokens(expiredTokens) {
     try {
-      console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${expiredTokens.length} tokens with expired fuel...`);
+      console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Recalculating ${expiredTokens.length} tokens with expired fuel...`);
       
       // Load current tokens from cache
       const tokens = await this.getTokensFromCache();
@@ -18023,13 +18023,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
           );
 
           if (existingToken) {
-            console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${expiredToken.symbol} (${expiredToken.reason})...`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Recalculating ${expiredToken.symbol} (${expiredToken.reason})...`);
             
             // Refresh Jupiter data
             const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(expiredToken.contractAddress);
             
             if (freshJupiterData) {
-              // 🚨 QUALITY FILTER: Check if token meets quality criteria
+              // ðŸš¨ QUALITY FILTER: Check if token meets quality criteria
               const hasLaunchpad = freshJupiterData.launchpad && freshJupiterData.launchpad !== '';
               const hasOrganicScore = freshJupiterData.organicScore && freshJupiterData.organicScore > 0;
               const hasGraduatedAt = freshJupiterData.graduatedAt && freshJupiterData.graduatedAt !== '';
@@ -18058,28 +18058,28 @@ Thanks for using x402 payments on Twitter! 🚀`;
             // Take hype snapshot after score recalculation
             await this.takeHypeSnapshot(existingToken);
             
-            console.log(`[🛡️ Enhanced Backend] ✅ ${expiredToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fuel expired)`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… ${expiredToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fuel expired)`);
             updatedCount++;
             
             // Small delay to avoid overwhelming the system
             await new Promise(resolve => setTimeout(resolve, 100));
             
           } else {
-            console.log(`[🛡️ Enhanced Backend] ⚠️ Token ${expiredToken.symbol} not found in main cache`);
+            console.log(`[ðŸ›¡ï¸ Enhanced Backend] âš ï¸ Token ${expiredToken.symbol} not found in main cache`);
           }
         } catch (tokenError) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating ${expiredToken.symbol}:`, tokenError);
+          console.error(`[ðŸ›¡ï¸ Enhanced Backend] âŒ Error recalculating ${expiredToken.symbol}:`, tokenError);
         }
       }
       
       // Save updated tokens to cache if any were updated
       if (updatedCount > 0) {
         await this.saveTokensToCache(tokens);
-        console.log(`[🛡️ Enhanced Backend] ✅ Successfully recalculated ${updatedCount}/${expiredTokens.length} tokens with expired fuel`);
+        console.log(`[ðŸ›¡ï¸ Enhanced Backend] âœ… Successfully recalculated ${updatedCount}/${expiredTokens.length} tokens with expired fuel`);
       }
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error in bulk fuel expiry recalculation:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error in bulk fuel expiry recalculation:', error);
     }
   }
 
@@ -18099,71 +18099,71 @@ Thanks for using x402 payments on Twitter! 🚀`;
   // Preload cache to serve real data during startup
   async preloadCache() {
     try {
-      console.log('📊 PRELOAD: Attempting to load cached tokens...');
+      console.log('ðŸ“Š PRELOAD: Attempting to load cached tokens...');
       
       // Try to load cached data immediately
       const cachedTokens = await this.getTokensFromCache();
       
       if (cachedTokens && cachedTokens.length > 0) {
-        console.log(`✅ PRELOAD: Successfully loaded ${cachedTokens.length} cached tokens`);
-        console.log('🎯 PRELOAD: Real cached data will be served during startup');
+        console.log(`âœ… PRELOAD: Successfully loaded ${cachedTokens.length} cached tokens`);
+        console.log('ðŸŽ¯ PRELOAD: Real cached data will be served during startup');
         
         // Store in token processor for immediate availability
         this.tokenProcessor.processedTokens = cachedTokens;
         
         return true;
       } else {
-        console.log('⚠️ PRELOAD: No cached data found - will serve empty data until processing completes');
+        console.log('âš ï¸ PRELOAD: No cached data found - will serve empty data until processing completes');
         return false;
       }
       
     } catch (error) {
-      console.log(`❌ PRELOAD: Failed to load cache: ${error.message}`);
-      console.log('⚠️ PRELOAD: Will serve empty data until processing completes');
+      console.log(`âŒ PRELOAD: Failed to load cache: ${error.message}`);
+      console.log('âš ï¸ PRELOAD: Will serve empty data until processing completes');
       return false;
     }
   }
 
-  // 🚀 NEW: Initialize WebSocket server early for real-time updates
+  // ðŸš€ NEW: Initialize WebSocket server early for real-time updates
   async initializeWebSocketServer() {
     try {
-      console.log('📡 Initializing WebSocket server...');
+      console.log('ðŸ“¡ Initializing WebSocket server...');
       
       const BackendWebSocketServer = (await import('./services/BackendWebSocketServer.js')).default;
       this.backendWebSocketServer = new BackendWebSocketServer(this.server);
       this.backendWebSocketServer.initialize();
       
-      console.log('✅ WebSocket server initialized on /ws');
+      console.log('âœ… WebSocket server initialized on /ws');
       
       // Now reinitialize EnhancedHybridPriceService with WebSocket server
       if (this.enhancedHybridPriceService) {
-        console.log('🔄 Reinitializing EnhancedHybridPriceService with WebSocket server...');
+        console.log('ðŸ”„ Reinitializing EnhancedHybridPriceService with WebSocket server...');
         this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
       }
       
     } catch (error) {
-      console.error('❌ Failed to initialize WebSocket server:', error.message);
+      console.error('âŒ Failed to initialize WebSocket server:', error.message);
     }
   }
 
   async initializeRealTimePriceService() {
     try {
-      console.log('🚀 Initializing Real-Time Price Service...');
+      console.log('ðŸš€ Initializing Real-Time Price Service...');
       
       // DISABLED: CoinVera WebSocket service removed - using gRPC instead
-      console.log('⚠️ [RealTimePrice] CoinVera WebSocket service disabled - using gRPC EnhancedHybridPriceService instead');
+      console.log('âš ï¸ [RealTimePrice] CoinVera WebSocket service disabled - using gRPC EnhancedHybridPriceService instead');
       
       // Get the HTTP server instance from the running server
       const server = this.server;
       if (!server) {
-        console.error('❌ Cannot initialize Real-Time Price Service: HTTP server not available');
+        console.error('âŒ Cannot initialize Real-Time Price Service: HTTP server not available');
         return;
       }
       
-      console.log('📡 WebSocket server already initialized, proceeding with real-time services...');
+      console.log('ðŸ“¡ WebSocket server already initialized, proceeding with real-time services...');
       
-      // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
-      console.log('🚀 Initializing Enhanced Real-Time Services...');
+      // ðŸš€ Initialize Enhanced Real-Time Services (gRPC-based)
+      console.log('ðŸš€ Initializing Enhanced Real-Time Services...');
       
       // Initialize Real-Time Token Monitor
       this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
@@ -18174,19 +18174,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
       this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
       this.tokenCacheWatcher.on('newTokens', (newTokens) => {
-        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
+        console.log(`ðŸ†• [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
       });
       this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
-        console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+        console.log(`ðŸ”Œ [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
       });
       await this.tokenCacheWatcher.startWatching();
       
-      console.log('✅ Enhanced Real-Time Services initialized successfully');
+      console.log('âœ… Enhanced Real-Time Services initialized successfully');
       
     } catch (error) {
-      console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      console.error('⚠️ Backend will continue without real-time price updates');
+      console.error('âŒ Failed to initialize Real-Time Price Service:', error.message);
+      console.error('âŒ Error stack:', error.stack);
+      console.error('âš ï¸ Backend will continue without real-time price updates');
     }
   }
 
@@ -18199,113 +18199,113 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.loadKOLRoutes();
       
       // PRELOAD CACHE: Load cached data immediately to serve real data during startup
-      console.log('🚀 PRELOADING CACHE: Loading cached data before serving requests...');
+      console.log('ðŸš€ PRELOADING CACHE: Loading cached data before serving requests...');
       const cacheLoaded = await this.preloadCache();
       
       if (cacheLoaded) {
-        console.log('✅ STARTUP: Real cached data is now available - no more mock data!');
+        console.log('âœ… STARTUP: Real cached data is now available - no more mock data!');
       } else {
-        console.log('⚠️ STARTUP: No cached data found - will serve empty data until processing completes');
+        console.log('âš ï¸ STARTUP: No cached data found - will serve empty data until processing completes');
       }
       
       await this.tokenProcessor.initialize();
 
       // Initialize Social Context AI
-      console.log('🧠 Initializing Social Context AI...');
+      console.log('ðŸ§  Initializing Social Context AI...');
       try {
         await this.socialContextAI.initialize();
-        console.log('✅ Social Context AI initialized successfully');
+        console.log('âœ… Social Context AI initialized successfully');
         
         // Initialize Daily Tweet Service with OpenAI
-        console.log('📅 Initializing Daily Tweet Service...');
+        console.log('ðŸ“… Initializing Daily Tweet Service...');
         this.dailyTweetService = new DailyTweetService(
           this.twitterAutoPostService,
           this.socialContextAI.openaiService
         );
-        console.log('✅ Daily Tweet Service initialized');
+        console.log('âœ… Daily Tweet Service initialized');
         
         // Auto-restart if it was running before server restart
         await this.dailyTweetService.loadState();
         if (this.dailyTweetService.shouldAutoRestart) {
-          console.log('🔄 Auto-restarting Daily Tweet Service from saved state...');
+          console.log('ðŸ”„ Auto-restarting Daily Tweet Service from saved state...');
           this.dailyTweetService.start(true);
         }
         
         // Initialize Twitter Mention Service
-        console.log('🐦 Initializing Twitter Mention Service...');
+        console.log('ðŸ¦ Initializing Twitter Mention Service...');
         this.twitterMentionService = new TwitterMentionService(
           this.twitterAutoPostService,
           this.socialContextAI.openaiService,
           this // Pass backend instance for cache access
         );
-        console.log('✅ Twitter Mention Service initialized');
+        console.log('âœ… Twitter Mention Service initialized');
         
         // Auto-start mention tracking
-        console.log('🚀 Starting Twitter Mention Service...');
+        console.log('ðŸš€ Starting Twitter Mention Service...');
         await this.twitterMentionService.start();
-        console.log('✅ Twitter Mention Service started - monitoring @dgnoracle mentions every 10 minutes');
+        console.log('âœ… Twitter Mention Service started - monitoring @dgnoracle mentions every 10 minutes');
         
       } catch (error) {
-        console.error('❌ Social Context AI failed to initialize:', error.message);
-        console.warn('⚠️ Continuing with fallback analysis only...');
+        console.error('âŒ Social Context AI failed to initialize:', error.message);
+        console.warn('âš ï¸ Continuing with fallback analysis only...');
       }
 
       // Initialize Call Thesis Generator
-      console.log('🧠 Initializing Call Thesis Generator...');
+      console.log('ðŸ§  Initializing Call Thesis Generator...');
       try {
         await this.callThesisGenerator.initialize();
-        console.log('✅ Call Thesis Generator initialized successfully');
+        console.log('âœ… Call Thesis Generator initialized successfully');
       } catch (error) {
-        console.error('❌ Call Thesis Generator failed to initialize:', error.message);
-        console.warn('⚠️ Continuing with fallback thesis generation...');
+        console.error('âŒ Call Thesis Generator failed to initialize:', error.message);
+        console.warn('âš ï¸ Continuing with fallback thesis generation...');
       }
 
       // Start Milestone Tracker
-      console.log('🎯 Starting Milestone Tracker...');
+      console.log('ðŸŽ¯ Starting Milestone Tracker...');
       try {
         this.milestoneTracker.start();
-        console.log('✅ Milestone Tracker started successfully');
+        console.log('âœ… Milestone Tracker started successfully');
       } catch (error) {
-        console.error('❌ Milestone Tracker failed to start:', error.message);
-        console.warn('⚠️ Continuing without milestone tracking...');
+        console.error('âŒ Milestone Tracker failed to start:', error.message);
+        console.warn('âš ï¸ Continuing without milestone tracking...');
       }
 
       // Initialize Automated Token Cleanup
-      console.log('🤖 Initializing Automated Token Cleanup...');
+      console.log('ðŸ¤– Initializing Automated Token Cleanup...');
       try {
         await this.automatedCleanup.initialize();
-        console.log('✅ Automated Token Cleanup initialized successfully');
+        console.log('âœ… Automated Token Cleanup initialized successfully');
       } catch (error) {
-        console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
-        console.warn('⚠️ Continuing without automated cleanup...');
+        console.error('âŒ Automated Token Cleanup failed to initialize:', error.message);
+        console.warn('âš ï¸ Continuing without automated cleanup...');
       }
 
       // Initialize Holder Cache Cleanup
-      console.log('🗂️ Initializing Holder Cache Cleanup...');
+      console.log('ðŸ—‚ï¸ Initializing Holder Cache Cleanup...');
       try {
         const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
         const cacheService = new HolderCacheService();
         
         // Initial cleanup of expired cache
         const deletedCount = await cacheService.clearExpiredCache();
-        console.log(`✅ Holder Cache initialized - cleared ${deletedCount} expired files`);
+        console.log(`âœ… Holder Cache initialized - cleared ${deletedCount} expired files`);
         
         // Schedule automatic cleanup every 6 hours
         setInterval(async () => {
           try {
             const deleted = await cacheService.clearExpiredCache();
             if (deleted > 0) {
-              console.log(`🗑️ Automatic holder cache cleanup: removed ${deleted} expired files`);
+              console.log(`ðŸ—‘ï¸ Automatic holder cache cleanup: removed ${deleted} expired files`);
             }
           } catch (error) {
-            console.error('❌ Automatic holder cache cleanup failed:', error.message);
+            console.error('âŒ Automatic holder cache cleanup failed:', error.message);
           }
         }, 6 * 60 * 60 * 1000); // Every 6 hours
         
-        console.log('✅ Holder Cache automatic cleanup scheduled (every 6 hours)');
+        console.log('âœ… Holder Cache automatic cleanup scheduled (every 6 hours)');
       } catch (error) {
-        console.error('❌ Holder Cache initialization failed:', error.message);
-        console.warn('⚠️ Continuing without holder cache cleanup...');
+        console.error('âŒ Holder Cache initialization failed:', error.message);
+        console.warn('âš ï¸ Continuing without holder cache cleanup...');
       }
       // Start HTTP server first so /health is immediately available for platform health checks
       const host = '0.0.0.0';
@@ -18315,57 +18315,57 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const isProduction = process.env.NODE_ENV === 'production';
         const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
 
-        console.log(`🚀 Enhanced Backend running on ${baseUrl}`);
-        console.log(`📊 Health check: ${baseUrl}/health`);
-        console.log(`🔍 API Status: ${baseUrl}/api/status`);
-        console.log(`🔗 API Tokens: ${baseUrl}/api/tokens`);
-        console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
+        console.log(`ðŸš€ Enhanced Backend running on ${baseUrl}`);
+        console.log(`ðŸ“Š Health check: ${baseUrl}/health`);
+        console.log(`ðŸ” API Status: ${baseUrl}/api/status`);
+        console.log(`ðŸ”— API Tokens: ${baseUrl}/api/tokens`);
+        console.log(`ðŸ“± Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
 
         this.isRunning = true;
         
-        // 🚀 Initialize WebSocket server immediately after HTTP server starts
+        // ðŸš€ Initialize WebSocket server immediately after HTTP server starts
         this.initializeWebSocketServer();
         
         // Initialize Real-Time Price Service after server starts
         try {
           this.initializeRealTimePriceService();
         } catch (error) {
-          console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
-          console.error('⚠️ Backend will continue without real-time price updates');
+          console.error('âŒ Failed to initialize Real-Time Price Service:', error.message);
+          console.error('âš ï¸ Backend will continue without real-time price updates');
         }
 
         // Defer Enhanced Backup System initialization so health checks pass quickly
         setTimeout(async () => {
-          console.log('🔄 Initializing Enhanced Backup System...');
+          console.log('ðŸ”„ Initializing Enhanced Backup System...');
           try {
             this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
             
-            // 🛡️ CHECK IF ALREADY RUNNING: Prevent multiple starts
+            // ðŸ›¡ï¸ CHECK IF ALREADY RUNNING: Prevent multiple starts
             const status = await this.backupIntegration.getStatus();
             if (!status.backup?.isRunning) {
               await this.backupIntegration.start();
-              console.log('✅ Enhanced Backup System started successfully');
-              console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
-              console.log('🕐 Retention: 10 snapshots max (10 hours)');
+              console.log('âœ… Enhanced Backup System started successfully');
+              console.log('ðŸ“¸ Automatic snapshots: 24 per day (every 1 hour)');
+              console.log('ðŸ• Retention: 10 snapshots max (10 hours)');
             } else {
-              console.log('✅ Enhanced Backup System already running');
+              console.log('âœ… Enhanced Backup System already running');
             }
           } catch (error) {
-            console.error('❌ Enhanced Backup System failed to start:', error.message);
-            console.warn('⚠️ Continuing without enhanced backups...');
+            console.error('âŒ Enhanced Backup System failed to start:', error.message);
+            console.warn('âš ï¸ Continuing without enhanced backups...');
           }
         }, 0);
 
         // Start monthly snapshot checking
         setTimeout(async () => {
-          console.log('📸 Starting Monthly Snapshot Service...');
+          console.log('ðŸ“¸ Starting Monthly Snapshot Service...');
           try {
             this.startMonthlySnapshotChecking();
-            console.log('✅ Monthly Snapshot Service started successfully');
-            console.log('📅 Automatic snapshots: End of each month at 23:59');
+            console.log('âœ… Monthly Snapshot Service started successfully');
+            console.log('ðŸ“… Automatic snapshots: End of each month at 23:59');
           } catch (error) {
-            console.error('❌ Monthly Snapshot Service failed to start:', error.message);
-            console.warn('⚠️ Continuing without monthly snapshots...');
+            console.error('âŒ Monthly Snapshot Service failed to start:', error.message);
+            console.warn('âš ï¸ Continuing without monthly snapshots...');
           }
         }, 1000);
 
@@ -18374,32 +18374,32 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const disableAutoStart = String(process.env.DISABLE_AUTO_START || '').trim() === '1';
         const startDelayMs = Number(process.env.START_PIPELINE_DELAY_MS || 12000); // default 12s
         if (disableAutoStart) {
-          console.log('[🛡️ Enhanced Backend] ⏸️ Auto-start disabled via DISABLE_AUTO_START=1');
+          console.log('[ðŸ›¡ï¸ Enhanced Backend] â¸ï¸ Auto-start disabled via DISABLE_AUTO_START=1');
         } else {
-          console.log(`[🛡️ Enhanced Backend] ⏱️ Scheduling pipeline auto-start in ${startDelayMs}ms...`);
+          console.log(`[ðŸ›¡ï¸ Enhanced Backend] â±ï¸ Scheduling pipeline auto-start in ${startDelayMs}ms...`);
           setTimeout(async () => {
             try {
-              console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
+              console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸš€ Backend ready, starting token processing...');
               const status = this.tokenProcessor.getProcessingStatus();
               if (status.processedCount === 0) {
                 // Fresh installation - start full processing
-                console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
+                console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ†• No tokens found, starting initial processing...');
                 await this.tokenProcessor.startProcessing();
               } else {
                 // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
-                console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-                console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
+                console.log(`[ðŸ›¡ï¸ Enhanced Backend] ðŸ“Š Found ${status.processedCount} existing tokens`);
+                console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ”„ Auto-starting processing pipeline after reboot (skipTwitter=true)...');
                 await this.tokenProcessor.startProcessing({ skipTwitter: true });
               }
             } catch (error) {
-              console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
+              console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error starting token processing:', error);
             }
           }, startDelayMs);
         }
       });
       
     } catch (error) {
-      console.error('❌ Failed to start Enhanced Backend:', error);
+      console.error('âŒ Failed to start Enhanced Backend:', error);
       process.exit(1);
     }
   }
@@ -18425,7 +18425,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return; // Skip if not near end of day
         }
         
-        console.log('📸 Last day of month detected, checking for snapshot...');
+        console.log('ðŸ“¸ Last day of month detected, checking for snapshot...');
         
         // Get current leaderboard data (only when needed)
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
@@ -18449,27 +18449,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const snapshotTaken = await this.monthlySnapshotService.checkAndTakeSnapshot(leaderboardResult.leaderboard);
         
         if (snapshotTaken) {
-          console.log('📸 Monthly snapshot taken successfully!');
+          console.log('ðŸ“¸ Monthly snapshot taken successfully!');
         }
       } catch (error) {
-        console.error('❌ Monthly snapshot check failed:', error.message);
+        console.error('âŒ Monthly snapshot check failed:', error.message);
       }
     }, 60 * 60 * 1000); // Check every hour instead of every minute
   }
 
   async stop() {
     try {
-      console.log('[🛡️ Enhanced Backend] 🛑 Shutting down gracefully...');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] ðŸ›‘ Shutting down gracefully...');
       
       if (this.tokenProcessor.isProcessing) {
         this.tokenProcessor.stopProcessing();
       }
       
       this.isRunning = false;
-      console.log('[🛡️ Enhanced Backend] ✅ Shutdown complete');
+      console.log('[ðŸ›¡ï¸ Enhanced Backend] âœ… Shutdown complete');
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Shutdown error:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Shutdown error:', error);
     }
   }
 
@@ -18583,9 +18583,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         filteredLogs = logs.filter(log => {
           switch (level) {
             case 'error':
-              return log.level === 'error' || log.message.includes('❌') || log.message.includes('Error');
+              return log.level === 'error' || log.message.includes('âŒ') || log.message.includes('Error');
             case 'system':
-              return log.message.includes('🚀') || log.message.includes('🔄') || log.message.includes('✅') || 
+              return log.message.includes('ðŸš€') || log.message.includes('ðŸ”„') || log.message.includes('âœ…') || 
                      log.message.includes('Initializing') || log.message.includes('Starting') || 
                      log.message.includes('Backend') || log.message.includes('Service');
             case 'processing':
@@ -18595,7 +18595,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
             case 'database':
               return log.message.includes('Database') || log.message.includes('Cache') || 
                      log.message.includes('Save') || log.message.includes('Load') ||
-                     log.message.includes('🗄️') || log.message.includes('💾');
+                     log.message.includes('ðŸ—„ï¸') || log.message.includes('ðŸ’¾');
             default:
               return true;
           }
@@ -18606,7 +18606,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       return filteredLogs.slice(-lines);
       
     } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error getting recent logs:', error);
+      console.error('[ðŸ›¡ï¸ Enhanced Backend] âŒ Error getting recent logs:', error);
       return [{
         timestamp: new Date().toISOString(),
         level: 'error',
@@ -18633,7 +18633,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  console.log('\nðŸ›‘ Received SIGINT, shutting down gracefully...');
   
   if (global.enhancedBackend) {
     await global.enhancedBackend.stop();
@@ -18643,7 +18643,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  console.log('\nðŸ›‘ Received SIGTERM, shutting down gracefully...');
   
   if (global.enhancedBackend) {
     await global.enhancedBackend.stop();
@@ -18655,540 +18655,12 @@ process.on('SIGTERM', async () => {
 export default EnhancedBackend;
 
 // Start the server
-console.log('🚀 Starting Enhanced Backend Server...');
+console.log('ðŸš€ Starting Enhanced Backend Server...');
 const server = new EnhancedBackend();
 global.enhancedBackend = server;
 
 // Start the server
 server.start().catch(error => {
-  console.error('❌ Failed to start Enhanced Backend:', error);
+  console.error('âŒ Failed to start Enhanced Backend:', error);
   process.exit(1);
 });
-
-
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize WebSocket server:', error.message);
-    }
-  }
-
-  async initializeRealTimePriceService() {
-    try {
-      console.log('🚀 Initializing Real-Time Price Service...');
-      
-      // DISABLED: CoinVera WebSocket service removed - using gRPC instead
-      console.log('⚠️ [RealTimePrice] CoinVera WebSocket service disabled - using gRPC EnhancedHybridPriceService instead');
-      
-      // Get the HTTP server instance from the running server
-      const server = this.server;
-      if (!server) {
-        console.error('❌ Cannot initialize Real-Time Price Service: HTTP server not available');
-        return;
-      }
-      
-      console.log('📡 WebSocket server already initialized, proceeding with real-time services...');
-      
-      // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
-      console.log('🚀 Initializing Enhanced Real-Time Services...');
-      
-      // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
-      await this.realTimeTokenMonitor.initialize();
-      await this.realTimeTokenMonitor.startMonitoring();
-      
-      // Initialize Token Cache Watcher
-      const cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
-      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
-      this.tokenCacheWatcher.on('newTokens', (newTokens) => {
-        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
-      });
-      this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
-        console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
-      });
-      await this.tokenCacheWatcher.startWatching();
-      
-      console.log('✅ Enhanced Real-Time Services initialized successfully');
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      console.error('⚠️ Backend will continue without real-time price updates');
-    }
-  }
-
-  async start() {
-    try {
-      // DISABLED: Initialize KOL Service (was making CoinAPI/CoinDesk calls)
-      // await this.initializeKOLService();
-      
-      // Load KOL routes first
-      await this.loadKOLRoutes();
-      
-      // PRELOAD CACHE: Load cached data immediately to serve real data during startup
-      console.log('🚀 PRELOADING CACHE: Loading cached data before serving requests...');
-      const cacheLoaded = await this.preloadCache();
-      
-      if (cacheLoaded) {
-        console.log('✅ STARTUP: Real cached data is now available - no more mock data!');
-      } else {
-        console.log('⚠️ STARTUP: No cached data found - will serve empty data until processing completes');
-      }
-      
-      await this.tokenProcessor.initialize();
-
-      // Initialize Social Context AI
-      console.log('🧠 Initializing Social Context AI...');
-      try {
-        await this.socialContextAI.initialize();
-        console.log('✅ Social Context AI initialized successfully');
-        
-        // Initialize Daily Tweet Service with OpenAI
-        console.log('📅 Initializing Daily Tweet Service...');
-        this.dailyTweetService = new DailyTweetService(
-          this.twitterAutoPostService,
-          this.socialContextAI.openaiService
-        );
-        console.log('✅ Daily Tweet Service initialized');
-        
-        // Auto-restart if it was running before server restart
-        await this.dailyTweetService.loadState();
-        if (this.dailyTweetService.shouldAutoRestart) {
-          console.log('🔄 Auto-restarting Daily Tweet Service from saved state...');
-          this.dailyTweetService.start(true);
-        }
-        
-        // Initialize Twitter Mention Service
-        console.log('🐦 Initializing Twitter Mention Service...');
-        this.twitterMentionService = new TwitterMentionService(
-          this.twitterAutoPostService,
-          this.socialContextAI.openaiService,
-          this // Pass backend instance for cache access
-        );
-        console.log('✅ Twitter Mention Service initialized');
-        
-        // Auto-start mention tracking
-        console.log('🚀 Starting Twitter Mention Service...');
-        await this.twitterMentionService.start();
-        console.log('✅ Twitter Mention Service started - monitoring @dgnoracle mentions every 10 minutes');
-        
-      } catch (error) {
-        console.error('❌ Social Context AI failed to initialize:', error.message);
-        console.warn('⚠️ Continuing with fallback analysis only...');
-      }
-
-      // Initialize Call Thesis Generator
-      console.log('🧠 Initializing Call Thesis Generator...');
-      try {
-        await this.callThesisGenerator.initialize();
-        console.log('✅ Call Thesis Generator initialized successfully');
-      } catch (error) {
-        console.error('❌ Call Thesis Generator failed to initialize:', error.message);
-        console.warn('⚠️ Continuing with fallback thesis generation...');
-      }
-
-      // Start Milestone Tracker
-      console.log('🎯 Starting Milestone Tracker...');
-      try {
-        this.milestoneTracker.start();
-        console.log('✅ Milestone Tracker started successfully');
-      } catch (error) {
-        console.error('❌ Milestone Tracker failed to start:', error.message);
-        console.warn('⚠️ Continuing without milestone tracking...');
-      }
-
-      // Initialize Automated Token Cleanup
-      console.log('🤖 Initializing Automated Token Cleanup...');
-      try {
-        await this.automatedCleanup.initialize();
-        console.log('✅ Automated Token Cleanup initialized successfully');
-      } catch (error) {
-        console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
-        console.warn('⚠️ Continuing without automated cleanup...');
-      }
-
-      // Initialize Holder Cache Cleanup
-      console.log('🗂️ Initializing Holder Cache Cleanup...');
-      try {
-        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
-        const cacheService = new HolderCacheService();
-        
-        // Initial cleanup of expired cache
-        const deletedCount = await cacheService.clearExpiredCache();
-        console.log(`✅ Holder Cache initialized - cleared ${deletedCount} expired files`);
-        
-        // Schedule automatic cleanup every 6 hours
-        setInterval(async () => {
-          try {
-            const deleted = await cacheService.clearExpiredCache();
-            if (deleted > 0) {
-              console.log(`🗑️ Automatic holder cache cleanup: removed ${deleted} expired files`);
-            }
-          } catch (error) {
-            console.error('❌ Automatic holder cache cleanup failed:', error.message);
-          }
-        }, 6 * 60 * 60 * 1000); // Every 6 hours
-        
-        console.log('✅ Holder Cache automatic cleanup scheduled (every 6 hours)');
-      } catch (error) {
-        console.error('❌ Holder Cache initialization failed:', error.message);
-        console.warn('⚠️ Continuing without holder cache cleanup...');
-      }
-      // Start HTTP server first so /health is immediately available for platform health checks
-      const host = '0.0.0.0';
-      console.log(`[Startup] Binding server on ${host}:${this.port}`);
-      this.app.get('/', (req, res) => res.redirect('/health'));
-      this.server = this.app.listen(this.port, host, () => {
-        const isProduction = process.env.NODE_ENV === 'production';
-        const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
-
-        console.log(`🚀 Enhanced Backend running on ${baseUrl}`);
-        console.log(`📊 Health check: ${baseUrl}/health`);
-        console.log(`🔍 API Status: ${baseUrl}/api/status`);
-        console.log(`🔗 API Tokens: ${baseUrl}/api/tokens`);
-        console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
-
-        this.isRunning = true;
-        
-        // 🚀 Initialize WebSocket server immediately after HTTP server starts
-        this.initializeWebSocketServer();
-        
-        // Initialize Real-Time Price Service after server starts
-        try {
-          this.initializeRealTimePriceService();
-        } catch (error) {
-          console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
-          console.error('⚠️ Backend will continue without real-time price updates');
-        }
-
-        // Defer Enhanced Backup System initialization so health checks pass quickly
-        setTimeout(async () => {
-          console.log('🔄 Initializing Enhanced Backup System...');
-          try {
-            this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
-            
-            // 🛡️ CHECK IF ALREADY RUNNING: Prevent multiple starts
-            const status = await this.backupIntegration.getStatus();
-            if (!status.backup?.isRunning) {
-              await this.backupIntegration.start();
-              console.log('✅ Enhanced Backup System started successfully');
-              console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
-              console.log('🕐 Retention: 10 snapshots max (10 hours)');
-            } else {
-              console.log('✅ Enhanced Backup System already running');
-            }
-          } catch (error) {
-            console.error('❌ Enhanced Backup System failed to start:', error.message);
-            console.warn('⚠️ Continuing without enhanced backups...');
-          }
-        }, 0);
-
-        // Start monthly snapshot checking
-        setTimeout(async () => {
-          console.log('📸 Starting Monthly Snapshot Service...');
-          try {
-            this.startMonthlySnapshotChecking();
-            console.log('✅ Monthly Snapshot Service started successfully');
-            console.log('📅 Automatic snapshots: End of each month at 23:59');
-          } catch (error) {
-            console.error('❌ Monthly Snapshot Service failed to start:', error.message);
-            console.warn('⚠️ Continuing without monthly snapshots...');
-          }
-        }, 1000);
-
-        // Start token processing workflow after backend is ready
-        // Delay more to ensure platform health checks pass before heavy work and allow kill switch via env
-        const disableAutoStart = String(process.env.DISABLE_AUTO_START || '').trim() === '1';
-        const startDelayMs = Number(process.env.START_PIPELINE_DELAY_MS || 12000); // default 12s
-        if (disableAutoStart) {
-          console.log('[🛡️ Enhanced Backend] ⏸️ Auto-start disabled via DISABLE_AUTO_START=1');
-        } else {
-          console.log(`[🛡️ Enhanced Backend] ⏱️ Scheduling pipeline auto-start in ${startDelayMs}ms...`);
-          setTimeout(async () => {
-            try {
-              console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
-              const status = this.tokenProcessor.getProcessingStatus();
-              if (status.processedCount === 0) {
-                // Fresh installation - start full processing
-                console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
-                await this.tokenProcessor.startProcessing();
-              } else {
-                // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
-                console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-                console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
-                await this.tokenProcessor.startProcessing({ skipTwitter: true });
-              }
-            } catch (error) {
-              console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
-            }
-          }, startDelayMs);
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Failed to start Enhanced Backend:', error);
-      process.exit(1);
-    }
-  }
-
-  startMonthlySnapshotChecking() {
-    // Check for snapshots every hour (much more efficient)
-    setInterval(async () => {
-      try {
-        // Quick check if we're on the last day of month
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const isLastDay = now.getMonth() !== tomorrow.getMonth();
-        
-        // Only do heavy calculations if we're on the last day
-        if (!isLastDay) {
-          return; // Skip expensive operations
-        }
-        
-        // Check if it's near end of day (23:00-23:59)
-        const isNearEndOfDay = now.getHours() >= 23;
-        if (!isNearEndOfDay) {
-          return; // Skip if not near end of day
-        }
-        
-        console.log('📸 Last day of month detected, checking for snapshot...');
-        
-        // Get current leaderboard data (only when needed)
-        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
-        const userCalls = {};
-        allKolCalls.forEach(call => {
-          if (!userCalls[call.userId]) {
-            userCalls[call.userId] = [];
-          }
-          userCalls[call.userId].push(call);
-        });
-
-        const tokens = await this.getTokensFromCache();
-        const currentTokenData = {};
-        tokens.forEach(token => {
-          currentTokenData[token.contractAddress] = token;
-        });
-
-        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
-        
-        // Check if we should take a snapshot
-        const snapshotTaken = await this.monthlySnapshotService.checkAndTakeSnapshot(leaderboardResult.leaderboard);
-        
-        if (snapshotTaken) {
-          console.log('📸 Monthly snapshot taken successfully!');
-        }
-      } catch (error) {
-        console.error('❌ Monthly snapshot check failed:', error.message);
-      }
-    }, 60 * 60 * 1000); // Check every hour instead of every minute
-  }
-
-  async stop() {
-    try {
-      console.log('[🛡️ Enhanced Backend] 🛑 Shutting down gracefully...');
-      
-      if (this.tokenProcessor.isProcessing) {
-        this.tokenProcessor.stopProcessing();
-      }
-      
-      this.isRunning = false;
-      console.log('[🛡️ Enhanced Backend] ✅ Shutdown complete');
-      
-    } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Shutdown error:', error);
-    }
-  }
-
-  // Helper method for Twitter usage recommendations
-  getTwitterUsageRecommendations(stats) {
-    const recommendations = [];
-    
-    if (stats.emergencyMode) {
-      recommendations.push({
-        type: 'critical',
-        message: 'Emergency mode is active - all Twitter refreshes are blocked',
-        action: 'Deactivate emergency mode only if you have confirmed API limit reset'
-      });
-    } else if (stats.usagePercent >= 90) {
-      recommendations.push({
-        type: 'critical',
-        message: `Critically high usage: ${stats.usagePercent}% of monthly limit used`,
-        action: 'Consider activating emergency mode to preserve remaining calls'
-      });
-    } else if (stats.usagePercent >= 80) {
-      recommendations.push({
-        type: 'warning',
-        message: `High usage warning: ${stats.usagePercent}% of monthly limit used`,
-        action: 'Monitor usage closely and reduce refresh frequency'
-      });
-    }
-    
-    if (stats.projectedMonthlyUsage > stats.monthlyLimit) {
-      recommendations.push({
-        type: 'warning',
-        message: `Projected monthly usage (${stats.projectedMonthlyUsage}) exceeds limit`,
-        action: 'Reduce daily refresh rate or activate emergency mode'
-      });
-    }
-    
-    // Tier-specific recommendations
-    Object.entries(stats.tierUsage).forEach(([tier, usage]) => {
-      const tierLimits = {
-        CRITICAL: 500,
-        IMPORTANT: 300,
-        STANDARD: 200,
-        ARCHIVE: 50
-      };
-      
-      const limit = tierLimits[tier];
-      const percent = (usage / limit) * 100;
-      
-      if (percent >= 90) {
-        recommendations.push({
-          type: 'warning',
-          message: `${tier} tier at ${percent.toFixed(1)}% capacity (${usage}/${limit})`,
-          action: `Reduce ${tier.toLowerCase()} tier refreshes`
-        });
-      }
-    });
-    
-    if (recommendations.length === 0) {
-      recommendations.push({
-        type: 'info',
-        message: 'Twitter API usage is within normal limits',
-        action: 'Continue monitoring usage patterns'
-      });
-    }
-    
-    return recommendations;
-  }
-
-  /**
-   * Get recent logs from log files (production-ready implementation)
-   */
-  async getRecentLogs(lines = 100, level = 'all') {
-    try {
-      // Winston log file path
-      const logFile = '/var/data/logs/app.log';
-      
-      // Ensure log directory exists
-      await fs.mkdir('/var/data/logs', { recursive: true });
-      
-      // Check if log file exists
-      try {
-        await fs.access(logFile);
-      } catch {
-        // Log file doesn't exist, return empty array
-        return [];
-      }
-      
-      // Read log file
-      const logContent = await fs.readFile(logFile, 'utf8');
-      const logLines = logContent.split('\n').filter(line => line.trim());
-      
-      // Parse log entries
-      const logs = [];
-      for (const line of logLines) {
-        try {
-          // Parse Winston JSON log format
-          const logEntry = JSON.parse(line);
-          logs.push({
-            timestamp: logEntry.timestamp,
-            level: logEntry.level,
-            message: logEntry.message
-          });
-        } catch (parseError) {
-          // Skip malformed log entries
-          continue;
-        }
-      }
-      
-      // Filter logs by level
-      let filteredLogs = logs;
-      if (level !== 'all') {
-        filteredLogs = logs.filter(log => {
-          switch (level) {
-            case 'error':
-              return log.level === 'error' || log.message.includes('❌') || log.message.includes('Error');
-            case 'system':
-              return log.message.includes('🚀') || log.message.includes('🔄') || log.message.includes('✅') || 
-                     log.message.includes('Initializing') || log.message.includes('Starting') || 
-                     log.message.includes('Backend') || log.message.includes('Service');
-            case 'processing':
-              return log.message.includes('Processing') || log.message.includes('Token') || 
-                     log.message.includes('Jupiter') || log.message.includes('Twitter') ||
-                     log.message.includes('Stage') || log.message.includes('Queue');
-            case 'database':
-              return log.message.includes('Database') || log.message.includes('Cache') || 
-                     log.message.includes('Save') || log.message.includes('Load') ||
-                     log.message.includes('🗄️') || log.message.includes('💾');
-            default:
-              return true;
-          }
-        });
-      }
-
-      // Return the most recent logs
-      return filteredLogs.slice(-lines);
-      
-    } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error getting recent logs:', error);
-      return [{
-        timestamp: new Date().toISOString(),
-        level: 'error',
-        message: `Failed to get logs: ${error.message}`
-      }];
-    }
-  }
-
-  // Helper method to calculate since timestamp for different ranges
-  calculateSinceTimestamp(range) {
-    const now = Date.now();
-    const ranges = {
-      '1d': 24 * 60 * 60 * 1000,
-      '3d': 3 * 24 * 60 * 60 * 1000,
-      '7d': 7 * 24 * 60 * 60 * 1000,
-      '15d': 15 * 24 * 60 * 60 * 1000,
-      '30d': 30 * 24 * 60 * 60 * 1000
-    };
-    return now - (ranges[range] || ranges['7d']);
-  }
-
-  // Winston logger is now used instead of custom logging
-}
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-  
-  if (global.enhancedBackend) {
-    await global.enhancedBackend.stop();
-  }
-  
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-  
-  if (global.enhancedBackend) {
-    await global.enhancedBackend.stop();
-  }
-  
-  process.exit(0);
-});
-
-export default EnhancedBackend;
-
-// Start the server
-console.log('🚀 Starting Enhanced Backend Server...');
-const server = new EnhancedBackend();
-global.enhancedBackend = server;
-
-// Start the server
-server.start().catch(error => {
-  console.error('❌ Failed to start Enhanced Backend:', error);
-  process.exit(1);
-});
-
