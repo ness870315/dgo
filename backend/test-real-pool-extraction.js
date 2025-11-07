@@ -6,7 +6,7 @@
 import { extractRaydiumPoolFromIx, buildCombinedKeys } from './services/SwapDetectionHelpers.mjs';
 import GrpcWrapper from './services/GrpcWrapper.cjs';
 
-const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
+const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 
 // Known Raydium program IDs
@@ -154,6 +154,9 @@ async function testWithRealTransactions() {
 }
 
 testWithRealTransactions().catch(console.error);
+
+
+
 
 
 

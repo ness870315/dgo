@@ -1,7 +1,7 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 
-const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
+const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const RAYDIUM_AMM_PROGRAM = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 

@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import axios from 'axios';
 import { Connection, PublicKey } from '@solana/web3.js';
 
-const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
+const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/v1/39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 

@@ -14,9 +14,9 @@ class YellowstoneGrpcService {
         this.poolData = new Map();
         this.isConnected = false;
         
-        // Updated to new Constant K gRPC endpoint (Nov 2025)
-        this.endpoint = 'http://grpc.constant-k.com/';
-        this.apiKey = process.env.CONSTANT_K_API_KEY || '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+        // Constant K Yellowstone gRPC endpoint
+        this.endpoint = 'http://grpc.constant-k.com';
+        this.apiKey = process.env.CONSTANT_K_API_KEY || 'tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
         
         console.log(`🔗 [Yellowstone gRPC] Endpoint: ${this.endpoint}`);
         console.log(`🔑 [Yellowstone gRPC] API Key: ${this.apiKey ? 'SET' : 'MISSING'}`);

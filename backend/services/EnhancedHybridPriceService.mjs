@@ -4,17 +4,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
-import SolanaVibeStationSSE from './SolanaVibeStationSSE.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 let GrpcWrapper = null;
 
-// Updated to new Constant K RPC endpoint with correct API key (Nov 2025)
-const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-// Updated to new Constant K gRPC endpoint (Nov 2025)
-const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com/';
+const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
+const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
@@ -24,18 +21,11 @@ const WSOL = 'So11111111111111111111111111111111111111112';
 const DEX_PROGRAMS = {
     'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA': 'PumpSwap', // Raydium-based
     'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C': 'PumpSwap CPMM',
-    'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG': 'Meteora DLMM', // Meteora Dynamic Liquidity Market Maker
-    'HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC': 'Meteora Pool Authority', // Meteora pool authority PDA
+    'MeteoraDLPDK1jSd1J9x8rM6wT5p5q5q5q5q5q5q5q5q': 'Meteora',
     'OrcaEKTdK7LKz57vaAYr9QeNsVEPfiuwmQ9MUWfbx': 'Orca',
     'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK': 'Raydium CLMM',
     '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8': 'Raydium AMM'
 };
-
-// Addresses to exclude from swap detection (pool authorities, PDAs, etc.)
-const EXCLUDED_SWAP_ADDRESSES = new Set([
-    'HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC', // Meteora Pool Authority
-    '11111111111111111111111111111111' // System Program (for safety)
-]);
 
 class EnhancedHybridPriceService extends EventEmitter {
     constructor(webSocketServer = null) {
@@ -57,23 +47,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.referenceTimestamp = null;
         
         // 🚀 CRITICAL: Single shared stream for ALL tokens (efficiency!)
-        this.sharedStreams = []; // Shared gRPC streams (batched token filters)
-        this.sharedStreamPoolCount = 0; // Track how many tokens are attached to streams
-        this._sharedStreamRestartScheduled = false;
-        this.sharedStreamRetryCount = 0;
-        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '300000', 10); // 5 minutes base delay
-        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '600000', 10); // 10 minutes max delay
-        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '15000', 10); // 15 seconds jitter
-        this.sharedStreamSubscribeDelay = parseInt(process.env.CONSTANT_K_STREAM_SUBSCRIBE_DELAY || '2000', 10); // 2 seconds between stream subscriptions
+        this.sharedStream = null; // One stream for all pools
+        this.sharedStreamPoolCount = 0; // Track how many pools in shared stream
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
-        
-        // 🚀 NEW: Token price cache for counter-token USD pricing
-        this.tokenPriceCache = new Map(); // Map<mintAddress, usdPrice>
-        
-        // 🚀 NEW: Mid-price tracking for outlier detection
-        this.midPriceUsd = new Map(); // Map<tokenAddress, midPriceUsd>
         
         // 🚀 NEW: Slot-to-timestamp estimation
         this.referenceSlot = null;
@@ -98,29 +76,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.subscribedTokens = new Set();
         this.priceUpdateInterval = null;
         
-        // ✅ NEW: Periodic ranking broadcast
-        this.rankingBroadcastInterval = null;
-        
-        // ✅ NEW: Periodic decoder stats logging
-        this.decoderStatsInterval = null;
-
-        // 🔍 Connection tracking
-        this.grpcInitialized = false;
-        this.clientInstanceId = `ehps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        
-        // 🚀 NEW: Token cache management (use persistent disk)
+        // 🚀 NEW: Token cache management
         this.tokenCache = [];
-        const dataDir = process.env.DATA_DIR || '/var/data/dgo';
-        this.cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+        this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
         // 🚀 NEW: Persistent swap storage
         this.chartDatabase = new ChartDatabase();
-        
-        // 🚀 NEW: Solana Vibe Station SSE for real-time prices (primary source)
-        this.sseService = null;
-        this.useSolanaVibeSSE = process.env.ENABLE_SOLANA_VIBE_SSE !== 'false'; // Enabled by default
-        this.ssePriceSource = new Map(); // Track which tokens are using SSE prices
-        console.log(`📡 [EnhancedHybridPriceService] Solana Vibe Station SSE: ${this.useSolanaVibeSSE ? 'ENABLED' : 'DISABLED'}`);
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -128,29 +89,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.lastJupiterRequest = 0;
         this.jupiterCache = new Map();
         this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
-        
-        // 🚀 Rate limiting for pool decoding (prevent RPC 429 errors)
-        this.poolDecodeQueue = [];
-        this.poolDecodeInProgress = new Set(); // Track pools currently being decoded
-        this.poolDecodeDelay = 500; // 500ms delay between pool decode requests
-        this.lastPoolDecode = 0;
-        this.poolDecodeProcessing = false;
-        
-        // 🚀 NEW: RPC batch queue for accurate swap parsing
-        this.rpcBatchQueue = []; // Queue of {signature, tokenAddress, poolAddress, slot} objects
-        this.rpcBatchSize = 100; // Max 100 transactions per batch (Solana RPC limit)
-        this.rpcBatchDelay = 500; // 500ms between batches (well under 200 req/sec limit)
-        this.rpcProcessing = false;
-        this.rpcCache = new Map(); // Cache parsed transactions to avoid re-fetching
-        this.rpcCacheDuration = 60 * 60 * 1000; // 1 hour cache
-        this.rpcStats = {
-            totalRequests: 0,
-            totalTransactions: 0,
-            cacheHits: 0,
-            errors: 0,
-            swapsEnhanced: 0
-        };
-        console.log('✅ [EnhancedHybridPriceService] RPC batch queue initialized (max 100 tx/batch, 500ms delay)');
         
         // Initialize asynchronously
         this.initializeAsync();
@@ -193,26 +131,27 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async initializeAsync() {
         try {
+            console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
             
-            // 🚀 NEW: Initialize Solana Vibe Station SSE (primary price source)
-            if (this.useSolanaVibeSSE) {
-                await this.initializeSSE();
-            }
-            
             // 🚀 NEW: Initialize persistent swap storage
-            await this.chartDatabase.ensureDataDir(); // Ensure data directory exists
-            this.chartDatabase.startBatchWriter(); // Start batch writer
+            await this.chartDatabase.loadDatabase();
+            this.chartDatabase.startBatchWriter();
+            console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
+            
+            console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
             // ✅ CRITICAL FIX: Add PROBITY for continuous real-time monitoring
             this.poolAddresses.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN');
             this.swapHistory.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added PROBITY -> pool 98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN to monitoring map`);
             
             // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with ACTIVE PumpSwap pool!
             this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', 'GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN');
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> ACTIVE PumpSwap pool GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN to monitoring map`);
             
             // ✅ ADD MEMEPUTER for testing
             this.poolAddresses.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
@@ -220,31 +159,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Also register in ChartDatabase for API access
             await this.chartDatabase.setPoolMapping('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
+            console.log(`✅ [EnhancedHybridPriceService] Added MEMEPUTER -> graduatedPool c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh to monitoring map`);
             
-            // 🚀 NEW: Load and add ALL tokens from cache for gRPC monitoring
+            // 🚀 NEW: Load and add top 200 tokens from cache for gRPC monitoring
             await this.loadTopTokens();
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
+                console.log('🚀 [EnhancedHybridPriceService] Auto-starting SIMPLIFIED single-token monitoring...');
                 await this.startRealTimeMonitoring(); // This will call the simplified version
             }
             
-            // ✅ NEW: Start periodic ranking broadcasts (every 30 seconds)
-            if (this.webSocketServer) {
-                this.startRankingBroadcasts(30000);
-                
-                // 🚀 NEW: Listen for client subscriptions to send recent swaps
-                this.webSocketServer.on('tokenSubscription', ({ clientId, tokenAddress, sendRecentSwaps }) => {
-                    if (sendRecentSwaps && this.swapHistory.has(tokenAddress)) {
-                        // Send ALL swaps in memory (up to 1000, kept in swapHistory)
-                        const allSwaps = this.swapHistory.get(tokenAddress);
-                        this.webSocketServer.sendRecentSwapsToClient(clientId, tokenAddress, allSwaps);
-                    }
-                });
-            }
-            
-            // ✅ NEW: Start periodic decoder stats logging (every 5 minutes)
-            this.startDecoderStatsLogging(300000);
+            console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
         }
@@ -252,138 +178,56 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async initializeGrpcClient() {
         try {
-            if (this.grpcClient) {
-                console.log(`⚠️ [EnhancedHybridPriceService] gRPC client already initialized (instance ${this.clientInstanceId})`);
-                return;
-            }
-
+            console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
+            
             if (!GrpcWrapper) {
+                console.log('📦 [EnhancedHybridPriceService] Loading gRPC wrapper...');
                 GrpcWrapper = require('./GrpcWrapper.cjs');
             }
             
             this.grpcWrapper = new GrpcWrapper();
             this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
-            this.grpcInitialized = true;
-            console.log(`✅ [EnhancedHybridPriceService] gRPC client initialized (instance ${this.clientInstanceId})`);
+            
+            console.log('✅ [EnhancedHybridPriceService] gRPC client initialized successfully');
+            
+            // Test connection
+            console.log('🧪 [EnhancedHybridPriceService] Testing gRPC connection...');
+            const version = await this.grpcClient.getVersion();
+            console.log('✅ [EnhancedHybridPriceService] Constant K gRPC connected:', JSON.stringify(version, null, 2));
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to initialize gRPC client:', error.message);
+            console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
+            console.error('❌ [EnhancedHybridPriceService] Error details:', error);
             this.grpcClient = null;
-            this.grpcInitialized = false;
-        }
-    }
-
-    isGrpcInitialized() {
-        return !!this.grpcInitialized && !!this.grpcClient;
-    }
-
-    /**
-     * Initialize Solana Vibe Station SSE service
-     */
-    async initializeSSE() {
-        try {
-            console.log('📡 [EnhancedHybridPriceService] Initializing Solana Vibe Station SSE...');
-            
-            // Create SSE service with reference to token metadata cache
-            this.sseService = new SolanaVibeStationSSE(this.tokenMetadataCache);
-            
-            // Listen for price updates
-            this.sseService.on('priceUpdate', (data) => {
-                this.handleSSEPriceUpdate(data);
-            });
-            
-            // Listen for connection events
-            this.sseService.on('connected', (data) => {
-                console.log(`✅ [SolanaVibeSSE] Connected with ${data.mintCount} mints`);
-            });
-            
-            this.sseService.on('disconnected', () => {
-                console.warn('⚠️ [SolanaVibeSSE] Disconnected - falling back to Constant K');
-            });
-            
-            this.sseService.on('error', (error) => {
-                console.error('❌ [SolanaVibeSSE] Error:', error.message);
-            });
-            
-            this.sseService.on('maxReconnectAttemptsReached', () => {
-                console.error('❌ [SolanaVibeSSE] Max reconnect attempts reached - SSE disabled');
-                this.useSolanaVibeSSE = false;
-            });
-            
-            console.log('✅ [EnhancedHybridPriceService] SSE service initialized');
-            
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Failed to initialize SSE:', error.message);
-            this.sseService = null;
-            this.useSolanaVibeSSE = false;
-        }
-    }
-
-    /**
-     * Handle price update from SSE
-     */
-    handleSSEPriceUpdate(data) {
-        try {
-            const { mint, price, marketCap, avgPrice1min, avgPrice15min, avgPrice1h, avgPrice24h } = data;
-            
-            // Update price cache
-            this.priceCache.set(mint, {
-                price,
-                marketCap,
-                timestamp: Date.now(),
-                source: 'sse',
-                avgPrice1min,
-                avgPrice15min,
-                avgPrice1h,
-                avgPrice24h
-            });
-            
-            // Track that this mint is using SSE prices
-            this.ssePriceSource.set(mint, Date.now());
-            
-            // Update last update time
-            this.lastUpdate.set(mint, Date.now());
-            
-            // 📡 Broadcast real-time price update to WebSocket clients
-            if (this.webSocketServer) {
-                this.webSocketServer.broadcastPriceUpdate(mint, {
-                    priceUsd: price,
-                    marketCap,
-                    source: 'sse',
-                    timestamp: Date.now(),
-                    avgPrice1min,
-                    avgPrice15min,
-                    avgPrice1h,
-                    avgPrice24h
-                });
-            }
-            
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Error handling SSE price update:', error.message);
         }
     }
 
     async loadTokenCache() {
         try {
+            console.log('📂 [EnhancedHybridPriceService] Loading token cache...');
             const data = await fs.readFile(this.cachePath, 'utf8');
             this.tokenCache = JSON.parse(data);
             
-            // ✅ LOAD ALL TOKENS for monitoring (not just completed)
-            const tokensToMonitor = this.tokenCache.filter(token => 
-                token.contractAddress && // Must have contract address
-                (token.jupiterData?.firstPool?.id || token.graduatedPool || token.birdEyeRaw?.firstPool?.id) // Must have a pool
+            // Filter only completed tokens, but include PROBITY regardless of stage
+            const completedTokens = this.tokenCache.filter(token => 
+                token.stage === 'completed' || 
+                token.symbol === 'PROBITY' || 
+                token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'
             );
+            console.log(`✅ [EnhancedHybridPriceService] Loaded ${completedTokens.length} completed tokens from cache (including PROBITY)`);
             
             // Extract pool addresses for real-time monitoring
-            await this.extractPoolAddresses(tokensToMonitor);
+            await this.extractPoolAddresses(completedTokens);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load token cache:', error.message);
             this.tokenCache = [];
         }
     }
-    
+
     async extractPoolAddresses(tokens) {
+        console.log('🔍 [EnhancedHybridPriceService] Extracting pool addresses...');
         
         for (const token of tokens) {
             const contractAddress = token.contractAddress || token.tokenAddress;
@@ -408,43 +252,42 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (poolAddress) {
                 this.poolAddresses.set(contractAddress, poolAddress);
                 this.swapHistory.set(contractAddress, []);
+                console.log(`✅ [EnhancedHybridPriceService] Pool found for ${token.symbol}: ${poolAddress}`);
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] No pool found for ${token.symbol}`);
             }
         }
+        
+        console.log(`✅ [EnhancedHybridPriceService] Extracted ${this.poolAddresses.size} pool addresses`);
     }
-    
+
     async loadTopTokens() {
         try {
-            // ✅ Filter out stablecoins (known stablecoin addresses)
-            const STABLECOIN_ADDRESSES = new Set([
-                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
-                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
-                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
-                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
-            ]);
+            console.log('🚀 [EnhancedHybridPriceService] Loading top 200 tokens from cache...');
             
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
             const tokens = JSON.parse(cacheData);
             
-            // Filter for tokens with pools, exclude stablecoins, and sort by score
+            // Filter for tokens with pools and sort by score
             const tokensWithPools = tokens
                 .filter(token => {
-                    const address = token.contractAddress;
                     const hasPool = token.jupiterData?.firstPool?.id || 
                                    token.graduatedPool || 
                                    token.birdEyeRaw?.firstPool?.id;
-                    return hasPool && address && !STABLECOIN_ADDRESSES.has(address);
+                    return hasPool && token.contractAddress;
                 })
                 .sort((a, b) => {
                     const scoreA = a.overallScore || a.score || 0;
                     const scoreB = b.overallScore || b.score || 0;
                     return scoreB - scoreA; // Sort descending
-                });
-                // ✅ REMOVED LIMIT: Process ALL tokens with pools, not just top 200
+                })
+                .slice(0, 200); // Top 200 for expanded monitoring
             
-            // Add each token to monitoring AND populate metadata cache
+            console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
+            
+            // Add each token to monitoring
             let addedCount = 0;
-            let metadataCount = 0;
             for (const token of tokensWithPools) {
                 const tokenAddress = token.contractAddress;
                 // ✅ CRITICAL: Prioritize graduatedPool over firstPool
@@ -453,204 +296,47 @@ class EnhancedHybridPriceService extends EventEmitter {
                                    token.jupiterData?.firstPool?.id || 
                                    token.birdEyeRaw?.firstPool?.id;
                 
-                if (poolAddress) {
-                    // Add to poolAddresses if not already there
-                    if (!this.poolAddresses.has(tokenAddress)) {
-                        this.poolAddresses.set(tokenAddress, poolAddress);
-                        this.swapHistory.set(tokenAddress, []);
-                        addedCount++;
-                    }
-                    
-                    // ✅ CRITICAL: ALWAYS populate metadata cache (even if token already in poolAddresses)
-                    // This is important because extractPoolAddresses() adds tokens but doesn't populate metadata
-                    // Extract price from multiple possible sources
-                    const price = token.currentPrice || 
-                                 token.price || 
-                                 token.jupiterData?.price || 
-                                 token.birdEyeRaw?.price || 
-                                 0;
-                    
-                    const marketCap = token.marketCap || 
-                                     token.jupiterData?.marketCap || 
-                                     token.jupiterData?.mcap ||
-                                     token.birdEyeRaw?.marketcap ||
-                                     token.birdEyeRaw?.fdv ||
-                                     0;
-                    
-                    const liquidity = token.jupiterData?.liquidity || 
-                                     token.birdEyeRaw?.liquidity || 
-                                     0;
-                    
-                    const supply = token.jupiterData?.totalSupply || 
-                                  token.jupiterData?.circSupply ||
-                                  token.supply || 
-                                  0;
-                    
-                    const createdAt = token.jupiterData?.firstPool?.createdAt || 
-                                     token.birdEyeRaw?.firstPool?.createdAt ||
-                                     token.createdAt || 
-                                     token.timestamp ||
-                                     Date.now();
-                    
-                    this.tokenMetadataCache.set(tokenAddress, {
-                        symbol: token.symbol,
-                        name: token.name,
-                        address: tokenAddress,
-                        price: price,
-                        priceSol: token.priceSol || 0,
-                        marketCap: marketCap,
-                        liquidity: liquidity,
-                        supply: supply,
-                        createdAt: createdAt,
-                        graduatedPool: token.graduatedPool || token.jupiterData?.graduatedPool,
-                        // ✅ CRITICAL: Store logo and jupiterData for frontend display
-                        logo: token.logo || token.jupiterData?.icon,
-                        jupiterData: token.jupiterData // Store full jupiterData object
-                    });
-                    
-                    // 🚀 Initialize mid-price for outlier detection
-                    if (price && price > 0) {
-                        this.midPriceUsd.set(tokenAddress, price);
-                    }
-                    
-                    metadataCount++;
+                if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
+                    this.poolAddresses.set(tokenAddress, poolAddress);
+                    this.swapHistory.set(tokenAddress, []);
+                    addedCount++;
                 }
             }
             
-            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} new tokens for monitoring, total ${this.poolAddresses.size} tokens`);
-            
-            // 🚀 NEW: Subscribe all tokens to SSE for real-time prices
-            if (this.sseService && this.useSolanaVibeSSE) {
-                const allMints = Array.from(this.poolAddresses.keys());
-                await this.sseService.subscribe(allMints);
-                console.log(`📡 [EnhancedHybridPriceService] Subscribed ${allMints.length} tokens to SSE`);
-            }
+            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} tokens for gRPC monitoring`);
+            console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens being tracked (including hardcoded)`);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
         }
     }
 
-    /**
-     * Add a new token to monitoring (both gRPC and SSE)
-     */
-    async addTokenToMonitoring(tokenAddress, poolAddress, tokenMetadata = {}) {
-        try {
-            // Add to gRPC monitoring
-            if (!this.poolAddresses.has(tokenAddress)) {
-                this.poolAddresses.set(tokenAddress, poolAddress);
-                this.swapHistory.set(tokenAddress, []);
-                
-                // Add metadata to cache
-                if (tokenMetadata && Object.keys(tokenMetadata).length > 0) {
-                    this.tokenMetadataCache.set(tokenAddress, tokenMetadata);
-                }
-                
-                // Initialize mid-price if available
-                if (tokenMetadata.price && tokenMetadata.price > 0) {
-                    this.midPriceUsd.set(tokenAddress, tokenMetadata.price);
-                }
-                
-                console.log(`✅ [EnhancedHybridPriceService] Added token ${tokenAddress} to monitoring`);
-                
-                // Add to SSE subscription
-                if (this.sseService && this.useSolanaVibeSSE) {
-                    await this.sseService.subscribe([tokenAddress]);
-                    console.log(`📡 [EnhancedHybridPriceService] Added token ${tokenAddress} to SSE`);
-                }
-                
-                return true;
-            }
-            
-            return false; // Already monitoring
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to add token ${tokenAddress}:`, error.message);
-            return false;
-        }
-    }
-
-    /**
-     * Remove a token from monitoring (both gRPC and SSE)
-     */
-    async removeTokenFromMonitoring(tokenAddress) {
-        try {
-            if (this.poolAddresses.has(tokenAddress)) {
-                this.poolAddresses.delete(tokenAddress);
-                this.swapHistory.delete(tokenAddress);
-                this.tokenMetadataCache.delete(tokenAddress);
-                this.midPriceUsd.delete(tokenAddress);
-                this.priceCache.delete(tokenAddress);
-                this.ssePriceSource.delete(tokenAddress);
-                
-                console.log(`✅ [EnhancedHybridPriceService] Removed token ${tokenAddress} from monitoring`);
-                
-                // Remove from SSE subscription
-                if (this.sseService && this.useSolanaVibeSSE) {
-                    await this.sseService.unsubscribe([tokenAddress]);
-                    console.log(`📡 [EnhancedHybridPriceService] Removed token ${tokenAddress} from SSE`);
-                }
-                
-                return true;
-            }
-            
-            return false; // Not monitoring
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to remove token ${tokenAddress}:`, error.message);
-            return false;
-        }
-    }
-
-    async startRealTimeMonitoring(forceRestart = false) {
+    async startRealTimeMonitoring() {
         if (!this.grpcClient) {
             console.error('❌ [EnhancedHybridPriceService] Cannot start monitoring - gRPC client not initialized');
             return;
         }
 
-        const hasActiveStreams = Array.isArray(this.sharedStreams) && this.sharedStreams.length > 0;
-
-        // ✅ Allow restart when new tokens are added
-        if (hasActiveStreams && !forceRestart) {
+        console.log(`🚀 [EnhancedHybridPriceService] Starting SINGLE SHARED STREAM for ${this.poolAddresses.size} tokens...`);
+        
+        // ✅ USE SINGLE SHARED STREAM INSTEAD OF MULTIPLE STREAMS
+        // This prevents RST_STREAM errors from creating too many connections
+        if (this.sharedStream) {
+            console.log('⚠️ [EnhancedHybridPriceService] Shared stream already exists, skipping...');
             return;
         }
         
-        // ✅ End existing streams before creating new ones
-        if (hasActiveStreams && forceRestart) {
-            await this.stopSharedStreams();
-            // Wait a moment for cleanup
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        // ✅ CRITICAL FIX: Filter by TOKEN ADDRESSES, not pool addresses
-        // Swaps often don't directly touch pool accounts, but always involve the token mint
-        const allTokenAddresses = Array.from(this.poolAddresses.keys());
-        if (allTokenAddresses.length === 0) {
-            console.log('⚠️ [EnhancedHybridPriceService] No token addresses available for monitoring');
-            return;
-        }
-
-        const requestedStreamCount = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10);
-        const MAX_SHARED_STREAMS = 1; // Single stream for all tokens (uses 1 of 3 available streams)
-        if (requestedStreamCount && requestedStreamCount > 1) {
-            console.warn(`⚠️ [EnhancedHybridPriceService] CONSTANT_K_MAX_STREAMS=${requestedStreamCount} overridden to ${MAX_SHARED_STREAMS} to prevent stream overload.`);
-        }
-
-        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 1000; // Max 1000 tokens per stream
-        let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
-        if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
-            computedBatchSize = MAX_TOKENS_PER_STREAM;
-        }
-        const batches = [];
-        for (let i = 0; i < allTokenAddresses.length && batches.length < MAX_SHARED_STREAMS; i += computedBatchSize) {
-            batches.push(allTokenAddresses.slice(i, i + computedBatchSize));
-        }
-        if (batches.length === MAX_SHARED_STREAMS && (MAX_SHARED_STREAMS * computedBatchSize) < allTokenAddresses.length) {
-            const remaining = allTokenAddresses.length - (MAX_SHARED_STREAMS * computedBatchSize);
-            console.warn(`⚠️ [EnhancedHybridPriceService] Reached stream cap (${MAX_SHARED_STREAMS}). ${remaining} tokens skipped from real-time monitoring until slots free up.`);
-        }
-
-        console.log(`🔁 [EnhancedHybridPriceService] Starting shared streams (instance ${this.clientInstanceId}): ${batches.length} batches, up to ${computedBatchSize} tokens each (total tokens=${allTokenAddresses.length})`);
+        // Create transaction filters with ALL pools
+        const allPools = Array.from(this.poolAddresses.values());
+        const transactionFilters = {
+            client: {
+                accountInclude: allPools,
+                accountExclude: [],
+                accountRequired: [],
+                vote: false,
+                failed: false
+            }
+        };
         
         let CommitmentLevel;
         try {
@@ -659,129 +345,38 @@ class EnhancedHybridPriceService extends EventEmitter {
             CommitmentLevel = { CONFIRMED: 'confirmed' };
         }
         
-        const newStreams = [];
-        for (let index = 0; index < batches.length; index++) {
-            const batch = batches[index];
-            const transactionFilters = {
-                client: {
-                    accountInclude: batch,
-                    accountExclude: [],
-                    accountRequired: [],
-                    vote: false,
-                    failed: false
-                }
-            };
-
-            if (this.sharedStreamSubscribeDelay > 0 && index > 0) {
-                await new Promise(resolve => setTimeout(resolve, this.sharedStreamSubscribeDelay));
-            }
-
-            const stream = await this.grpcClient.subscribeOnce(
-                {}, {}, transactionFilters, {}, {}, {}, {},
-                CommitmentLevel.CONFIRMED, []
-            );
-
-            console.log(`✅ [EnhancedHybridPriceService] Shared stream created for batch ${index + 1}/${batches.length} (${batch.length} tokens, max ${computedBatchSize})`);
-
-            stream._batchIndex = index;
-            stream._tokenCount = batch.length;
-
-            stream.on("data", async (msg) => {
-                await this.processSharedStreamUpdate(msg);
-            });
-
-            stream.on("error", (error) => {
-                console.error(`❌ [EnhancedHybridPriceService] Shared stream error (batch ${index + 1}):`, error.message);
-                this.scheduleSharedStreamRestart(index, error);
-            });
-
-            stream.on("end", () => {
-                console.warn(`⚠️ [EnhancedHybridPriceService] Shared stream ended (batch ${index + 1})`);
-                this.scheduleSharedStreamRestart(index);
-            });
-
-            newStreams.push(stream);
-        }
-
-        this.sharedStreams = newStreams;
-        this.sharedStreamPoolCount = allTokenAddresses.length;
-        console.log(`✅ [EnhancedHybridPriceService] Monitoring ${this.sharedStreamPoolCount} tokens across ${this.sharedStreams.length} streams`);
-        this.sharedStreamRetryCount = 0;
-    }
-
-    async stopSharedStreams() {
-        if (!Array.isArray(this.sharedStreams) || this.sharedStreams.length === 0) {
-            this.sharedStreams = [];
-            return;
-        }
-
-        console.log(`🔌 [EnhancedHybridPriceService] Stopping ${this.sharedStreams.length} shared gRPC stream(s) (instance ${this.clientInstanceId})`);
-
-        for (const stream of this.sharedStreams) {
-            if (!stream) continue;
-            try {
-                // Add a temporary error handler to catch "Cancelled on client" errors
-                stream.removeAllListeners('error');
-                stream.on('error', (err) => {
-                    // Ignore "Cancelled on client" errors during shutdown
-                    if (!err.message.includes('Cancelled on client')) {
-                        console.error('⚠️ [EnhancedHybridPriceService] Stream error during shutdown:', err.message);
-                    }
-                });
-                
-                // Cancel the stream (more forceful than end)
-                if (typeof stream.cancel === 'function') {
-                    stream.cancel();
-                    console.log(`✅ [EnhancedHybridPriceService] Stream cancelled`);
-                }
-                
-                // Also call end for good measure
-                if (typeof stream.end === 'function') {
-                    stream.end();
-                }
-                
-                // Destroy the stream if possible (most forceful)
-                if (typeof stream.destroy === 'function') {
-                    stream.destroy();
-                    console.log(`✅ [EnhancedHybridPriceService] Stream destroyed`);
-                }
-            } catch (error) {
-                console.error('⚠️ [EnhancedHybridPriceService] Error stopping stream:', error.message);
-            }
-        }
-
-        this.sharedStreams = [];
-        this.sharedStreamPoolCount = 0;
-        console.log(`✅ [EnhancedHybridPriceService] All streams stopped and cleared`);
-    }
-
-    scheduleSharedStreamRestart(batchIndex = null, lastError = null) {
-        if (this._sharedStreamRestartScheduled) {
-            return;
-        }
+        console.log(`📊 [EnhancedHybridPriceService] Creating shared stream with ${allPools.length} pools...`);
         
-        const attempt = this.sharedStreamRetryCount + 1;
-        const exponentialDelay = Math.min(
-            this.sharedStreamBaseDelay * Math.pow(2, this.sharedStreamRetryCount),
-            this.sharedStreamMaxDelay
+        // Create SINGLE stream for all tokens
+        this.sharedStream = await this.grpcClient.subscribeOnce(
+            {}, {}, transactionFilters, {}, {}, {}, {}, 
+            CommitmentLevel.CONFIRMED, []
         );
-        const jitter = Math.floor(Math.random() * Math.max(this.sharedStreamJitter, 1));
-        const delayMs = exponentialDelay + jitter;
         
-        this.sharedStreamRetryCount = attempt;
-        this._sharedStreamRestartScheduled = true;
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allPools.length} pools`);
         
-        const batchInfo = batchIndex !== null ? ` (batch ${batchIndex + 1})` : '';
-        console.warn(`⚠️ [EnhancedHybridPriceService] Scheduling shared stream restart${batchInfo} in ${delayMs}ms (attempt ${attempt}${lastError ? `, reason: ${lastError.message}` : ''})`);
-
-        setTimeout(async () => {
-            this._sharedStreamRestartScheduled = false;
-            try {
-                await this.startRealTimeMonitoring(true);
-            } catch (error) {
-                console.error('❌ [EnhancedHybridPriceService] Failed to restart shared streams:', error.message);
-            }
-        }, delayMs);
+        // Process ALL transactions in the shared stream
+        this.sharedStream.on("data", async (msg) => {
+            await this.processSharedStreamUpdate(msg);
+        });
+        
+        this.sharedStream.on("error", (error) => {
+            console.error(`❌ [EnhancedHybridPriceService] Shared stream error:`, error.message);
+            // Attempt to reconnect
+            setTimeout(() => {
+                console.log('🔄 [EnhancedHybridPriceService] Attempting to reconnect shared stream...');
+                this.sharedStream = null;
+                this.startRealTimeMonitoring();
+            }, 5000);
+        });
+        
+        this.sharedStream.on("end", () => {
+            console.log('✅ [EnhancedHybridPriceService] Shared stream ended, reconnecting...');
+            this.sharedStream = null;
+            this.startRealTimeMonitoring();
+        });
+        
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream monitoring started`);
     }
 
     // ✅ NEW: Process updates from shared stream
@@ -828,30 +423,21 @@ class EnhancedHybridPriceService extends EventEmitter {
             });
             
             if (balanceChanges.length > 0) {
-                // ✅ ENHANCED: Check if ANY token in the swap is being monitored
-                const involvedMints = [...new Set(balanceChanges.map(bc => bc.mint))];
-                
                 // Find which token this swap is for by matching pool address
                 for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
-                    // ✅ FIX: Check if this transaction involves our monitored token
-                    const hasMonitoredToken = involvedMints.includes(tokenAddress);
+                    // ✅ FIX: Only process swaps for OUR specific token, not all tokens
+                    const tokenChanges = balanceChanges.filter(bc => 
+                        bc.mint === tokenAddress // Match the exact token we're monitoring
+                    );
+                    const userTokenChanges = tokenChanges.filter(tokenChange => {
+                        const isPoolAddress = tokenChange.owner === poolAddress;
+                        const isTokenMint = tokenChange.owner === tokenAddress;
+                        return !isPoolAddress && !isTokenMint;
+                    });
                     
-                    if (hasMonitoredToken) {
-                        // Get changes for our specific token
-                        const tokenChanges = balanceChanges.filter(bc => 
-                            bc.mint === tokenAddress // Match the exact token we're monitoring
-                        );
-                        const userTokenChanges = tokenChanges.filter(tokenChange => {
-                            const isPoolAddress = tokenChange.owner === poolAddress;
-                            const isTokenMint = tokenChange.owner === tokenAddress;
-                            const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
-                            return !isPoolAddress && !isTokenMint && !isExcludedAddress;
-                        });
-                        
-                        if (userTokenChanges.length > 0) {
-                            // Found a swap for this token!
-                            await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
-                        }
+                    if (userTokenChanges.length > 0) {
+                        // Found a swap for this token!
+                        await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
                     }
                 }
             }
@@ -859,19 +445,177 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     // ✅ NEW: Process swap for a specific token from shared stream
-    // 🚀 RPC-BASED: Uses 100% accurate balance change parsing (no heuristics!)
     async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
-        // 🚀 NEW: Queue RPC request for accurate swap parsing
-        // This will parse pre/post token balances for exact swap amounts
-        // Works for ALL DEXs (Raydium, Orca, Meteora, Jupiter, etc.)
-        if (signature) {
-            this.queueRpcRequest({
-                signature,
-                tokenAddress,
-                poolAddress,
-                slot
+        const tx = msg.transaction.transaction;
+        
+        // Collect token balance changes
+        const balanceChanges = [];
+        tx.meta.preTokenBalances.forEach((preBalance, index) => {
+            const postBalance = tx.meta.postTokenBalances[index];
+            if (preBalance && postBalance) {
+                const preAmount = preBalance.uiTokenAmount?.uiAmount || 0;
+                const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
+                const change = postAmount - preAmount;
+                
+                if (Math.abs(change) > 0.000001) {
+                    balanceChanges.push({
+                        mint: preBalance.mint,
+                        change: change,
+                        owner: preBalance.owner,
+                        preAmount: preAmount,
+                        postAmount: postAmount
+                    });
+                }
+            }
+        });
+        
+        // ✅ CRITICAL FIX: Add native SOL balance changes (for Jupiter aggregated swaps)
+        if (tx.meta?.preBalances && tx.meta?.postBalances && tx.transaction?.message?.accountKeys) {
+            tx.meta.preBalances.forEach((preBalance, index) => {
+                const postBalance = tx.meta.postBalances[index];
+                const change = (postBalance - preBalance) / 1e9; // Convert lamports to SOL
+                
+                if (Math.abs(change) > 0.000001) {
+                    const accountKey = tx.transaction.message.accountKeys[index];
+                    let accountAddress = null;
+                    
+                    // Extract account address
+                    if (Buffer.isBuffer(accountKey)) {
+                        accountAddress = bs58.encode(accountKey);
+                    } else if (typeof accountKey === 'string') {
+                        accountAddress = accountKey;
+                    } else if (accountKey?.data && Array.isArray(accountKey.data)) {
+                        accountAddress = bs58.encode(Buffer.from(accountKey.data));
+                    }
+                    
+                    if (accountAddress) {
+                        balanceChanges.push({
+                            mint: 'So11111111111111111111111111111111111111112', // Native SOL
+                            change: change,
+                            owner: accountAddress,
+                            preAmount: preBalance / 1e9,
+                            postAmount: postBalance / 1e9
+                        });
+                    }
+                }
             });
         }
+        
+        // ✅ FIX: Filter for OUR specific token only (not all non-SOL tokens)
+        // We should only process swaps for the token we're monitoring
+        const tokenChanges = balanceChanges.filter(bc => {
+            // Match the mint address of the token we're monitoring
+            return bc.mint === tokenAddress;
+        });
+        const userTokenChanges = tokenChanges.filter(tc => {
+            return tc.owner !== poolAddress && tc.owner !== tokenAddress;
+        });
+        
+                if (userTokenChanges.length > 0) {
+                    console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${signature?.substring(0, 16)}...`);
+                    
+                    userTokenChanges.forEach(tokenChange => {
+                        // ✅ JUPITER COMPATIBLE: Find base token change (could be SOL, USDC, or any other token)
+                        // Exclude the target token itself and find the largest balance change for the same owner
+                        const baseTokenChanges = balanceChanges.filter(bc => 
+                            bc.mint !== tokenAddress && // Not our target token
+                            bc.owner === tokenChange.owner && // Same user account
+                            Math.abs(bc.change) > 0.001 // Significant change
+                        );
+                        
+                        // Find the largest base token change (most likely the swap input)
+                        const baseChange = baseTokenChanges.length > 0 
+                            ? baseTokenChanges.reduce((max, curr) => 
+                                Math.abs(curr.change) > Math.abs(max.change) ? curr : max)
+                            : null;
+                        
+                        // Fallback: look for SOL change specifically
+                        const solChange = balanceChanges.find(bc => 
+                            bc.mint === 'So11111111111111111111111111111111111111112' &&
+                            bc.owner === tokenChange.owner
+                        );
+                        
+                        // Determine swap type
+                        let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                        
+                        // ✅ JUPITER AGGREGATED SWAPS FIX: If no direct base token change found for same owner,
+                        // look for SOL/USDC changes specifically from the SAME WALLET, not transaction-wide
+                        const finalBaseChange = baseChange || solChange;
+                        let estimatedBaseAmount = 0;
+                        
+                        if (!finalBaseChange || Math.abs(finalBaseChange.change) < 0.001) {
+                            // For Jupiter aggregated swaps, look for the user's wallet SOL/USDC payment
+                            // NOT the total transaction flow (which includes routing)
+                            const userSolChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'So11111111111111111111111111111111111111112' &&
+                                bc.owner === tokenChange.owner // SAME WALLET as token recipient
+                            );
+                            const userUsdcChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && // USDC mint
+                                bc.owner === tokenChange.owner // SAME WALLET
+                            );
+                            
+                            // Sum changes for this specific user
+                            const userNetSol = userSolChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            const userNetUsdc = userUsdcChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            
+                            // If there's a significant payment from this user's wallet, use it
+                            if (Math.abs(userNetSol) > 0.001) {
+                                estimatedBaseAmount = Math.abs(userNetSol);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(6)} SOL`);
+                            } else if (Math.abs(userNetUsdc) > 0.01) {
+                                estimatedBaseAmount = Math.abs(userNetUsdc);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(2)} USDC`);
+                            } else {
+                                // Skip if no significant payment from this user (likely internal pool operation or routing account)
+                                console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change and no user payment found (likely internal pool operation)`);
+                                return;
+                            }
+                        }
+                        
+                        // Determine swap type with base token change
+                        // BUY: user gets tokens (+) and gives base (-)
+                        // SELL: user gives tokens (-) and gets base (+)
+                        if (finalBaseChange) {
+                            if (finalBaseChange.change < 0 && tokenChange.change > 0) {
+                                swapType = 'BUY';
+                            } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
+                                swapType = 'SELL';
+                            }
+                        }
+                        // For Jupiter aggregated swaps with estimated base amount, swap type is already set
+                        
+                        // ✅ VALIDATION: Ensure we're processing the correct token
+                        if (tokenChange.mint !== tokenAddress) {
+                            console.error(`⚠️ [EnhancedHybridPriceService] Mismatch: Expected ${tokenAddress.substring(0, 8)}..., got ${tokenChange.mint.substring(0, 8)}...`);
+                            return; // Skip this swap
+                        }
+                        
+                        console.log(`✅ [EnhancedHybridPriceService] Processing ${swapType}: ${Math.abs(tokenChange.change).toLocaleString()} ${tokenAddress.substring(0, 8)}...`);
+                        
+                        // Calculate the base amount to use
+                        const baseAmountToUse = finalBaseChange 
+                            ? finalBaseChange.change 
+                            : (swapType === 'BUY' ? -estimatedBaseAmount : estimatedBaseAmount);
+                        
+                        // Process swap
+                        try {
+                            this.processSwapUpdate(
+                                tokenAddress, 
+                                poolAddress, 
+                                slot, 
+                                swapType, 
+                                tokenChange.change, 
+                                tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
+                                tokenChange.owner,
+                                baseAmountToUse,
+                                signature
+                            );
+                        } catch (error) {
+                            console.error(`❌ Error processing swap:`, error.message);
+                        }
+                    });
+                }
     }
     
     // ✅ DEPRECATED: Old per-token stream method (KEPT FOR REFERENCE - NOT USED)
@@ -924,11 +668,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             // ✅ UNIVERSAL TRANSACTION monitoring for ANY token
-            // 🚀 CRITICAL: Monitor ALL token addresses in a SINGLE stream for efficiency
-            const allTokenAddresses = Array.from(this.poolAddresses.keys());
+            // 🚀 CRITICAL: Monitor ALL pools in a SINGLE stream for efficiency
+            const allPools = Array.from(this.poolAddresses.values());
             const transactionFilters = {
                 client: {
-                    accountInclude: allTokenAddresses, // Monitor transactions involving ALL token mint addresses
+                    accountInclude: allPools, // Monitor transactions involving ALL pools
                     accountExclude: [], // Exclude vote transactions
                     accountRequired: [], // Don't use accountRequired (too restrictive)
                     vote: false,
@@ -1005,46 +749,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                         if (tx.meta?.preTokenBalances?.length > 0) {
                             // console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
-                            // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
-                            this._txDebugCounter = (this._txDebugCounter || 0) + 1;
-                            if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
-                                console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
-                                console.log(JSON.stringify({
-                                    signature: transactionSignature?.substring(0, 16) + '...',
-                                    slot: slot,
-                                    blockTime: tx.blockTime,
-                                    meta: {
-                                        err: tx.meta.err,
-                                        fee: tx.meta.fee,
-                                        preBalances: tx.meta.preBalances?.slice(0, 5),
-                                        postBalances: tx.meta.postBalances?.slice(0, 5),
-                                        preTokenBalances: tx.meta.preTokenBalances?.map(b => ({
-                                            accountIndex: b.accountIndex,
-                                            mint: b.mint?.substring(0, 16) + '...',
-                                            owner: b.owner?.substring(0, 16) + '...',
-                                            uiTokenAmount: b.uiTokenAmount
-                                        })),
-                                        postTokenBalances: tx.meta.postTokenBalances?.map(b => ({
-                                            accountIndex: b.accountIndex,
-                                            mint: b.mint?.substring(0, 16) + '...',
-                                            owner: b.owner?.substring(0, 16) + '...',
-                                            uiTokenAmount: b.uiTokenAmount
-                                        }))
-                                    },
-                                    transaction: {
-                                        message: {
-                                            accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k?.substring(0, 16) + '...'),
-                                            instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
-                                                programIdIndex: i.programIdIndex,
-                                                accounts: i.accounts?.slice(0, 10),
-                                                data: i.data?.substring(0, 32) + '...'
-                                            }))
-                                        }
-                                    }
-                                }, null, 2));
-                                console.log(`\n`);
-                            }
-                            
                             // Collect all balance changes to find both sides of the swap
                             const balanceChanges = [];
                             
@@ -1081,15 +785,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     // 🚫 ADDITIONAL FILTER: Check if owner is the token mint itself (self-trading pools)
                                     const isTokenMint = tokenChange.owner === tokenAddress;
                                     
-                                    // 🚫 EXCLUDE: Check if owner is an excluded address (pool authorities, PDAs, etc.)
-                                    const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
-                                    
                                     // Log suspicious addresses for debugging
-                                    if (isPoolAddress || isTokenMint || isExcludedAddress) {
-                                        // console.log(`🚫 [EnhancedHybridPriceService] Skipping swap from owner: ${tokenChange.owner.substring(0, 16)}... (isPool: ${isPoolAddress}, isTokenMint: ${isTokenMint}, isExcluded: ${isExcludedAddress})`);
+                                    if (isPoolAddress || isTokenMint) {
+                                        // console.log(`🚫 [EnhancedHybridPriceService] Skipping suspicious swap from owner: ${tokenChange.owner.substring(0, 16)}... (isPool: ${isPoolAddress}, isTokenMint: ${isTokenMint})`);
                                     }
                                     
-                                    return !isPoolAddress && !isTokenMint && !isExcludedAddress;
+                                    return !isPoolAddress && !isTokenMint;
                                 });
                                 
                                 // console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
@@ -1287,10 +988,17 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             // console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             
-            // 2) SOL amount is ALWAYS in UI format (SOL, not lamports) from uiTokenAmount
-            // ✅ CRITICAL FIX: Balance changes use uiTokenAmount.uiAmount which is already in SOL
-            let baseSol = Math.abs(solAmount);
-            console.log(`💰 [EnhancedHybridPriceService] SOL amount (UI format): ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+            // 2) Convert SOL amount - check if it's in lamports or SOL already
+            let baseSol = 0;
+            if (Math.abs(solAmount) > 1e6) {
+                // Likely in lamports, convert to SOL
+                baseSol = Math.abs(solAmount) / 1e9;
+                console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+            } else if (solAmount !== 0) {
+                // Already in SOL
+                baseSol = Math.abs(solAmount);
+                console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+            }
             
             // 3) Calculate prices
             let priceSol = 0;
@@ -1400,14 +1108,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                 slot,
                 timestamp: Date.now()
             });
-            
-            // ✅ NEW: Broadcast tooltip update for this token
-            if (this.webSocketServer) {
-                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
-                if (tooltipData) {
-                    this.webSocketServer.broadcastTooltipUpdate(tokenAddress, tooltipData);
-                }
-            }
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Error processing swap update:`, error.message);
@@ -1571,51 +1271,14 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Auto-start monitoring for any token when requested
     async ensureTokenMonitoring(tokenAddress) {
         try {
-            // ✅ Filter out stablecoins
-            const STABLECOIN_ADDRESSES = new Set([
-                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
-                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
-                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
-                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
-            ]);
+            // ✅ UNIVERSAL STREAM: All tokens are monitored via shared stream
+            // No need for per-token monitoring anymore - the universal stream handles all tokens
+            console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} monitored via universal stream`);
             
-            if (STABLECOIN_ADDRESSES.has(tokenAddress)) {
-                console.log(`⏭️ [EnhancedHybridPriceService] Skipping stablecoin: ${tokenAddress.substring(0, 8)}...`);
-                return false;
-            }
-            
-            // ✅ CRITICAL FIX: Add token to poolAddresses Map so swaps are tracked
-            const wasNew = !this.poolAddresses.has(tokenAddress);
-            
-            if (wasNew) {
-                console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for ${tokenAddress}...`);
-                
-                // Try to discover pool address
-                const poolAddress = await this.discoverPoolAddress(tokenAddress);
-                
-                if (poolAddress) {
-                    this.poolAddresses.set(tokenAddress, poolAddress);
-                    this.swapHistory.set(tokenAddress, []);
-                    console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress} -> pool ${poolAddress} to monitoring map`);
-                } else {
-                    console.log(`⚠️ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}, adding with placeholder`);
-                    // Add with placeholder - we'll still try to track swaps
-                    this.poolAddresses.set(tokenAddress, 'unknown');
-                    this.swapHistory.set(tokenAddress, []);
-                }
-                
-                // ✅ FIX: DON'T restart stream immediately - let it pick up on next natural restart
-                // Restarting the stream causes "14 UNAVAILABLE: Connection dropped" errors
-                // and 5+ minute downtime. New tokens will be included on next restart cycle.
-                console.log(`📝 [EnhancedHybridPriceService] Token ${tokenAddress} added to map. Will be included in stream on next restart cycle.`)
-            } else {
-                console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} already in monitoring map`);
-            }
-            
-            // Check if stream is running (start if not)
-            if (!Array.isArray(this.sharedStreams) || this.sharedStreams.length === 0) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Stream not running, starting it...`);
-                await this.startRealTimeMonitoring();
+            // Check if universal stream is running
+            if (!this.grpcStreams.has('universal_stream')) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Universal stream not running, starting it...`);
+                await this.startUniversalMonitoring();
             }
             
             return true;
@@ -1887,273 +1550,16 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         console.log('✅ [EnhancedHybridPriceService] Real-time monitoring stopped');
     }
-    
-    /**
-     * 🚀 NEW: Queue RPC request for accurate swap parsing
-     * Batches requests to stay under 200 req/sec limit
-     */
-    queueRpcRequest(request) {
-        // Check cache first
-        if (this.rpcCache.has(request.signature)) {
-            const cached = this.rpcCache.get(request.signature);
-            if (Date.now() - cached.timestamp < this.rpcCacheDuration) {
-                this.rpcStats.cacheHits++;
-                return; // Already processed
-            }
-        }
+
+    async shutdown() {
+        console.log('🛑 [EnhancedHybridPriceService] Shutting down...');
         
-        // Add to queue
-        this.rpcBatchQueue.push(request);
+        // Stop all gRPC streams
+        this.grpcStreams.forEach(stream => stream.end());
+        this.grpcStreams.clear();
+        this.realTimeUpdates.clear();
         
-        // Start processing if not already running
-        if (!this.rpcProcessing) {
-            this.processRpcBatchQueue();
-        }
-    }
-    
-    /**
-     * 🚀 NEW: Process RPC batch queue using parallel individual requests
-     * Note: Constant K RPC doesn't support JSON-RPC batch format, so we send parallel individual requests
-     */
-    async processRpcBatchQueue() {
-        if (this.rpcProcessing || this.rpcBatchQueue.length === 0) {
-            return;
-        }
-        
-        this.rpcProcessing = true;
-        
-        try {
-            while (this.rpcBatchQueue.length > 0) {
-                // Take up to 50 requests from queue (parallel processing)
-                const batch = this.rpcBatchQueue.splice(0, 50);
-                
-                if (batch.length === 0) break;
-                
-                try {
-                    // Send all requests in parallel
-                    const promises = batch.map(request => 
-                        axios.post(CONSTANT_K_RPC, {
-                            jsonrpc: '2.0',
-                            id: 1,
-                            method: 'getTransaction',
-                            params: [
-                                request.signature,
-                                {
-                                    encoding: 'jsonParsed',
-                                    maxSupportedTransactionVersion: 0
-                                }
-                            ]
-                        }, {
-                            headers: { 'Content-Type': 'application/json' },
-                            timeout: 10000
-                        }).catch(err => null) // Catch individual errors
-                    );
-                    
-                    const responses = await Promise.all(promises);
-                    
-                    this.rpcStats.totalRequests += batch.length;
-                    this.rpcStats.totalTransactions += batch.length;
-                    
-                    // Process each response
-                    for (let i = 0; i < responses.length; i++) {
-                        const response = responses[i];
-                        const request = batch[i];
-                        
-                        if (response?.data?.result) {
-                            await this.enhanceSwapWithRpcData(request, response.data.result);
-                            
-                            // Cache the result
-                            this.rpcCache.set(request.signature, {
-                                timestamp: Date.now(),
-                                result: response.data.result
-                            });
-                        } else if (response?.data?.error) {
-                            this.rpcStats.errors++;
-                        }
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ [RPC] Parallel request batch failed:', error.message);
-                    this.rpcStats.errors++;
-                }
-                
-                // Small delay between batches (rate limiting)
-                if (this.rpcBatchQueue.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-            }
-        } finally {
-            this.rpcProcessing = false;
-            
-            // If more items were added while processing, restart
-            if (this.rpcBatchQueue.length > 0) {
-                setImmediate(() => this.processRpcBatchQueue());
-            }
-        }
-    }
-    
-    /**
-     * 🚀 NEW: Enhance swap data with RPC transaction details
-     * Parses pre/post token balances for exact swap amounts
-     */
-    async enhanceSwapWithRpcData(request, txData) {
-        try {
-            const { tokenAddress, poolAddress, signature, slot } = request;
-            
-            if (!txData || !txData.meta) {
-                console.log(`⚠️ [RPC] No metadata for ${signature?.slice(0, 8)}`);
-                return; // No metadata available
-            }
-            
-            const preBalances = txData.meta.preTokenBalances || [];
-            const postBalances = txData.meta.postTokenBalances || [];
-            const WSOL = 'So11111111111111111111111111111111111111112';
-            
-            console.log(`🔍 [RPC] Parsing tx ${signature?.slice(0, 8)} for token ${tokenAddress.slice(0, 8)}`);
-            console.log(`🔍 [RPC] Found ${preBalances.length} preBalances, ${postBalances.length} postBalances`);
-            
-            // ✅ CRITICAL: tokenAddress IS the token mint we're monitoring
-            // Find balance changes for THIS specific token mint
-            let tokenIn = 0;
-            let tokenOut = 0;
-            let solIn = 0;
-            let solOut = 0;
-            
-            // Calculate token balance changes
-            for (let i = 0; i < preBalances.length; i++) {
-                const pre = preBalances[i];
-                const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
-                
-                if (!post) continue;
-                
-                const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
-                const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
-                const change = postAmount - preAmount;
-                
-                // Token balance changes (for the token we're monitoring)
-                if (pre.mint === tokenAddress) {
-                    if (change > 0) {
-                        tokenIn += change;
-                    } else if (change < 0) {
-                        tokenOut += Math.abs(change);
-                    }
-                }
-                
-                // SOL balance changes
-                if (pre.mint === WSOL) {
-                    if (change > 0) {
-                        solIn += change;
-                    } else if (change < 0) {
-                        solOut += Math.abs(change);
-                    }
-                }
-            }
-            
-            console.log(`📊 [RPC] Balance changes: tokenIn=${tokenIn}, tokenOut=${tokenOut}, solIn=${solIn}, solOut=${solOut}`);
-            
-            // If we found valid balance changes for a swap, create the enhanced swap
-            if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
-                const isBuy = tokenIn > 0;
-                const tokenAmount = isBuy ? tokenIn : tokenOut;
-                const solAmount = isBuy ? solOut : solIn; // BUY: SOL out, SELL: SOL in
-                
-                // Calculate price from balance changes
-                const solPrice = this.solPriceUSD || 200;
-                const priceUsd = solAmount > 0 && tokenAmount > 0 
-                    ? (solAmount * solPrice) / tokenAmount 
-                    : 0;
-                
-                // Create enhanced swap record with accurate data
-                const enhancedSwap = {
-                    tokenAddress,
-                    poolAddress,
-                    signature,
-                    slot,
-                    timestamp: Date.now(),
-                    type: isBuy ? 'BUY' : 'SELL',
-                    tokenAmount,
-                    baseAmount: solAmount,
-                    price: priceUsd,
-                    volumeUsd: tokenAmount * priceUsd,
-                    maker: 'Unknown', // RPC doesn't give us maker address easily
-                    source: 'rpc-enhanced'
-                };
-                
-                // 🚀 Update mid-price using EWMA (alpha=0.2)
-                if (priceUsd && isFinite(priceUsd) && priceUsd > 0) {
-                    const currentMid = this.midPriceUsd.get(tokenAddress);
-                    if (currentMid && currentMid > 0) {
-                        const alpha = 0.2;
-                        const newMid = (1 - alpha) * currentMid + alpha * priceUsd;
-                        this.midPriceUsd.set(tokenAddress, newMid);
-                    } else {
-                        this.midPriceUsd.set(tokenAddress, priceUsd);
-                    }
-                }
-                
-                // Save enhanced swap to database
-                if (this.chartDatabase) {
-                    const persistentSwap = {
-                        tokenAddress,
-                        signature,
-                        timestamp: Math.floor(Date.now() / 1000),
-                        poolAddress,
-                        price: priceUsd,
-                        volume: enhancedSwap.volumeUsd,
-                        source: 'rpc-enhanced',
-                        type: enhancedSwap.type,
-                        tokenAmount,
-                        baseAmount: solAmount,
-                        volumeUsd: enhancedSwap.volumeUsd,
-                        maker: 'Unknown',
-                        rawData: enhancedSwap
-                    };
-                    await this.chartDatabase.storeSwaps([persistentSwap]);
-                }
-                
-                this.rpcStats.swapsEnhanced++;
-                
-                // Broadcast to WebSocket clients
-                if (this.webSocketServer) {
-                    try {
-                        this.webSocketServer.broadcastSwapUpdate(tokenAddress, enhancedSwap);
-                    } catch (error) {
-                        console.error(`❌ [RPC] Failed to broadcast swap:`, error.message);
-                    }
-                }
-                
-                // Update internal tracking
-                if (!this.swapHistory.has(tokenAddress)) {
-                    this.swapHistory.set(tokenAddress, []);
-                }
-                const history = this.swapHistory.get(tokenAddress);
-                history.push(enhancedSwap);
-                
-                // Keep only last 1000 swaps in memory
-                if (history.length > 1000) {
-                    history.shift();
-                }
-                
-                console.log(`✅ [RPC] Enhanced swap for ${tokenAddress.slice(0, 8)}: ${isBuy ? 'BUY' : 'SELL'} ${tokenAmount.toFixed(4)} tokens for ${solAmount.toFixed(4)} SOL @ $${priceUsd.toFixed(6)}`);
-            } else {
-                console.log(`⚠️ [RPC] No valid swap found in tx ${signature?.slice(0, 8)} for token ${tokenAddress.slice(0, 8)}`);
-            }
-            
-        } catch (error) {
-            console.error('❌ [RPC] Error enhancing swap:', error.message);
-        }
-    }
-    
-    /**
-     * 🚀 NEW: Get RPC statistics
-     */
-    getRpcStats() {
-        return {
-            ...this.rpcStats,
-            queueSize: this.rpcBatchQueue.length,
-            cacheSize: this.rpcCache.size,
-            processing: this.rpcProcessing
-        };
+        console.log('✅ [EnhancedHybridPriceService] Shutdown complete');
     }
     
     getRealTimeStats() {
@@ -2164,672 +1570,308 @@ class EnhancedHybridPriceService extends EventEmitter {
             realTimeUpdates: this.realTimeUpdates ? this.realTimeUpdates.size : 0
         };
     }
-
-
-    // ✅ NEW: Get real-time tooltip data for bubble map
-    getRealTimeTooltipData(tokenAddress) {
-        const swaps = this.swapHistory.get(tokenAddress) || [];
-        const metadata = this.tokenMetadataCache.get(tokenAddress);
-        const latestSwap = swaps[swaps.length - 1];
-        
-        if (!latestSwap || !metadata) return null;
-        
-        const now = Date.now();
-        
-        // Calculate time-windowed metrics
-        const metrics = {
-            '5m': this.calculateWindowMetrics(swaps, now - 5 * 60 * 1000, now),
-            '1h': this.calculateWindowMetrics(swaps, now - 60 * 60 * 1000, now),
-            '6h': this.calculateWindowMetrics(swaps, now - 6 * 60 * 60 * 1000, now),
-            '24h': this.calculateWindowMetrics(swaps, now - 24 * 60 * 60 * 1000, now)
-        };
-        
-        // ✅ HYBRID APPROACH: Jupiter base price + swap delta adjustment
-        // Use Jupiter's cached price as stable base, adjust with recent swap trend
-        
-        const jupiterPriceUsd = metadata.price || 0; // Stable base from Jupiter
-        const supply = metadata.supply || 0;
-        
-        // Calculate price delta from recent swaps (10-minute window for stability)
-        const tenMinutesAgo = now - 10 * 60 * 1000;
-        const recentSwaps = swaps.filter(s => s.timestamp >= tenMinutesAgo);
-        
-        let priceAdjustment = 0; // Delta to apply to Jupiter price
-        
-        if (recentSwaps.length >= 5 && jupiterPriceUsd > 0) {
-            // Calculate VWAP from recent swaps
-            let totalVolume = 0;
-            let weightedPriceSum = 0;
-            
-            recentSwaps.forEach(swap => {
-                const volume = Math.abs(swap.amountUsd || 0);
-                totalVolume += volume;
-                weightedPriceSum += swap.price * volume;
-            });
-            
-            if (totalVolume > 0) {
-                const swapVWAP = weightedPriceSum / totalVolume;
-                const swapVWAPUsd = swapVWAP * this.solPriceUSD;
-                
-                // Calculate percentage difference between swap VWAP and Jupiter price
-                const priceDelta = ((swapVWAPUsd - jupiterPriceUsd) / jupiterPriceUsd) * 100;
-                
-                // Apply delta with dampening (max ±5% adjustment to prevent wild swings)
-                const maxAdjustment = 5; // Max 5% adjustment
-                const clampedDelta = Math.max(-maxAdjustment, Math.min(maxAdjustment, priceDelta));
-                
-                priceAdjustment = jupiterPriceUsd * (clampedDelta / 100);
-            }
-        }
-        
-        // Final hybrid price: Jupiter base + swap-based adjustment
-        const hybridPriceUsd = jupiterPriceUsd + priceAdjustment;
-        
-        // ✅ Calculate market cap from hybrid price
-        const liveMarketCap = supply > 0 ? (hybridPriceUsd * supply) : (metadata.marketCap || 0);
-        
-        // ✅ Use Jupiter's stats data for 24h metrics (true 24h window)
-        const jupiterStats = metadata.jupiterData?.stats24h || {};
-        const jupiterStats5m = metadata.jupiterData?.stats5m || {};
-        const jupiterStats1h = metadata.jupiterData?.stats1h || {};
-        const jupiterStats6h = metadata.jupiterData?.stats6h || {};
-        
-        return {
-            // Basic info
-            symbol: metadata.symbol,
-            name: metadata.name,
-            address: tokenAddress,
-            age: this.calculateAge(metadata.createdAt || metadata.timestamp),
-            
-            // ✅ HYBRID Price: Jupiter base + swap delta (stable + responsive!)
-            price: hybridPriceUsd,
-            priceSol: hybridPriceUsd / this.solPriceUSD,
-            
-            // ✅ LIVE Market Cap: Calculated from live price × supply
-            marketCap: liveMarketCap,
-            liquidity: metadata.liquidity || 0,
-            supply: supply,
-            
-            // ✅ 24h metrics: Use Jupiter data (true 24h) or fallback to our metrics
-            volume24h: jupiterStats.buyVolume && jupiterStats.sellVolume 
-                ? (jupiterStats.buyVolume + jupiterStats.sellVolume) 
-                : metrics['24h'].volume,
-            txns24h: jupiterStats.numBuys && jupiterStats.numSells 
-                ? (jupiterStats.numBuys + jupiterStats.numSells) 
-                : metrics['24h'].txns,
-            makers24h: jupiterStats.numTraders || metrics['24h'].makers,
-            
-            // ✅ Price changes: Use Jupiter stats (accurate) or fallback to our calculations
-            priceChange5m: jupiterStats5m.priceChange ?? metrics['5m'].priceChange,
-            priceChange1h: jupiterStats1h.priceChange ?? metrics['1h'].priceChange,
-            priceChange6h: jupiterStats6h.priceChange ?? metrics['6h'].priceChange,
-            priceChange24h: jupiterStats.priceChange ?? metrics['24h'].priceChange,
-            
-            // Real-time indicator
-            lastUpdate: latestSwap.timestamp,
-            isLive: (now - latestSwap.timestamp) < 60000 // Updated in last minute
-        };
-    }
-
-    // ✅ NEW: Get real-time ranking data for all monitored tokens
-    getRealTimeRankingData() {
-        const rankings = [];
-        
-        console.log(`📊 [getRealTimeRankingData] Checking ${this.poolAddresses.size} monitored tokens...`);
-        console.log(`📊 [getRealTimeRankingData] Metadata cache has ${this.tokenMetadataCache.size} entries`);
-        
-        // Include ALL monitored tokens (from poolAddresses map)
-        for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
-            const swaps = this.swapHistory.get(tokenAddress) || [];
-            const metadata = this.tokenMetadataCache.get(tokenAddress);
-            
-            // Skip if no metadata (shouldn't happen, but safety check)
-            if (!metadata) {
-                console.log(`⚠️ [getRealTimeRankingData] No metadata for ${tokenAddress.substring(0, 8)}...`);
-                continue;
-            }
-            
-            // If token has swaps, use real-time data
-            if (swaps.length > 0) {
-                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
-                if (tooltipData) {
-                    rankings.push({
-                        ...tooltipData,
-                        // ✅ CRITICAL: Include full token metadata for frontend
-                        contractAddress: tokenAddress,
-                        tokenAddress: tokenAddress,
-                        logo: metadata.logo,
-                        jupiterData: metadata.jupiterData || { icon: metadata.logo },
-                        rank: 0 // Will be set after sorting
-                    });
-                }
-            } else {
-                // Token is monitored but has no swaps yet - use cached data
-                const currentPriceUsd = metadata.price || 0;
-                const supply = metadata.supply || 0;
-                
-                rankings.push({
-                    // Basic info
-                    symbol: metadata.symbol,
-                    name: metadata.name,
-                    address: tokenAddress,
-                    contractAddress: tokenAddress, // ✅ CRITICAL for TokenDetails modal
-                    tokenAddress: tokenAddress,
-                    age: this.calculateAge(metadata.createdAt || metadata.timestamp),
-                    
-                    // ✅ CRITICAL: Include logo/icon for PFPs
-                    logo: metadata.logo,
-                    jupiterData: metadata.jupiterData || { icon: metadata.logo },
-                    
-                    // Price (from cache)
-                    price: currentPriceUsd,
-                    priceSol: metadata.priceSol || 0,
-                    
-                    // Market data (from cache)
-                    marketCap: metadata.marketCap || (currentPriceUsd * supply),
-                    liquidity: metadata.liquidity || 0,
-                    supply: supply,
-                    
-                    // No swap activity yet
-                    volume24h: 0,
-                    txns24h: 0,
-                    makers24h: 0,
-                    
-                    // No price changes
-                    priceChange5m: 0,
-                    priceChange1h: 0,
-                    priceChange6h: 0,
-                    priceChange24h: 0,
-                    
-                    // Not live (no recent swaps)
-                    lastUpdate: null,
-                    isLive: false,
-                    rank: 0
-                });
-            }
-        }
-        
-        // Sort by 24h volume (descending), then by market cap
-        rankings.sort((a, b) => {
-            if (b.volume24h !== a.volume24h) {
-                return b.volume24h - a.volume24h;
-            }
-            return b.marketCap - a.marketCap;
-        });
-        
-        // Assign ranks
-        rankings.forEach((token, index) => {
-            token.rank = index + 1;
-        });
-        
-        return rankings;
-    }
-
-    // ✅ NEW: Get ALL rankings (all tokens from cache merged with real-time data)
-    async getAllRankingsData() {
-        try {
-            // Reload token cache to get latest tokens
-            await this.loadTokenCache();
-            
-            // ✅ OPTION 3: Smart Monitoring - Auto-monitor top N tokens (prioritize by score/volume)
-            // Constant K gRPC capacity: 5000000 channel capacity, 5000 unary concurrency
-            // We can safely monitor up to 5000 tokens (well within limits)
-            const MAX_MONITORED_TOKENS = 5000;
-            
-            // ✅ Filter out stablecoins and LSTs (known addresses)
-            const STABLECOIN_ADDRESSES = new Set([
-                'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
-                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
-                '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
-                'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
-            ]);
-            
-            // Common LST (Liquid Staking Token) addresses
-            const LST_ADDRESSES = new Set([
-                'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL (already in stablecoins)
-                '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj', // stSOL
-                'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', // bSOL
-                '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', // ETH (Wormhole)
-                'So11111111111111111111111111111111111111112'   // SOL (native)
-            ]);
-            
-            const topTokens = this.tokenCache
-                .filter(token => {
-                    const address = token.contractAddress || token.tokenAddress;
-                    // Filter out stablecoins and ensure token has address and score
-                    return address && 
-                           !STABLECOIN_ADDRESSES.has(address) &&
-                           (token.overallScore || token.score || 0) > 0;
-                })
-                .sort((a, b) => {
-                    // Sort by overall score first, then by volume
-                    const scoreA = a.overallScore || a.score || 0;
-                    const scoreB = b.overallScore || b.score || 0;
-                    if (scoreB !== scoreA) return scoreB - scoreA;
-                    
-                    const volumeA = (a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0);
-                    const volumeB = (b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0);
-                    return volumeB - volumeA;
-                })
-                .slice(0, MAX_MONITORED_TOKENS);
-            
-            // Auto-monitor top tokens that aren't already monitored (batch, non-blocking)
-            let monitoringPromises = [];
-            let newMonitoringCount = 0;
-            for (const token of topTokens) {
-                const address = token.contractAddress || token.tokenAddress;
-                if (address && !this.poolAddresses.has(address)) {
-                    // Only monitor if we have pool info (graduatedPool or firstPool)
-                    const hasPool = token.graduatedPool || token.jupiterData?.graduatedPool || token.jupiterData?.firstPool?.id;
-                    if (hasPool) {
-                        monitoringPromises.push(
-                            this.ensureTokenMonitoring(address).catch(err => {
-                                console.warn(`⚠️ [SmartMonitoring] Failed to monitor ${token.symbol}:`, err.message);
-                            })
-                        );
-                        newMonitoringCount++;
-                        // Limit concurrent monitoring (batch size) to avoid overwhelming the system
-                        // With 5000 unary concurrency, we can safely batch 50-100 at a time
-                        if (monitoringPromises.length >= 50) {
-                            await Promise.all(monitoringPromises);
-                            monitoringPromises = [];
-                        }
-                    }
-                }
-            }
-            // Wait for remaining monitoring promises
-            if (monitoringPromises.length > 0) {
-                await Promise.all(monitoringPromises);
-            }
-            if (newMonitoringCount > 0) {
-                console.log(`✅ [SmartMonitoring] Auto-monitored ${newMonitoringCount} new tokens (total monitored: ${this.poolAddresses.size})`);
-            }
-            
-            // Get real-time metrics for monitored tokens
-            const realTimeMetrics = new Map();
-            for (const [tokenAddress] of this.poolAddresses.entries()) {
-                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
-                if (tooltipData) {
-                    realTimeMetrics.set(tokenAddress, tooltipData);
-                }
-            }
-            
-            // ✅ Filter out stablecoins and LSTs from display (reuse constants from above)
-            // Merge cache tokens with real-time metrics, filtering out stablecoins and LSTs
-            const rankings = this.tokenCache
-                .filter(token => {
-                    const address = token.contractAddress || token.tokenAddress;
-                    // Filter out stablecoins and LSTs from display
-                    return address && 
-                           !STABLECOIN_ADDRESSES.has(address) && 
-                           !LST_ADDRESSES.has(address);
-                })
-                .map(token => {
-                const address = token.contractAddress || token.tokenAddress;
-                const realTimeData = realTimeMetrics.get(address);
-                
-                // Get Jupiter data for fallback
-                const jupiter24h = token.jupiterData?.stats24h || {};
-                const jupiter5m = token.jupiterData?.stats5m || {};
-                const jupiter1h = token.jupiterData?.stats1h || {};
-                const jupiter6h = token.jupiterData?.stats6h || {};
-                
-                // Calculate safe sums for Jupiter stats
-                const jupiterVolume24h = (jupiter24h.buyVolume || 0) + (jupiter24h.sellVolume || 0);
-                const jupiterTxns24h = (jupiter24h.numBuys || 0) + (jupiter24h.numSells || 0);
-                
-                // Get price and circulating supply from existing cache (no API calls)
-                const jupiterPrice = realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0;
-                const circSupply = token.jupiterData?.circSupply || token.circSupply || 0;
-                
-                // ✅ Calculate market cap from price × circSupply if we have both (fresher than stale Jupiter mcap)
-                const calculatedMarketCap = (jupiterPrice > 0 && circSupply > 0) 
-                    ? (jupiterPrice * circSupply) 
-                    : null;
-                
-                return {
-                    ...token,
-                    // Override with real-time data if available
-                    price: jupiterPrice,
-                    volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
-                    txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
-                    makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
-                    priceChange5m: realTimeData?.priceChange5m || jupiter5m.priceChange || 0,
-                    priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
-                    priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
-                    priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
-                    // ✅ Market cap: Real-time (gRPC) > Calculated (price × circSupply) > Stale Jupiter mcap
-                    marketCap: realTimeData?.marketCap || calculatedMarketCap || token.marketCap || token.jupiterData?.mcap || 0,
-                    liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
-                    isLive: !!realTimeData,
-                    overallScore: token.overallScore || token.score || 0,
-                    rank: 0 // Will be set after sorting
-                };
-            });
-            
-            // Sort by Overall Score
-            rankings.sort((a, b) => {
-                const scoreA = a.overallScore || 0;
-                const scoreB = b.overallScore || 0;
-                if (scoreB !== scoreA) {
-                    return scoreB - scoreA;
-                }
-                return (b.marketCap || 0) - (a.marketCap || 0);
-            });
-            
-            // Assign ranks
-            rankings.forEach((token, index) => {
-                token.rank = index + 1;
-            });
-            
-            return rankings;
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Error getting all rankings:', error.message);
-            // Fallback to monitored tokens only
-            return this.getRealTimeRankingData();
-        }
-    }
-
-    calculateWindowMetrics(swaps, startTime, endTime) {
-        const windowSwaps = swaps.filter(s => 
-            s.timestamp >= startTime && s.timestamp <= endTime
-        );
-        
-        if (windowSwaps.length === 0) {
-            return {
-                volume: 0,
-                txns: 0,
-                makers: 0,
-                priceChange: 0
-            };
-        }
-        
-        const firstPrice = windowSwaps[0].price;
-        const lastPrice = windowSwaps[windowSwaps.length - 1].price;
-        const priceChange = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
-        
-        const uniqueMakers = new Set(windowSwaps.map(s => s.maker)).size;
-        const totalVolume = windowSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
-        
-        return {
-            volume: totalVolume,
-            txns: windowSwaps.length,
-            makers: uniqueMakers,
-            priceChange: priceChange
-        };
-    }
-
-    calculateAge(createdAt) {
-        if (!createdAt) return 'Unknown';
-        
-        const now = Date.now();
-        const diff = now - createdAt;
-        
-        const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-        const hours = Math.floor(diff / (60 * 60 * 1000));
-        const minutes = Math.floor(diff / (60 * 1000));
-        
-        if (days > 0) return `${days}d`;
-        if (hours > 0) return `${hours}h`;
-        return `${minutes}m`;
-    }
-
-    // ✅ NEW: Start periodic ranking broadcasts
-    startRankingBroadcasts(intervalMs = 30000) {
-        if (this.rankingBroadcastInterval) {
-            clearInterval(this.rankingBroadcastInterval);
-        }
-
-        this.rankingBroadcastInterval = setInterval(async () => {
-            if (this.webSocketServer) {
-                try {
-                    // ✅ Use getAllRankingsData to include ALL tokens (not just monitored ones)
-                    const rankings = await this.getAllRankingsData();
-                    if (rankings.length > 0) {
-                        this.webSocketServer.broadcastRankingUpdate(rankings);
-                    }
-                } catch (error) {
-                    console.error('❌ [EnhancedHybridPriceService] Error in ranking broadcast:', error.message);
-                }
-            }
-        }, intervalMs);
-
-        console.log(`✅ [EnhancedHybridPriceService] Started ranking broadcasts every ${intervalMs / 1000}s (ALL tokens)`);
-    }
-
-    // ✅ NEW: Stop ranking broadcasts
-    stopRankingBroadcasts() {
-        if (this.rankingBroadcastInterval) {
-            clearInterval(this.rankingBroadcastInterval);
-            this.rankingBroadcastInterval = null;
-            console.log('✅ [EnhancedHybridPriceService] Stopped ranking broadcasts');
-        }
-    }
-
-    getGrpcStatus() {
-        const sharedStreams = Array.isArray(this.sharedStreams) ? this.sharedStreams : [];
-        
-        // Get SSE status
-        const sseStatus = this.sseService ? this.sseService.getStatus() : null;
-        
-        return {
-            instanceId: this.clientInstanceId,
-            grpcInitialized: this.isGrpcInitialized(),
-            sharedStreamCount: sharedStreams.length,
-            sharedStreamPoolCount: this.sharedStreamPoolCount || 0,
-            monitoredTokenCount: this.poolAddresses ? this.poolAddresses.size : 0,
-            retryCount: this.sharedStreamRetryCount || 0,
-            restartScheduled: !!this._sharedStreamRestartScheduled,
-            streams: sharedStreams.map(stream => ({
-                batchIndex: stream?._batchIndex ?? null,
-                tokenCount: stream?._tokenCount ?? null,
-                readable: typeof stream?.readable === 'boolean' ? stream.readable : undefined,
-                closed: typeof stream?.closed === 'boolean' ? stream.closed : undefined
-            })),
-            // SSE status
-            sse: sseStatus ? {
-                enabled: this.useSolanaVibeSSE,
-                connected: sseStatus.isConnected,
-                subscribedMints: sseStatus.subscribedMints,
-                priceUpdatesProcessed: sseStatus.stats.priceUpdatesProcessed,
-                errors: sseStatus.stats.errors,
-                uptime: Math.floor(sseStatus.stats.uptime / 1000), // Convert to seconds
-                timeSinceLastMessage: sseStatus.timeSinceLastMessage ? Math.floor(sseStatus.timeSinceLastMessage / 1000) : null
-            } : {
-                enabled: false,
-                connected: false
-            }
-        };
-    }
-
-    /**
-     * 🚀 CRITICAL: Comprehensive shutdown method
-     * Ensures all connections are properly closed before process exits
-     */
-    async shutdown() {
-        console.log('🛑 [EnhancedHybridPriceService] Initiating graceful shutdown...');
-        
-        try {
-            // 1. Stop scheduled restarts
-            if (this._sharedStreamRestartScheduled) {
-                this._sharedStreamRestartScheduled = false;
-                console.log('✅ [EnhancedHybridPriceService] Cancelled scheduled restarts');
-            }
-            
-            // 2. Stop all gRPC streams
-            await this.stopSharedStreams();
-            
-            // 3. Close gRPC client
-            if (this.grpcClient) {
-                try {
-                    if (typeof this.grpcClient.close === 'function') {
-                        await this.grpcClient.close();
-                        console.log('✅ [EnhancedHybridPriceService] gRPC client closed');
-                    } else if (typeof this.grpcClient.closeClient === 'function') {
-                        await this.grpcClient.closeClient();
-                        console.log('✅ [EnhancedHybridPriceService] gRPC client closed');
-                    }
-                } catch (error) {
-                    console.error('⚠️ [EnhancedHybridPriceService] Error closing gRPC client:', error.message);
-                }
-                this.grpcClient = null;
-                this.grpcInitialized = false;
-            }
-            
-            // 4. Disconnect SSE
-            if (this.sseService) {
-                try {
-                    await this.sseService.disconnect();
-                    console.log('✅ [EnhancedHybridPriceService] SSE disconnected');
-                } catch (error) {
-                    console.error('⚠️ [EnhancedHybridPriceService] Error disconnecting SSE:', error.message);
-                }
-            }
-            
-            // 5. Stop periodic tasks
-            if (this.rankingBroadcastInterval) {
-                clearInterval(this.rankingBroadcastInterval);
-                this.rankingBroadcastInterval = null;
-                console.log('✅ [EnhancedHybridPriceService] Stopped ranking broadcasts');
-            }
-            
-            if (this.decoderStatsInterval) {
-                clearInterval(this.decoderStatsInterval);
-                this.decoderStatsInterval = null;
-                console.log('✅ [EnhancedHybridPriceService] Stopped decoder stats logging');
-            }
-            
-            // 6. Stop ChartDatabase batch writer
-            if (this.chartDatabase) {
-                try {
-                    this.chartDatabase.stopBatchWriter();
-                    console.log('✅ [EnhancedHybridPriceService] ChartDatabase batch writer stopped');
-                } catch (error) {
-                    console.error('⚠️ [EnhancedHybridPriceService] Error stopping batch writer:', error.message);
-                }
-            }
-            
-            console.log('✅ [EnhancedHybridPriceService] Graceful shutdown complete');
-            
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Error during shutdown:', error.message);
-        }
-    }
-
-    // ✅ NEW: Start periodic RPC stats logging
-    startRpcStatsLogging(intervalMs = 300000) { // Default: 5 minutes
-        if (this.rpcStatsInterval) {
-            clearInterval(this.rpcStatsInterval);
-        }
-
-        this.rpcStatsInterval = setInterval(() => {
-            const stats = this.getRpcStats();
-            console.log('\n📊 [RPC STATS] Production Usage Statistics:');
-            console.log('='.repeat(80));
-            console.log(`   Total Requests:      ${stats.totalRequests}`);
-            console.log(`   Total Transactions:  ${stats.totalTransactions}`);
-            console.log(`   Cache Hits:          ${stats.cacheHits}`);
-            console.log(`   Errors:              ${stats.errors}`);
-            console.log(`   Swaps Enhanced:      ${stats.swapsEnhanced}`);
-            console.log(`   Queue Size:          ${stats.queueSize}`);
-            console.log(`   Cache Size:          ${stats.cacheSize}`);
-            console.log(`   Processing:          ${stats.processing ? '✅ Active' : '⏸️ Idle'}`);
-            console.log('='.repeat(80) + '\n');
-        }, intervalMs);
-
-        console.log(`✅ [EnhancedHybridPriceService] Started RPC stats logging (every ${intervalMs / 1000}s)`);
-    }
-
-    // ✅ NEW: Stop RPC stats logging
-    stopRpcStatsLogging() {
-        if (this.rpcStatsInterval) {
-            clearInterval(this.rpcStatsInterval);
-            this.rpcStatsInterval = null;
-            console.log('✅ [EnhancedHybridPriceService] Stopped RPC stats logging');
-        }
-    }
-
-    // 🚀 RATE-LIMITED POOL DECODING QUEUE SYSTEM
-    
-    /**
-     * Queue a pool decode request with deduplication
-     * Prevents multiple decode requests for the same pool
-     */
-    queuePoolDecode(decoder, poolAddress) {
-        // Check if pool is already cached (avoid queueing)
-        if (decoder.poolCache?.has(poolAddress)) {
-            return; // Already cached, no need to decode
-        }
-        
-        // Check if pool is already in queue or being decoded
-        if (this.poolDecodeInProgress.has(poolAddress)) {
-            return; // Already being decoded, skip
-        }
-        
-        // Check if already in queue
-        if (this.poolDecodeQueue.some(item => item.poolAddress === poolAddress && item.decoder === decoder)) {
-            return; // Already queued, skip
-        }
-        
-        // Add to queue
-        this.poolDecodeQueue.push({
-            decoder,
-            poolAddress,
-            timestamp: Date.now()
-        });
-        
-        // Start processing if not already running
-        if (!this.poolDecodeProcessing) {
-            this.processPoolDecodeQueue();
-        }
-    }
-    
-    /**
-     * Process the pool decode queue sequentially with rate limiting
-     * Processes one decode request every 500ms to avoid RPC rate limits
-     */
-    async processPoolDecodeQueue() {
-        if (this.poolDecodeProcessing) {
-            return; // Already processing
-        }
-        
-        this.poolDecodeProcessing = true;
-        
-        while (this.poolDecodeQueue.length > 0) {
-            const item = this.poolDecodeQueue.shift();
-            
-            // Check again if pool is cached (might have been decoded by another request)
-            if (item.decoder.poolCache?.has(item.poolAddress)) {
-                continue; // Already cached, skip
-            }
-            
-            // Mark as in progress
-            this.poolDecodeInProgress.add(item.poolAddress);
-            
-            try {
-                // Wait for rate limit delay (500ms between requests)
-                const now = Date.now();
-                const timeSinceLastDecode = now - this.lastPoolDecode;
-                if (timeSinceLastDecode < this.poolDecodeDelay) {
-                    await new Promise(resolve => setTimeout(resolve, this.poolDecodeDelay - timeSinceLastDecode));
-                }
-                
-                // Decode the pool
-                await item.decoder.decodePoolState(item.poolAddress);
-                
-                this.lastPoolDecode = Date.now();
-                
-            } catch (error) {
-                // Silently fail - decoder will fall back to heuristics
-                // Errors are already logged by the decoder itself
-            } finally {
-                // Remove from in-progress set
-                this.poolDecodeInProgress.delete(item.poolAddress);
-            }
-        }
-        
-        this.poolDecodeProcessing = false;
-    }
 }
 
 export default EnhancedHybridPriceService;
+            console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} monitored via universal stream`);
+            
+            // Check if universal stream is running
+            if (!this.grpcStreams.has('universal_stream')) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Universal stream not running, starting it...`);
+                await this.startUniversalMonitoring();
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to ensure monitoring for ${tokenAddress}:`, error.message);
+            return false;
+        }
+    }
+
+    // ✅ UNIVERSAL IMPLEMENTATION: Get real-time data for ANY token address
+    async getRealTimeTokenData(tokenAddress) {
+        try {
+            console.log(`🔍 [EnhancedHybridPriceService] Getting UNIVERSAL real-time data for ${tokenAddress}`);
+            
+            // ✅ UNIVERSAL: Auto-start monitoring for any token
+            await this.ensureTokenMonitoring(tokenAddress);
+            
+            // ✅ UNIVERSAL: Use real-time swap data from transaction monitoring for ANY token
+            const realTimeData = this.realTimeUpdates.get(tokenAddress);
+            let recentSwaps = [];
+            
+            // Always try to load historical swaps first
+            try {
+                const historicalSwaps = await this.loadHistoricalSwaps(tokenAddress);
+                if (historicalSwaps && historicalSwaps.length > 0) {
+                    console.log(`📚 [EnhancedHybridPriceService] Loaded ${historicalSwaps.length} historical swaps for ${tokenAddress}`);
+                    recentSwaps = historicalSwaps.sort((a, b) => b.timestamp - a.timestamp);
+                }
+            } catch (error) {
+                console.error(`❌ [EnhancedHybridPriceService] Error loading historical swaps for ${tokenAddress}:`, error.message);
+            }
+            
+            // Merge with real-time swaps if available
+            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Merging with real-time swap data: ${realTimeData.swaps.length} swaps for ${tokenAddress}`);
+                recentSwaps = [...recentSwaps, ...realTimeData.swaps];
+                recentSwaps.sort((a, b) => b.timestamp - a.timestamp);
+                // Remove duplicates by signature
+                const uniqueSwaps = [];
+                const seenSignatures = new Set();
+                recentSwaps.forEach(swap => {
+                    if (!seenSignatures.has(swap.signature)) {
+                        seenSignatures.add(swap.signature);
+                        uniqueSwaps.push(swap);
+                    }
+                });
+                recentSwaps = uniqueSwaps;
+            }
+            
+            if (recentSwaps.length === 0) {
+                console.log(`⚠️ [EnhancedHybridPriceService] No swaps found at all`);
+                    
+                    // Fallback: Get current pool reserves
+                const poolAddress = this.poolAddresses.get(tokenAddress);
+                if (!poolAddress) {
+                    console.log(`❌ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, discovering...`);
+                    const discoveredPool = await this.discoverPoolAddress(tokenAddress);
+                    if (discoveredPool) {
+                        this.poolAddresses.set(tokenAddress, discoveredPool);
+                        console.log(`✅ [EnhancedHybridPriceService] Discovered pool ${discoveredPool} for ${tokenAddress}`);
+                    } else {
+                        console.log(`❌ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}`);
+                        return null;
+                    }
+                }
+                
+                // Get token info
+                const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+                console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+                
+                return {
+                    tokenInfo: tokenInfo,
+                    poolData: {
+                        tokenReserves: 0, // Will be updated by transaction monitoring
+                        solReserves: 0,   // Will be updated by transaction monitoring
+                        price: 0          // Will be calculated from swaps
+                    },
+                    recentSwaps: [],
+                    swapHistory: [],
+                    totalSwaps: 0,
+                    lastUpdated: new Date().toISOString()
+                };
+            }
+            
+            // Get token info
+            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+            console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+            
+            return {
+                tokenInfo: tokenInfo,
+                poolData: {
+                    tokenReserves: 0, // Will be updated by transaction monitoring
+                    solReserves: 0,   // Will be updated by transaction monitoring
+                    price: 0          // Will be calculated from swaps
+                },
+                recentSwaps: recentSwaps,
+                swapHistory: recentSwaps,
+                totalSwaps: realTimeData ? realTimeData.totalSwaps : recentSwaps.length,
+                lastUpdated: realTimeData ? new Date(realTimeData.lastUpdated).toISOString() : new Date().toISOString()
+            };
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error getting universal real-time data for ${tokenAddress}:`, error.message);
+            return null;
+        }
+    }
+
+    // Rate-limited Jupiter API request with caching
+    async makeJupiterRequest(url, params = {}) {
+        const cacheKey = `${url}?${JSON.stringify(params)}`;
+        const now = Date.now();
+        
+        // Check cache first
+        if (this.jupiterCache.has(cacheKey)) {
+            const cached = this.jupiterCache.get(cacheKey);
+            if (now - cached.timestamp < this.jupiterCacheDuration) {
+                console.log(`📦 [Jupiter] Using cached data for: ${params.query || 'SOL'}`);
+                return cached.data;
+            }
+
+        }
+        
+        // Rate limiting: wait if needed
+        const timeSinceLastRequest = now - this.lastJupiterRequest;
+        if (timeSinceLastRequest < this.jupiterRequestDelay) {
+            const waitTime = this.jupiterRequestDelay - timeSinceLastRequest;
+            console.log(`⏳ [Jupiter] Rate limiting: waiting ${waitTime}ms`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        try {
+            console.log(`🌐 [Jupiter] Making request for: ${params.query || 'SOL'}`);
+            const response = await axios.get(url, {
+                params,
+                timeout: 10000 // 10 second timeout
+            });
+            
+            // Cache the response
+            this.jupiterCache.set(cacheKey, {
+                data: response.data,
+                timestamp: now
+            });
+            
+            this.lastJupiterRequest = Date.now();
+            return response.data;
+            
+        } catch (error) {
+            if (error.response?.status === 429) {
+                console.log(`⚠️ [Jupiter] Rate limited! Using cached data if available`);
+                // Try to return cached data even if expired
+                if (this.jupiterCache.has(cacheKey)) {
+                    const cached = this.jupiterCache.get(cacheKey);
+                    console.log(`📦 [Jupiter] Returning expired cached data for: ${params.query || 'SOL'}`);
+                    return cached.data;
+                }
+            }
+            throw error;
+        }
+    }
+
+    async fetchTokenInfo(tokenAddress) {
+        try {
+            // Check cache first
+            if (this.tokenMetadataCache.has(tokenAddress)) {
+                console.log(`📋 [EnhancedHybridPriceService] Using cached token metadata for ${tokenAddress}`);
+                return this.tokenMetadataCache.get(tokenAddress);
+            }
+            
+            console.log(`🔍 [EnhancedHybridPriceService] Fetching token metadata from Jupiter for ${tokenAddress}`);
+            const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                query: tokenAddress
+            });
+
+            // Jupiter API returns array directly, not wrapped in value object
+            if (data && Array.isArray(data) && data.length > 0) {
+                const tokenInfo = data[0];
+                
+                // Cache the token metadata
+                this.tokenMetadataCache.set(tokenAddress, tokenInfo);
+                console.log(`💾 [EnhancedHybridPriceService] Cached token metadata for ${tokenAddress}: decimals=${tokenInfo.decimals}, graduatedPool=${tokenInfo.graduatedPool}`);
+                
+                return tokenInfo;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error(`❌ [Jupiter] Error fetching token info:`, error.message);
+            return null;
+        }
+    }
+
+    async updateSolPrice() {
+        const now = Date.now();
+        
+        if (this.solPriceUSD > 0 && (now - this.lastSolPriceUpdate) < this.solPriceCacheDuration) {
+            return;
+        }
+
+        try {
+            // Try multiple sources for SOL price
+            let solPrice = 0;
+            
+            // Method 1: Try Jupiter API for Wrapped SOL
+            try {
+                const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                    query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
+                });
+
+                if (data && Array.isArray(data)) {
+                    const solToken = data.find(token => 
+                        token.id === 'So11111111111111111111111111111111111111112' &&
+                        token.usdPrice > 0
+                    );
+
+                    if (solToken && solToken.usdPrice) {
+                        solPrice = solToken.usdPrice;
+                        console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
+                    }
+                }
+            } catch (error) {
+                console.log('⚠️ [SOL Price] Jupiter API failed, trying fallback...');
+            }
+            
+            // Method 2: Fallback to CoinGecko API
+            if (solPrice === 0) {
+                try {
+                    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+                        params: {
+                            ids: 'solana',
+                            vs_currencies: 'usd'
+                        },
+                        timeout: 5000
+                    });
+                    
+                    if (response.data && response.data.solana && response.data.solana.usd) {
+                        solPrice = response.data.solana.usd;
+                    }
+                } catch (error) {
+                    console.log('⚠️ [SOL Price] CoinGecko API failed, using default...');
+                }
+            }
+            
+            // Method 3: Use reasonable default
+            if (solPrice === 0) {
+                solPrice = 200; // Reasonable SOL price fallback
+                console.log('⚠️ [SOL Price] Using fallback price: $200');
+            }
+
+            this.solPriceUSD = solPrice;
+            this.lastSolPriceUpdate = now;
+            console.log(`💰 [SOL Price] Updated to: $${solPrice}`);
+            
+        } catch (error) {
+            console.error('❌ [SOL Price] Error updating SOL price:', error.message);
+            this.solPriceUSD = 200; // Fallback
+        }
+
+    }
+
+    // Cleanup methods
+    stopRealTimeMonitoring() {
+        console.log('🛑 [EnhancedHybridPriceService] Stopping real-time monitoring...');
+        
+        // Stop all streams
+        this.grpcStreams.forEach(stream => stream.end());
+        this.grpcStreams.clear();
+        
+        // Clear real-time updates
+        this.realTimeUpdates.clear();
+        
+        console.log('✅ [EnhancedHybridPriceService] Real-time monitoring stopped');
+    }
+
+    async shutdown() {
+        console.log('🛑 [EnhancedHybridPriceService] Shutting down...');
+        
+        // Stop all gRPC streams
+        this.grpcStreams.forEach(stream => stream.end());
+        this.grpcStreams.clear();
+        this.realTimeUpdates.clear();
+        
+        console.log('✅ [EnhancedHybridPriceService] Shutdown complete');
+    }
+    
+    getRealTimeStats() {
+        return {
+            activeStreams: this.activeStreams ? Array.from(this.activeStreams.keys()) : [],
+            totalTokens: this.poolAddresses ? this.poolAddresses.size : 0,
+            totalSwaps: this.swapHistory ? Array.from(this.swapHistory.values()).reduce((total, swaps) => total + swaps.length, 0) : 0,
+            realTimeUpdates: this.realTimeUpdates ? this.realTimeUpdates.size : 0
+        };
+    }
+}
+
+export default EnhancedHybridPriceService;export default EnhancedHybridPriceService;
