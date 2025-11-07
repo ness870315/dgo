@@ -1913,8 +1913,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     /**
-     * 🚀 NEW: Process RPC batch queue
-     * Fetches full transactions in batches of 100 and parses balance changes
+     * 🚀 NEW: Process RPC batch queue using parallel individual requests
+     * Note: Constant K RPC doesn't support JSON-RPC batch format, so we send parallel individual requests
      */
     async processRpcBatchQueue() {
         if (this.rpcProcessing || this.rpcBatchQueue.length === 0) {
@@ -1925,64 +1925,62 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         try {
             while (this.rpcBatchQueue.length > 0) {
-                // Take up to 100 requests from queue
-                const batch = this.rpcBatchQueue.splice(0, this.rpcBatchSize);
+                // Take up to 50 requests from queue (parallel processing)
+                const batch = this.rpcBatchQueue.splice(0, 50);
                 
                 if (batch.length === 0) break;
                 
-                // Build JSON-RPC batch request
-                const rpcRequests = batch.map((req, index) => ({
-                    jsonrpc: '2.0',
-                    id: index,
-                    method: 'getTransaction',
-                    params: [
-                        req.signature,
-                        {
-                            encoding: 'jsonParsed',
-                            maxSupportedTransactionVersion: 0
-                        }
-                    ]
-                }));
-                
                 try {
-                    // Send batch request
-                    const response = await axios.post(CONSTANT_K_RPC, rpcRequests, {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 10000
-                    });
+                    // Send all requests in parallel
+                    const promises = batch.map(request => 
+                        axios.post(CONSTANT_K_RPC, {
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'getTransaction',
+                            params: [
+                                request.signature,
+                                {
+                                    encoding: 'jsonParsed',
+                                    maxSupportedTransactionVersion: 0
+                                }
+                            ]
+                        }, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 10000
+                        }).catch(err => null) // Catch individual errors
+                    );
                     
-                    this.rpcStats.totalRequests++;
+                    const responses = await Promise.all(promises);
+                    
+                    this.rpcStats.totalRequests += batch.length;
                     this.rpcStats.totalTransactions += batch.length;
                     
                     // Process each response
-                    if (Array.isArray(response.data)) {
-                        for (let i = 0; i < response.data.length; i++) {
-                            const rpcResponse = response.data[i];
-                            const request = batch[i];
-                            
-                            if (rpcResponse.result) {
-                                await this.enhanceSwapWithRpcData(request, rpcResponse.result);
-                            } else if (rpcResponse.error) {
-                                console.error(`⚠️ [RPC] Error fetching ${request.signature.slice(0, 8)}:`, rpcResponse.error.message);
-                                this.rpcStats.errors++;
-                            }
+                    for (let i = 0; i < responses.length; i++) {
+                        const response = responses[i];
+                        const request = batch[i];
+                        
+                        if (response?.data?.result) {
+                            await this.enhanceSwapWithRpcData(request, response.data.result);
                             
                             // Cache the result
                             this.rpcCache.set(request.signature, {
                                 timestamp: Date.now(),
-                                result: rpcResponse.result
+                                result: response.data.result
                             });
+                        } else if (response?.data?.error) {
+                            this.rpcStats.errors++;
                         }
                     }
                     
                 } catch (error) {
-                    console.error('❌ [RPC] Batch request failed:', error.message);
+                    console.error('❌ [RPC] Parallel request batch failed:', error.message);
                     this.rpcStats.errors++;
                 }
                 
-                // Wait before next batch (rate limiting)
+                // Small delay between batches (rate limiting)
                 if (this.rpcBatchQueue.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, this.rpcBatchDelay));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
         } finally {
