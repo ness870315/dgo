@@ -1635,15 +1635,17 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
 
       // Decide content format randomly (prioritize market sentiment takes)
       const contentFormats = [
-        'momentum',     // 25% - Momentum/macro acceleration thread
-        'normal',       // 25% - Market sentiment tweet
-        'news',         // 20% - Crypto news recap
-        'single',       // 15% - Single tweet (token analysis)
-        'deep',         // 10% - Deep-dive thread (3 tweets)
-        'meme'          // 5%  - Meme/joke tweet
+        'momentum',         // 20% - Momentum/macro acceleration insights
+        'crypto-tech-news', // 20% - Crypto tech insights (protocols, DeFi, utility)
+        'normal',           // 15% - Market sentiment tweet
+        'news',             // 15% - Crypto news recap
+        'single',           // 12% - Single tweet (token analysis)
+        'deep',             // 10% - Deep-dive thread (3 tweets)
+        'newsjoke',         // 5%  - News joke (Perplexity)
+        'meme'              // 3%  - Meme/joke tweet
       ];
 
-      const weights = [25, 25, 20, 15, 10, 5];
+      const weights = [20, 20, 15, 15, 12, 10, 5, 3];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -1714,6 +1716,16 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
         content = normalContent.tweets;
         tokenInfo = normalContent.token;
         perplexityData = { sentiment: normalContent.sentiment };
+      } else if (selectedFormat === 'crypto-tech-news') {
+        // For crypto tech insights
+        const techContent = await this.generateCryptoTechNews();
+        if (!techContent) {
+          console.log('❌ Failed to generate crypto tech insights');
+          return null;
+        }
+        content = techContent.tweets;
+        tokenInfo = techContent.token;
+        article = techContent.article;
       } else {
         // For other formats, use the existing method
         content = await this.generateContentByFormat(token, selectedFormat);
@@ -2107,15 +2119,17 @@ Market meme:`;
       if (contentType === 'random') {
         // Decide content format randomly (prioritize market sentiment takes)
         const contentFormats = [
-          'momentum',     // 25% - Momentum/macro acceleration thread
-          'normal',       // 25% - Market sentiment tweet
-          'news',         // 20% - Crypto news recap
-          'single',       // 15% - Single tweet (token analysis)
-          'deep',         // 10% - Deep-dive thread (3 tweets)
-          'meme'          // 5%  - Meme/joke tweet
+          'momentum',         // 20% - Momentum/macro acceleration insights
+          'crypto-tech-news', // 20% - Crypto tech insights (protocols, DeFi, utility)
+          'normal',           // 15% - Market sentiment tweet
+          'news',             // 15% - Crypto news recap
+          'single',           // 12% - Single tweet (token analysis)
+          'deep',             // 10% - Deep-dive thread (3 tweets)
+          'newsjoke',         // 5%  - News joke (Perplexity)
+          'meme'              // 3%  - Meme/joke tweet
         ];
 
-        const weights = [25, 25, 20, 15, 10, 5];
+        const weights = [20, 20, 15, 15, 12, 10, 5, 3];
         const random = Math.random() * 100;
         let cumulative = 0;
         selectedFormat = 'single';
