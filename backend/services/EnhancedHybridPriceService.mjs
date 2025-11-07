@@ -8,6 +8,7 @@ import { processTxForSwap, buildCombinedKeys, guessPoolFromIx, extractRaydiumPoo
 import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
 import RaydiumCPMMDecoder from './RaydiumCPMMDecoder.mjs';
 import RaydiumCLMMDecoder from './RaydiumCLMMDecoder.mjs';
+import SolanaVibeStationSSE from './SolanaVibeStationSSE.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -127,6 +128,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         console.log('✅ [EnhancedHybridPriceService] Raydium CPMM decoder initialized');
         console.log('✅ [EnhancedHybridPriceService] Raydium CLMM decoder initialized');
         
+        // 🚀 NEW: Solana Vibe Station SSE for real-time prices (primary source)
+        this.sseService = null;
+        this.useSolanaVibeSSE = process.env.ENABLE_SOLANA_VIBE_SSE !== 'false'; // Enabled by default
+        this.ssePriceSource = new Map(); // Track which tokens are using SSE prices
+        console.log(`📡 [EnhancedHybridPriceService] Solana Vibe Station SSE: ${this.useSolanaVibeSSE ? 'ENABLED' : 'DISABLED'}`);
+        
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
         this.jupiterRequestDelay = 1000; // 1 second between requests
@@ -185,6 +192,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.initializeGrpcClient();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
+            
+            // 🚀 NEW: Initialize Solana Vibe Station SSE (primary price source)
+            if (this.useSolanaVibeSSE) {
+                await this.initializeSSE();
+            }
             
             // 🚀 NEW: Initialize persistent swap storage
             await this.chartDatabase.ensureDataDir(); // Ensure data directory exists
@@ -259,6 +271,92 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     isGrpcInitialized() {
         return !!this.grpcInitialized && !!this.grpcClient;
+    }
+
+    /**
+     * Initialize Solana Vibe Station SSE service
+     */
+    async initializeSSE() {
+        try {
+            console.log('📡 [EnhancedHybridPriceService] Initializing Solana Vibe Station SSE...');
+            
+            // Create SSE service with reference to token metadata cache
+            this.sseService = new SolanaVibeStationSSE(this.tokenMetadataCache);
+            
+            // Listen for price updates
+            this.sseService.on('priceUpdate', (data) => {
+                this.handleSSEPriceUpdate(data);
+            });
+            
+            // Listen for connection events
+            this.sseService.on('connected', (data) => {
+                console.log(`✅ [SolanaVibeSSE] Connected with ${data.mintCount} mints`);
+            });
+            
+            this.sseService.on('disconnected', () => {
+                console.warn('⚠️ [SolanaVibeSSE] Disconnected - falling back to Constant K');
+            });
+            
+            this.sseService.on('error', (error) => {
+                console.error('❌ [SolanaVibeSSE] Error:', error.message);
+            });
+            
+            this.sseService.on('maxReconnectAttemptsReached', () => {
+                console.error('❌ [SolanaVibeSSE] Max reconnect attempts reached - SSE disabled');
+                this.useSolanaVibeSSE = false;
+            });
+            
+            console.log('✅ [EnhancedHybridPriceService] SSE service initialized');
+            
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Failed to initialize SSE:', error.message);
+            this.sseService = null;
+            this.useSolanaVibeSSE = false;
+        }
+    }
+
+    /**
+     * Handle price update from SSE
+     */
+    handleSSEPriceUpdate(data) {
+        try {
+            const { mint, price, marketCap, avgPrice1min, avgPrice15min, avgPrice1h, avgPrice24h } = data;
+            
+            // Update price cache
+            this.priceCache.set(mint, {
+                price,
+                marketCap,
+                timestamp: Date.now(),
+                source: 'sse',
+                avgPrice1min,
+                avgPrice15min,
+                avgPrice1h,
+                avgPrice24h
+            });
+            
+            // Track that this mint is using SSE prices
+            this.ssePriceSource.set(mint, Date.now());
+            
+            // Update last update time
+            this.lastUpdate.set(mint, Date.now());
+            
+            // Broadcast to WebSocket clients if available
+            if (this.webSocketServer) {
+                this.webSocketServer.broadcast({
+                    type: 'priceUpdate',
+                    data: {
+                        mint,
+                        price,
+                        marketCap,
+                        source: 'sse',
+                        timestamp: Date.now()
+                    }
+                });
+            }
+            
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Error handling SSE price update:', error.message);
+        }
     }
 
     async loadTokenCache() {
