@@ -64,9 +64,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.sharedStreamPoolCount = 0; // Track how many tokens are attached to streams
         this._sharedStreamRestartScheduled = false;
         this.sharedStreamRetryCount = 0;
-        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '5000', 10);
-        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '60000', 10);
-        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '2000', 10);
+        this.sharedStreamBaseDelay = parseInt(process.env.CONSTANT_K_STREAM_BASE_DELAY || '120000', 10); // 2 minutes base delay
+        this.sharedStreamMaxDelay = parseInt(process.env.CONSTANT_K_STREAM_MAX_DELAY || '180000', 10); // 3 minutes max delay
+        this.sharedStreamJitter = parseInt(process.env.CONSTANT_K_STREAM_JITTER || '10000', 10); // 10 seconds jitter
         this.sharedStreamSubscribeDelay = parseInt(process.env.CONSTANT_K_STREAM_SUBSCRIBE_DELAY || '1000', 10);
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
