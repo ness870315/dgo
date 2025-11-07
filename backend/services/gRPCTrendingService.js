@@ -38,8 +38,10 @@ const EXCLUDED_TOKENS = new Set([
 class gRPCTrendingService {
     constructor(enhancedHybridPriceService = null, enhancedTokenProcessor = null) {
         this.grpcClient = null;
+        this.grpcInitialized = false;
         this.grpcWrapper = null;
         this.stream = null;
+        this.clientInstanceId = `gtr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         this.rpcConnection = new Connection(CONSTANT_K_RPC, 'confirmed');
         this.isRunning = false;
         this.continuousMode = false;
@@ -86,23 +88,29 @@ class gRPCTrendingService {
     }
 
     async initialize() {
-        console.log('🔌 [gRPCTrending] Initializing gRPC client...');
-        
+        console.log(`🔌 [gRPCTrending] Initializing gRPC client (instance ${this.clientInstanceId})...`);
+
+        if (this.grpcInitialized && this.grpcClient) {
+            console.log(`⚠️ [gRPCTrending] gRPC client already initialized (instance ${this.clientInstanceId})`);
+            return true;
+        }
+
         try {
-            const { createRequire } = await import('module');
-            const require = createRequire(import.meta.url);
-            const GrpcWrapper = require('./GrpcWrapper.cjs');
-            
-            this.grpcWrapper = new GrpcWrapper(
-                CONSTANT_K_GRPC_ENDPOINT,
-                CONSTANT_K_GRPC_TOKEN
-            );
-            
-            this.grpcClient = this.grpcWrapper.getClient();
-            console.log('✅ [gRPCTrending] gRPC client initialized');
+            if (!this.grpcWrapper) {
+                const { createRequire } = await import('module');
+                const require = createRequire(import.meta.url);
+                const GrpcWrapper = require('./GrpcWrapper.cjs');
+                this.grpcWrapper = new GrpcWrapper();
+            }
+
+            this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
+            this.grpcInitialized = true;
+            console.log(`✅ [gRPCTrending] gRPC client initialized (instance ${this.clientInstanceId})`);
             return true;
         } catch (error) {
             console.error('❌ [gRPCTrending] Failed to initialize:', error);
+            this.grpcInitialized = false;
+            this.grpcClient = null;
             return false;
         }
     }
@@ -111,6 +119,20 @@ class gRPCTrendingService {
         if (this.isRunning) {
             console.log('⚠️ [gRPCTrending] Already running');
             return;
+        }
+
+        if (!this.grpcInitialized || !this.grpcClient) {
+            const ok = await this.initialize();
+            if (!ok) {
+                console.error('❌ [gRPCTrending] Cannot start monitoring without gRPC client');
+                return;
+            }
+        }
+
+        if (this.stream) {
+            console.warn(`⚠️ [gRPCTrending] Existing stream detected, closing before starting new one (instance ${this.clientInstanceId})`);
+            this.stream.end();
+            this.stream = null;
         }
 
         console.log(`\n🚀 [gRPCTrending] Starting token discovery...`);
@@ -139,17 +161,20 @@ class gRPCTrendingService {
                 CommitmentLevel.CONFIRMED
             );
 
+            console.log(`✅ [gRPCTrending] Subscribed to transaction stream (instance ${this.clientInstanceId})`);
+
             this.stream.on('data', (msg) => {
                 this.processTransaction(msg);
             });
 
             this.stream.on('error', (error) => {
-                console.error('❌ [gRPCTrending] Stream error:', error.message);
+                console.error(`❌ [gRPCTrending] Stream error (instance ${this.clientInstanceId}):`, error.message);
                 this.stats.errors++;
             });
 
             this.stream.on('end', () => {
-                console.log('🔚 [gRPCTrending] Stream ended');
+                console.log(`🔚 [gRPCTrending] Stream ended (instance ${this.clientInstanceId})`);
+                this.stream = null;
             });
 
             // Report stats periodically
@@ -535,13 +560,17 @@ class gRPCTrendingService {
     }
 
     async stopMonitoring() {
-        console.log('\n🛑 [gRPCTrending] Stopping monitoring...');
-        
+        console.log(`\n🛑 [gRPCTrending] Stopping monitoring (instance ${this.clientInstanceId})...`);
+
         if (this.stream) {
-            this.stream.end();
+            try {
+                this.stream.end();
+            } catch (err) {
+                console.warn(`⚠️ [gRPCTrending] Error ending stream (instance ${this.clientInstanceId}):`, err.message);
+            }
             this.stream = null;
         }
-        
+
         this.isRunning = false;
         
         const duration = (Date.now() - this.stats.startTime) / 1000;
@@ -551,6 +580,10 @@ class gRPCTrendingService {
         console.log(`   Swaps/sec: ${(this.stats.swapsDetected / duration).toFixed(2)}`);
         console.log(`   Unique tokens: ${this.tokenSwaps.size}`);
         console.log(`   Pools discovered: ${this.stats.poolsDiscovered.size}`);
+    }
+
+    isGrpcInitialized() {
+        return !!this.grpcInitialized && !!this.grpcClient;
     }
 
     // Public method to run a discovery cycle
