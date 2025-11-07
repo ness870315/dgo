@@ -106,6 +106,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // ✅ NEW: Periodic decoder stats logging
         this.decoderStatsInterval = null;
+
+        // 🔍 Connection tracking
+        this.grpcInitialized = false;
+        this.clientInstanceId = `ehps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         
         // 🚀 NEW: Token cache management (use persistent disk)
         this.tokenCache = [];
@@ -232,18 +236,29 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async initializeGrpcClient() {
         try {
+            if (this.grpcClient) {
+                console.log(`⚠️ [EnhancedHybridPriceService] gRPC client already initialized (instance ${this.clientInstanceId})`);
+                return;
+            }
+
             if (!GrpcWrapper) {
                 GrpcWrapper = require('./GrpcWrapper.cjs');
             }
             
             this.grpcWrapper = new GrpcWrapper();
             this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
-            console.log('✅ [EnhancedHybridPriceService] gRPC client initialized');
+            this.grpcInitialized = true;
+            console.log(`✅ [EnhancedHybridPriceService] gRPC client initialized (instance ${this.clientInstanceId})`);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to initialize gRPC client:', error.message);
             this.grpcClient = null;
+            this.grpcInitialized = false;
         }
+    }
+
+    isGrpcInitialized() {
+        return !!this.grpcInitialized && !!this.grpcClient;
     }
 
     async loadTokenCache() {
@@ -435,8 +450,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
 
-        const MAX_SHARED_STREAMS = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10) || 2;
-        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 256;
+        const requestedStreamCount = parseInt(process.env.CONSTANT_K_MAX_STREAMS, 10);
+        const MAX_SHARED_STREAMS = 1; // Enforce single shared stream to stay under Constant K limits
+        if (requestedStreamCount && requestedStreamCount > 1) {
+            console.warn(`⚠️ [EnhancedHybridPriceService] CONSTANT_K_MAX_STREAMS=${requestedStreamCount} overridden to ${MAX_SHARED_STREAMS} to comply with single-stream requirement.`);
+        }
+
+        const MAX_TOKENS_PER_STREAM = parseInt(process.env.CONSTANT_K_MAX_TOKENS_PER_STREAM, 10) || 1024;
         let computedBatchSize = Math.ceil(allTokenAddresses.length / MAX_SHARED_STREAMS);
         if (computedBatchSize > MAX_TOKENS_PER_STREAM) {
             computedBatchSize = MAX_TOKENS_PER_STREAM;
@@ -449,6 +469,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             const remaining = allTokenAddresses.length - (MAX_SHARED_STREAMS * computedBatchSize);
             console.warn(`⚠️ [EnhancedHybridPriceService] Reached stream cap (${MAX_SHARED_STREAMS}). ${remaining} tokens skipped from real-time monitoring until slots free up.`);
         }
+
+        console.log(`🔁 [EnhancedHybridPriceService] Starting shared streams (instance ${this.clientInstanceId}): ${batches.length} batches, up to ${computedBatchSize} tokens each (total tokens=${allTokenAddresses.length})`);
         
         let CommitmentLevel;
         try {
@@ -512,6 +534,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.sharedStreams = [];
             return;
         }
+
+        console.log(`🔌 [EnhancedHybridPriceService] Stopping ${this.sharedStreams.length} shared gRPC stream(s) (instance ${this.clientInstanceId})`);
 
         for (const stream of this.sharedStreams) {
             if (!stream) continue;

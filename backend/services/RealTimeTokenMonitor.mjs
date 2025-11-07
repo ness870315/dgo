@@ -3,9 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 
 class RealTimeTokenMonitor {
-    constructor(webSocketServer = null) {
+    constructor(webSocketServer = null, hybridPriceService = null) {
         this.webSocketServer = webSocketServer;
-        this.hybridPriceService = null;
+        this.hybridPriceService = hybridPriceService || null;
         this.isRunning = false;
         this.monitoringStats = {
             startTime: null,
@@ -25,13 +25,25 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // Initialize Enhanced HybridPriceService
-            this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
+            // Initialize or reuse EnhancedHybridPriceService
+            if (!this.hybridPriceService) {
+                console.log('🆕 [RealTimeTokenMonitor] Creating new EnhancedHybridPriceService instance');
+                this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
+            } else {
+                console.log('♻️ [RealTimeTokenMonitor] Reusing existing EnhancedHybridPriceService instance');
+                if (this.webSocketServer && !this.hybridPriceService.webSocketServer) {
+                    this.hybridPriceService.webSocketServer = this.webSocketServer;
+                }
+            }
             
-            // ✅ CRITICAL FIX: Actually initialize the service with gRPC, load tokens, start stream
-            console.log('🚀 [RealTimeTokenMonitor] Calling initializeAsync on EnhancedHybridPriceService...');
-            await this.hybridPriceService.initializeAsync();
-            console.log('✅ [RealTimeTokenMonitor] EnhancedHybridPriceService initialized with gRPC and tokens loaded');
+            // Initialize gRPC/tokens only if not already initialized
+            if (!this.hybridPriceService.isGrpcInitialized()) {
+                console.log('🚀 [RealTimeTokenMonitor] Calling initializeAsync on EnhancedHybridPriceService...');
+                await this.hybridPriceService.initializeAsync();
+                console.log('✅ [RealTimeTokenMonitor] EnhancedHybridPriceService initialized with gRPC and tokens loaded');
+            } else {
+                console.log('⚠️ [RealTimeTokenMonitor] EnhancedHybridPriceService already initialized, skipping initializeAsync');
+            }
             
             // Load token cache (for backward compatibility)
             await this.loadTokenCache();

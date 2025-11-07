@@ -13291,14 +13291,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ✅ DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
     // this.hybridPriceService = new HybridPriceService();
     
-    // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
-    this.enhancedHybridPriceService = new EnhancedHybridPriceService();
-    
-    // 🚀 NEW: Auto-start gRPC monitoring for PROBITY
-    console.log('🔌 [AUTO-START] Starting gRPC monitoring for PROBITY...');
-    this.enhancedHybridPriceService.initializeAsync().catch(error => {
-        console.error('❌ [AUTO-START] Failed to start gRPC monitoring:', error.message);
-    });
+    // Enhanced Hybrid Price Service will be initialized when real-time services start
+    this.enhancedHybridPriceService = null;
     
     // Initialize Real-Time Token Monitor
     this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
@@ -18763,8 +18757,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
+      if (!this.enhancedHybridPriceService) {
+        console.log('🆕 Creating EnhancedHybridPriceService instance for real-time monitoring');
+        this.enhancedHybridPriceService = new EnhancedHybridPriceService(this.backendWebSocketServer);
+      } else {
+        console.log('♻️ Reusing existing EnhancedHybridPriceService instance for real-time monitoring');
+        this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
+      }
+
+      if (!this.enhancedHybridPriceService.isGrpcInitialized()) {
+        console.log('🔌 Initializing gRPC client for EnhancedHybridPriceService...');
+        await this.enhancedHybridPriceService.initializeAsync();
+        console.log('✅ EnhancedHybridPriceService gRPC client initialized');
+      } else {
+        console.log('⚠️ EnhancedHybridPriceService gRPC client already initialized, skipping');
+      }
+
+      // Ensure ranking broadcasts run at 5s cadence once WebSocket server is ready
+      this.enhancedHybridPriceService.startRankingBroadcasts(5000);
+
       // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer, this.enhancedHybridPriceService);
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       
