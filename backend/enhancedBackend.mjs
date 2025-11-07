@@ -1024,90 +1024,6 @@ class EnhancedBackend {
       }
     });
 
-    // Admin: Create charts directory (emergency fix)
-    this.app.post('/api/admin/create-charts-dir', adminApiAuth, async (req, res) => {
-      try {
-        const fsSync = require('fs');
-        const dataDir = process.env.DATA_DIR || '/var/data/dgo';
-        const chartsDir = path.join(dataDir, 'charts');
-        
-        console.log(`📁 [Admin] Creating charts directory: ${chartsDir}`);
-        
-        if (!fsSync.existsSync(dataDir)) {
-          fsSync.mkdirSync(dataDir, { recursive: true });
-          console.log(`✅ [Admin] Created data directory: ${dataDir}`);
-        }
-        
-        if (!fsSync.existsSync(chartsDir)) {
-          fsSync.mkdirSync(chartsDir, { recursive: true });
-          console.log(`✅ [Admin] Created charts directory: ${chartsDir}`);
-        } else {
-          console.log(`ℹ️ [Admin] Charts directory already exists: ${chartsDir}`);
-        }
-        
-        res.json({ 
-          success: true, 
-          message: 'Charts directory created',
-          dataDir: dataDir,
-          chartsDir: chartsDir,
-          exists: fsSync.existsSync(chartsDir)
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Create charts dir failed:', error.message);
-        res.status(500).json({ success: false, error: error.message });
-      }
-    });
-
-    // Admin: Remove LSTs and Stablecoins
-    this.app.post('/api/admin/remove-lsts-stablecoins', adminApiAuth, async (req, res) => {
-      try {
-        console.log('🧹 [Admin] Starting LST and Stablecoin removal...');
-        
-        // Import and run cleanup
-        const removeLSTsAndStablecoins = (await import('./scripts/remove-lsts-stablecoins.js')).default;
-        const result = await removeLSTsAndStablecoins();
-        
-        console.log(`✅ [Admin] Removed ${result.removed} LSTs and stablecoins`);
-        
-        res.json({
-          success: true,
-          message: `Removed ${result.removed} LSTs and stablecoins`,
-          total: result.total,
-          removed: result.removed,
-          remaining: result.remaining,
-          removedTokens: result.removedTokens
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Remove LSTs/Stablecoins failed:', error.message);
-        res.status(500).json({ success: false, error: error.message });
-      }
-    });
-
-    // Admin: Reprocess Twitter data for tokens without it
-    this.app.post('/api/admin/reprocess-twitter', adminApiAuth, async (req, res) => {
-      try {
-        console.log('🔄 [Admin] Starting Twitter data reprocessing...');
-        
-        // Send immediate response that processing has started
-        res.json({ 
-          success: true, 
-          message: 'Twitter reprocessing started',
-          note: 'This will run in the background. Check server logs for progress.'
-        });
-        
-        // Run reprocessing in background (don't await)
-        this.reprocessTwitterDataInBackground().catch(error => {
-          console.error('❌ [Admin] Twitter reprocessing failed:', error.message);
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Reprocess Twitter failed:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to start Twitter reprocessing' });
-      }
-    });
-
     // Admin: Upgrade a user to premium bypassing payment
     this.app.post('/api/admin/users/:id/upgrade', adminApiAuth, async (req, res) => {
       try {
@@ -8076,56 +7992,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Public: Add token from Jupiter search (no auth required)
-    this.app.post('/api/tokens/add-from-search', async (req, res) => {
-      try {
-        const { symbol, name, contractAddress } = req.body;
-
-        // CONTRACT ADDRESS IS REQUIRED
-        if (!contractAddress) {
-          return res.status(400).json({ error: 'Contract address is required' });
-        }
-
-        console.log(`🔍 [Public Search] Adding token by CA: ${contractAddress}`);
-
-        // Use provided symbol/name or let Jupiter API fill them in
-        const tokenData = {
-          symbol: symbol ? symbol.trim().toUpperCase() : 'UNKNOWN',
-          name: name ? name.trim() : 'Unknown Token',
-          contractAddress: contractAddress.trim(),
-          isPaid: false,
-          isAdmin: false
-        };
-
-        console.log(`🔍 [Public Search] Using data: ${tokenData.symbol} (${tokenData.name}) - CA: ${tokenData.contractAddress}`);
-
-        // Process token IMMEDIATELY - will fetch from Jupiter
-        const processedToken = await this.tokenProcessor.addPaidToken(tokenData);
-        
-        res.json({ 
-          success: true, 
-          message: `Token ${processedToken.symbol} processed immediately and is now live!`,
-          token: {
-            symbol: processedToken.symbol,
-            name: processedToken.name,
-            contractAddress: processedToken.contractAddress,
-            isPaid: false,
-            isAdmin: false,
-            stage: processedToken.stage,
-            mentions: processedToken.mentions || 0,
-            communityScore: processedToken.communityScore || 5,
-            hasTwitterData: !!processedToken.twitterData,
-            hasJupiterData: !!processedToken.jupiterData,
-            processingTime: 'Instant (Public Search)'
-          }
-        });
-        
-      } catch (error) {
-        console.error('🔍 [Public Search] ❌ Error adding token:', error);
-        res.status(500).json({ error: error.message || 'Failed to add token' });
-      }
-    });
-
     // Admin: Delete token from database
     this.app.delete('/api/admin/tokens/:symbol', async (req, res) => {
       try {
@@ -11644,7 +11510,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
           success: result.success,
           message: result.success ? 'Tweet posted successfully' : 'Failed to post tweet',
           tweetId: result.tweetId,
-          tweetUrl: result.tweetUrl || (result.tweetId ? `https://twitter.com/dgnoracle/status/${result.tweetId}` : null),
           content: result.content,
           error: result.error,
           timestamp: new Date().toISOString()
@@ -11818,26 +11683,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
           todayStats: {
             postsToday: this.dailyTweetService.todayPostCount,
             targetPosts: this.dailyTweetService.todayTargetPosts || null,
-            recentPosts: this.dailyTweetService.recentPosts.map(p => {
-              const timestamp = p.timestamp ? new Date(p.timestamp).toISOString() : new Date().toISOString();
-              const urls = Array.isArray(p.urls) && p.urls.length > 0 ? p.urls : [];
-              const primaryUrl = urls.length > 0
-                ? urls[0]
-                : p.tweetId
-                  ? `https://twitter.com/dgnoracle/status/${p.tweetId}`
-                  : null;
-
-              return {
-                timestamp,
-                tweetId: p.tweetId || null,
-                url: primaryUrl,
-                format: p.format || null,
-                manual: Boolean(p.manual),
-                token: p.token || null,
-                tweetIds: Array.isArray(p.tweetIds) ? p.tweetIds : (p.tweetId ? [p.tweetId] : []),
-                urls
-              };
-            })
+            recentPosts: this.dailyTweetService.recentPosts.map(p => ({
+              timestamp: new Date(p.timestamp).toISOString(),
+              tweetId: p.tweetId,
+              url: `https://twitter.com/dgnoracle/status/${p.tweetId}`
+            }))
           },
           nextPostAt: nextPost,
           timestamp: new Date().toISOString()
@@ -13300,34 +13150,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Constant K gRPC status
-    this.app.get('/api/admin/grpc-status', adminApiAuth, (req, res) => {
-      try {
-        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        const enhancedStatus = enhancedService && typeof enhancedService.getGrpcStatus === 'function'
-          ? enhancedService.getGrpcStatus()
-          : null;
-        
-        // Add RPC stats if available
-        const rpcStats = enhancedService && typeof enhancedService.getRpcStats === 'function'
-          ? enhancedService.getRpcStats()
-          : null;
-
-        res.json({
-          success: true,
-          enhancedHybrid: enhancedStatus || { available: false },
-          rpc: rpcStats || { available: false },
-          trending: { available: false }
-        });
-      } catch (error) {
-        console.error('[🛡️ Admin] ❌ Failed to get gRPC status:', error.message);
-        res.status(500).json({
-          success: false,
-          error: error.message
-        });
-      }
-    });
-
     // ========================================
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
@@ -13335,8 +13157,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ✅ DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
     // this.hybridPriceService = new HybridPriceService();
     
-    // Enhanced Hybrid Price Service will be initialized when real-time services start
-    this.enhancedHybridPriceService = null;
+    // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
+    this.enhancedHybridPriceService = new EnhancedHybridPriceService();
+    
+    // 🚀 NEW: Auto-start gRPC monitoring for PROBITY
+    console.log('🔌 [AUTO-START] Starting gRPC monitoring for PROBITY...');
+    this.enhancedHybridPriceService.initializeAsync().catch(error => {
+        console.error('❌ [AUTO-START] Failed to start gRPC monitoring:', error.message);
+    });
     
     // Initialize Real-Time Token Monitor
     this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
@@ -13747,229 +13575,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // ✅ NEW: Real-time tooltip data endpoint for bubble map
-    this.app.get('/api/tokens/:contract/tooltip-data', async (req, res) => {
-      try {
-        const { contract } = req.params;
-        
-        if (!contract) {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'Contract address is required' 
-          });
-        }
-
-        // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
-        const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        
-        if (!priceService) {
-          return res.status(503).json({
-            success: false,
-            error: 'EnhancedHybridPriceService not available'
-          });
-        }
-
-        const tooltipData = priceService.getRealTimeTooltipData(contract);
-        
-        if (!tooltipData) {
-          return res.status(404).json({
-            success: false,
-            error: 'Token not found in real-time monitoring'
-          });
-        }
-
-        res.json({
-          success: true,
-          data: tooltipData,
-          timestamp: new Date().toISOString()
-        });
-
-      } catch (error) {
-        console.error(`❌ [TooltipData] Error fetching tooltip data for ${req.params.contract}:`, error.message);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch tooltip data',
-          details: error.message
-        });
-      }
-    });
-
-    // ✅ NEW: Real-time ranking data endpoint
-    this.app.get('/api/tokens/ranking/realtime', async (req, res) => {
-      try {
-        // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
-        const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        
-        if (!priceService) {
-          console.error(`❌ [RankingData] No price service available!`);
-          return res.status(503).json({
-            success: false,
-            error: 'EnhancedHybridPriceService not available'
-          });
-        }
-
-        // ✅ OPTION 3: Use getAllRankingsData() which includes smart monitoring + price-based market cap
-        if (priceService && typeof priceService.getAllRankingsData === 'function') {
-          const rankings = await priceService.getAllRankingsData();
-          
-          console.log(`📊 [RankingData] Returning ${rankings.length} tokens (${rankings.filter(t => t.isLive).length} with real-time data)`);
-          
-          res.json({
-            success: true,
-            data: rankings,
-            count: rankings.length,
-            timestamp: new Date().toISOString()
-          });
-          return;
-        }
-        
-        // Fallback: Manual processing (if getAllRankingsData not available)
-        const allTokens = await this.getTokensFromCache();
-        console.log(`📊 [RankingData] Loaded ${allTokens.length} tokens from cache`);
-        
-        // Get real-time metrics for monitored tokens
-        const realTimeMetrics = new Map();
-        if (priceService.poolAddresses) {
-          for (const [tokenAddress] of priceService.poolAddresses.entries()) {
-            const tooltipData = priceService.getRealTimeTooltipData(tokenAddress);
-            if (tooltipData) {
-              realTimeMetrics.set(tokenAddress, tooltipData);
-            }
-          }
-        }
-        console.log(`📊 [RankingData] Found ${realTimeMetrics.size} tokens with real-time data`);
-        
-        // ✅ Filter out stablecoins and LSTs from display
-        const STABLECOIN_ADDRESSES = new Set([
-          'USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA', // USDS
-          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
-          '6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG', // Unknown stablecoin
-          'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'  // Unknown stablecoin
-        ]);
-        
-        // Common LST (Liquid Staking Token) addresses
-        const LST_ADDRESSES = new Set([
-          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL (already in stablecoins)
-          '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj', // stSOL
-          'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', // bSOL
-          '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', // ETH (Wormhole)
-          'So11111111111111111111111111111111111111112'   // SOL (native)
-        ]);
-        
-        // Merge cache tokens with real-time metrics, filtering out stablecoins and LSTs
-        const rankings = allTokens
-          .filter(token => {
-            const address = token.contractAddress || token.tokenAddress;
-            // Filter out stablecoins and LSTs from display
-            return address && 
-                   !STABLECOIN_ADDRESSES.has(address) && 
-                   !LST_ADDRESSES.has(address);
-          })
-          .map(token => {
-          const address = token.contractAddress || token.tokenAddress;
-          const realTimeData = realTimeMetrics.get(address);
-          
-          // Get Jupiter data for fallback
-          const jupiter24h = token.jupiterData?.stats24h || {};
-          const jupiter5m = token.jupiterData?.stats5m || {};
-          const jupiter1h = token.jupiterData?.stats1h || {};
-          const jupiter6h = token.jupiterData?.stats6h || {};
-          
-          // Calculate safe sums for Jupiter stats
-          const jupiterVolume24h = (jupiter24h.buyVolume || 0) + (jupiter24h.sellVolume || 0);
-          const jupiterTxns24h = (jupiter24h.numBuys || 0) + (jupiter24h.numSells || 0);
-          
-          // ✅ OPTION 4: Get price and circulating supply from existing cache (no API calls)
-          const jupiterPrice = realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0;
-          const circSupply = token.jupiterData?.circSupply || token.circSupply || 0;
-          
-          // ✅ Calculate market cap from price × circSupply if we have both (fresher than stale Jupiter mcap)
-          const calculatedMarketCap = (jupiterPrice > 0 && circSupply > 0) 
-              ? (jupiterPrice * circSupply) 
-              : null;
-          
-          return {
-            ...token,
-            // Override with real-time data if available
-            price: jupiterPrice,
-            volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
-            txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
-            makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
-            priceChange5m: realTimeData?.priceChange5m || jupiter5m.priceChange || 0,
-            priceChange1h: realTimeData?.priceChange1h || jupiter1h.priceChange || 0,
-            priceChange6h: realTimeData?.priceChange6h || jupiter6h.priceChange || 0,
-            priceChange24h: realTimeData?.priceChange24h || token.jupiterData?.priceChange24h || 0,
-            // ✅ Market cap: Real-time (gRPC) > Calculated (price × circSupply) > Stale Jupiter mcap
-            marketCap: realTimeData?.marketCap || calculatedMarketCap || token.marketCap || token.jupiterData?.mcap || 0,
-            liquidity: realTimeData?.liquidity || token.liquidity || token.jupiterData?.liquidity || 0,
-            isLive: !!realTimeData,
-            // ✅ CRITICAL: Preserve Overall Score for sorting
-            overallScore: token.overallScore || token.score || 0,
-            rank: 0 // Will be set after sorting
-          };
-        });
-        
-        // ✅ CRITICAL: Sort by Overall Score (not volume!)
-        rankings.sort((a, b) => {
-          const scoreA = a.overallScore || 0;
-          const scoreB = b.overallScore || 0;
-          if (scoreB !== scoreA) {
-            return scoreB - scoreA;
-          }
-          return (b.marketCap || 0) - (a.marketCap || 0);
-        });
-        
-        // Assign ranks
-        rankings.forEach((token, index) => {
-          token.rank = index + 1;
-        });
-        
-        console.log(`📊 [RankingData] Returning ${rankings.length} tokens ranked by Overall Score`);
-        
-        res.json({
-          success: true,
-          data: rankings,
-          count: rankings.length,
-          timestamp: new Date().toISOString()
-        });
-
-      } catch (error) {
-        console.error(`❌ [RankingData] Error fetching ranking data:`, error.message);
-        console.error(`❌ [RankingData] Stack:`, error.stack);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch ranking data',
-          details: error.message
-        });
-      }
-    });
-
     // 🚀 NEW: Connection cleanup endpoint
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {
         const { tokenAddress, connectionId } = req.body;
         
-        // ✅ FIX: Use enhancedHybridPriceService if available, otherwise hybridPriceService
-        const priceService = this.enhancedHybridPriceService || this.hybridPriceService;
-        
-        if (!priceService) {
-          // If no price service, just return success (cleanup is optional)
-          return res.json({ success: true, message: 'No price service to cleanup' });
-        }
-        
         if (tokenAddress && connectionId) {
-          // Check if removeConnection method exists
-          if (typeof priceService.removeConnection === 'function') {
-            priceService.removeConnection(tokenAddress, connectionId);
-          }
+          this.hybridPriceService.removeConnection(tokenAddress, connectionId);
           res.json({ success: true, message: 'Connection removed' });
         } else {
           res.status(400).json({ success: false, error: 'Token address and connection ID required' });
         }
       } catch (error) {
         console.error('❌ [HybridPrice] Error cleaning up connection:', error.message);
-        // Return success even on error to prevent frontend errors
-        res.json({ success: true, message: 'Cleanup attempted (may have already been cleaned up)' });
+        res.status(500).json({ success: false, error: 'Failed to cleanup connection' });
       }
     });
 
@@ -14648,140 +14267,55 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // ✅ NEW: Get decoder statistics to verify usage in production
-    this.app.get('/api/decoders/stats', async (req, res) => {
+    // Admin: Get ChartDatabase compression stats
+    this.app.get('/api/admin/chart/compression-stats', adminApiAuth, async (req, res) => {
       try {
-        // Try to get hybrid price service from either location
-        const hybridPriceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        
-        if (!hybridPriceService) {
-          return res.status(500).json({
+        if (!this.chartDatabase) {
+          return res.status(503).json({
             success: false,
-            error: 'Hybrid price service not initialized'
+            error: 'ChartDatabase not initialized'
           });
         }
 
-        const decoderStats = hybridPriceService.getDecoderStats();
-        
+        const stats = this.chartDatabase.getCompressionStats();
         res.json({
           success: true,
-          data: {
-            ...decoderStats,
-            summary: {
-              totalSwapsProcessed: decoderStats.totalDecoderUses,
-              ammDecoderUsage: decoderStats.raydiumAMM.usage || 0,
-              cpmmDecoderUsage: decoderStats.raydiumCPMM.usage || 0,
-              ammDecoderActive: decoderStats.decoderActive.amm,
-              cpmmDecoderActive: decoderStats.decoderActive.cpmm,
-              ammCacheSize: decoderStats.raydiumAMM.cacheSize || 0,
-              cpmmCacheSize: decoderStats.raydiumCPMM.cacheSize || 0,
-              ammSuccessRate: decoderStats.raydiumAMM.successRate || 'N/A',
-              cpmmSuccessRate: decoderStats.raydiumCPMM.successRate || 'N/A'
-            },
-            timestamp: new Date().toISOString()
-          }
+          stats
         });
 
       } catch (error) {
-        console.error(`❌ [DECODER-STATS] Error:`, error.message);
+        console.error('[🛡️ Admin] ❌ Failed to get compression stats:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get decoder stats',
-          message: error.message
+          error: error.message
         });
       }
     });
 
-    // Test decoder with a known pool address
-    this.app.post('/api/decoders/test', async (req, res) => {
+    // Admin: Trigger compression migration for all existing files
+    this.app.post('/api/admin/chart/migrate-to-compressed', adminApiAuth, async (req, res) => {
       try {
-        const { poolAddress, programId } = req.body;
-        
-        if (!poolAddress) {
-          return res.status(400).json({
+        if (!this.chartDatabase) {
+          return res.status(503).json({
             success: false,
-            error: 'poolAddress is required'
+            error: 'ChartDatabase not initialized'
           });
         }
 
-        // Try to get hybrid price service from either location
-        const hybridPriceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        console.log('[🛡️ Admin] 🗜️ Starting compression migration...');
+        const results = await this.chartDatabase.migrateAllToCompressed();
         
-        if (!hybridPriceService) {
-          return res.status(500).json({
-            success: false,
-            error: 'Hybrid price service not initialized'
-          });
-        }
-        let decoder = null;
-        let decoderType = null;
-        
-        // Determine which decoder to use based on program ID or pool
-        if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C' || !programId) {
-          decoder = hybridPriceService.raydiumCPMMDecoder;
-          decoderType = 'CPMM';
-        } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
-          decoder = hybridPriceService.raydiumDecoder;
-          decoderType = 'AMM';
-        } else if (programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') {
-          decoder = hybridPriceService.raydiumCLMMDecoder;
-          decoderType = 'CLMM';
-        }
-
-        if (!decoder) {
-          return res.status(400).json({
-            success: false,
-            error: 'No decoder found or invalid programId',
-            availablePrograms: [
-              'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C (CPMM)',
-              '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8 (AMM)',
-              'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK (CLMM)'
-            ]
-          });
-        }
-
-        console.log(`🧪 [DECODER-TEST] Testing ${decoderType} decoder with pool: ${poolAddress.substring(0, 16)}...`);
-        
-        // Test decoding
-        const startTime = Date.now();
-        const poolData = await decoder.decodePoolState(poolAddress);
-        const elapsed = Date.now() - startTime;
-        
-        const decoderStats = decoder.getMetrics();
-        
-        const result = {
-          success: !!poolData,
-          decoderType,
-          poolAddress: poolAddress.substring(0, 16) + '...',
-          elapsedMs: elapsed,
-          poolData: poolData ? {
-            hasToken0Vault: !!poolData.token0Vault,
-            hasToken1Vault: !!poolData.token1Vault,
-            hasToken0Mint: !!poolData.token0Mint,
-            hasToken1Mint: !!poolData.token1Mint,
-            // Show first 16 chars of vaults for verification
-            token0Vault: poolData.token0Vault?.substring(0, 16) + '...',
-            token1Vault: poolData.token1Vault?.substring(0, 16) + '...'
-          } : null,
-          decoderMetrics: decoderStats,
-          timestamp: new Date().toISOString()
-        };
-        
-        if (!poolData) {
-          console.log(`❌ [DECODER-TEST] Failed to decode ${decoderType} pool: ${poolAddress.substring(0, 16)}...`);
-        } else {
-          console.log(`✅ [DECODER-TEST] Successfully decoded ${decoderType} pool: ${poolAddress.substring(0, 16)}...`);
-        }
-        
-        res.json(result);
+        console.log('[🛡️ Admin] ✅ Compression migration complete:', results);
+        res.json({
+          success: true,
+          results
+        });
 
       } catch (error) {
-        console.error(`❌ [DECODER-TEST] Error:`, error.message);
+        console.error('[🛡️ Admin] ❌ Compression migration failed:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to test decoder',
-          message: error.message,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+          error: error.message
         });
       }
     });
@@ -15298,59 +14832,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-          // ✅ IMMEDIATE CLEANUP: Manually trigger swap cleanup to free space NOW
-      this.app.post('/api/charts/swaps/cleanup', async (req, res) => {
-        try {
-          const { aggressive = false, cleanBackups = true, retentionDays } = req.body || {};
-          
-          console.log('🗑️ [CLEANUP-API] Manual cleanup triggered', { aggressive, cleanBackups, retentionDays });
-          
-          if (!this.enhancedHybridPriceService || !this.enhancedHybridPriceService.chartDatabase) {
-            return res.status(500).json({
-              success: false,
-              error: 'ChartDatabase not available'
-            });
-          }
-          
-          // Run cleanup with options
-          const options = {
-            retentionDays: retentionDays || (aggressive ? 1 : undefined), // 1 day for aggressive, default 2 days
-            cleanBackups: cleanBackups, // Always clean backups if requested
-            deleteAllSnapshots: aggressive // Delete ALL snapshots if aggressive mode
-          };
-          
-          const results = await this.enhancedHybridPriceService.chartDatabase.cleanupAllOldSwaps(options);
-          
-          console.log(`✅ [CLEANUP-API] Cleanup completed: ${results.totalSwapsRemoved} swaps removed, ${results.backupFilesDeleted} backup files deleted, ${results.snapshotDirsDeleted} snapshot dirs deleted`);
-          
-          res.json({
-            success: true,
-            message: `Cleanup completed successfully`,
-            results: {
-              tokensProcessed: results.tokensProcessed,
-              totalSwapsRemoved: results.totalSwapsRemoved,
-              tokensWithCleanup: results.tokensWithCleanup,
-              backupFilesDeleted: results.backupFilesDeleted,
-              snapshotDirsDeleted: results.snapshotDirsDeleted,
-              errors: results.errors.length > 0 ? results.errors : undefined
-            },
-            timestamp: new Date().toISOString()
-          });
-        } catch (error) {
-          console.error('❌ [CLEANUP-API] Error:', error.message);
-          res.status(500).json({
-            success: false,
-            error: 'Failed to run cleanup',
-            message: error.message
-          });
-        }
-      });
-
-      // Get recent swaps for TX table
-      this.app.get('/api/charts/swaps/:token', async (req, res) => {
-        try {
-          const { token } = req.params;
-          const { limit = 50, since } = req.query;
+    // Get recent swaps for TX table
+    this.app.get('/api/charts/swaps/:token', async (req, res) => {
+      try {
+        const { token } = req.params;
+        const { limit = 50, since } = req.query;
         
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
@@ -16300,134 +15786,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     return 'SLEEPING';
   }
 
-  async reprocessTwitterDataInBackground() {
-    try {
-      console.log('🔄 [TwitterReprocess] Starting background Twitter data reprocessing...');
-      
-      // Load tokens from cache
-      const dataDir = process.env.DATA_DIR || '/var/data/dgo';
-      const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
-      
-      console.log(`📂 [TwitterReprocess] Loading tokens from: ${cachePath}`);
-      const cacheData = await fs.readFile(cachePath, 'utf8');
-      const tokens = JSON.parse(cacheData);
-      console.log(`✅ [TwitterReprocess] Loaded ${tokens.length} tokens from cache`);
-      
-      // Filter tokens that need Twitter data
-      const tokensNeedingTwitterData = tokens.filter(token => {
-        // Check if token has no Twitter data at all
-        if (!token.twitterData) {
-          return true;
-        }
-        
-        // Check if Twitter data exists but has no tweets/mentions
-        const hasTweets = token.twitterData.tweets && token.twitterData.tweets.length > 0;
-        const hasMentions = token.twitterData.recentMentions && token.twitterData.recentMentions.length > 0;
-        
-        if (!hasTweets && !hasMentions) {
-          return true;
-        }
-        
-        // Check if Twitter data is very old (> 7 days)
-        if (token.twitterTimestamp) {
-          const lastUpdate = new Date(token.twitterTimestamp);
-          const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
-          if (daysSinceUpdate > 7) {
-            console.log(`⏰ [TwitterReprocess] ${token.symbol}: Twitter data is ${Math.floor(daysSinceUpdate)} days old, will refresh`);
-            return true;
-          }
-        }
-        
-        return false;
-      });
-      
-      console.log(`\n📊 [TwitterReprocess] Analysis Results:`);
-      console.log(`   Total tokens: ${tokens.length}`);
-      console.log(`   Tokens with Twitter data: ${tokens.length - tokensNeedingTwitterData.length}`);
-      console.log(`   Tokens needing Twitter data: ${tokensNeedingTwitterData.length}\n`);
-      
-      if (tokensNeedingTwitterData.length === 0) {
-        console.log('✅ [TwitterReprocess] All tokens already have Twitter data! Nothing to do.');
-        return;
-      }
-      
-      // Show sample of tokens to be processed
-      console.log(`📋 [TwitterReprocess] Sample tokens to be processed:`);
-      tokensNeedingTwitterData.slice(0, 10).forEach((token, i) => {
-        const reason = !token.twitterData 
-          ? 'No Twitter data' 
-          : 'Empty tweets/mentions';
-        console.log(`   ${i + 1}. ${token.symbol} (${token.contractAddress?.substring(0, 8)}...) - ${reason}`);
-      });
-      if (tokensNeedingTwitterData.length > 10) {
-        console.log(`   ... and ${tokensNeedingTwitterData.length - 10} more`);
-      }
-      console.log('');
-      
-      console.log(`⚠️  [TwitterReprocess] This will fetch Twitter data for ${tokensNeedingTwitterData.length} tokens`);
-      console.log(`⚠️  [TwitterReprocess] Estimated time: ${Math.ceil(tokensNeedingTwitterData.length * 30 / 60)} minutes (30s per token)`);
-      console.log(`⚠️  [TwitterReprocess] Twitter API costs: ~$${(tokensNeedingTwitterData.length * 0.15).toFixed(2)} (TwitterAPI.io)\n`);
-      
-      // Initialize EnhancedTokenProcessor
-      console.log('📊 [TwitterReprocess] Initializing EnhancedTokenProcessor...');
-      const processor = new EnhancedTokenProcessor();
-      await processor.initialize();
-      console.log('✅ [TwitterReprocess] EnhancedTokenProcessor initialized\n');
-      
-      // Add tokens to processor queue
-      console.log(`📥 [TwitterReprocess] Adding ${tokensNeedingTwitterData.length} tokens to processor queue...`);
-      processor.processingQueue = tokensNeedingTwitterData;
-      console.log(`✅ [TwitterReprocess] Tokens added to queue\n`);
-      
-      // Run through Twitter stage only (skip Jupiter - already have that data)
-      console.log('🐦 [TwitterReprocess] Starting Twitter data fetching stage...');
-      console.log('⏳ [TwitterReprocess] This may take a while...\n');
-      
-      const startTime = Date.now();
-      await processor.processTwitterStage();
-      const duration = Math.floor((Date.now() - startTime) / 1000);
-      
-      console.log(`\n✅ [TwitterReprocess] Twitter stage completed in ${Math.floor(duration / 60)}m ${duration % 60}s`);
-      
-      // Run through scoring stage to update scores with new Twitter data
-      console.log('\n📊 [TwitterReprocess] Recalculating scores with new Twitter data...');
-      await processor.processScoringStage();
-      console.log('✅ [TwitterReprocess] Scoring stage completed');
-      
-      // Save updated tokens to cache
-      console.log('\n💾 [TwitterReprocess] Saving updated tokens to cache...');
-      await processor.saveFinalDatabase();
-      console.log('✅ [TwitterReprocess] Tokens saved to cache');
-      
-      // Final stats
-      console.log(`\n📊 [TwitterReprocess] Final Results:`);
-      console.log(`   Tokens processed: ${tokensNeedingTwitterData.length}`);
-      console.log(`   Time taken: ${Math.floor(duration / 60)}m ${duration % 60}s`);
-      console.log(`   Average time per token: ${Math.floor(duration / tokensNeedingTwitterData.length)}s`);
-      
-      console.log('\n✅ [TwitterReprocess] Reprocessing completed successfully!');
-      console.log('🎉 [TwitterReprocess] All tokens now have Twitter data and updated scores!\n');
-      
-    } catch (error) {
-      console.error('❌ [TwitterReprocess] Reprocessing failed:', error.message);
-      console.error(error.stack);
-    }
-  }
-
   async getTokensFromCache() {
     try {
-      // ✅ CHECK MEMORY CACHE FIRST (but invalidate if it looks like old filtering logic)
+      // ✅ CHECK MEMORY CACHE FIRST
       if (this.tokensCache.data && this.tokensCache.timestamp && 
           Date.now() - this.tokensCache.timestamp < this.tokensCache.TTL) {
-        const cachedTokens = this.tokensCache.data;
-        // If we have very few tokens (< 200), likely old filtering - force refresh
-        if (cachedTokens.length < 200) {
-          console.log(`[🛡️ Enhanced Backend] ⚠️ Memory cache has ${cachedTokens.length} tokens (likely old filtering), forcing refresh...`);
-          this.tokensCache.timestamp = 0; // Force cache miss
-        } else {
-          console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${cachedTokens.length} tokens)`);
-          return cachedTokens;
-        }
+        console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${this.tokensCache.data.length} tokens)`);
+        return this.tokensCache.data;
       }
       
       const cachePath = this.persistentCachePath;
@@ -16497,39 +15862,42 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       console.log(`[🛡️ Enhanced Backend] 📊 Tokens by stage:`, stageCount);
 
-      // ✅ FIX: Return tokens from multiple stages, not just 'completed'
-      // Include: completed, scoring, twitter, jupiter (stages with meaningful data)
-      const validStages = ['completed', 'scoring', 'twitter', 'jupiter'];
-      const validTokens = tokens.filter(t => {
-        const stage = t.stage || 'undefined';
-        const isValidStage = validStages.includes(stage);
-        const hasContract = t.contractAddress && t.symbol;
-        return isValidStage && hasContract;
-      });
-      
-      console.log(`[🛡️ Enhanced Backend] 📊 Valid tokens (from stages: ${validStages.join(', ')}): ${validTokens.length}`);
-      
-      // Process tokens to ensure they have required fields
-      const processedTokens = validTokens.map(token => {
-        // If token is not completed, ensure it has basic fields
-        if (token.stage !== 'completed') {
-          return {
+      // Filter only completed tokens
+      const completedTokens = tokens.filter(t => t.stage === 'completed');
+      console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
+
+      // 🔧 FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
+      if (completedTokens.length === 0) {
+        const jupiterTokens = tokens.filter(t => t.stage === 'jupiter' && t.contractAddress && t.symbol);
+        console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
+        
+        if (jupiterTokens.length > 0) {
+          // Don't start processing automatically on restart - let manual triggers handle it
+          console.log('[🛡️ Enhanced Backend] 📊 Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
+          
+          // Return Jupiter tokens with minimal processing
+          return jupiterTokens.map(token => ({
             ...token,
+            // Ensure basic fields are present
             price: token.jupiterData?.price || token.price || 0,
             marketCap: token.jupiterData?.mcap || token.marketCap || 0,
-            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : (token.volume24h || 0),
+            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : 0,
             score: token.score || token.overallScore || 5.0,
-            _dataSource: token.stage === 'jupiter' ? 'jupiter-discovery' : token.stage
-          };
+            // Mark as fallback data
+            _fallbackData: true,
+            _dataSource: 'jupiter-discovery'
+          }));
         }
-        return token;
-      });
+        
+        // No tokens at all - only start processing if this is truly a fresh start
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
+      }
 
       // ✅ UPDATE MEMORY CACHE
-      this.tokensCache.data = processedTokens;
+      this.tokensCache.data = completedTokens;
       this.tokensCache.timestamp = Date.now();
       
-      return processedTokens;
+      return completedTokens;
 
     } catch (error) {
       console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
@@ -18771,10 +18139,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       if (this.enhancedHybridPriceService) {
         console.log('🔄 Reinitializing EnhancedHybridPriceService with WebSocket server...');
         this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
-        
-        // ✅ Start ranking broadcasts for real-time updates - FASTER FOR SCREENER PLATFORM
-        this.enhancedHybridPriceService.startRankingBroadcasts(5000); // 5 seconds for near real-time updates
-        console.log('📊 Started WebSocket ranking broadcasts');
       }
       
     } catch (error) {
@@ -18801,27 +18165,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
-      if (!this.enhancedHybridPriceService) {
-        console.log('🆕 Creating EnhancedHybridPriceService instance for real-time monitoring');
-        this.enhancedHybridPriceService = new EnhancedHybridPriceService(this.backendWebSocketServer);
-      } else {
-        console.log('♻️ Reusing existing EnhancedHybridPriceService instance for real-time monitoring');
-        this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
-      }
-
-      if (!this.enhancedHybridPriceService.isGrpcInitialized()) {
-        console.log('🔌 Initializing gRPC client for EnhancedHybridPriceService...');
-        await this.enhancedHybridPriceService.initializeAsync();
-        console.log('✅ EnhancedHybridPriceService gRPC client initialized');
-      } else {
-        console.log('⚠️ EnhancedHybridPriceService gRPC client already initialized, skipping');
-      }
-
-      // Ensure ranking broadcasts run at 5s cadence once WebSocket server is ready
-      this.enhancedHybridPriceService.startRankingBroadcasts(5000);
-
       // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer, this.enhancedHybridPriceService);
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       
@@ -18928,8 +18273,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Initialize Automated Token Cleanup
       console.log('🤖 Initializing Automated Token Cleanup...');
       try {
-        const chartDb = this.realTimeTokenMonitor?.hybridPriceService?.chartDatabase || this.enhancedHybridPriceService?.chartDatabase;
-        await this.automatedCleanup.initialize(this.realTimeTokenMonitor, chartDb);
+        await this.automatedCleanup.initialize();
         console.log('✅ Automated Token Cleanup initialized successfully');
       } catch (error) {
         console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
@@ -19117,11 +18461,532 @@ Thanks for using x402 payments on Twitter! 🚀`;
     try {
       console.log('[🛡️ Enhanced Backend] 🛑 Shutting down gracefully...');
       
-      // 🚀 CRITICAL: Shutdown EnhancedHybridPriceService to close gRPC streams
-      if (this.enhancedHybridPriceService) {
-        console.log('[🛡️ Enhanced Backend] Shutting down EnhancedHybridPriceService...');
-        await this.enhancedHybridPriceService.shutdown();
+      if (this.tokenProcessor.isProcessing) {
+        this.tokenProcessor.stopProcessing();
       }
+      
+      this.isRunning = false;
+      console.log('[🛡️ Enhanced Backend] ✅ Shutdown complete');
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Shutdown error:', error);
+    }
+  }
+
+  // Helper method for Twitter usage recommendations
+  getTwitterUsageRecommendations(stats) {
+    const recommendations = [];
+    
+    if (stats.emergencyMode) {
+      recommendations.push({
+        type: 'critical',
+        message: 'Emergency mode is active - all Twitter refreshes are blocked',
+        action: 'Deactivate emergency mode only if you have confirmed API limit reset'
+      });
+    } else if (stats.usagePercent >= 90) {
+      recommendations.push({
+        type: 'critical',
+        message: `Critically high usage: ${stats.usagePercent}% of monthly limit used`,
+        action: 'Consider activating emergency mode to preserve remaining calls'
+      });
+    } else if (stats.usagePercent >= 80) {
+      recommendations.push({
+        type: 'warning',
+        message: `High usage warning: ${stats.usagePercent}% of monthly limit used`,
+        action: 'Monitor usage closely and reduce refresh frequency'
+      });
+    }
+    
+    if (stats.projectedMonthlyUsage > stats.monthlyLimit) {
+      recommendations.push({
+        type: 'warning',
+        message: `Projected monthly usage (${stats.projectedMonthlyUsage}) exceeds limit`,
+        action: 'Reduce daily refresh rate or activate emergency mode'
+      });
+    }
+    
+    // Tier-specific recommendations
+    Object.entries(stats.tierUsage).forEach(([tier, usage]) => {
+      const tierLimits = {
+        CRITICAL: 500,
+        IMPORTANT: 300,
+        STANDARD: 200,
+        ARCHIVE: 50
+      };
+      
+      const limit = tierLimits[tier];
+      const percent = (usage / limit) * 100;
+      
+      if (percent >= 90) {
+        recommendations.push({
+          type: 'warning',
+          message: `${tier} tier at ${percent.toFixed(1)}% capacity (${usage}/${limit})`,
+          action: `Reduce ${tier.toLowerCase()} tier refreshes`
+        });
+      }
+    });
+    
+    if (recommendations.length === 0) {
+      recommendations.push({
+        type: 'info',
+        message: 'Twitter API usage is within normal limits',
+        action: 'Continue monitoring usage patterns'
+      });
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Get recent logs from log files (production-ready implementation)
+   */
+  async getRecentLogs(lines = 100, level = 'all') {
+    try {
+      // Winston log file path
+      const logFile = '/var/data/logs/app.log';
+      
+      // Ensure log directory exists
+      await fs.mkdir('/var/data/logs', { recursive: true });
+      
+      // Check if log file exists
+      try {
+        await fs.access(logFile);
+      } catch {
+        // Log file doesn't exist, return empty array
+        return [];
+      }
+      
+      // Read log file
+      const logContent = await fs.readFile(logFile, 'utf8');
+      const logLines = logContent.split('\n').filter(line => line.trim());
+      
+      // Parse log entries
+      const logs = [];
+      for (const line of logLines) {
+        try {
+          // Parse Winston JSON log format
+          const logEntry = JSON.parse(line);
+          logs.push({
+            timestamp: logEntry.timestamp,
+            level: logEntry.level,
+            message: logEntry.message
+          });
+        } catch (parseError) {
+          // Skip malformed log entries
+          continue;
+        }
+      }
+      
+      // Filter logs by level
+      let filteredLogs = logs;
+      if (level !== 'all') {
+        filteredLogs = logs.filter(log => {
+          switch (level) {
+            case 'error':
+              return log.level === 'error' || log.message.includes('❌') || log.message.includes('Error');
+            case 'system':
+              return log.message.includes('🚀') || log.message.includes('🔄') || log.message.includes('✅') || 
+                     log.message.includes('Initializing') || log.message.includes('Starting') || 
+                     log.message.includes('Backend') || log.message.includes('Service');
+            case 'processing':
+              return log.message.includes('Processing') || log.message.includes('Token') || 
+                     log.message.includes('Jupiter') || log.message.includes('Twitter') ||
+                     log.message.includes('Stage') || log.message.includes('Queue');
+            case 'database':
+              return log.message.includes('Database') || log.message.includes('Cache') || 
+                     log.message.includes('Save') || log.message.includes('Load') ||
+                     log.message.includes('🗄️') || log.message.includes('💾');
+            default:
+              return true;
+          }
+        });
+      }
+
+      // Return the most recent logs
+      return filteredLogs.slice(-lines);
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error getting recent logs:', error);
+      return [{
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: `Failed to get logs: ${error.message}`
+      }];
+    }
+  }
+
+  // Helper method to calculate since timestamp for different ranges
+  calculateSinceTimestamp(range) {
+    const now = Date.now();
+    const ranges = {
+      '1d': 24 * 60 * 60 * 1000,
+      '3d': 3 * 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '15d': 15 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000
+    };
+    return now - (ranges[range] || ranges['7d']);
+  }
+
+  // Winston logger is now used instead of custom logging
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  
+  if (global.enhancedBackend) {
+    await global.enhancedBackend.stop();
+  }
+  
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  
+  if (global.enhancedBackend) {
+    await global.enhancedBackend.stop();
+  }
+  
+  process.exit(0);
+});
+
+export default EnhancedBackend;
+
+// Start the server
+console.log('🚀 Starting Enhanced Backend Server...');
+const server = new EnhancedBackend();
+global.enhancedBackend = server;
+
+// Start the server
+server.start().catch(error => {
+  console.error('❌ Failed to start Enhanced Backend:', error);
+  process.exit(1);
+});
+
+
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket server:', error.message);
+    }
+  }
+
+  async initializeRealTimePriceService() {
+    try {
+      console.log('🚀 Initializing Real-Time Price Service...');
+      
+      // DISABLED: CoinVera WebSocket service removed - using gRPC instead
+      console.log('⚠️ [RealTimePrice] CoinVera WebSocket service disabled - using gRPC EnhancedHybridPriceService instead');
+      
+      // Get the HTTP server instance from the running server
+      const server = this.server;
+      if (!server) {
+        console.error('❌ Cannot initialize Real-Time Price Service: HTTP server not available');
+        return;
+      }
+      
+      console.log('📡 WebSocket server already initialized, proceeding with real-time services...');
+      
+      // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
+      console.log('🚀 Initializing Enhanced Real-Time Services...');
+      
+      // Initialize Real-Time Token Monitor
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
+      await this.realTimeTokenMonitor.initialize();
+      await this.realTimeTokenMonitor.startMonitoring();
+      
+      // Initialize Token Cache Watcher
+      const cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
+      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
+      this.tokenCacheWatcher.on('newTokens', (newTokens) => {
+        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
+      });
+      this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
+        console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+      });
+      await this.tokenCacheWatcher.startWatching();
+      
+      console.log('✅ Enhanced Real-Time Services initialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      console.error('⚠️ Backend will continue without real-time price updates');
+    }
+  }
+
+  async start() {
+    try {
+      // DISABLED: Initialize KOL Service (was making CoinAPI/CoinDesk calls)
+      // await this.initializeKOLService();
+      
+      // Load KOL routes first
+      await this.loadKOLRoutes();
+      
+      // PRELOAD CACHE: Load cached data immediately to serve real data during startup
+      console.log('🚀 PRELOADING CACHE: Loading cached data before serving requests...');
+      const cacheLoaded = await this.preloadCache();
+      
+      if (cacheLoaded) {
+        console.log('✅ STARTUP: Real cached data is now available - no more mock data!');
+      } else {
+        console.log('⚠️ STARTUP: No cached data found - will serve empty data until processing completes');
+      }
+      
+      await this.tokenProcessor.initialize();
+
+      // Initialize Social Context AI
+      console.log('🧠 Initializing Social Context AI...');
+      try {
+        await this.socialContextAI.initialize();
+        console.log('✅ Social Context AI initialized successfully');
+        
+        // Initialize Daily Tweet Service with OpenAI
+        console.log('📅 Initializing Daily Tweet Service...');
+        this.dailyTweetService = new DailyTweetService(
+          this.twitterAutoPostService,
+          this.socialContextAI.openaiService
+        );
+        console.log('✅ Daily Tweet Service initialized');
+        
+        // Auto-restart if it was running before server restart
+        await this.dailyTweetService.loadState();
+        if (this.dailyTweetService.shouldAutoRestart) {
+          console.log('🔄 Auto-restarting Daily Tweet Service from saved state...');
+          this.dailyTweetService.start(true);
+        }
+        
+        // Initialize Twitter Mention Service
+        console.log('🐦 Initializing Twitter Mention Service...');
+        this.twitterMentionService = new TwitterMentionService(
+          this.twitterAutoPostService,
+          this.socialContextAI.openaiService,
+          this // Pass backend instance for cache access
+        );
+        console.log('✅ Twitter Mention Service initialized');
+        
+        // Auto-start mention tracking
+        console.log('🚀 Starting Twitter Mention Service...');
+        await this.twitterMentionService.start();
+        console.log('✅ Twitter Mention Service started - monitoring @dgnoracle mentions every 10 minutes');
+        
+      } catch (error) {
+        console.error('❌ Social Context AI failed to initialize:', error.message);
+        console.warn('⚠️ Continuing with fallback analysis only...');
+      }
+
+      // Initialize Call Thesis Generator
+      console.log('🧠 Initializing Call Thesis Generator...');
+      try {
+        await this.callThesisGenerator.initialize();
+        console.log('✅ Call Thesis Generator initialized successfully');
+      } catch (error) {
+        console.error('❌ Call Thesis Generator failed to initialize:', error.message);
+        console.warn('⚠️ Continuing with fallback thesis generation...');
+      }
+
+      // Start Milestone Tracker
+      console.log('🎯 Starting Milestone Tracker...');
+      try {
+        this.milestoneTracker.start();
+        console.log('✅ Milestone Tracker started successfully');
+      } catch (error) {
+        console.error('❌ Milestone Tracker failed to start:', error.message);
+        console.warn('⚠️ Continuing without milestone tracking...');
+      }
+
+      // Initialize Automated Token Cleanup
+      console.log('🤖 Initializing Automated Token Cleanup...');
+      try {
+        await this.automatedCleanup.initialize();
+        console.log('✅ Automated Token Cleanup initialized successfully');
+      } catch (error) {
+        console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
+        console.warn('⚠️ Continuing without automated cleanup...');
+      }
+
+      // Initialize Holder Cache Cleanup
+      console.log('🗂️ Initializing Holder Cache Cleanup...');
+      try {
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        const cacheService = new HolderCacheService();
+        
+        // Initial cleanup of expired cache
+        const deletedCount = await cacheService.clearExpiredCache();
+        console.log(`✅ Holder Cache initialized - cleared ${deletedCount} expired files`);
+        
+        // Schedule automatic cleanup every 6 hours
+        setInterval(async () => {
+          try {
+            const deleted = await cacheService.clearExpiredCache();
+            if (deleted > 0) {
+              console.log(`🗑️ Automatic holder cache cleanup: removed ${deleted} expired files`);
+            }
+          } catch (error) {
+            console.error('❌ Automatic holder cache cleanup failed:', error.message);
+          }
+        }, 6 * 60 * 60 * 1000); // Every 6 hours
+        
+        console.log('✅ Holder Cache automatic cleanup scheduled (every 6 hours)');
+      } catch (error) {
+        console.error('❌ Holder Cache initialization failed:', error.message);
+        console.warn('⚠️ Continuing without holder cache cleanup...');
+      }
+      // Start HTTP server first so /health is immediately available for platform health checks
+      const host = '0.0.0.0';
+      console.log(`[Startup] Binding server on ${host}:${this.port}`);
+      this.app.get('/', (req, res) => res.redirect('/health'));
+      this.server = this.app.listen(this.port, host, () => {
+        const isProduction = process.env.NODE_ENV === 'production';
+        const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
+
+        console.log(`🚀 Enhanced Backend running on ${baseUrl}`);
+        console.log(`📊 Health check: ${baseUrl}/health`);
+        console.log(`🔍 API Status: ${baseUrl}/api/status`);
+        console.log(`🔗 API Tokens: ${baseUrl}/api/tokens`);
+        console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
+
+        this.isRunning = true;
+        
+        // 🚀 Initialize WebSocket server immediately after HTTP server starts
+        this.initializeWebSocketServer();
+        
+        // Initialize Real-Time Price Service after server starts
+        try {
+          this.initializeRealTimePriceService();
+        } catch (error) {
+          console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
+          console.error('⚠️ Backend will continue without real-time price updates');
+        }
+
+        // Defer Enhanced Backup System initialization so health checks pass quickly
+        setTimeout(async () => {
+          console.log('🔄 Initializing Enhanced Backup System...');
+          try {
+            this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
+            
+            // 🛡️ CHECK IF ALREADY RUNNING: Prevent multiple starts
+            const status = await this.backupIntegration.getStatus();
+            if (!status.backup?.isRunning) {
+              await this.backupIntegration.start();
+              console.log('✅ Enhanced Backup System started successfully');
+              console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
+              console.log('🕐 Retention: 10 snapshots max (10 hours)');
+            } else {
+              console.log('✅ Enhanced Backup System already running');
+            }
+          } catch (error) {
+            console.error('❌ Enhanced Backup System failed to start:', error.message);
+            console.warn('⚠️ Continuing without enhanced backups...');
+          }
+        }, 0);
+
+        // Start monthly snapshot checking
+        setTimeout(async () => {
+          console.log('📸 Starting Monthly Snapshot Service...');
+          try {
+            this.startMonthlySnapshotChecking();
+            console.log('✅ Monthly Snapshot Service started successfully');
+            console.log('📅 Automatic snapshots: End of each month at 23:59');
+          } catch (error) {
+            console.error('❌ Monthly Snapshot Service failed to start:', error.message);
+            console.warn('⚠️ Continuing without monthly snapshots...');
+          }
+        }, 1000);
+
+        // Start token processing workflow after backend is ready
+        // Delay more to ensure platform health checks pass before heavy work and allow kill switch via env
+        const disableAutoStart = String(process.env.DISABLE_AUTO_START || '').trim() === '1';
+        const startDelayMs = Number(process.env.START_PIPELINE_DELAY_MS || 12000); // default 12s
+        if (disableAutoStart) {
+          console.log('[🛡️ Enhanced Backend] ⏸️ Auto-start disabled via DISABLE_AUTO_START=1');
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ⏱️ Scheduling pipeline auto-start in ${startDelayMs}ms...`);
+          setTimeout(async () => {
+            try {
+              console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
+              const status = this.tokenProcessor.getProcessingStatus();
+              if (status.processedCount === 0) {
+                // Fresh installation - start full processing
+                console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
+                await this.tokenProcessor.startProcessing();
+              } else {
+                // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
+                console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
+                console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
+                await this.tokenProcessor.startProcessing({ skipTwitter: true });
+              }
+            } catch (error) {
+              console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
+            }
+          }, startDelayMs);
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to start Enhanced Backend:', error);
+      process.exit(1);
+    }
+  }
+
+  startMonthlySnapshotChecking() {
+    // Check for snapshots every hour (much more efficient)
+    setInterval(async () => {
+      try {
+        // Quick check if we're on the last day of month
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const isLastDay = now.getMonth() !== tomorrow.getMonth();
+        
+        // Only do heavy calculations if we're on the last day
+        if (!isLastDay) {
+          return; // Skip expensive operations
+        }
+        
+        // Check if it's near end of day (23:00-23:59)
+        const isNearEndOfDay = now.getHours() >= 23;
+        if (!isNearEndOfDay) {
+          return; // Skip if not near end of day
+        }
+        
+        console.log('📸 Last day of month detected, checking for snapshot...');
+        
+        // Get current leaderboard data (only when needed)
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
+        
+        // Check if we should take a snapshot
+        const snapshotTaken = await this.monthlySnapshotService.checkAndTakeSnapshot(leaderboardResult.leaderboard);
+        
+        if (snapshotTaken) {
+          console.log('📸 Monthly snapshot taken successfully!');
+        }
+      } catch (error) {
+        console.error('❌ Monthly snapshot check failed:', error.message);
+      }
+    }, 60 * 60 * 1000); // Check every hour instead of every minute
+  }
+
+  async stop() {
+    try {
+      console.log('[🛡️ Enhanced Backend] 🛑 Shutting down gracefully...');
       
       if (this.tokenProcessor.isProcessing) {
         this.tokenProcessor.stopProcessing();
