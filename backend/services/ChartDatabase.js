@@ -1,9 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import zlib from 'zlib';
+import { promisify } from 'util';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Promisify compression functions
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 /**
  * Centralized Chart Database (File-based JSON)
@@ -18,6 +24,10 @@ class ChartDatabase {
         // In production: /var/data/dgo
         // In local: ./data
         this.dbFile = path.join(this.dataDir, 'charts.json');
+        
+        // ✅ SWAP RETENTION: Keep only 2 days of swap history (configurable)
+        this.SWAP_RETENTION_DAYS = parseFloat(process.env.SWAP_RETENTION_DAYS || '2');
+        this.SWAP_RETENTION_MS = this.SWAP_RETENTION_DAYS * 24 * 60 * 60 * 1000; // 2 days in milliseconds
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
         this.tokenDatabases = new Map(); // tokenAddress -> database instance
@@ -36,11 +46,47 @@ class ChartDatabase {
         this.writeInterval = 2000; // Write every 2 seconds max (faster for real-time)
         this.lastWriteTime = new Map(); // per-token write times
         
+        // 🚀 NEW: Compression + Lazy Loading
+        this.useCompression = process.env.USE_COMPRESSION !== 'false'; // Default: enabled
+        this.useLazyLoading = process.env.USE_LAZY_LOADING !== 'false'; // Default: enabled
+        this.loadedTokens = new Set(); // Track which tokens are loaded in memory
+        this.compressionStats = {
+            totalCompressed: 0,
+            totalDecompressed: 0,
+            compressionRatio: 0,
+            avgCompressionTime: 0,
+            avgDecompressionTime: 0
+        };
+        
+        console.log(`🗜️  [ChartDatabase] Compression: ${this.useCompression ? 'ENABLED' : 'DISABLED'}`);
+        console.log(`⚡ [ChartDatabase] Lazy Loading: ${this.useLazyLoading ? 'ENABLED' : 'DISABLED'}`);
+        
         // ✅ CRITICAL FIX: Ensure data directory exists synchronously
         this.initializeDataDirSync();
         
-        this.loadData();
+        // Load data based on lazy loading setting
+        if (this.useLazyLoading) {
+            // Lazy loading: Just mark as loaded, don't actually load files
+            console.log('⚡ [ChartDatabase] Lazy loading enabled - tokens will load on first access');
+            this.isLoaded = true;
+        } else {
+            // Eager loading: Load all tokens on startup
+            this.loadData().then(() => {
+                console.log(`✅ [ChartDatabase] Loaded ${this.tokenDatabases.size} tokens on startup`);
+                // Clean up old swaps on startup
+                this.cleanupAllOldSwaps().catch(err => {
+                    console.error('❌ [ChartDatabase] Error cleaning old swaps on startup:', err.message);
+                });
+            });
+        }
         this.startBatchWriter();
+        
+        // ✅ PERIODIC CLEANUP: Run cleanup every 6 hours
+        setInterval(() => {
+            this.cleanupAllOldSwaps().catch(err => {
+                console.error('❌ [ChartDatabase] Error in periodic swap cleanup:', err.message);
+            });
+        }, 6 * 60 * 60 * 1000); // 6 hours
     }
     
     /**
@@ -113,23 +159,65 @@ class ChartDatabase {
                 this.writeQueues.set(tokenAddress, []);
             }
             
-            // 🚀 CRITICAL FIX: Load swaps from file if token database doesn't exist yet
-            this.loadTokenDatabaseFromFile(tokenAddress).catch(err => {
-                console.error(`❌ [ChartDatabase] Failed to load swaps from file for ${tokenAddress.substring(0, 8)}:`, err.message);
-            });
+            // 🚀 LAZY LOADING: Load from file on first access
+            if (this.useLazyLoading && !this.loadedTokens.has(tokenAddress)) {
+                const startTime = Date.now();
+                console.log(`⚡ [ChartDatabase] Lazy loading ${tokenAddress.substring(0, 8)}...`);
+                
+                this.loadTokenDatabaseFromFile(tokenAddress).then(() => {
+                    const loadTime = Date.now() - startTime;
+                    this.loadedTokens.add(tokenAddress);
+                    console.log(`✅ [ChartDatabase] Lazy loaded ${tokenAddress.substring(0, 8)} in ${loadTime}ms`);
+                }).catch(err => {
+                    console.error(`❌ [ChartDatabase] Failed to lazy load ${tokenAddress.substring(0, 8)}:`, err.message);
+                    this.loadedTokens.add(tokenAddress); // Mark as attempted
+                });
+            } else if (!this.useLazyLoading) {
+                // Eager loading (old behavior)
+                this.loadTokenDatabaseFromFile(tokenAddress).catch(err => {
+                    console.error(`❌ [ChartDatabase] Failed to load swaps from file for ${tokenAddress.substring(0, 8)}:`, err.message);
+                });
+            }
         }
         return this.tokenDatabases.get(tokenAddress);
     }
 
     /**
-     * 🚀 LOAD FROM FILE - Load token database from persistent file
+     * 🚀 LOAD FROM FILE - Load token database from persistent file (with compression support)
      */
     async loadTokenDatabaseFromFile(tokenAddress) {
         const tokenFile = this.getTokenFilePath(tokenAddress);
+        const compressedFile = `${tokenFile}.gz`;
         
         try {
-            const fileData = await fs.readFile(tokenFile, 'utf8');
-            const parsed = JSON.parse(fileData);
+            const decompressStart = Date.now();
+            let fileData;
+            let wasCompressed = false;
+            
+            // Try compressed file first
+            if (this.useCompression) {
+                try {
+                    const compressed = await fs.readFile(compressedFile);
+                    fileData = await gunzip(compressed);
+                    wasCompressed = true;
+                    
+                    // Update stats
+                    const decompressTime = Date.now() - decompressStart;
+                    this.compressionStats.totalDecompressed++;
+                    this.compressionStats.avgDecompressionTime = 
+                        (this.compressionStats.avgDecompressionTime * (this.compressionStats.totalDecompressed - 1) + decompressTime) / 
+                        this.compressionStats.totalDecompressed;
+                    
+                } catch (err) {
+                    // Compressed file doesn't exist, try uncompressed
+                    fileData = await fs.readFile(tokenFile, 'utf8');
+                }
+            } else {
+                // Compression disabled, read uncompressed
+                fileData = await fs.readFile(tokenFile, 'utf8');
+            }
+            
+            const parsed = JSON.parse(fileData.toString());
             
             const tokenDb = this.tokenDatabases.get(tokenAddress);
             if (parsed.swaps && Array.isArray(parsed.swaps)) {
@@ -138,7 +226,8 @@ class ChartDatabase {
                 tokenDb.swapCount = parsed.swapCount || 0;
                 tokenDb.lastWriteTime = parsed.lastUpdated || 0;
                 
-                console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}`);
+                const compressionNote = wasCompressed ? ' (compressed)' : '';
+                console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}${compressionNote}`);
             }
         } catch (error) {
             if (error.code !== 'ENOENT') {
@@ -243,10 +332,14 @@ class ChartDatabase {
     async atomicWriteToken(tokenAddress) {
         const tokenDb = this.getTokenDatabase(tokenAddress);
         const tokenFile = this.getTokenFilePath(tokenAddress);
-        const tempFile = `${tokenFile}.tmp`;
-        const backupFile = `${tokenFile}.backup`;
+        const compressedFile = `${tokenFile}.gz`;
+        const tempFile = this.useCompression ? `${compressedFile}.tmp` : `${tokenFile}.tmp`;
+        const finalFile = this.useCompression ? compressedFile : tokenFile;
+        const backupFile = `${finalFile}.backup`;
         
         try {
+            const compressStart = Date.now();
+            
             // Convert token swaps to arrays for JSON serialization
             const dataToSave = {
                 swaps: Array.from(tokenDb.swaps.entries()),
@@ -255,12 +348,37 @@ class ChartDatabase {
                 tokenAddress: tokenAddress
             };
             
+            const json = JSON.stringify(dataToSave, null, 2);
+            const originalSize = Buffer.byteLength(json);
+            
+            // Compress if enabled
+            let dataToWrite;
+            if (this.useCompression) {
+                dataToWrite = await gzip(json);
+                const compressedSize = dataToWrite.length;
+                const ratio = (1 - compressedSize / originalSize) * 100;
+                
+                // Update stats
+                this.compressionStats.totalCompressed++;
+                this.compressionStats.compressionRatio = 
+                    (this.compressionStats.compressionRatio * (this.compressionStats.totalCompressed - 1) + ratio) / 
+                    this.compressionStats.totalCompressed;
+                
+                const compressTime = Date.now() - compressStart;
+                this.compressionStats.avgCompressionTime = 
+                    (this.compressionStats.avgCompressionTime * (this.compressionStats.totalCompressed - 1) + compressTime) / 
+                    this.compressionStats.totalCompressed;
+                
+            } else {
+                dataToWrite = json;
+            }
+            
             // Write to temporary file first
-            await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+            await fs.writeFile(tempFile, dataToWrite);
             
             // ✅ GRACEFUL BACKUP: Skip backup if disk is full (allow cleanup to proceed)
             try {
-                await fs.copyFile(tokenFile, backupFile);
+                await fs.copyFile(finalFile, backupFile);
             } catch (error) {
                 // If backup fails due to no space, log warning but continue (cleanup needs to proceed)
                 if (error.code === 'ENOSPC') {
@@ -270,7 +388,16 @@ class ChartDatabase {
             }
             
             // Atomic rename (this is the atomic operation)
-            await fs.rename(tempFile, tokenFile);
+            await fs.rename(tempFile, finalFile);
+            
+            // Clean up old uncompressed file if we're now using compression
+            if (this.useCompression) {
+                try {
+                    await fs.unlink(tokenFile);
+                } catch (err) {
+                    // File might not exist, that's ok
+                }
+            }
             
             tokenDb.lastWriteTime = Date.now();
             
@@ -283,6 +410,19 @@ class ChartDatabase {
             }
             throw error;
         }
+    }
+
+    /**
+     * 🚀 NEW: Get compression statistics
+     */
+    getCompressionStats() {
+        return {
+            ...this.compressionStats,
+            enabled: this.useCompression,
+            lazyLoadingEnabled: this.useLazyLoading,
+            loadedTokens: this.loadedTokens.size,
+            totalTokens: this.tokenDatabases.size
+        };
     }
 
     /**
@@ -933,8 +1073,35 @@ class ChartDatabase {
                             if (shouldDelete) {
                                 await fs.rm(snapshotPath, { recursive: true, force: true });
                                 results.snapshotDirsDeleted++;
-                                const sizeGB = ((stats.size || 0) / 1024 / 1024 / 1024).toFixed(2);
-                                console.log(`🗑️ [ChartDatabase] Deleted snapshot directory: ${snapshotDir} (${sizeGB}GB)`);
+                                console.log(`🗑️ [ChartDatabase] Deleted snapshot directory: ${snapshotDir} (${(stats.size || 0) / 1024 / 1024 / 1024).toFixed(2)}GB)`);
+                            }
+                        } catch (error) {
+                            console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
+                            results.errors.push({ snapshotDir, error: error.message });
+                        }
+                    }
+                } catch (error) {
+                    // Backup directory might not exist, that's ok
+                    if (error.code !== 'ENOENT') {
+                        console.warn(`⚠️ [ChartDatabase] Error accessing backups directory ${backupsDir}:`, error.message);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ [ChartDatabase] Error in cleanupBackupFiles:', error.message);
+            results.errors.push({ global: error.message });
+        }
+        
+        return results;
+    }
+
+    close() {
+        console.log('🔒 Chart database closed');
+    }
+}
+
+export default ChartDatabase;
                             }
                         } catch (error) {
                             console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
