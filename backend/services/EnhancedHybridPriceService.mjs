@@ -515,8 +515,86 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} new tokens for monitoring, total ${this.poolAddresses.size} tokens`);
             
+            // 🚀 NEW: Subscribe all tokens to SSE for real-time prices
+            if (this.sseService && this.useSolanaVibeSSE) {
+                const allMints = Array.from(this.poolAddresses.keys());
+                await this.sseService.subscribe(allMints);
+                console.log(`📡 [EnhancedHybridPriceService] Subscribed ${allMints.length} tokens to SSE`);
+            }
+            
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
+        }
+    }
+
+    /**
+     * Add a new token to monitoring (both gRPC and SSE)
+     */
+    async addTokenToMonitoring(tokenAddress, poolAddress, tokenMetadata = {}) {
+        try {
+            // Add to gRPC monitoring
+            if (!this.poolAddresses.has(tokenAddress)) {
+                this.poolAddresses.set(tokenAddress, poolAddress);
+                this.swapHistory.set(tokenAddress, []);
+                
+                // Add metadata to cache
+                if (tokenMetadata && Object.keys(tokenMetadata).length > 0) {
+                    this.tokenMetadataCache.set(tokenAddress, tokenMetadata);
+                }
+                
+                // Initialize mid-price if available
+                if (tokenMetadata.price && tokenMetadata.price > 0) {
+                    this.midPriceUsd.set(tokenAddress, tokenMetadata.price);
+                }
+                
+                console.log(`✅ [EnhancedHybridPriceService] Added token ${tokenAddress} to monitoring`);
+                
+                // Add to SSE subscription
+                if (this.sseService && this.useSolanaVibeSSE) {
+                    await this.sseService.subscribe([tokenAddress]);
+                    console.log(`📡 [EnhancedHybridPriceService] Added token ${tokenAddress} to SSE`);
+                }
+                
+                return true;
+            }
+            
+            return false; // Already monitoring
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to add token ${tokenAddress}:`, error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Remove a token from monitoring (both gRPC and SSE)
+     */
+    async removeTokenFromMonitoring(tokenAddress) {
+        try {
+            if (this.poolAddresses.has(tokenAddress)) {
+                this.poolAddresses.delete(tokenAddress);
+                this.swapHistory.delete(tokenAddress);
+                this.tokenMetadataCache.delete(tokenAddress);
+                this.midPriceUsd.delete(tokenAddress);
+                this.priceCache.delete(tokenAddress);
+                this.ssePriceSource.delete(tokenAddress);
+                
+                console.log(`✅ [EnhancedHybridPriceService] Removed token ${tokenAddress} from monitoring`);
+                
+                // Remove from SSE subscription
+                if (this.sseService && this.useSolanaVibeSSE) {
+                    await this.sseService.unsubscribe([tokenAddress]);
+                    console.log(`📡 [EnhancedHybridPriceService] Removed token ${tokenAddress} from SSE`);
+                }
+                
+                return true;
+            }
+            
+            return false; // Not monitoring
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to remove token ${tokenAddress}:`, error.message);
+            return false;
         }
     }
 
@@ -2406,6 +2484,10 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     getGrpcStatus() {
         const sharedStreams = Array.isArray(this.sharedStreams) ? this.sharedStreams : [];
+        
+        // Get SSE status
+        const sseStatus = this.sseService ? this.sseService.getStatus() : null;
+        
         return {
             instanceId: this.clientInstanceId,
             grpcInitialized: this.isGrpcInitialized(),
@@ -2419,7 +2501,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                 tokenCount: stream?._tokenCount ?? null,
                 readable: typeof stream?.readable === 'boolean' ? stream.readable : undefined,
                 closed: typeof stream?.closed === 'boolean' ? stream.closed : undefined
-            }))
+            })),
+            // SSE status
+            sse: sseStatus ? {
+                enabled: this.useSolanaVibeSSE,
+                connected: sseStatus.isConnected,
+                subscribedMints: sseStatus.subscribedMints,
+                priceUpdatesProcessed: sseStatus.stats.priceUpdatesProcessed,
+                errors: sseStatus.stats.errors,
+                uptime: Math.floor(sseStatus.stats.uptime / 1000), // Convert to seconds
+                timeSinceLastMessage: sseStatus.timeSinceLastMessage ? Math.floor(sseStatus.timeSinceLastMessage / 1000) : null
+            } : {
+                enabled: false,
+                connected: false
+            }
         };
     }
 
