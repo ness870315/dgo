@@ -2002,12 +2002,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             const { tokenAddress, poolAddress, signature, slot } = request;
             
             if (!txData || !txData.meta) {
+                console.log(`⚠️ [RPC] No metadata for ${signature?.slice(0, 8)}`);
                 return; // No metadata available
             }
             
             const preBalances = txData.meta.preTokenBalances || [];
             const postBalances = txData.meta.postTokenBalances || [];
             const WSOL = 'So11111111111111111111111111111111111111112';
+            
+            console.log(`🔍 [RPC] Parsing tx ${signature?.slice(0, 8)} for token ${tokenAddress.slice(0, 8)}`);
+            console.log(`🔍 [RPC] Found ${preBalances.length} preBalances, ${postBalances.length} postBalances`);
             
             // ✅ CRITICAL: tokenAddress IS the token mint we're monitoring
             // Find balance changes for THIS specific token mint
@@ -2045,6 +2049,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                     }
                 }
             }
+            
+            console.log(`📊 [RPC] Balance changes: tokenIn=${tokenIn}, tokenOut=${tokenOut}, solIn=${solIn}, solOut=${solOut}`);
             
             // If we found valid balance changes for a swap, create the enhanced swap
             if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
@@ -2130,6 +2136,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
                 
                 console.log(`✅ [RPC] Enhanced swap for ${tokenAddress.slice(0, 8)}: ${isBuy ? 'BUY' : 'SELL'} ${tokenAmount.toFixed(4)} tokens for ${solAmount.toFixed(4)} SOL @ $${priceUsd.toFixed(6)}`);
+            } else {
+                console.log(`⚠️ [RPC] No valid swap found in tx ${signature?.slice(0, 8)} for token ${tokenAddress.slice(0, 8)}`);
             }
             
         } catch (error) {
