@@ -225,6 +225,15 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+  // ✅ NEW: Broadcast price update for a specific token (real-time)
+  broadcastPriceUpdate(tokenAddress, priceData) {
+    this.broadcastToTokenSubscribers(tokenAddress, {
+      type: 'priceUpdate',
+      tokenAddress,
+      priceData
+    });
+  }
+
   // ✅ NEW: Broadcast ranking data update to all clients
   broadcastRankingUpdate(rankings) {
     const message = {

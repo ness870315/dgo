@@ -340,8 +340,19 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Update last update time
             this.lastUpdate.set(mint, Date.now());
             
-            // Note: Price updates are broadcast to frontend via periodic ranking broadcasts
-            // No need for individual price broadcasts here
+            // 📡 Broadcast real-time price update to WebSocket clients
+            if (this.webSocketServer) {
+                this.webSocketServer.broadcastPriceUpdate(mint, {
+                    priceUsd: price,
+                    marketCap,
+                    source: 'sse',
+                    timestamp: Date.now(),
+                    avgPrice1min,
+                    avgPrice15min,
+                    avgPrice1h,
+                    avgPrice24h
+                });
+            }
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Error handling SSE price update:', error.message);
