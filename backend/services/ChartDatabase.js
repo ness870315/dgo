@@ -963,31 +963,3 @@ class ChartDatabase {
 }
 
 export default ChartDatabase;
-                            }
-                        } catch (error) {
-                            console.warn(`⚠️ [ChartDatabase] Failed to delete snapshot directory ${snapshotDir}:`, error.message);
-                            results.errors.push({ snapshotDir, error: error.message });
-                        }
-                    }
-                } catch (error) {
-                    // Backup directory might not exist, that's ok
-                    if (error.code !== 'ENOENT') {
-                        console.warn(`⚠️ [ChartDatabase] Error accessing backups directory ${backupsDir}:`, error.message);
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('❌ [ChartDatabase] Error in cleanupBackupFiles:', error.message);
-            results.errors.push({ global: error.message });
-        }
-        
-        return results;
-    }
-
-    close() {
-        console.log('🔒 Chart database closed');
-    }
-}
-
-export default ChartDatabase;
