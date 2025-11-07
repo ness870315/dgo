@@ -716,8 +716,14 @@ class EnhancedHybridPriceService extends EventEmitter {
         for (const stream of this.sharedStreams) {
             if (!stream) continue;
             try {
-                // Remove all listeners first
-                stream.removeAllListeners();
+                // Add a temporary error handler to catch "Cancelled on client" errors
+                stream.removeAllListeners('error');
+                stream.on('error', (err) => {
+                    // Ignore "Cancelled on client" errors during shutdown
+                    if (!err.message.includes('Cancelled on client')) {
+                        console.error('⚠️ [EnhancedHybridPriceService] Stream error during shutdown:', err.message);
+                    }
+                });
                 
                 // Cancel the stream (more forceful than end)
                 if (typeof stream.cancel === 'function') {
