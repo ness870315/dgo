@@ -13284,6 +13284,28 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Constant K gRPC status
+    this.app.get('/api/admin/grpc-status', adminApiAuth, (req, res) => {
+      try {
+        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        const enhancedStatus = enhancedService && typeof enhancedService.getGrpcStatus === 'function'
+          ? enhancedService.getGrpcStatus()
+          : null;
+
+        res.json({
+          success: true,
+          enhancedHybrid: enhancedStatus || { available: false },
+          trending: { available: false }
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get gRPC status:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     // ========================================
     // 📈 PRICE CHART ENDPOINTS
     // ========================================

@@ -2306,6 +2306,25 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
+    getGrpcStatus() {
+        const sharedStreams = Array.isArray(this.sharedStreams) ? this.sharedStreams : [];
+        return {
+            instanceId: this.clientInstanceId,
+            grpcInitialized: this.isGrpcInitialized(),
+            sharedStreamCount: sharedStreams.length,
+            sharedStreamPoolCount: this.sharedStreamPoolCount || 0,
+            monitoredTokenCount: this.poolAddresses ? this.poolAddresses.size : 0,
+            retryCount: this.sharedStreamRetryCount || 0,
+            restartScheduled: !!this._sharedStreamRestartScheduled,
+            streams: sharedStreams.map(stream => ({
+                batchIndex: stream?._batchIndex ?? null,
+                tokenCount: stream?._tokenCount ?? null,
+                readable: typeof stream?.readable === 'boolean' ? stream.readable : undefined,
+                closed: typeof stream?.closed === 'boolean' ? stream.closed : undefined
+            }))
+        };
+    }
+
     // ✅ NEW: Start periodic decoder stats logging
     startDecoderStatsLogging(intervalMs = 300000) { // Default: 5 minutes
         if (this.decoderStatsInterval) {
