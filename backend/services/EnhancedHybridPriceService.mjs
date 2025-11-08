@@ -260,6 +260,11 @@ class EnhancedHybridPriceService extends EventEmitter {
       // Start DEX program stream
       await this.startDexProgramStream();
       
+      // Start periodic cache save (every 5 minutes)
+      this.cacheSaveInterval = setInterval(() => {
+        this.saveTokenCache();
+      }, 5 * 60 * 1000);
+      
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error.message);
@@ -914,6 +919,51 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Save token cache to disk (atomic write)
+   * Note: This service reads the cache but doesn't modify it.
+   * The enhancedTokenProcessor.js is responsible for saving new tokens.
+   * This method is here for compatibility and emergency backup.
+   */
+  async saveTokenCache() {
+    try {
+      // Extract unique token addresses from knownTokens
+      const tokenAddresses = Array.from(this.knownTokens.keys());
+      
+      // Load existing cache to preserve full token data
+      let existingCache = [];
+      try {
+        const data = await fs.readFile(this.cachePath, 'utf8');
+        existingCache = JSON.parse(data);
+      } catch (error) {
+        // No existing cache
+      }
+      
+      // Add any new tokens that aren't in the cache
+      const existingAddresses = new Set(existingCache.map(t => t.contractAddress));
+      const newTokens = tokenAddresses
+        .filter(addr => !existingAddresses.has(addr))
+        .map(addr => ({
+          contractAddress: addr,
+          addedAt: new Date().toISOString(),
+          source: 'dex-stream'
+        }));
+      
+      if (newTokens.length > 0) {
+        const updatedCache = [...existingCache, ...newTokens];
+        
+        // Atomic write
+        const tempPath = this.cachePath + '.tmp';
+        await fs.writeFile(tempPath, JSON.stringify(updatedCache, null, 2));
+        await fs.rename(tempPath, this.cachePath);
+        
+        console.log(`💾 [EnhancedHybridPriceService] Saved ${newTokens.length} new tokens to cache (total: ${updatedCache.length})`);
+      }
+    } catch (error) {
+      console.error('❌ [EnhancedHybridPriceService] Failed to save token cache:', error.message);
+    }
+  }
+
+  /**
    * Get service stats
    */
   getStats() {
@@ -1046,6 +1096,14 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   async shutdown() {
     console.log('🛑 [EnhancedHybridPriceService] Shutting down...');
+    
+    // Clear cache save interval
+    if (this.cacheSaveInterval) {
+      clearInterval(this.cacheSaveInterval);
+    }
+    
+    // Save cache one last time
+    await this.saveTokenCache();
     
     if (this.dexStream) {
       this.dexStream.cancel();
