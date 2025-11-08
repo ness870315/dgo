@@ -389,4 +389,142 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesF
 };
 
 export default TokenRankedList;
-
+
+                {/* Graduation Status Bar for Bonding Tokens */}
+                {token.bondingCurveProgress && (
+                  <div className="mt-3 px-2">
+                    <GraduationStatusBar 
+                      bondingProgress={token.bondingCurveProgress}
+                      proximityLevel={token.graduationProximity}
+                      showLabel={false}
+                      compact={true}
+                    />
+                  </div>
+                )}
+
+                {/* Desktop Layout */}
+                <div className="hidden sm:block">
+                  <div className="flex items-center justify-between">
+                    {/* Left side - Rank, Token Info */}
+                    <div className="flex items-center space-x-4">
+                      {/* Rank */}
+                      <div className="flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          rank <= 3 
+                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' 
+                            : 'bg-gray-700 text-gray-300'
+                        }`}>
+                          {rank}
+                        </div>
+                      </div>
+
+                      {/* Token Icon & Info */}
+                      <div className="flex items-center space-x-3">
+                        {(token.jupiterData?.icon || token.logo) && (
+                          <img 
+                            src={token.jupiterData?.icon || token.logo} 
+                            alt={token.symbol} 
+                            className="w-10 h-10 rounded-full border-2 border-gray-600"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h4 className="text-white font-semibold text-lg">
+                              {token.symbol || 'Unknown'}
+                            </h4>
+                            {fuelInfo.isFueled && (
+                              <div className="flex items-center space-x-1 px-2 py-1 bg-orange-900 border border-orange-500 rounded-full">
+                                <Flame className="w-3 h-3 text-orange-400" />
+                                <span className="text-orange-400 text-xs font-bold">
+                                  {fuelInfo.multiplier}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-gray-400 text-sm">
+                            {token.name || token.jupiterData?.name || 'Unknown Token'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right side - Stats */}
+                    <div className="flex items-center space-x-6">
+                      {/* Score - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className={`text-2xl font-bold ${scoreColor}`}>
+                            {score.toFixed(1)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {scoreLabel}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Price Change */}
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold ${priceColor}`}>
+                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          %
+                        </div>
+                      </div>
+
+                      {/* Market Cap */}
+                      <div className="text-center">
+                        <div className="text-white font-semibold">
+                          {formatMarketCap(marketCap)}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Market Cap
+                        </div>
+                      </div>
+
+                      {/* Mentions - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className="text-white font-semibold">
+                            {mentions}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Mentions
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Arrow indicator */}
+                      <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="pt-3 sm:pt-4 border-t border-gray-700 mt-4 sm:mt-6">
+          <div className="text-center text-xs text-gray-500 px-2">
+            <div className="block sm:hidden">
+              Tap any token to view details
+            </div>
+            <div className="hidden sm:block">
+              Click any token to view details • Rankings update in real-time
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TokenRankedList;
