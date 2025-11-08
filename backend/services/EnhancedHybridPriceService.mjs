@@ -373,20 +373,28 @@ class EnhancedHybridPriceService extends EventEmitter {
     try {
       const swaps = this.parseBalanceChanges(msg);
       
-      if (swaps && swaps.length > 0) {
-        for (const swap of swaps) {
-          this.stats.totalSwapsProcessed++;
-          
-          // Check if this is a known token or new token
-          if (this.knownTokens.has(swap.tokenMint)) {
-            this.processKnownTokenSwap(swap);
-          } else {
-            this.processNewTokenSwap(swap);
-          }
+      if (!swaps || swaps.length === 0) {
+        console.log('⚠️ [EnhancedHybridPriceService] No swaps parsed from message');
+        return;
+      }
+      
+      console.log(`✅ [EnhancedHybridPriceService] Parsed ${swaps.length} swaps from message`);
+      
+      for (const swap of swaps) {
+        this.stats.totalSwapsProcessed++;
+        
+        // Check if this is a known token or new token
+        if (this.knownTokens.has(swap.tokenMint)) {
+          console.log(`📊 [EnhancedHybridPriceService] Processing known token swap: ${swap.tokenMint.slice(0, 8)}...`);
+          this.processKnownTokenSwap(swap);
+        } else {
+          console.log(`🆕 [EnhancedHybridPriceService] Processing new token swap: ${swap.tokenMint.slice(0, 8)}...`);
+          this.processNewTokenSwap(swap);
         }
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Error handling stream data:', error.message);
+      console.error('❌ Stack:', error.stack);
     }
   }
 
