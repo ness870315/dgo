@@ -142,7 +142,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Token tracking
     this.knownTokens = new Map(); // Map<tokenAddress, TokenMetrics>
     this.newTokenActivity = new Map(); // Map<tokenAddress, { swapCount, firstSeen, lastSeen, ... }>
-    this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, supply }>
+    this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, circSupply, supply }>
     
     // Multi-layer filter configuration
     this.filters = {
@@ -533,14 +533,46 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Broadcast price update via WebSocket
     if (this.webSocketServer) {
       const metricsData = metrics.getMetrics();
+      const token = this.knownTokens.get(swap.tokenMint);
+      const jupiterData = token?.jupiterData;
+      
+      // Calculate real-time market cap using circulating supply from Jupiter
+      const metadata = this.tokenMetadataCache.get(swap.tokenMint);
+      const circSupply = metadata?.circSupply || jupiterData?.circSupply;
+      const marketCap = circSupply ? metricsData.currentPrice * circSupply : (jupiterData?.marketCap || 0);
+      
       this.broadcastPriceUpdate(swap.tokenMint, {
+        // Real-time from DEX stream
         price: metricsData.currentPrice,
+        marketCap: marketCap,
+        
+        // 5M window (real-time)
         priceChange5m: metricsData['5m'].priceChange,
-        priceChange1h: metricsData['1h'].priceChange,
         volume5m: metricsData['5m'].volume,
-        volume1h: metricsData['1h'].volume,
         txns5m: metricsData['5m'].txns,
         makers5m: metricsData['5m'].makers,
+        
+        // 1H window (real-time)
+        priceChange1h: metricsData['1h'].priceChange,
+        volume1h: metricsData['1h'].volume,
+        txns1h: metricsData['1h'].txns,
+        makers1h: metricsData['1h'].makers,
+        
+        // 6H window (real-time)
+        priceChange6h: metricsData['6h'].priceChange,
+        volume6h: metricsData['6h'].volume,
+        txns6h: metricsData['6h'].txns,
+        makers6h: metricsData['6h'].makers,
+        
+        // 24H window (real-time, fallback to Jupiter if insufficient data)
+        priceChange24h: metricsData['24h'].priceChange || jupiterData?.priceChange24h || 0,
+        volume24h: metricsData['24h'].volume || jupiterData?.volume24h || 0,
+        txns24h: metricsData['24h'].txns || jupiterData?.txns24h || 0,
+        makers24h: metricsData['24h'].makers || jupiterData?.makers24h || 0,
+        
+        // Liquidity (only from Jupiter, not available from DEX stream)
+        liquidity: jupiterData?.liquidity || 0,
+        
         isLive: true
       });
     }
@@ -1037,9 +1069,41 @@ class EnhancedHybridPriceService extends EventEmitter {
     const metrics = new TokenMetrics(tokenAddress);
     this.knownTokens.set(tokenAddress, metrics);
     
+    // Fetch and cache token metadata (circSupply for market cap calculation)
+    this.fetchTokenMetadata(tokenAddress).catch(err => {
+      console.error(`⚠️ Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, err.message);
+    });
+    
     console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress.slice(0, 8)}... to known tokens (will receive swaps from DEX stream)`);
     
     return true;
+  }
+  
+  /**
+   * Fetch and cache token metadata (circSupply, decimals, etc.) from Jupiter
+   */
+  async fetchTokenMetadata(tokenAddress) {
+    try {
+      // Fetch from Jupiter API
+      const jupData = await this.fetchJupiterData(tokenAddress);
+      
+      if (jupData) {
+        this.tokenMetadataCache.set(tokenAddress, {
+          name: jupData.name,
+          symbol: jupData.symbol,
+          decimals: jupData.decimals,
+          circSupply: jupData.circSupply, // Circulating supply for market cap calculation
+          supply: jupData.supply // Total supply (backup)
+        });
+        
+        console.log(`📊 [Metadata] Cached ${jupData.symbol} - circSupply: ${jupData.circSupply?.toLocaleString()}`);
+      }
+    } catch (error) {
+      // Silent fail - will use Jupiter fallback in broadcast
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, error.message);
+      }
+    }
   }
 
   /**
