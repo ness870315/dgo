@@ -149,12 +149,12 @@ class EnhancedHybridPriceService extends EventEmitter {
       layer1: {
         minimumAge: 0, // DISABLED: Let activity filters do the work
         activityThresholds: {
-          minSwaps: 10,
-          minVolume: 1000,  // $1000
-          minTraders: 5
+          minSwaps: 5,      // Lowered from 10 (catch earlier)
+          minVolume: 500,   // Lowered from $1000 (catch smaller tokens)
+          minTraders: 3     // Lowered from 5 (more realistic)
         },
         sustainedActivity: {
-          minSwapsPerMinute: 2
+          minSwapsPerMinute: 1  // Lowered from 2 (1 swap/min = 60 swaps/hour)
         },
         priceSanity: {
           maxPriceChange1m: 500,    // 500%
