@@ -239,135 +239,75 @@ function AppContent() {
   };
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   
-  // 🚀 NEW: WebSocket Integration for Real-Time Updates
+  // 🚀 NEW: WebSocket Integration for Real-Time Updates (DEXScreener-style)
   useEffect(() => {
     // Connect to WebSocket
     if (!websocketService.isConnected) {
       websocketService.connect();
     }
     
-    // Listen for price updates from backend
-    const handlePriceUpdate = (event) => {
-      const { tokenAddress, data, priceData } = event;
-      const updateData = data || priceData; // Backend sends 'data', some places might send 'priceData'
+    // Listen for FULL STATE updates from backend (every 10 seconds)
+    const handleFullStateUpdate = (event) => {
+      const { tokens: liveTokens } = event;
       
-      if (!updateData) {
-        console.warn('⚠️ [App] Received priceUpdate with no data:', event);
+      if (!liveTokens || liveTokens.length === 0) {
+        console.warn('⚠️ [App] Received fullStateUpdate with no tokens');
         return;
       }
       
-      // Log every 20th update to confirm it's working
-      if (Math.random() < 0.05) {
-        console.log(`📊 [App] Updating token ${tokenAddress.slice(0, 8)}...`, {
-          price: updateData.price,
-          vol5m: updateData.volume5m,
-          txns5m: updateData.txns5m,
-          makers5m: updateData.makers5m,
-          priceChange5m: updateData.priceChange5m
-        });
-      }
+      console.log(`🔄 [App] Received full state update: ${liveTokens.length} tokens with live data`);
       
+      // Merge live data with existing token metadata (name, symbol, etc. from Jupiter)
       setTokens(prevTokens => {
-        let foundToken = false;
-        const updated = prevTokens.map(token => {
-          if (token.contractAddress === tokenAddress || token.tokenAddress === tokenAddress) {
-            foundToken = true;
-            const updatedToken = {
-              ...token,
-              // Update with real-time data from DEX stream
-              price: updateData.price !== undefined ? updateData.price : token.price,
-              priceUsd: updateData.price !== undefined ? updateData.price : token.priceUsd,
-              priceChange5m: updateData.priceChange5m !== undefined ? updateData.priceChange5m : token.priceChange5m,
-              priceChange1h: updateData.priceChange1h !== undefined ? updateData.priceChange1h : token.priceChange1h,
-              priceChange6h: updateData.priceChange6h !== undefined ? updateData.priceChange6h : token.priceChange6h,
-              priceChange24h: updateData.priceChange24h !== undefined ? updateData.priceChange24h : token.priceChange24h,
-              volume5m: updateData.volume5m !== undefined ? updateData.volume5m : token.volume5m,
-              volume1h: updateData.volume1h !== undefined ? updateData.volume1h : token.volume1h,
-              volume6h: updateData.volume6h !== undefined ? updateData.volume6h : token.volume6h,
-              volume24h: updateData.volume24h !== undefined ? updateData.volume24h : token.volume24h,
-              txns5m: updateData.txns5m !== undefined ? updateData.txns5m : token.txns5m,
-              txns1h: updateData.txns1h !== undefined ? updateData.txns1h : token.txns1h,
-              txns6h: updateData.txns6h !== undefined ? updateData.txns6h : token.txns6h,
-              txns24h: updateData.txns24h !== undefined ? updateData.txns24h : token.txns24h,
-              makers5m: updateData.makers5m !== undefined ? updateData.makers5m : token.makers5m,
-              makers1h: updateData.makers1h !== undefined ? updateData.makers1h : token.makers1h,
-              makers6h: updateData.makers6h !== undefined ? updateData.makers6h : token.makers6h,
-              makers24h: updateData.makers24h !== undefined ? updateData.makers24h : token.makers24h,
-              marketCap: updateData.marketCap !== undefined ? updateData.marketCap : token.marketCap,
-              liquidity: updateData.liquidity !== undefined ? updateData.liquidity : token.liquidity,
-              isLive: true,
-              lastUpdated: Date.now()
+        if (prevTokens.length === 0) {
+          // First load: use live data as-is
+          return liveTokens;
+        }
+        
+        // Create a map of live data by token address for fast lookup
+        const liveDataMap = new Map();
+        liveTokens.forEach(liveToken => {
+          liveDataMap.set(liveToken.tokenAddress || liveToken.contractAddress, liveToken);
+        });
+        
+        // Merge: Update tokens with live data if available, keep metadata from Jupiter
+        const merged = prevTokens.map(token => {
+          const tokenAddress = token.contractAddress || token.tokenAddress;
+          const liveData = liveDataMap.get(tokenAddress);
+          
+          if (liveData) {
+            // Token has live data, merge it
+            return {
+              ...token, // Keep metadata (name, symbol, etc.)
+              ...liveData, // Override with live data (price, volume, etc.)
+              name: token.name, // Preserve name from Jupiter
+              symbol: token.symbol, // Preserve symbol from Jupiter
+              logoURI: token.logoURI, // Preserve logo from Jupiter
+              isLive: true
             };
-            
-            // Log the update for debugging
-            if (Math.random() < 0.01) {
-              console.log(`✅ [App] Token ${token.symbol || tokenAddress.slice(0, 8)} updated:`, {
-                oldPrice: token.price,
-                newPrice: updatedToken.price,
-                oldVol5m: token.volume5m,
-                newVol5m: updatedToken.volume5m
-              });
-            }
-            
-            return updatedToken;
           }
+          
+          // No live data, keep existing token
           return token;
         });
         
-        if (!foundToken) {
-          console.warn(`⚠️ [App] Token ${tokenAddress.slice(0, 8)} not found in tokens array`);
-        }
+        const liveCount = merged.filter(t => t.isLive).length;
+        console.log(`✅ [App] Updated ${liveCount}/${merged.length} tokens with live data`);
         
-        return updated;
+        return merged;
       });
     };
     
-    websocketService.on('priceUpdate', handlePriceUpdate);
+    websocketService.on('fullStateUpdate', handleFullStateUpdate);
     
     return () => {
-      websocketService.off('priceUpdate', handlePriceUpdate);
+      websocketService.off('fullStateUpdate', handleFullStateUpdate);
     };
   }, []);
   
-  // 🚀 NEW: Subscribe to visible tokens based on current filter
-  const subscribedTokensRef = useRef(new Set());
-  
-  useEffect(() => {
-    if (filteredTokens.length === 0) return;
-    
-    // Get current token addresses
-    const currentAddresses = new Set(
-      filteredTokens
-        .map(token => token.contractAddress || token.tokenAddress)
-        .filter(Boolean)
-    );
-    
-    // Subscribe to NEW tokens only (not already subscribed)
-    currentAddresses.forEach(address => {
-      if (!subscribedTokensRef.current.has(address)) {
-        websocketService.subscribeToToken(address);
-        subscribedTokensRef.current.add(address);
-      }
-    });
-    
-    // Unsubscribe from tokens that are no longer visible
-    subscribedTokensRef.current.forEach(address => {
-      if (!currentAddresses.has(address)) {
-        websocketService.unsubscribeFromToken(address);
-        subscribedTokensRef.current.delete(address);
-      }
-    });
-  }, [filteredTokens.map(t => t.contractAddress || t.tokenAddress).join(',')]);
-  
-  // Cleanup on unmount ONLY: unsubscribe from all
-  useEffect(() => {
-    return () => {
-      subscribedTokensRef.current.forEach(address => {
-        websocketService.unsubscribeFromToken(address);
-      });
-      subscribedTokensRef.current.clear();
-    };
-  }, []); // Empty dependency = only runs on mount/unmount
+  // ✅ NO MORE SUBSCRIPTION MANAGEMENT NEEDED!
+  // Backend broadcasts full state every 10 seconds to ALL clients
+  // No need to subscribe/unsubscribe based on filters
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
     enableRealTimeUpdates: true,

@@ -205,6 +205,31 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+  /**
+   * Broadcast message to ALL connected clients (no subscription filtering)
+   * This is used for periodic full state updates (DEXScreener-style)
+   */
+  broadcast(message) {
+    const messageStr = JSON.stringify(message);
+    let sentCount = 0;
+    
+    this.clients.forEach((clientInfo, clientId) => {
+      if (clientInfo.ws.readyState === WebSocket.OPEN) {
+        try {
+          clientInfo.ws.send(messageStr);
+          sentCount++;
+        } catch (error) {
+          console.error(`❌ [BackendWS] Failed to send to client ${clientId}:`, error.message);
+        }
+      }
+    });
+    
+    // Log every 10th broadcast to reduce noise
+    if (Math.random() < 0.1) {
+      console.log(`📡 [BackendWS] Broadcasted ${message.type} to ${sentCount}/${this.clients.size} clients`);
+    }
+  }
+
   // 🚀 NEW: Send recent swaps to a specific client (for late joiners)
   sendRecentSwapsToClient(clientId, tokenAddress, recentSwaps) {
     if (!recentSwaps || recentSwaps.length === 0) {

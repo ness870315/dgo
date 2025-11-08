@@ -284,6 +284,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log('🚀 [EnhancedHybridPriceService] Step 5: Starting DEX program stream...');
       await this.startDexProgramStream();
       
+      // Start periodic broadcast (DEXScreener-style real-time updates)
+      console.log('📡 [EnhancedHybridPriceService] Step 6: Starting periodic state broadcast...');
+      this.startPeriodicBroadcast();
+      
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
@@ -1124,6 +1128,73 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Get current state of ALL known tokens (for periodic broadcast)
+   * This is the KEY method that enables DEXScreener-style real-time updates
+   */
+  getAllTokensState() {
+    const state = [];
+    
+    for (const [tokenAddress, metrics] of this.knownTokens) {
+      const metricsData = metrics.getMetrics();
+      const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
+      
+      // Only include tokens with actual price data
+      if (metricsData.currentPrice > 0) {
+        state.push({
+          tokenAddress,
+          contractAddress: tokenAddress, // For compatibility
+          price: metricsData.currentPrice,
+          priceUsd: metricsData.currentPrice,
+          priceChange5m: metricsData['5m'].priceChange,
+          priceChange1h: metricsData['1h'].priceChange,
+          priceChange6h: metricsData['6h'].priceChange,
+          priceChange24h: metricsData['24h'].priceChange,
+          volume5m: metricsData['5m'].volume,
+          volume1h: metricsData['1h'].volume,
+          volume6h: metricsData['6h'].volume,
+          volume24h: metricsData['24h'].volume,
+          txns5m: metricsData['5m'].txns,
+          txns1h: metricsData['1h'].txns,
+          txns6h: metricsData['6h'].txns,
+          txns24h: metricsData['24h'].txns,
+          makers5m: metricsData['5m'].makers,
+          makers1h: metricsData['1h'].makers,
+          makers6h: metricsData['6h'].makers,
+          makers24h: metricsData['24h'].makers,
+          marketCap: jupiterData?.mcap || 0,
+          liquidity: jupiterData?.liquidity || 0,
+          isLive: true,
+          lastUpdated: Date.now()
+        });
+      }
+    }
+    
+    return state;
+  }
+
+  /**
+   * Start periodic broadcast of full state to ALL connected clients
+   * This is how DEXScreener maintains real-time updates without subscription complexity
+   */
+  startPeriodicBroadcast() {
+    console.log('🔄 [EnhancedHybridPriceService] Starting periodic state broadcast (every 10s)');
+    
+    this.broadcastInterval = setInterval(() => {
+      const state = this.getAllTokensState();
+      
+      if (this.webSocketServer && state.length > 0) {
+        this.webSocketServer.broadcast({
+          type: 'fullStateUpdate',
+          tokens: state,
+          timestamp: Date.now()
+        });
+        
+        console.log(`📡 [EnhancedHybridPriceService] Broadcasted state for ${state.length} tokens`);
+      }
+    }, 10000); // Every 10 seconds
+  }
+
+  /**
    * Ensure token is being monitored (compatibility method)
    * With DEX program filtering, all tokens are automatically monitored
    */
@@ -1179,6 +1250,13 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   async shutdown() {
     console.log('🛑 [EnhancedHybridPriceService] Shutting down...');
+    
+    // Stop periodic broadcast
+    if (this.broadcastInterval) {
+      clearInterval(this.broadcastInterval);
+      this.broadcastInterval = null;
+      console.log('✅ [EnhancedHybridPriceService] Stopped periodic broadcast');
+    }
     
     if (this.dexStream) {
       this.dexStream.cancel();

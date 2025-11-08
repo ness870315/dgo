@@ -173,6 +173,14 @@ class WebSocketService extends EventEmitter {
         });
         break;
         
+      case 'fullStateUpdate':
+        console.log('🔄 [WebSocketService] Full state update received with', message.tokens?.length, 'tokens');
+        this.emit('fullStateUpdate', {
+          tokens: message.tokens,
+          timestamp: message.timestamp
+        });
+        break;
+        
       case 'subscriptionConfirmed':
         console.log('✅ [WebSocketService] Subscription confirmed for:', message.tokenAddress);
         this.emit('subscriptionConfirmed', message);
