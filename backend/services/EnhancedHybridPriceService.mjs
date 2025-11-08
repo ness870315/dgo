@@ -247,18 +247,36 @@ class EnhancedHybridPriceService extends EventEmitter {
       await this.initializeGrpcClient();
       console.log('✅ [EnhancedHybridPriceService] gRPC client initialized');
       
-      // Load token cache
+      // Load token cache (with timeout to prevent hanging)
       console.log('📂 [EnhancedHybridPriceService] Step 2: Loading token cache...');
-      await this.loadTokenCache();
+      await Promise.race([
+        this.loadTokenCache(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Token cache load timeout')), 10000))
+      ]).catch(error => {
+        console.warn(`⚠️ [EnhancedHybridPriceService] Token cache load failed: ${error.message}, continuing without cache`);
+        this.tokenCache = [];
+      });
+      console.log(`✅ [EnhancedHybridPriceService] Token cache loaded: ${this.tokenCache.length} tokens`);
       
-      // Initialize SOL price
+      // Initialize SOL price (with timeout)
       console.log('💰 [EnhancedHybridPriceService] Step 3: Fetching SOL price...');
-      await this.updateSolPrice();
+      await Promise.race([
+        this.updateSolPrice(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SOL price fetch timeout')), 5000))
+      ]).catch(error => {
+        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price fetch failed: ${error.message}, using default $200`);
+        this.solPriceUSD = 200;
+      });
       console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
       
-      // Initialize persistent swap storage
+      // Initialize persistent swap storage (with timeout)
       console.log('💾 [EnhancedHybridPriceService] Step 4: Initializing swap storage...');
-      await this.chartDatabase.loadData();
+      await Promise.race([
+        this.chartDatabase.loadData(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Chart database load timeout')), 15000))
+      ]).catch(error => {
+        console.warn(`⚠️ [EnhancedHybridPriceService] Chart database load failed: ${error.message}, starting fresh`);
+      });
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
