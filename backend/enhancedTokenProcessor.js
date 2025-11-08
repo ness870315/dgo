@@ -1109,7 +1109,7 @@ class EnhancedTokenProcessor {
         try {
           console.log(`🔍 [DEX STREAM] Fetching Jupiter data for ${tokenMint.slice(0,8)}...`);
           
-          const response = await axios.get(`https://api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
             timeout: 5000
           });
           

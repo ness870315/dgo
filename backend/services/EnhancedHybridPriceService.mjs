@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://api.jup.ag/tokens/v2';
+const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Free tier API
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
