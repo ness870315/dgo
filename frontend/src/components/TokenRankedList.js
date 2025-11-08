@@ -52,131 +52,15 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     return { isFueled: false, multiplier: null };
   };
 
-  // ✅ Fetch INITIAL rankings ONCE on mount (NO polling when tokens prop changes)
-  // Real-time updates come via WebSocket rankingUpdate events below
-  const fetchInitialRankings = useCallback(async () => {
-    // Prevent duplicate calls
-    if (hasFetchedInitialRef.current) {
-      console.log('⏭️ [TokenRankedList] Skipping duplicate fetchInitialRankings call');
-      return;
-    }
-    hasFetchedInitialRef.current = true;
-    
-    console.log('🔍 [TokenRankedList] Fetching INITIAL rankings (one-time only):', tokens?.length, 'tokens');
-    try {
-      // Check if ALL tokens are bonding tokens
-      const allAreBonding = tokens && tokens.length > 0 && tokens.every(t => t.isBondingToken);
-      
-      if (allAreBonding) {
-        console.log('✅ [TokenRankedList] All tokens are bonding, using bonding UI');
-        // For bonding tokens, just use the tokens prop directly
-        setRankings(tokens);
-        setLastUpdate(new Date());
-        return;
-      }
-      
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      
-      // ✅ RETRY LOGIC: Retry up to 3 times for transient failures (503, network errors)
-      let response;
-      let lastError;
-      const maxRetries = 3;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`, {
-            signal: AbortSignal.timeout(10000) // 10 second timeout
-          });
-          
-          // If 503 or other server errors, retry
-          if (response.status === 503 || response.status >= 500) {
-            if (attempt < maxRetries) {
-              console.warn(`⚠️ [TokenRankedList] Server error ${response.status}, retrying (${attempt}/${maxRetries})...`);
-              await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-              continue;
-            }
-          }
-          
-          // If not ok but not 503/5xx, break and handle normally
-          if (!response.ok && response.status < 500) {
-            break;
-          }
-          
-          // Success, break retry loop
-          break;
-        } catch (error) {
-          lastError = error;
-          if (attempt < maxRetries && (error.name === 'TypeError' || error.name === 'NetworkError')) {
-            console.warn(`⚠️ [TokenRankedList] Network error, retrying (${attempt}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-            continue;
-          }
-          throw error; // Re-throw if max retries reached or non-network error
-        }
-      }
-      
-      if (!response || !response.ok) {
-        throw new Error(`HTTP ${response?.status || 'Unknown'}: ${response?.statusText || 'Failed to fetch'}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.data && data.data.length > 0) {
-        // ✅ Merge ranking data with filtered tokens, preserving priceChange24h from tokens prop if missing
-        const tokensMap = new Map();
-        tokens.forEach(t => {
-          const addr = t.contractAddress || t.tokenAddress;
-          if (addr) tokensMap.set(addr, t);
-        });
-        
-        const filteredRankings = data.data.filter(rankedToken => {
-          // Check if ranked token is in our filtered tokens list
-          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
-          return tokens.some(filteredToken => 
-            (filteredToken.contractAddress || filteredToken.tokenAddress) === address
-          );
-        }).map(rankedToken => {
-          // Merge with tokens prop to preserve priceChange24h if rankings don't have it
-          const address = rankedToken.contractAddress || rankedToken.tokenAddress;
-          const tokenFromProp = tokensMap.get(address);
-          
-          return {
-            ...rankedToken,
-            // Preserve priceChange24h from tokens prop if rankings don't have it or it's 0
-            priceChange24h: (rankedToken.priceChange24h !== undefined && rankedToken.priceChange24h !== null && rankedToken.priceChange24h !== 0)
-              ? rankedToken.priceChange24h
-              : (tokenFromProp?.priceChange24h ?? tokenFromProp?.jupiterData?.priceChange24h ?? rankedToken.priceChange24h ?? 0),
-            // Also preserve other price changes if missing
-            priceChange1h: (rankedToken.priceChange1h !== undefined && rankedToken.priceChange1h !== null && rankedToken.priceChange1h !== 0)
-              ? rankedToken.priceChange1h
-              : (tokenFromProp?.priceChange1h ?? tokenFromProp?.jupiterData?.stats1h?.priceChange ?? rankedToken.priceChange1h ?? 0),
-          };
-        });
-        
-        // Preserve the ranking order from the API (sorted by Overall Score)
-        setRankings(filteredRankings);
-        setLastUpdate(new Date());
-      } else {
-        // Fallback to tokens prop if API fails
-        if (tokens && tokens.length > 0) {
-          setRankings(tokens);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching initial rankings:', err);
-      // Fallback to tokens prop on error
-      if (tokens && tokens.length > 0) {
-        setRankings(tokens);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ✅ EMPTY DEPS - only run ONCE on mount, NOT when tokens prop changes
-
-  // ✅ INITIAL FETCH: Only fetch once on mount, not on every tokens change
-  // This prevents HTTP polling when tokens prop updates
+  // ✅ Initialize rankings from tokens prop (NO HTTP fetch needed)
+  // Real-time updates come via WebSocket priceUpdate events
   useEffect(() => {
-    fetchInitialRankings();
-  }, [fetchInitialRankings]);
+    if (tokens && tokens.length > 0 && rankings.length === 0) {
+      console.log('🔍 [TokenRankedList] Initializing rankings from tokens prop:', tokens.length, 'tokens');
+      setRankings(tokens);
+      setLastUpdate(new Date());
+    }
+  }, [tokens, rankings.length]);
 
   // ✅ REAL-TIME: Listen to WebSocket ranking updates (NO HTTP POLLING)
   // This provides LIVE updates for volume, marketcap, makers, price changes without page refreshes
