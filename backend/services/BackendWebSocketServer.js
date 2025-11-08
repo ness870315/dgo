@@ -174,7 +174,8 @@ class BackendWebSocketServer extends EventEmitter {
 
   broadcastToTokenSubscribers(tokenAddress, message) {
     const subscribers = this.tokenSubscriptions.get(tokenAddress);
-    if (subscribers) {
+    if (subscribers && subscribers.size > 0) {
+      console.log(`📡 [BackendWS] Broadcasting to ${subscribers.size} subscribers for ${tokenAddress.slice(0, 8)}...`);
       subscribers.forEach(clientId => {
         this.sendToClient(clientId, {
           ...message,
@@ -182,6 +183,11 @@ class BackendWebSocketServer extends EventEmitter {
           timestamp: Date.now()
         });
       });
+    } else {
+      // Log when there are no subscribers (every 100th broadcast to reduce noise)
+      if (Math.random() < 0.01) {
+        console.log(`⚠️ [BackendWS] No subscribers for ${tokenAddress.slice(0, 8)}... (token not being watched)`);
+      }
     }
   }
 
