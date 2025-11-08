@@ -16,9 +16,10 @@ class RealTimeTokenMonitor {
             errors: 0
         };
         
-        // Cache paths
-        this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
-        this.backupCachePath = path.join(process.cwd(), 'cache', 'tokens-cache-backup.json');
+        // Cache paths - use persistent storage
+        const baseDir = process.env.DATA_DIR || '/var/data/dgo';
+        this.cachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
+        this.backupCachePath = path.join(baseDir, 'cache', 'tokens-cache-backup.json');
     }
 
     async initialize() {
