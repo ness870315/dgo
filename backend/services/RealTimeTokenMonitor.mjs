@@ -3,9 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 
 class RealTimeTokenMonitor {
-    constructor(webSocketServer = null, hybridPriceService = null) {
+    constructor(webSocketServer = null) {
         this.webSocketServer = webSocketServer;
-        this.hybridPriceService = hybridPriceService || null;
+        this.hybridPriceService = null;
         this.isRunning = false;
         this.monitoringStats = {
             startTime: null,
@@ -25,27 +25,13 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // Initialize or reuse EnhancedHybridPriceService
-            if (!this.hybridPriceService) {
-                console.log('🆕 [RealTimeTokenMonitor] Creating new EnhancedHybridPriceService instance');
-                this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
-            } else {
-                console.log('♻️ [RealTimeTokenMonitor] Reusing existing EnhancedHybridPriceService instance');
-                if (this.webSocketServer && !this.hybridPriceService.webSocketServer) {
-                    this.hybridPriceService.webSocketServer = this.webSocketServer;
-                }
-            }
+            // Initialize Enhanced HybridPriceService
+            this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
             
-            // Initialize gRPC/tokens only if not already initialized
-            if (!this.hybridPriceService.isGrpcInitialized()) {
-                console.log('🚀 [RealTimeTokenMonitor] Calling initializeAsync on EnhancedHybridPriceService...');
-                await this.hybridPriceService.initializeAsync();
-                console.log('✅ [RealTimeTokenMonitor] EnhancedHybridPriceService initialized with gRPC and tokens loaded');
-            } else {
-                console.log('⚠️ [RealTimeTokenMonitor] EnhancedHybridPriceService already initialized, skipping initializeAsync');
-            }
+            // Wait for gRPC client to initialize
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
-            // Load token cache (for backward compatibility)
+            // Load token cache
             await this.loadTokenCache();
             
             console.log('✅ [RealTimeTokenMonitor] Initialization complete');
@@ -99,8 +85,9 @@ class RealTimeTokenMonitor {
             this.isRunning = true;
             this.monitoringStats.startTime = Date.now();
             
-            // Start real-time monitoring in HybridPriceService
-            await this.hybridPriceService.startRealTimeMonitoring();
+            // NEW: EnhancedHybridPriceService already starts DEX stream in initializeAsync()
+            // No need to call startRealTimeMonitoring() - it doesn't exist in the new architecture
+            // The DEX stream is already running and monitoring all DEX programs
             
             // Set up event listeners
             this.setupEventListeners();
@@ -108,7 +95,7 @@ class RealTimeTokenMonitor {
             // Start periodic stats reporting
             this.startStatsReporting();
             
-            console.log('✅ [RealTimeTokenMonitor] Real-time monitoring started');
+            console.log('✅ [RealTimeTokenMonitor] Real-time monitoring started (DEX stream already active)');
             
         } catch (error) {
             console.error('❌ [RealTimeTokenMonitor] Failed to start monitoring:', error.message);
@@ -159,7 +146,20 @@ class RealTimeTokenMonitor {
     }
 
     reportStats() {
-        // Stats reporting disabled (too verbose for production)
+        const runtime = Math.floor((Date.now() - this.monitoringStats.startTime) / 1000);
+        const realTimeStats = this.hybridPriceService.getRealTimeStats();
+        
+        console.log('\n📊 [RealTimeTokenMonitor] STATS REPORT');
+        console.log('============================================================');
+        console.log(`⏰ Runtime: ${runtime} seconds`);
+        console.log(`📈 Total Tokens: ${this.monitoringStats.totalTokens}`);
+        console.log(`🔌 Active Streams: ${realTimeStats.activeStreams.length}`);
+        console.log(`💰 Total Swaps: ${this.monitoringStats.totalSwaps}`);
+        console.log(`📊 Price Updates: ${this.monitoringStats.totalPriceUpdates}`);
+        console.log(`❌ Errors: ${this.monitoringStats.errors}`);
+        console.log(`⚡ Swaps/sec: ${(this.monitoringStats.totalSwaps / runtime).toFixed(2)}`);
+        console.log(`📈 Updates/sec: ${(this.monitoringStats.totalPriceUpdates / runtime).toFixed(2)}`);
+        console.log('============================================================\n');
     }
 
     // Public methods for getting real-time data
@@ -234,61 +234,12 @@ class RealTimeTokenMonitor {
             this.hybridPriceService.poolAddresses.set(contractAddress, poolAddress);
             this.hybridPriceService.swapHistory.set(contractAddress, []);
             
-            // ✅ CRITICAL: Populate metadata cache (same logic as loadTopTokens)
-            const price = tokenData.currentPrice || 
-                         tokenData.price || 
-                         tokenData.jupiterData?.price || 
-                         tokenData.birdEyeRaw?.price || 
-                         0;
-            
-            const marketCap = tokenData.marketCap || 
-                            tokenData.jupiterData?.marketCap || 
-                            tokenData.jupiterData?.mcap ||
-                            tokenData.birdEyeRaw?.marketcap ||
-                            tokenData.birdEyeRaw?.fdv ||
-                            0;
-            
-            const liquidity = tokenData.jupiterData?.liquidity || 
-                            tokenData.birdEyeRaw?.liquidity || 
-                            0;
-            
-            const supply = tokenData.jupiterData?.totalSupply || 
-                          tokenData.jupiterData?.circSupply ||
-                          tokenData.supply || 
-                          0;
-            
-            const createdAt = tokenData.jupiterData?.firstPool?.createdAt || 
-                             tokenData.birdEyeRaw?.firstPool?.createdAt ||
-                             tokenData.createdAt || 
-                             tokenData.timestamp ||
-                             Date.now();
-            
-            this.hybridPriceService.tokenMetadataCache.set(contractAddress, {
-                symbol: tokenData.symbol,
-                name: tokenData.name,
-                address: contractAddress,
-                price: price,
-                priceSol: tokenData.priceSol || 0,
-                marketCap: marketCap,
-                liquidity: liquidity,
-                supply: supply,
-                createdAt: createdAt,
-                graduatedPool: tokenData.graduatedPool || tokenData.jupiterData?.graduatedPool,
-                logo: tokenData.logo || tokenData.jupiterData?.icon,
-                jupiterData: tokenData.jupiterData
-            });
-            
-            // Initialize mid-price for outlier detection
-            if (price && price > 0) {
-                this.hybridPriceService.midPriceUsd.set(contractAddress, price);
-            }
-            
             // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
             console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to include new token ${tokenData.symbol}`);
             await this.hybridPriceService.stopRealTimeMonitoring();
             await this.hybridPriceService.startRealTimeMonitoring();
             
-            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring with metadata`);
+            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring`);
             return true;
         } else {
             console.log(`⚠️ [RealTimeTokenMonitor] No pool found for token ${tokenData.symbol}`);
@@ -347,3 +298,4 @@ class RealTimeTokenMonitor {
 }
 
 export default RealTimeTokenMonitor;
+
