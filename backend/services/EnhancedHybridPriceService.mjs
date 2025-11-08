@@ -141,8 +141,65 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // Token tracking
     this.knownTokens = new Map(); // Map<tokenAddress, TokenMetrics>
-    this.newTokenActivity = new Map(); // Map<tokenAddress, { swapCount, firstSeen, lastSeen }>
+    this.newTokenActivity = new Map(); // Map<tokenAddress, { swapCount, firstSeen, lastSeen, ... }>
     this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, supply }>
+    
+    // Multi-layer filter configuration
+    this.filters = {
+      layer1: {
+        minimumAge: 2 * 60 * 1000, // 2 minutes
+        activityThresholds: {
+          minSwaps: 10,
+          minVolume: 1000,  // $1000
+          minTraders: 5
+        },
+        sustainedActivity: {
+          minSwapsPerMinute: 2
+        },
+        priceSanity: {
+          maxPriceChange1m: 500,    // 500%
+          maxPriceChange5m: 1000,   // 1000%
+          minPrice: 0.00000001,
+          maxPrice: 1000000
+        }
+      },
+      layer2: {
+        requireQualityIndicator: true,  // graduatedAt OR launchpad OR organicScore
+        blockSuspicious: true,          // audit.isSus !== true
+        blockFrozen: true               // audit.frozen !== true
+      }
+    };
+    
+    // Filter statistics
+    this.filterStats = {
+      layer1: {
+        checked: 0,
+        passed: 0,
+        failed: {
+          tooYoung: 0,
+          lowActivity: 0,
+          lowSwapRate: 0,
+          extremeVolatility: 0,
+          suspiciousStability: 0
+        }
+      },
+      layer2: {
+        checked: 0,
+        passed: 0,
+        failed: {
+          notInJupiter: 0,
+          noQualityIndicators: 0,
+          suspiciousFlag: 0,
+          frozen: 0,
+          apiError: 0
+        }
+      },
+      layer3: {
+        processed: 0,
+        successful: 0,
+        failed: 0
+      }
+    }
     
     // SOL price tracking
     this.solPriceUSD = 0;
@@ -504,80 +561,216 @@ class EnhancedHybridPriceService extends EventEmitter {
         swapCount: 0,
         firstSeen: Date.now(),
         lastSeen: Date.now(),
-        totalVolume: 0
+        totalVolume: 0,
+        uniqueTraders: new Set(),
+        swaps: [],
+        priceHistory: [],
+        layer1Checked: false,
+        layer1Passed: false,
+        layer2Checked: false,
+        layer2Passed: false
       };
       this.newTokenActivity.set(swap.tokenMint, activity);
     }
     
+    // Update activity
     activity.swapCount++;
     activity.lastSeen = Date.now();
     activity.totalVolume += swap.volumeUsd;
+    if (swap.walletAddress) {
+      activity.uniqueTraders.add(swap.walletAddress);
+    }
+    activity.swaps.push(swap);
+    activity.priceHistory.push({ timestamp: swap.timestamp, price: swap.priceUsd });
     
-    // Apply filters before adding to database
-    const shouldAdd = await this.applyTokenFilters(swap.tokenMint, activity);
+    // Keep only last 100 swaps and prices (memory management)
+    if (activity.swaps.length > 100) {
+      activity.swaps = activity.swaps.slice(-100);
+    }
+    if (activity.priceHistory.length > 100) {
+      activity.priceHistory = activity.priceHistory.slice(-100);
+    }
     
-    if (shouldAdd) {
-      console.log(`🆕 [EnhancedHybridPriceService] New token discovered: ${swap.tokenMint.slice(0, 8)}... (${activity.swapCount} swaps, $${activity.totalVolume.toFixed(2)} volume)`);
+    // Layer 1: Activity Filters (FREE - No API calls)
+    if (!activity.layer1Checked) {
+      const layer1Result = await this.applyLayer1Filters(swap.tokenMint, activity);
+      activity.layer1Checked = true;
+      activity.layer1Passed = layer1Result;
+      
+      if (!layer1Result) {
+        // Don't check again, but keep tracking for stats
+        return;
+      }
+    }
+    
+    // Layer 2: Jupiter Validation (Only if Layer 1 passed)
+    if (activity.layer1Passed && !activity.layer2Checked) {
+      const layer2Result = await this.applyLayer2Filters(swap.tokenMint);
+      activity.layer2Checked = true;
+      activity.layer2Passed = layer2Result.passed;
+      
+      if (!layer2Result.passed) {
+        // Failed Layer 2, remove from tracking
+        this.newTokenActivity.delete(swap.tokenMint);
+        return;
+      }
+      
+      // PASSED ALL FILTERS! Add to database
+      console.log(`🆕 [EnhancedHybridPriceService] New token discovered: ${swap.tokenMint.slice(0, 8)}...`);
+      console.log(`   Symbol: ${layer2Result.jupiterData.symbol}`);
+      console.log(`   Swaps: ${activity.swapCount}, Volume: $${activity.totalVolume.toFixed(2)}, Traders: ${activity.uniqueTraders.size}`);
       
       // Add to known tokens
       const metrics = new TokenMetrics(swap.tokenMint);
-      metrics.addSwap(swap);
+      
+      // Add all historical swaps
+      for (const historicalSwap of activity.swaps) {
+        metrics.addSwap(historicalSwap);
+        
+        // Save to ChartDatabase
+        this.chartDatabase.addSwap(swap.tokenMint, {
+          timestamp: historicalSwap.timestamp,
+          type: historicalSwap.type,
+          price: historicalSwap.priceUsd,
+          amount: historicalSwap.tokenAmount,
+          volumeUsd: historicalSwap.volumeUsd,
+          signature: historicalSwap.signature
+        });
+      }
+      
       this.knownTokens.set(swap.tokenMint, metrics);
       
-      // Save to ChartDatabase
-      this.chartDatabase.addSwap(swap.tokenMint, {
-        timestamp: swap.timestamp,
-        type: swap.type,
-        price: swap.priceUsd,
-        amount: swap.tokenAmount,
-        volumeUsd: swap.volumeUsd,
-        signature: swap.signature
-      });
-      
       // Trigger token processing (scoring, Twitter data, etc.)
-      this.triggerTokenProcessing(swap.tokenMint);
+      this.triggerTokenProcessing(swap.tokenMint, layer2Result.jupiterData, activity);
       
       this.stats.tokensDiscovered++;
+      this.filterStats.layer3.processed++;
+      this.filterStats.layer3.successful++;
       this.newTokenActivity.delete(swap.tokenMint);
     }
   }
 
   /**
-   * Apply multi-layer filters to new tokens
+   * Layer 1: Activity Filters (FREE - No API Calls)
    */
-  async applyTokenFilters(tokenMint, activity) {
-    // Filter 1: Minimum activity threshold
-    if (activity.swapCount < 3) {
-      return false; // Need at least 3 swaps
-    }
+  async applyLayer1Filters(tokenMint, activity) {
+    this.filterStats.layer1.checked++;
     
-    // Filter 2: Minimum volume threshold
-    if (activity.totalVolume < 100) {
-      return false; // Need at least $100 volume
+    // 1. Age Filter
+    const age = Date.now() - activity.firstSeen;
+    if (age < this.filters.layer1.minimumAge) {
+      this.filterStats.layer1.failed.tooYoung++;
+      return false;
     }
+
+    // 2. Activity Threshold (2 of 3)
+    const meetsSwaps = activity.swapCount >= this.filters.layer1.activityThresholds.minSwaps;
+    const meetsVolume = activity.totalVolume >= this.filters.layer1.activityThresholds.minVolume;
+    const meetsTraders = activity.uniqueTraders.size >= this.filters.layer1.activityThresholds.minTraders;
     
-    // Filter 3: Check Jupiter API for quality indicators
+    const activityScore = (meetsSwaps ? 1 : 0) + (meetsVolume ? 1 : 0) + (meetsTraders ? 1 : 0);
+    if (activityScore < 2) {
+      this.filterStats.layer1.failed.lowActivity++;
+      return false;
+    }
+
+    // 3. Sustained Activity
+    const ageMinutes = age / (60 * 1000);
+    const swapsPerMinute = activity.swapCount / ageMinutes;
+    if (swapsPerMinute < this.filters.layer1.sustainedActivity.minSwapsPerMinute) {
+      this.filterStats.layer1.failed.lowSwapRate++;
+      return false;
+    }
+
+    // 4. Price Sanity
+    if (activity.priceHistory.length >= 2) {
+      const recentPrices = activity.priceHistory.slice(-10);
+      const priceChanges = [];
+      
+      for (let i = 1; i < recentPrices.length; i++) {
+        const change = Math.abs((recentPrices[i].price - recentPrices[i-1].price) / recentPrices[i-1].price) * 100;
+        priceChanges.push(change);
+      }
+      
+      const maxChange = Math.max(...priceChanges);
+      const avgChange = priceChanges.reduce((a, b) => a + b, 0) / priceChanges.length;
+      
+      // Check for extreme volatility
+      if (maxChange > this.filters.layer1.priceSanity.maxPriceChange1m) {
+        this.filterStats.layer1.failed.extremeVolatility++;
+        return false;
+      }
+      
+      // Check for suspicious patterns (too stable = bot trading)
+      if (avgChange < 0.1 && activity.swapCount > 20) {
+        this.filterStats.layer1.failed.suspiciousStability++;
+        return false;
+      }
+    }
+
+    this.filterStats.layer1.passed++;
+    console.log(`✅ [Layer1] ${tokenMint.slice(0,8)}... PASSED: Age=${(age/1000).toFixed(0)}s, Swaps=${activity.swapCount}, Volume=$${activity.totalVolume.toFixed(0)}, Traders=${activity.uniqueTraders.size}`);
+    return true;
+  }
+
+  /**
+   * Layer 2: Jupiter Validation (API Calls Only for 5%)
+   */
+  async applyLayer2Filters(tokenMint) {
+    this.filterStats.layer2.checked++;
+    
     try {
+      // Fetch Jupiter data (with caching)
       const jupiterData = await this.fetchJupiterData(tokenMint);
       
       if (!jupiterData) {
-        return false; // Not on Jupiter
+        this.filterStats.layer2.failed.notInJupiter++;
+        return { passed: false, reason: 'not_in_jupiter' };
       }
-      
-      // Must have at least one quality indicator
-      const hasLaunchpad = jupiterData.launchpad && jupiterData.launchpad !== '';
+
+      // 1. Quality Indicators (must have at least one)
       const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
+      const hasLaunchpad = jupiterData.launchpad && jupiterData.launchpad !== '';
       const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
       
-      if (!hasLaunchpad && !hasGraduatedAt && !hasOrganicScore) {
-        return false; // No quality indicators
+      if (!hasGraduatedAt && !hasLaunchpad && !hasOrganicScore) {
+        this.filterStats.layer2.failed.noQualityIndicators++;
+        console.log(`🚫 [Layer2] ${tokenMint.slice(0,8)}... FILTERED: No quality indicators`);
+        return { passed: false, reason: 'no_quality_indicators' };
       }
-      
-      return true;
-      
+
+      // 2. Security Checks
+      if (this.filters.layer2.blockSuspicious && jupiterData.audit?.isSus === true) {
+        this.filterStats.layer2.failed.suspiciousFlag++;
+        console.log(`🚫 [Layer2] ${tokenMint.slice(0,8)}... FILTERED: Flagged as suspicious`);
+        return { passed: false, reason: 'suspicious_flag' };
+      }
+
+      if (this.filters.layer2.blockFrozen && jupiterData.audit?.frozen === true) {
+        this.filterStats.layer2.failed.frozen++;
+        console.log(`🚫 [Layer2] ${tokenMint.slice(0,8)}... FILTERED: Token is frozen`);
+        return { passed: false, reason: 'frozen' };
+      }
+
+      // 3. Calculate quality score
+      const qualityScore = 
+        (hasGraduatedAt ? 1 : 0) + 
+        (hasLaunchpad ? 1 : 0) + 
+        (hasOrganicScore ? 1 : 0);
+
+      this.filterStats.layer2.passed++;
+      console.log(`✅ [Layer2] ${tokenMint.slice(0,8)}... PASSED: Quality=${qualityScore}/3, Symbol=${jupiterData.symbol}`);
+
+      return { 
+        passed: true, 
+        jupiterData,
+        qualityScore 
+      };
+
     } catch (error) {
-      console.error(`❌ [EnhancedHybridPriceService] Error checking Jupiter data for ${tokenMint}:`, error.message);
-      return false;
+      this.filterStats.layer2.failed.apiError++;
+      console.error(`❌ [Layer2] ${tokenMint.slice(0,8)}... ERROR:`, error.message);
+      return { passed: false, reason: 'api_error' };
     }
   }
 
@@ -704,6 +897,50 @@ class EnhancedHybridPriceService extends EventEmitter {
       knownTokens: this.knownTokens.size,
       newTokensTracking: this.newTokenActivity.size,
       streamUptime: this.stats.lastStreamStart ? Date.now() - this.stats.lastStreamStart : 0
+    };
+  }
+
+  /**
+   * Get filter statistics
+   */
+  getFilterStats() {
+    const layer1Total = this.filterStats.layer1.checked;
+    const layer1PassRate = layer1Total > 0 ? (this.filterStats.layer1.passed / layer1Total * 100).toFixed(2) : '0.00';
+    
+    const layer2Total = this.filterStats.layer2.checked;
+    const layer2PassRate = layer2Total > 0 ? (this.filterStats.layer2.passed / layer2Total * 100).toFixed(2) : '0.00';
+    
+    const totalChecked = layer1Total;
+    const totalPassed = this.filterStats.layer3.successful;
+    const totalPassRate = totalChecked > 0 ? (totalPassed / totalChecked * 100).toFixed(2) : '0.00';
+    
+    const apiCallReduction = layer1Total > 0 ? ((1 - layer2Total / layer1Total) * 100).toFixed(2) : '0.00';
+    
+    return {
+      layer1: {
+        checked: layer1Total,
+        passed: this.filterStats.layer1.passed,
+        passRate: `${layer1PassRate}%`,
+        failed: this.filterStats.layer1.failed
+      },
+      layer2: {
+        checked: layer2Total,
+        passed: this.filterStats.layer2.passed,
+        passRate: `${layer2PassRate}%`,
+        failed: this.filterStats.layer2.failed
+      },
+      layer3: {
+        processed: this.filterStats.layer3.processed,
+        successful: this.filterStats.layer3.successful,
+        failed: this.filterStats.layer3.failed
+      },
+      summary: {
+        totalChecked,
+        totalPassed,
+        totalPassRate: `${totalPassRate}%`,
+        totalFiltered: `${(100 - parseFloat(totalPassRate)).toFixed(2)}%`,
+        apiCallReduction: `${apiCallReduction}%`
+      }
     };
   }
 
