@@ -328,9 +328,11 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.stats.streamRestarts++;
       
       console.log('✅ [EnhancedHybridPriceService] DEX program stream connected');
+      console.log('👂 [EnhancedHybridPriceService] Listening for DEX transactions...');
       
       // Handle stream data
       this.dexStream.on('data', (msg) => {
+        console.log('📨 [EnhancedHybridPriceService] Received stream message');
         this.handleStreamData(msg);
       });
       
