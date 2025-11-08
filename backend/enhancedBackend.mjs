@@ -18156,8 +18156,14 @@ Thanks for using x402 payments on Twitter! ðŸš€`;
       
       // Now reinitialize EnhancedHybridPriceService with WebSocket server
       if (this.enhancedHybridPriceService) {
-        console.log('ðŸ”„ Reinitializing EnhancedHybridPriceService with WebSocket server...');
+        console.log('ðŸ"„ Reinitializing EnhancedHybridPriceService with WebSocket server...');
         this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
+        
+        // Start DEX stream now that WebSocket is available
+        console.log('ðŸš€ Starting DEX stream with WebSocket broadcasting enabled...');
+        this.enhancedHybridPriceService.initializeAsync().catch(error => {
+          console.error('âŒ Failed to start DEX stream:', error.message);
+        });
       }
       
     } catch (error) {

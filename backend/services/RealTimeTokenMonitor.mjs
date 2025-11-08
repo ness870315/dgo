@@ -149,6 +149,7 @@ class RealTimeTokenMonitor {
     reportStats() {
         const runtime = Math.floor((Date.now() - this.monitoringStats.startTime) / 1000);
         const serviceStats = this.hybridPriceService.getStats();
+        const filterStats = this.hybridPriceService.getFilterStats();
         
         console.log('\n📊 [RealTimeTokenMonitor] STATS REPORT');
         console.log('============================================================');
@@ -159,6 +160,25 @@ class RealTimeTokenMonitor {
         console.log(`🔍 Tokens Discovered: ${serviceStats.tokensDiscovered}`);
         console.log(`⚡ Stream Uptime: ${Math.floor(serviceStats.streamUptime / 1000)}s`);
         console.log(`📊 Swaps/sec: ${(serviceStats.totalSwapsProcessed / runtime).toFixed(2)}`);
+        console.log('------------------------------------------------------------');
+        console.log('🚦 FILTER PERFORMANCE:');
+        console.log(`   Layer 1 (Activity): ${filterStats.layer1.checked} checked, ${filterStats.layer1.passed} passed (${filterStats.layer1.passRate})`);
+        if (filterStats.layer1.failed) {
+            console.log(`      ❌ Too Young: ${filterStats.layer1.failed.tooYoung || 0}`);
+            console.log(`      ❌ Low Activity: ${filterStats.layer1.failed.lowActivity || 0}`);
+            console.log(`      ❌ Low Swap Rate: ${filterStats.layer1.failed.lowSwapRate || 0}`);
+            console.log(`      ❌ Extreme Volatility: ${filterStats.layer1.failed.extremeVolatility || 0}`);
+            console.log(`      ❌ Suspicious Price: ${filterStats.layer1.failed.suspiciousPrice || 0}`);
+        }
+        console.log(`   Layer 2 (Jupiter): ${filterStats.layer2.checked} checked, ${filterStats.layer2.passed} passed (${filterStats.layer2.passRate})`);
+        if (filterStats.layer2.failed) {
+            console.log(`      ❌ No Quality Indicators: ${filterStats.layer2.failed.noQualityIndicators || 0}`);
+            console.log(`      ❌ Suspicious Token: ${filterStats.layer2.failed.suspicious || 0}`);
+            console.log(`      ❌ Frozen Token: ${filterStats.layer2.failed.frozen || 0}`);
+            console.log(`      ❌ API Error: ${filterStats.layer2.failed.apiError || 0}`);
+        }
+        console.log(`   💾 Saved to Database: ${filterStats.layer3.successful}`);
+        console.log(`   📉 API Call Reduction: ${filterStats.summary.apiCallReduction}`);
         console.log('============================================================\n');
     }
 
