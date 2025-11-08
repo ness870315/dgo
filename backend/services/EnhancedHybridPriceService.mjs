@@ -505,7 +505,7 @@ class EnhancedHybridPriceService extends EventEmitter {
   /**
    * Process swap for a known token (already in database)
    */
-  processKnownTokenSwap(swap) {
+  async processKnownTokenSwap(swap) {
     this.stats.knownTokenSwaps++;
     
     // Get or create TokenMetrics
