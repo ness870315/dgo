@@ -1,25 +1,16 @@
 import FastChartService from './FastChartService.js';
-import ChartBackgroundWorker from './ChartBackgroundWorker.js';
 
 class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
         try {
             console.log('⚡ Initializing HybridChartService...');
-            this.useHelius = process.env.ENABLE_HELIUS === 'true' && !!heliusApiKey;
-            console.log(`   Helius API Key: ${heliusApiKey ? '✅ Set' : '❌ Missing'}`);
-            console.log(`   Helius Streaming Enabled: ${this.useHelius ? '✅ Yes' : '🚫 Disabled'}`);
             console.log(`   Moralis API Key: ${moralisApiKey ? '✅ Set' : '❌ Missing'}`);
             
             this.fastChartService = new FastChartService(this); // Pass self reference
             console.log('✅ FastChartService initialized');
             
-            if (this.useHelius) {
-                this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
-                console.log('✅ ChartBackgroundWorker initialized');
-            } else {
-                this.backgroundWorker = null;
-                console.log('⚠️ ChartBackgroundWorker skipped (Helius disabled)');
-            }
+            // Helius services removed - using DEX stream for real-time data
+            this.backgroundWorker = null;
             
             this.dataSourceStats = {
                 database: { calls: 0, success: 0, errors: 0 },
@@ -28,11 +19,8 @@ class HybridChartService {
             
             console.log('⚡ HybridChartService initialized with Fast Architecture');
             console.log('   Primary: Fast Chart Service (instant database access)');
-            console.log('   Background: Continuous data ingestion');
+            console.log('   Real-time: DEX stream (via EnhancedHybridPriceService)');
             console.log('   Fallback: Moralis OHLCV (when database empty)');
-            
-            // Start background worker if enabled
-            this.startBackgroundWorker();
         } catch (error) {
             console.error('❌ Failed to initialize HybridChartService:', error.message);
             console.error('Stack:', error.stack);
@@ -40,18 +28,7 @@ class HybridChartService {
         }
     }
 
-    async startBackgroundWorker() {
-        if (!this.backgroundWorker) {
-            console.log('⚠️ Background worker not started (Helius disabled)');
-            return;
-        }
-        try {
-            await this.backgroundWorker.start();
-            console.log('✅ Background worker started');
-        } catch (error) {
-            console.error('❌ Failed to start background worker:', error.message);
-        }
-    }
+    // Background worker removed - using DEX stream for real-time data
 
     async getChartData(tokenAddress, timeframe = '5MIN', limit = null) {
         const startTime = Date.now();
@@ -172,28 +149,22 @@ class HybridChartService {
         return this.dataSourceStats;
     }
 
-    // Background Worker methods
+    // Background worker methods removed - using DEX stream for real-time data
     async addToken(tokenAddress) {
-        console.log(`➕ Adding token ${tokenAddress.substring(0, 8)} to background worker`);
-        if (!this.backgroundWorker) {
-            console.log('⚠️ Background worker unavailable (Helius disabled)');
-            return false;
-        }
-        return await this.backgroundWorker.addToken(tokenAddress);
+        console.log(`➕ Token ${tokenAddress.substring(0, 8)} will be monitored by DEX stream`);
+        return true; // DEX stream automatically monitors all tokens
     }
 
     async getWorkerStatus() {
-        if (!this.backgroundWorker) {
-            return {
-                isRunning: false,
-                updateInterval: 0,
-                backfillInterval: 0,
-                processedPools: 0,
-                databaseStats: await this.fastChartService.getDatabaseStats(),
-                heliusEnabled: false
-            };
-        }
-        return await this.backgroundWorker.getStatus();
+        return {
+            isRunning: false,
+            updateInterval: 0,
+            backfillInterval: 0,
+            processedPools: 0,
+            databaseStats: await this.fastChartService.getDatabaseStats(),
+            heliusEnabled: false,
+            dexStreamEnabled: true
+        };
     }
 
     // Database methods

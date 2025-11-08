@@ -20,8 +20,8 @@ class FastChartService {
         
         console.log('⚡ FastChartService initialized');
         console.log('   Data source: Centralized database (instant)');
-        console.log('   Fallback chain: Helius → Moralis → DexScreener');
-        console.log(`   Background worker access: ${hybridChartService ? 'Available' : 'Not available'}`);
+        console.log('   Real-time: DEX stream (via EnhancedHybridPriceService)');
+        console.log('   Fallback chain: Moralis → DexScreener');
     }
 
     /**
@@ -139,7 +139,7 @@ class FastChartService {
     }
 
     /**
-     * Fallback chain: Helius → Moralis → DexScreener
+     * Fallback chain: Moralis → DexScreener
      */
     async getMoralisFallback(tokenAddress, timeframe, limit) {
         // Validate and correct token address
@@ -320,24 +320,12 @@ class FastChartService {
     async triggerBackgroundBackfill(tokenAddress) {
         try {
             if (this.hybridChartService) {
-                // Use the existing background worker from HybridChartService
-                console.log(`🚀 Adding ${tokenAddress.substring(0, 8)} to existing background worker...`);
+                // DEX stream will automatically monitor this token
+                console.log(`🚀 Token ${tokenAddress.substring(0, 8)} will be monitored by DEX stream...`);
                 await this.hybridChartService.addToken(tokenAddress);
-                console.log(`✅ Token ${tokenAddress.substring(0, 8)} added to background worker`);
+                console.log(`✅ Token ${tokenAddress.substring(0, 8)} registered`);
             } else {
-                console.warn(`⚠️ No HybridChartService reference, cannot trigger background backfill for ${tokenAddress.substring(0, 8)}`);
-                
-                // Fallback: Create a temporary worker (not ideal but better than nothing)
-                const { default: ChartBackgroundWorker } = await import('./ChartBackgroundWorker.js');
-                const heliusApiKey = process.env.HELIUS_API_KEY;
-                
-                if (heliusApiKey) {
-                    const worker = new ChartBackgroundWorker(heliusApiKey);
-                    await worker.addToken(tokenAddress);
-                    console.log(`✅ Fallback: Background backfill triggered for ${tokenAddress.substring(0, 8)}`);
-                } else {
-                    console.warn('⚠️ HELIUS_API_KEY not found, cannot trigger background backfill');
-                }
+                console.log(`⚠️ No HybridChartService reference, token ${tokenAddress.substring(0, 8)} will be picked up by DEX stream automatically`);
             }
         } catch (error) {
             console.error(`❌ Failed to trigger background backfill for ${tokenAddress.substring(0, 8)}:`, error.message);
