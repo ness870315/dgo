@@ -256,8 +256,13 @@ function AppContent() {
         return;
       }
       
-      setTokens(prevTokens => 
-        prevTokens.map(token => {
+      // Log every 20th update to confirm it's working
+      if (Math.random() < 0.05) {
+        console.log(`📊 [App] Updating token ${tokenAddress.slice(0, 8)}... price: $${updateData.price?.toFixed(6)}, vol5m: $${updateData.volume5m?.toFixed(2)}`);
+      }
+      
+      setTokens(prevTokens => {
+        const updated = prevTokens.map(token => {
           if (token.contractAddress === tokenAddress || token.tokenAddress === tokenAddress) {
             return {
               ...token,
@@ -287,8 +292,9 @@ function AppContent() {
             };
           }
           return token;
-        })
-      );
+        });
+        return updated;
+      });
     };
     
     websocketService.on('priceUpdate', handlePriceUpdate);
