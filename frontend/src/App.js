@@ -282,24 +282,25 @@ function AppContent() {
   useEffect(() => {
     if (filteredTokens.length === 0) return;
     
-    // Subscribe to all visible tokens
-    filteredTokens.forEach(token => {
-      const address = token.contractAddress || token.tokenAddress;
-      if (address) {
-        websocketService.subscribeToToken(address);
-      }
+    // Get current token addresses
+    const currentAddresses = new Set(
+      filteredTokens
+        .map(token => token.contractAddress || token.tokenAddress)
+        .filter(Boolean)
+    );
+    
+    // Subscribe to new tokens only
+    currentAddresses.forEach(address => {
+      websocketService.subscribeToToken(address);
     });
     
-    // Cleanup: Unsubscribe when tokens change
+    // Cleanup: Unsubscribe when component unmounts or tokens change
     return () => {
-      filteredTokens.forEach(token => {
-        const address = token.contractAddress || token.tokenAddress;
-        if (address) {
-          websocketService.unsubscribeFromToken(address);
-        }
+      currentAddresses.forEach(address => {
+        websocketService.unsubscribeFromToken(address);
       });
     };
-  }, [filteredTokens]);
+  }, [filteredTokens.map(t => t.contractAddress || t.tokenAddress).join(',')]);
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
     enableRealTimeUpdates: true,
@@ -1678,4 +1679,4 @@ function App() {
 }
 
 export default App;
-
+
