@@ -279,6 +279,8 @@ function AppContent() {
   }, []);
   
   // 🚀 NEW: Subscribe to visible tokens based on current filter
+  const subscribedTokensRef = useRef(new Set());
+  
   useEffect(() => {
     if (filteredTokens.length === 0) return;
     
@@ -289,16 +291,28 @@ function AppContent() {
         .filter(Boolean)
     );
     
-    // Subscribe to new tokens only
+    // Subscribe to NEW tokens only (not already subscribed)
     currentAddresses.forEach(address => {
-      websocketService.subscribeToToken(address);
+      if (!subscribedTokensRef.current.has(address)) {
+        websocketService.subscribeToToken(address);
+        subscribedTokensRef.current.add(address);
+      }
     });
     
-    // Cleanup: Unsubscribe when component unmounts or tokens change
+    // Unsubscribe from tokens that are no longer visible
+    subscribedTokensRef.current.forEach(address => {
+      if (!currentAddresses.has(address)) {
+        websocketService.unsubscribeFromToken(address);
+        subscribedTokensRef.current.delete(address);
+      }
+    });
+    
+    // Cleanup on unmount: unsubscribe from all
     return () => {
-      currentAddresses.forEach(address => {
+      subscribedTokensRef.current.forEach(address => {
         websocketService.unsubscribeFromToken(address);
       });
+      subscribedTokensRef.current.clear();
     };
   }, [filteredTokens.map(t => t.contractAddress || t.tokenAddress).join(',')]);
   const [settings, setSettings] = useState({

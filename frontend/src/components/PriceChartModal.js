@@ -86,18 +86,22 @@ const PriceChartModal = ({ token, onClose }) => {
   };
 
   // Subscribe to WebSocket on mount, unsubscribe on unmount
+  const subscribedRef = useRef(false);
+  
   useEffect(() => {
     const contractAddress = token?.contractAddress;
-    if (contractAddress) {
+    if (contractAddress && !subscribedRef.current) {
       websocketService.subscribeToToken(contractAddress);
+      subscribedRef.current = true;
     }
     
     return () => {
-      if (contractAddress) {
+      if (contractAddress && subscribedRef.current) {
         websocketService.unsubscribeFromToken(contractAddress);
+        subscribedRef.current = false;
       }
     };
-  }, []); // Empty dependency array - only run on mount/unmount
+  }, [token?.contractAddress]); // Depend on contract address to handle token changes
 
   // Load data when token changes
   useEffect(() => {
