@@ -5,7 +5,6 @@ import BubbleMap from './components/BubbleMap';
 import TokenRankedList from './components/TokenRankedList';
 import ViewToggle from './components/ViewToggle';
 import TokenDetails from './components/TokenDetails';
-import EnhancedTokenDetails from './components/EnhancedTokenDetails';
 import Settings from './components/Settings';
 import CategoryFilters from './components/CategoryFilters';
 import TemperatureLegend from './components/TemperatureLegend';
@@ -25,11 +24,11 @@ import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple'
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import PreTokenDetail from './components/PreTokenDetail';
 import JupiterWidget from './components/JupiterWidget';
-import JupiterSearchModal from './components/JupiterSearchModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
+import websocketService from './services/websocketService';
 import './App.css';
 
 // Professional Success Modal Function
@@ -234,17 +233,73 @@ function AppContent() {
   const [chatPosition, setChatPosition] = useState(null);
   const [fueledTokens, setFueledTokens] = useState([]);
   
-  // Jupiter search modal state
-  const [showJupiterSearch, setShowJupiterSearch] = useState(false);
-  const [jupiterSearchResults, setJupiterSearchResults] = useState([]);
-  const [jupiterSearchLoading, setJupiterSearchLoading] = useState(false);
-  const [pendingSearchTerm, setPendingSearchTerm] = useState('');
-  
   // Handler for opening chat from floating button
   const handleOpenChat = () => {
     setShowAIChat(true);
   };
-  const [viewMode, setViewMode] = useState('ranklist'); // 'bubbles', 'cards', or 'ranklist'
+  const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
+  
+  // 🚀 NEW: WebSocket Integration for Real-Time Updates
+  useEffect(() => {
+    // Connect to WebSocket
+    if (!websocketService.isConnected) {
+      websocketService.connect();
+    }
+    
+    // Listen for price updates from backend
+    const handlePriceUpdate = ({ tokenAddress, priceData }) => {
+      setTokens(prevTokens => 
+        prevTokens.map(token => {
+          if (token.contractAddress === tokenAddress || token.tokenAddress === tokenAddress) {
+            return {
+              ...token,
+              // Update with real-time data from DEX stream
+              price: priceData.price || token.price,
+              priceUsd: priceData.price || token.priceUsd,
+              priceChange5m: priceData.priceChange5m,
+              priceChange1h: priceData.priceChange1h,
+              volume5m: priceData.volume5m,
+              volume1h: priceData.volume1h,
+              txns5m: priceData.txns5m,
+              makers5m: priceData.makers5m,
+              isLive: priceData.isLive || true,
+              lastUpdated: Date.now()
+            };
+          }
+          return token;
+        })
+      );
+    };
+    
+    websocketService.on('priceUpdate', handlePriceUpdate);
+    
+    return () => {
+      websocketService.off('priceUpdate', handlePriceUpdate);
+    };
+  }, []);
+  
+  // 🚀 NEW: Subscribe to visible tokens based on current filter
+  useEffect(() => {
+    if (filteredTokens.length === 0) return;
+    
+    // Subscribe to all visible tokens
+    filteredTokens.forEach(token => {
+      const address = token.contractAddress || token.tokenAddress;
+      if (address) {
+        websocketService.subscribeToToken(address);
+      }
+    });
+    
+    // Cleanup: Unsubscribe when tokens change
+    return () => {
+      filteredTokens.forEach(token => {
+        const address = token.contractAddress || token.tokenAddress;
+        if (address) {
+          websocketService.unsubscribeFromToken(address);
+        }
+      });
+    };
+  }, [filteredTokens]);
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
     enableRealTimeUpdates: true,
@@ -282,7 +337,7 @@ function AppContent() {
   });
 
   // View toggle state
-  const [currentView, setCurrentView] = useState('list'); // 'bubbles' or 'list'
+  const [currentView, setCurrentView] = useState('bubbles'); // 'bubbles' or 'list'
   
   // Bonding tokens state
   const [bondingTokens, setBondingTokens] = useState([]);
@@ -326,7 +381,7 @@ function AppContent() {
         const hypeLabel = t?.hypeAnalysis?.latestLabel || t?.hypeLabel;
         if (hypeLabel) return /viral|trending/i.test(hypeLabel);
         const s = (t.score || t.overallScore || 0);
-        return s >= 7.8; // Viral (8.5+) and Trending (7.8-8.4) only - matching backend threshold
+        return s >= 8.0; // Viral (9.0+) and Trending (8.0-8.9) only
       };
       const viralAndTrendingCandidates = tokenData.filter(isViralOrTrendingToken);
 
@@ -597,16 +652,9 @@ function AppContent() {
       // Use bonding tokens instead of regular tokens
       let filtered = bondingTokens;
       
-      // Apply filters
+      // Apply filters and sorting
       filtered = tokenService.filterTokens(filtered, currentFilters);
-      
-      // Sort by graduation progress (descending)
-      filtered = [...filtered].sort((a, b) => {
-        const progressA = a.bondingCurveProgress || 0;
-        const progressB = b.bondingCurveProgress || 0;
-        return progressB - progressA; // Descending - highest progress first
-      });
-      
+      filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
       setFilteredTokens(filtered);
       return;
     }
@@ -664,7 +712,6 @@ function AppContent() {
           graduationAlerts: token.graduationAlerts,
           // Add mock data for compatibility
           score: 8.5, // High score for bonding tokens
-          mentions: 100, // Mock mentions to pass filter checks
           marketCap: token.fullyDilutedValuation || 0,
           volume24h: token.liquidity || 0,
           priceChange24h: 0,
@@ -768,16 +815,7 @@ function AppContent() {
 
   // Handle search
   const handleSearch = useCallback((term) => {
-    setSearchTerm((prevSearchTerm) => {
-      // Clear selected token when starting a new search (when search term changes)
-      // This prevents the overlay from appearing when searching
-      if (term && term.trim() && term !== prevSearchTerm) {
-        setSelectedToken(null);
-        setShowPreTokenDetail(false);
-      }
-      return term;
-    });
-    
+    setSearchTerm(term);
     // Search is now global - always use regular tokens as base, search will combine with bonding tokens
     applyFiltersAndSearch(tokens, filters, term);
   }, [tokens, filters, applyFiltersAndSearch]);
@@ -790,120 +828,17 @@ function AppContent() {
     applyFiltersAndSearch(tokenData, newFilters, searchTerm);
   }, [tokens, bondingTokens, searchTerm, applyFiltersAndSearch, categoryFilters.trenches]);
 
-  // Handle Jupiter token selection
-  const handleJupiterTokenSelect = useCallback(async (jupiterToken) => {
-    console.log('🚀 Importing Jupiter token:', jupiterToken);
-    
-    // Close modal and clear search IMMEDIATELY (don't wait for API)
-    setShowJupiterSearch(false);
-    setJupiterSearchResults([]);
-    setSearchTerm(''); // Clear search term so modal doesn't re-appear
-    
-    // Create a token object from Jupiter data to show IMMEDIATELY
-    const importedToken = {
-      contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
-      symbol: jupiterToken.symbol || 'UNKNOWN',
-      name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token',
-      priceUsd: jupiterToken.usdPrice || jupiterToken.price || 0,
-      marketCap: jupiterToken.marketCap || jupiterToken.mcap || 0,
-      liquidity: jupiterToken.liquidity || 0,
-      jupiterData: {
-        price: jupiterToken.usdPrice || jupiterToken.price,
-        mcap: jupiterToken.marketCap || jupiterToken.mcap,
-        liquidity: jupiterToken.liquidity,
-        icon: jupiterToken.icon || jupiterToken.logoURI,
-        priceChange24h: jupiterToken.priceChange?.['24h'] || 0,
-        holderCount: jupiterToken.holderCount || 0,
-        stats24h: {
-          buyVolume: jupiterToken.stats24h?.buyVolume || 0,
-          sellVolume: jupiterToken.stats24h?.sellVolume || 0,
-          priceChange: jupiterToken.priceChange?.['24h'] || 0,
-          liquidityChange: 0,
-          holderChange: 0
-        }
-      },
-      logo: jupiterToken.icon || jupiterToken.logoURI,
-      // Mark as recently imported so we know it's still processing
-      isImporting: true,
-      stage: 'Processing'
-    };
-    
-    // IMMEDIATELY show the token view (don't wait for API response)
-    setSelectedToken(importedToken);
-    setShowPreTokenDetail(false);
-    
-    // Fire-and-forget: Add token in background (no waiting, no success message)
-    const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-    fetch(`${apiBase}/api/tokens/add-from-search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
-        symbol: jupiterToken.symbol || 'UNKNOWN',
-        name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token'
-      })
-    })
-    .then(async (response) => {
-      const data = await response.json();
-      if (data.success) {
-        console.log('✅ Token imported in background:', data.message);
-        // Refresh tokens silently after processing
-        setTimeout(() => {
-          loadTokens(false); // Silent refresh - no loading spinner, no success messages
-        }, 3000);
-      } else {
-        console.warn('⚠️ Token import failed:', data.error);
-      }
-    })
-    .catch((error) => {
-      console.error('❌ Failed to import Jupiter token (non-blocking):', error);
-      // Don't show error to user - token view is already open
-    });
-  }, [loadTokens]);
-
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
-    // If token is from ranking list (minimal data), find full token from cache
-    const tokenAddress = token.contractAddress || token.tokenAddress || token.address;
-    
-    console.log(`🔍 [handleTokenSelect] Looking for token: ${tokenAddress}`);
-    console.log(`🔍 [handleTokenSelect] Tokens cache size: ${tokens.length}`);
-    
-    // Try to find full token data from tokens cache
-    const fullToken = tokens.find(t => 
-      t.contractAddress === tokenAddress || 
-      t.tokenAddress === tokenAddress ||
-      t.address === tokenAddress
-    );
-    
-    if (fullToken) {
-      console.log(`✅ [handleTokenSelect] Found full token in cache:`, {
-        symbol: fullToken.symbol,
-        hasTwitterData: !!fullToken.twitterData,
-        twitterDataKeys: fullToken.twitterData ? Object.keys(fullToken.twitterData) : [],
-        hasTweets: !!(fullToken.twitterData?.tweets || fullToken.twitterData?.recentMentions),
-        tweetsCount: fullToken.twitterData?.tweets?.length || fullToken.twitterData?.recentMentions?.length || 0,
-        hasJupiterData: !!fullToken.jupiterData,
-        hasSocialContext: !!fullToken.socialContext
-      });
-    } else {
-      console.log(`⚠️ [handleTokenSelect] Token NOT found in cache, using minimal data`);
-    }
-    
-    // Use full token if found, otherwise use provided token
-    const tokenToSelect = fullToken || token;
-    
     // Check if this is a bonding token (has bondingCurveProgress property)
-    if (tokenToSelect.bondingCurveProgress !== undefined) {
-      setSelectedToken(tokenToSelect);
+    if (token.bondingCurveProgress !== undefined) {
+      setSelectedToken(token);
       setShowPreTokenDetail(true);
     } else {
-      setSelectedToken(tokenToSelect);
+      setSelectedToken(token);
       setShowPreTokenDetail(false);
     }
-  }, [tokens]);
+  }, []);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -1197,29 +1132,8 @@ function AppContent() {
 
   const handleCategoryFiltersChange = useCallback((newCategoryFilters) => {
     setCategoryFilters(newCategoryFilters);
-    // Re-apply filters with the NEW category filters
-    if (newCategoryFilters.trenches) {
-      // ✅ For bonding tokens, sort by graduation progress (descending)
-      console.log('🏗️ [Trenches] bondingTokens count:', bondingTokens?.length || 0);
-      if (!bondingTokens || bondingTokens.length === 0) {
-        console.warn('⚠️ [Trenches] No bonding tokens available!');
-        setFilteredTokens([]);
-        return;
-      }
-      const sorted = [...bondingTokens].sort((a, b) => {
-        const progressA = a.bondingCurveProgress || 0;
-        const progressB = b.bondingCurveProgress || 0;
-        return progressB - progressA; // Descending - highest progress first
-      });
-      console.log('✅ [Trenches] Sorted', sorted.length, 'bonding tokens');
-      setFilteredTokens(sorted);
-    } else {
-      let filtered = tokenService.filterTokens(tokens, filters);
-      filtered = applyCategoryFilters(filtered, newCategoryFilters);
-      filtered = tokenService.sortTokens(filtered, filters.sortBy);
-      setFilteredTokens(filtered);
-    }
-  }, [tokens, filters, applyCategoryFilters, bondingTokens]);
+    applyFiltersAndSearch(tokens, filters, searchTerm);
+  }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
 
   // Load data on component mount
   useEffect(() => {
@@ -1246,51 +1160,6 @@ function AppContent() {
 
     return () => clearInterval(interval);
   }, [categoryFilters.trenches]); // Remove fetchBondingTokens from dependencies to prevent re-runs
-
-  // Jupiter search when local results are empty
-  useEffect(() => {
-    const performJupiterSearch = async () => {
-      // Only search if we have a search term, no results, and we're not already loading
-      if (!searchTerm || searchTerm.trim().length < 2) return;
-      if (filteredTokens.length > 0) return;
-      if (jupiterSearchLoading) return;
-      if (showJupiterSearch) return; // Already searched
-      
-      console.log(`🔍 No local results for "${searchTerm}", searching Jupiter...`);
-      setPendingSearchTerm(searchTerm);
-      setJupiterSearchLoading(true);
-      
-      try {
-        // Search Jupiter API
-        const response = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(searchTerm)}`);
-        if (!response.ok) {
-          throw new Error(`Jupiter search failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        const results = Array.isArray(data) ? data : (data.value || []);
-        
-        console.log(`🔍 Jupiter found ${results.length} results`);
-        setJupiterSearchResults(results);
-        setShowJupiterSearch(true);
-      } catch (error) {
-        console.error('❌ Jupiter search error:', error);
-        setError('Failed to search Jupiter API');
-      } finally {
-        setJupiterSearchLoading(false);
-      }
-    };
-
-    performJupiterSearch();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredTokens.length, searchTerm]);
-
-  // Close Jupiter modal when search term changes or results appear
-  useEffect(() => {
-    if (filteredTokens.length > 0) {
-      setShowJupiterSearch(false);
-    }
-  }, [filteredTokens.length]);
 
   // Check for push notification support and show request
   // DISABLED: Push notifications are currently disabled
@@ -1526,31 +1395,39 @@ function AppContent() {
         
         {/* Success/Error Notifications */}
         {(successMessage || error) && (
-          <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             {successMessage && (
-              <div className="bg-green-600 border border-green-500 text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center justify-between animate-slide-in">
-                <div className="flex items-center space-x-2">
-                  <span>✅</span>
-                  <span className="text-sm">{successMessage}</span>
+              <div className="bg-green-600 border border-green-500 text-white px-4 py-3 rounded-md mb-2 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">🎉</span>
+                  <span className="font-medium">{successMessage}</span>
                 </div>
-                <button 
-                  onClick={() => setSuccessMessage(null)}
-                  className="text-green-200 hover:text-white ml-3 text-lg font-bold"
-                  title="Dismiss notification"
-                >
-                  ×
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleRefresh}
+                    className="bg-green-700 hover:bg-green-800 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                  >
+                    🔄 Refresh Now
+                  </button>
+                  <button 
+                    onClick={() => setSuccessMessage(null)}
+                    className="text-green-200 hover:text-white text-lg font-bold"
+                    title="Dismiss notification"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             )}
             {error && (
-              <div className="bg-red-600 border border-red-500 text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center justify-between animate-slide-in">
-                <div className="flex items-center space-x-2">
-                  <span>❌</span>
-                  <span className="text-sm">{error}</span>
+              <div className="bg-red-600 border border-red-500 text-white px-4 py-3 rounded-md mb-2 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">❌</span>
+                  <span className="font-medium">{error}</span>
                 </div>
                 <button 
                   onClick={() => setError(null)}
-                  className="text-red-200 hover:text-white ml-3 text-lg font-bold"
+                  className="text-red-200 hover:text-white text-lg font-bold"
                   title="Dismiss notification"
                 >
                   ×
@@ -1699,7 +1576,7 @@ function AppContent() {
                     tokens={filteredTokens}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
-                    categoryFilters={categoryFilters}
+                    isTrenchesFilter={categoryFilters.trenches}
                   />
                 )
               ) : (
@@ -1717,30 +1594,12 @@ function AppContent() {
 
       {/* Token Details Modal */}
       {selectedToken && !showPreTokenDetail && (
-        <>
-          {/* Enhanced Token Details (Test Mode) - ONLY for ANON token */}
-          {(() => {
-            const tokenAddress = selectedToken?.contractAddress || selectedToken?.tokenAddress;
-            const isAnonToken = tokenAddress === 'HqVZaYJnEcmKQKRf4K5N8eEuBjkTgpRzVfF7AYBFpump';
-            
-            return isAnonToken ? (
-              <EnhancedTokenDetails
-                token={selectedToken}
-                fueledTokens={fueledTokens}
-                onClose={() => setSelectedToken(null)}
-                onTokenUpdated={handleTokenUpdated}
-                onNavigateToPremium={handlePremiumClick}
-              />
-            ) : (
-              <TokenDetails
-                token={selectedToken}
-                fueledTokens={fueledTokens}
-                onClose={() => setSelectedToken(null)}
-                onTokenUpdated={handleTokenUpdated}
-              />
-            );
-          })()}
-        </>
+        <TokenDetails
+          token={selectedToken}
+          fueledTokens={fueledTokens}
+          onClose={() => setSelectedToken(null)}
+          onTokenUpdated={handleTokenUpdated}
+        />
       )}
 
       {/* PreTokenDetail Modal for Bonding Tokens */}
@@ -1793,20 +1652,107 @@ function AppContent() {
       {/* Floating Chat Button - Only for authenticated users */}
       <FloatingChatButton onOpenChat={handleOpenChat} />
       
-      {/* Jupiter Search Modal */}
-      <JupiterSearchModal
-        isOpen={showJupiterSearch}
-        onClose={() => {
-          console.log('🔴 [App] onClose called, closing Jupiter modal');
-          setShowJupiterSearch(false);
-          setJupiterSearchResults([]);
-          setSearchTerm(''); // Clear search to prevent re-trigger
-        }}
-        searchTerm={pendingSearchTerm}
-        results={jupiterSearchResults}
-        isLoading={jupiterSearchLoading}
-        onSelectToken={handleJupiterTokenSelect}
+      {/* Global Jupiter Widget */}
+      <JupiterWidget selectedToken={selectedToken} />
+      </div>
+  );
+}
+
+function App() {
+  return (
+    <WalletContextProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Staking Routes - Must come before catch-all */}
+            <Route path="/staking" element={<AIStakingLandingPageSimple />} />
+            <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
+            
+            {/* Main App Route - Catch-all must be last */}
+            <Route path="*" element={<AppContent />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </WalletContextProvider>
+  );
+}
+
+export default App;
+
+                  />
+                )
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="text-gray-400 text-xl mb-2">No tokens found</div>
+                    <div className="text-gray-500">Try adjusting your search or filters</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* Token Details Modal */}
+      {selectedToken && !showPreTokenDetail && (
+        <TokenDetails
+          token={selectedToken}
+          fueledTokens={fueledTokens}
+          onClose={() => setSelectedToken(null)}
+          onTokenUpdated={handleTokenUpdated}
+        />
+      )}
+
+      {/* PreTokenDetail Modal for Bonding Tokens */}
+      {selectedToken && showPreTokenDetail && (
+        <PreTokenDetail
+          token={selectedToken}
+          onClose={() => {
+            setSelectedToken(null);
+            setShowPreTokenDetail(false);
+          }}
+          onNavigateToPremium={() => setShowPremium(true)}
+        />
+      )}
+
+      {/* Settings Modal */}
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSettingsChange={handleSettingsChange}
       />
+
+      {/* Watchlist Panel */}
+      <WatchlistPanel
+        isOpen={showWatchlist}
+        onClose={() => setShowWatchlist(false)}
+        onTokenSelect={(token) => setSelectedToken(token)}
+        allTokensData={tokens}
+      />
+
+      {/* Mobile Push Notification Request */}
+      {showPushNotification && (
+        <MobilePushNotification
+          onClose={() => {
+            setShowPushNotification(false);
+            localStorage.setItem('pushNotificationDismissed', Date.now().toString());
+          }}
+        />
+      )}
+
+      {/* AI Chat Modal - Only for authenticated users */}
+      {user && (
+        <AIChatModal
+          isOpen={showAIChat}
+          onClose={() => setShowAIChat(false)}
+          initialPosition={chatPosition}
+        />
+      )}
+      
+      {/* Floating Chat Button - Only for authenticated users */}
+      <FloatingChatButton onOpenChat={handleOpenChat} />
       
       {/* Global Jupiter Widget */}
       <JupiterWidget selectedToken={selectedToken} />
