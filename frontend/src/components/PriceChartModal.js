@@ -86,19 +86,29 @@ const PriceChartModal = ({ token, onClose }) => {
   };
 
   // Subscribe to WebSocket on mount, unsubscribe on unmount
-  const subscribedRef = useRef(false);
+  const subscribedAddressRef = useRef(null);
   
   useEffect(() => {
     const contractAddress = token?.contractAddress;
-    if (contractAddress && !subscribedRef.current) {
+    if (!contractAddress) return;
+    
+    // Only subscribe if we haven't subscribed to this address yet
+    if (subscribedAddressRef.current !== contractAddress) {
+      // Unsubscribe from previous address if exists
+      if (subscribedAddressRef.current) {
+        websocketService.unsubscribeFromToken(subscribedAddressRef.current);
+      }
+      
+      // Subscribe to new address
       websocketService.subscribeToToken(contractAddress);
-      subscribedRef.current = true;
+      subscribedAddressRef.current = contractAddress;
     }
     
+    // Cleanup only on unmount
     return () => {
-      if (contractAddress && subscribedRef.current) {
-        websocketService.unsubscribeFromToken(contractAddress);
-        subscribedRef.current = false;
+      if (subscribedAddressRef.current) {
+        websocketService.unsubscribeFromToken(subscribedAddressRef.current);
+        subscribedAddressRef.current = null;
       }
     };
   }, [token?.contractAddress]); // Depend on contract address to handle token changes
@@ -148,7 +158,7 @@ const PriceChartModal = ({ token, onClose }) => {
     const handleWebSocketPriceUpdate = (data) => {
       if (data.tokenAddress === token?.contractAddress) {
         console.log('📈 [PriceChartModal] Real-time price update received:', data);
-        handlePriceUpdate(data);
+        handlePriceUpdate(data.priceData || data); // Extract priceData from WebSocket event
       }
     };
 
