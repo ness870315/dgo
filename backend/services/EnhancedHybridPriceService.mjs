@@ -878,7 +878,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (!this.webSocketServer) return;
     
     try {
-      this.webSocketServer.broadcast({
+      // Use correct WebSocket method: broadcastToTokenSubscribers
+      this.webSocketServer.broadcastToTokenSubscribers(tokenAddress, {
         type: 'priceUpdate',
         tokenAddress,
         data
