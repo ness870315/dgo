@@ -243,26 +243,33 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
       
       // Initialize gRPC client
+      console.log('📡 [EnhancedHybridPriceService] Step 1: Initializing gRPC client...');
       await this.initializeGrpcClient();
+      console.log('✅ [EnhancedHybridPriceService] gRPC client initialized');
       
       // Load token cache
+      console.log('📂 [EnhancedHybridPriceService] Step 2: Loading token cache...');
       await this.loadTokenCache();
       
       // Initialize SOL price
+      console.log('💰 [EnhancedHybridPriceService] Step 3: Fetching SOL price...');
       await this.updateSolPrice();
       console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
       
       // Initialize persistent swap storage
+      console.log('💾 [EnhancedHybridPriceService] Step 4: Initializing swap storage...');
       await this.chartDatabase.loadData();
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
       // Start DEX program stream
+      console.log('🚀 [EnhancedHybridPriceService] Step 5: Starting DEX program stream...');
       await this.startDexProgramStream();
       
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
     } catch (error) {
-      console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error.message);
+      console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
+      console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
     }
   }
 
