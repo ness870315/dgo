@@ -1033,8 +1033,13 @@ function AppContent() {
     setTimeout(() => setSuccessMessage(null), 15000);
   }, [loadTokens]);
 
-  // Real-time updates with polling
+  // Real-time updates with polling - DISABLED, using WebSocket instead
   useEffect(() => {
+    // ⚠️ DISABLED: This was wiping out live WebSocket data by calling setTokens(tokenData) directly
+    // WebSocket provides real-time updates, and loadTokens() handles periodic metadata refreshes with merge logic
+    return; // No-op
+    
+    /* DISABLED CODE:
     if (!settings.enableRealTimeUpdates) return;
     
     const interval = setInterval(async () => {
@@ -1078,7 +1083,8 @@ function AppContent() {
     }, settings.refreshInterval * 60 * 1000); // Convert minutes to milliseconds
     
     return () => clearInterval(interval);
-  }, [settings.enableRealTimeUpdates, settings.refreshInterval, settings.useRealTwitterData, tokens.length, filters, searchTerm, applyFiltersAndSearch]);
+    */
+  }, []); // Empty dependency - this useEffect is disabled
 
   // Handle URL parameters for payment success/error messages
   useEffect(() => {
