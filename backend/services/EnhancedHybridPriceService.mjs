@@ -549,10 +549,16 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (!metrics) {
       metrics = new TokenMetrics(swap.tokenMint);
       this.knownTokens.set(swap.tokenMint, metrics);
+      console.log(`📊 [EnhancedHybridPriceService] Created new TokenMetrics for known token: ${swap.tokenMint.slice(0, 8)}...`);
     }
     
     // Add swap to metrics
     metrics.addSwap(swap);
+    
+    // Log every 100th known token swap
+    if (this.stats.knownTokenSwaps % 100 === 0) {
+      console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.knownTokenSwaps} known token swaps`);
+    }
     
     // Save to ChartDatabase (uses storeSwaps with array)
     await this.chartDatabase.storeSwaps([{
@@ -943,7 +949,10 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Broadcast price update via WebSocket
    */
   broadcastPriceUpdate(tokenAddress, data) {
-    if (!this.webSocketServer) return;
+    if (!this.webSocketServer) {
+      console.log('⚠️ [EnhancedHybridPriceService] WebSocket server not available for broadcast');
+      return;
+    }
     
     try {
       // Use correct WebSocket method: broadcastToTokenSubscribers
@@ -952,6 +961,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         tokenAddress,
         data
       });
+      
+      // Log every 50th broadcast to confirm it's working
+      if (this.stats.totalSwapsProcessed % 50 === 0) {
+        console.log(`📡 [EnhancedHybridPriceService] Broadcasting price update for ${tokenAddress.slice(0, 8)}... (price: $${data.price?.toFixed(6)})`);
+      }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to broadcast price update:', error.message);
     }
