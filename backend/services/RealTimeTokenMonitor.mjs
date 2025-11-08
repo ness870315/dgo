@@ -233,7 +233,13 @@ class RealTimeTokenMonitor {
     // Add new token to monitoring
     async addToken(tokenData) {
         if (!this.hybridPriceService) {
-            throw new Error('RealTimeTokenMonitor not initialized');
+            console.log(`⚠️ [RealTimeTokenMonitor] HybridPriceService not initialized, skipping token ${tokenData.symbol}`);
+            return false;
+        }
+
+        if (!this.hybridPriceService.knownTokens) {
+            console.log(`⚠️ [RealTimeTokenMonitor] HybridPriceService not fully initialized (knownTokens missing), skipping token ${tokenData.symbol}`);
+            return false;
         }
 
         const contractAddress = tokenData.contractAddress || tokenData.tokenAddress;
@@ -241,28 +247,23 @@ class RealTimeTokenMonitor {
             throw new Error('Token address not provided');
         }
 
-        // Add to pool addresses if pool exists
-        let poolAddress = null;
-        if (tokenData.jupiterData?.firstPool?.id) {
-            poolAddress = tokenData.jupiterData.firstPool.id;
-        } else if (tokenData.graduatedPool) {
-            poolAddress = typeof tokenData.graduatedPool === 'string' ? 
-                tokenData.graduatedPool : tokenData.graduatedPool?.address;
-        }
-
-        if (poolAddress) {
-            this.hybridPriceService.poolAddresses.set(contractAddress, poolAddress);
-            this.hybridPriceService.swapHistory.set(contractAddress, []);
+        // With DEX program filtering, all tokens are automatically monitored
+        // Just need to ensure token is in knownTokens map
+        try {
+            await this.hybridPriceService.ensureTokenMonitoring(contractAddress);
             
-            // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
-            console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to include new token ${tokenData.symbol}`);
-            await this.hybridPriceService.stopRealTimeMonitoring();
-            await this.hybridPriceService.startRealTimeMonitoring();
+            // Store token data for later use
+            const token = this.hybridPriceService.knownTokens.get(contractAddress);
+            if (token) {
+                token.jupiterData = tokenData.jupiterData;
+                token.symbol = tokenData.symbol;
+                token.name = tokenData.name;
+            }
             
-            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring`);
+            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring (DEX stream will auto-detect swaps)`);
             return true;
-        } else {
-            console.log(`⚠️ [RealTimeTokenMonitor] No pool found for token ${tokenData.symbol}`);
+        } catch (error) {
+            console.error(`❌ [RealTimeTokenMonitor] Failed to add token ${tokenData.symbol}:`, error.message);
             return false;
         }
     }
