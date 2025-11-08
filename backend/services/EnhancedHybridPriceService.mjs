@@ -218,7 +218,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // Token cache management
     this.tokenCache = [];
-    this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
+    // Use persistent cache path (Render volume mount)
+    this.cachePath = process.env.CACHE_PATH || '/var/data/dgo/cache/tokens-cache.json';
     
     // Stats
     this.stats = {
@@ -252,7 +253,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
       
       // Initialize persistent swap storage
-      await this.chartDatabase.loadDatabase();
+      await this.chartDatabase.loadData();
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
@@ -800,7 +801,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      const response = await axios.get(`${JUPITER_API_BASE}/${tokenAddress}`, {
+      // Use correct Jupiter token info API endpoint
+      const response = await axios.get(`https://tokens.jup.ag/token/${tokenAddress}`, {
         timeout: 5000
       });
       
@@ -834,16 +836,23 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      const response = await axios.get(`${JUPITER_API_BASE}/${WSOL}`, {
+      // Use correct Jupiter price API endpoint
+      const response = await axios.get(`https://api.jup.ag/price/v2?ids=${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data?.price) {
-        this.solPriceUSD = parseFloat(response.data.price);
+      if (response.data?.data?.[WSOL]?.price) {
+        this.solPriceUSD = parseFloat(response.data.data[WSOL].price);
         this.lastSolPriceUpdate = now;
+        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
+      // Fallback to a reasonable default if API fails
+      if (this.solPriceUSD === 0) {
+        this.solPriceUSD = 200; // Reasonable fallback
+        console.log('⚠️ [EnhancedHybridPriceService] Using fallback SOL price: $200');
+      }
     }
   }
 
