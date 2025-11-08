@@ -306,15 +306,17 @@ function AppContent() {
         subscribedTokensRef.current.delete(address);
       }
     });
-    
-    // Cleanup on unmount: unsubscribe from all
+  }, [filteredTokens.map(t => t.contractAddress || t.tokenAddress).join(',')]);
+  
+  // Cleanup on unmount ONLY: unsubscribe from all
+  useEffect(() => {
     return () => {
       subscribedTokensRef.current.forEach(address => {
         websocketService.unsubscribeFromToken(address);
       });
       subscribedTokensRef.current.clear();
     };
-  }, [filteredTokens.map(t => t.contractAddress || t.tokenAddress).join(',')]);
+  }, []); // Empty dependency = only runs on mount/unmount
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
     enableRealTimeUpdates: true,
