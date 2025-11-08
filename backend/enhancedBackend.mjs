@@ -13489,9 +13489,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`✅ [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
-          liquidity: realTimeData.liquidity,
-          source: realTimeData.source,
-          swaps: realTimeData.recentSwaps.length
+          volume5m: realTimeData.volume5m,
+          txns5m: realTimeData.txns5m,
+          isLive: realTimeData.isLive
         });
 
         res.json({
@@ -13547,9 +13547,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
-          liquidity: realTimeData.liquidity,
-          source: realTimeData.source,
-          swaps: realTimeData.recentSwaps.length
+          volume5m: realTimeData.volume5m,
+          txns5m: realTimeData.txns5m,
+          swaps: realTimeData.recentSwaps?.length || 0,
+          isLive: realTimeData.isLive
         });
 
         res.json({

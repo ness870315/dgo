@@ -1082,6 +1082,21 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Fetch Jupiter data for additional info
     const jupiterData = await this.fetchJupiterData(tokenAddress);
     
+    // Get recent swaps from ChartDatabase
+    let recentSwaps = [];
+    try {
+      const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+      if (tokenDb && tokenDb.swaps && tokenDb.swaps.size > 0) {
+        const swapsArray = Array.from(tokenDb.swaps.values());
+        // Get last 50 swaps, sorted by timestamp descending
+        recentSwaps = swapsArray
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 50);
+      }
+    } catch (error) {
+      console.error(`⚠️ Failed to load swaps for ${tokenAddress.slice(0, 8)}:`, error.message);
+    }
+    
     return {
       tokenAddress,
       price: metricsData.currentPrice,
@@ -1100,7 +1115,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       makers1h: metricsData['1h'].makers,
       makers24h: metricsData['24h'].makers,
       marketCap: jupiterData?.mcap || 0,
+      liquidity: jupiterData?.liquidity || 0,
+      recentSwaps: recentSwaps,
       isLive: true,
+      source: 'dex-stream',
       lastUpdate: Date.now()
     };
   }
