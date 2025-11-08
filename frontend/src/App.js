@@ -834,10 +834,65 @@ function AppContent() {
           fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
         ]);
         
+        // 🚀 CRITICAL: Merge new token data with existing live WebSocket data
+        // Don't overwrite live prices/volumes with stale API data!
+        setTokens(prevTokens => {
+          if (prevTokens.length === 0) {
+            // First load: use API data as-is
+            return tokenData;
+          }
+          
+          // Merge: Keep live data (price, volume, txns, makers) from WebSocket, update everything else from API
+          const merged = tokenData.map(apiToken => {
+            const liveToken = prevTokens.find(t => 
+              t.contractAddress === apiToken.contractAddress || 
+              t.tokenAddress === apiToken.contractAddress
+            );
+            
+            if (liveToken && liveToken.isLive && liveToken.lastUpdated && (Date.now() - liveToken.lastUpdated < 60000)) {
+              // Token has recent live data (< 1 min old), keep it
+              return {
+                ...apiToken, // Use API data for metadata (name, symbol, etc.)
+                price: liveToken.price,
+                priceUsd: liveToken.priceUsd,
+                priceChange5m: liveToken.priceChange5m,
+                priceChange1h: liveToken.priceChange1h,
+                priceChange6h: liveToken.priceChange6h,
+                priceChange24h: liveToken.priceChange24h,
+                volume5m: liveToken.volume5m,
+                volume1h: liveToken.volume1h,
+                volume6h: liveToken.volume6h,
+                volume24h: liveToken.volume24h,
+                txns5m: liveToken.txns5m,
+                txns1h: liveToken.txns1h,
+                txns6h: liveToken.txns6h,
+                txns24h: liveToken.txns24h,
+                makers5m: liveToken.makers5m,
+                makers1h: liveToken.makers1h,
+                makers6h: liveToken.makers6h,
+                makers24h: liveToken.makers24h,
+                marketCap: liveToken.marketCap,
+                liquidity: liveToken.liquidity,
+                isLive: true,
+                lastUpdated: liveToken.lastUpdated
+              };
+            }
+            
+            // No live data or stale, use API data
+            return apiToken;
+          });
+          
+          console.log(`🔄 [App] Merged ${merged.filter(t => t.isLive).length} tokens with live data`);
+          return merged;
+        });
         
-        setTokens(tokenData);
         setFueledTokens(fueledData.value || fueledData);
-        applyFiltersAndSearch(tokenData, filters, searchTerm);
+        
+        // Apply filters after state update
+        setTokens(currentTokens => {
+          applyFiltersAndSearch(currentTokens, filters, searchTerm);
+          return currentTokens;
+        });
         
         // Update selectedToken if it exists to reflect any changes
         if (selectedToken) {
