@@ -247,22 +247,42 @@ function AppContent() {
     }
     
     // Listen for price updates from backend
-    const handlePriceUpdate = ({ tokenAddress, priceData }) => {
+    const handlePriceUpdate = (event) => {
+      const { tokenAddress, data, priceData } = event;
+      const updateData = data || priceData; // Backend sends 'data', some places might send 'priceData'
+      
+      if (!updateData) {
+        console.warn('⚠️ [App] Received priceUpdate with no data:', event);
+        return;
+      }
+      
       setTokens(prevTokens => 
         prevTokens.map(token => {
           if (token.contractAddress === tokenAddress || token.tokenAddress === tokenAddress) {
             return {
               ...token,
               // Update with real-time data from DEX stream
-              price: priceData.price || token.price,
-              priceUsd: priceData.price || token.priceUsd,
-              priceChange5m: priceData.priceChange5m,
-              priceChange1h: priceData.priceChange1h,
-              volume5m: priceData.volume5m,
-              volume1h: priceData.volume1h,
-              txns5m: priceData.txns5m,
-              makers5m: priceData.makers5m,
-              isLive: priceData.isLive || true,
+              price: updateData.price || token.price,
+              priceUsd: updateData.price || token.priceUsd,
+              priceChange5m: updateData.priceChange5m,
+              priceChange1h: updateData.priceChange1h,
+              priceChange6h: updateData.priceChange6h,
+              priceChange24h: updateData.priceChange24h,
+              volume5m: updateData.volume5m,
+              volume1h: updateData.volume1h,
+              volume6h: updateData.volume6h,
+              volume24h: updateData.volume24h,
+              txns5m: updateData.txns5m,
+              txns1h: updateData.txns1h,
+              txns6h: updateData.txns6h,
+              txns24h: updateData.txns24h,
+              makers5m: updateData.makers5m,
+              makers1h: updateData.makers1h,
+              makers6h: updateData.makers6h,
+              makers24h: updateData.makers24h,
+              marketCap: updateData.marketCap || token.marketCap,
+              liquidity: updateData.liquidity || token.liquidity,
+              isLive: updateData.isLive || true,
               lastUpdated: Date.now()
             };
           }
