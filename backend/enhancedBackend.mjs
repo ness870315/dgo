@@ -13173,11 +13173,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
     
-    // 🚀 NEW: Auto-start gRPC monitoring for PROBITY
-    // DISABLED:     console.log('🔌 [AUTO-START] Starting gRPC monitoring for PROBITY...');
-    // DISABLED:     this.enhancedHybridPriceService.initializeAsync().catch(error => {
-        console.error('❌ [AUTO-START] Failed to start gRPC monitoring:', error.message);
-    });
+    // ⚠️ DISABLED: Duplicate DEX stream initialization (was causing HTTP 429)
+    // This old PROBITY test code started a second gRPC stream
+    // DEX stream now starts in initializeWebSocketServer() after WebSocket is ready
     
     // Initialize Real-Time Token Monitor
     this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
