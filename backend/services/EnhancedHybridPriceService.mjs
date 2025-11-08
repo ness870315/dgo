@@ -147,7 +147,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Multi-layer filter configuration
     this.filters = {
       layer1: {
-        minimumAge: 2 * 60 * 1000, // 2 minutes
+        minimumAge: 0, // DISABLED: Let activity filters do the work
         activityThresholds: {
           minSwaps: 10,
           minVolume: 1000,  // $1000
