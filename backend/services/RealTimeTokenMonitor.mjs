@@ -147,18 +147,17 @@ class RealTimeTokenMonitor {
 
     reportStats() {
         const runtime = Math.floor((Date.now() - this.monitoringStats.startTime) / 1000);
-        const realTimeStats = this.hybridPriceService.getRealTimeStats();
+        const serviceStats = this.hybridPriceService.getStats();
         
         console.log('\n📊 [RealTimeTokenMonitor] STATS REPORT');
         console.log('============================================================');
         console.log(`⏰ Runtime: ${runtime} seconds`);
-        console.log(`📈 Total Tokens: ${this.monitoringStats.totalTokens}`);
-        console.log(`🔌 Active Streams: ${realTimeStats.activeStreams.length}`);
-        console.log(`💰 Total Swaps: ${this.monitoringStats.totalSwaps}`);
-        console.log(`📊 Price Updates: ${this.monitoringStats.totalPriceUpdates}`);
-        console.log(`❌ Errors: ${this.monitoringStats.errors}`);
-        console.log(`⚡ Swaps/sec: ${(this.monitoringStats.totalSwaps / runtime).toFixed(2)}`);
-        console.log(`📈 Updates/sec: ${(this.monitoringStats.totalPriceUpdates / runtime).toFixed(2)}`);
+        console.log(`📈 Known Tokens: ${serviceStats.knownTokens}`);
+        console.log(`🆕 New Tokens Tracking: ${serviceStats.newTokensTracking}`);
+        console.log(`💰 Total Swaps Processed: ${serviceStats.totalSwapsProcessed}`);
+        console.log(`🔍 Tokens Discovered: ${serviceStats.tokensDiscovered}`);
+        console.log(`⚡ Stream Uptime: ${Math.floor(serviceStats.streamUptime / 1000)}s`);
+        console.log(`📊 Swaps/sec: ${(serviceStats.totalSwapsProcessed / runtime).toFixed(2)}`);
         console.log('============================================================\n');
     }
 
