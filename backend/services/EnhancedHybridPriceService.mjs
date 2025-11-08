@@ -407,8 +407,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         if (this.knownTokens.has(swap.tokenMint)) {
           this.processKnownTokenSwap(swap);
         } else {
-          // Log new token discoveries
-          console.log(`🆕 [EnhancedHybridPriceService] New token detected: ${swap.tokenMint.slice(0, 8)}...`);
+          // Process new token (log only when it passes filters)
           this.processNewTokenSwap(swap);
         }
       }

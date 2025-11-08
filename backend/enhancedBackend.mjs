@@ -14858,62 +14858,34 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
-        // Get pool address for the token
-        // First try from EnhancedHybridPriceService (for gRPC monitored tokens)
-        let poolAddress = this.enhancedHybridPriceService?.poolAddresses.get(token);
-        let useEnhancedHybrid = !!poolAddress;
-        
-        // Fallback to hybridChartService
-        if (!poolAddress) {
-          poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
-        }
-        
-        if (!poolAddress) {
-          console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
-          return res.json({
-            success: true,
-            swaps: [],
-            source: 'none',
-            lastUpdate: Date.now(),
-            totalSwaps: 0,
-            message: 'No pool address found - token may not be trading yet'
-          });
-        }
-        
-        // Get recent swaps from database - use EnhancedHybridPriceService if available
+        // Get swaps from ChartDatabase (DEX stream data)
         const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
         let swaps = [];
         
-        if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
-          // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
+        if (this.enhancedHybridPriceService?.chartDatabase) {
+          // Get swaps from token database by TOKEN ADDRESS
           const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
           
           // The database loads from file automatically when getTokenDatabase is called
-          // No need to manually call loadTokenDatabaseFromFile here
-          
-          if (tokenDb && tokenDb.swaps) {
+          if (tokenDb && tokenDb.swaps && tokenDb.swaps.size > 0) {
             for (const swap of tokenDb.swaps.values()) {
               swaps.push(swap);
             }
+            console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from DEX stream database for ${token.substring(0, 8)}`);
+          } else {
+            console.log(`⚠️ [SWAPS-API] No swaps found in DEX stream database for ${token.substring(0, 8)}`);
           }
-          
-          // Apply limit and sort
-          if (sinceTimestamp) {
-            swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
-          }
-          swaps.sort((a, b) => b.timestamp - a.timestamp);
-          swaps = swaps.slice(0, parseInt(limit));
-          
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
         } else {
-          // Fallback to hybridChartService
-          swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
-            poolAddress, 
-            parseInt(limit), 
-            sinceTimestamp
-          );
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
+          console.log(`⚠️ [SWAPS-API] ChartDatabase not available`);
         }
+          
+        
+        // Apply limit and sort
+        if (sinceTimestamp) {
+          swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
+        }
+        swaps.sort((a, b) => b.timestamp - a.timestamp);
+        swaps = swaps.slice(0, parseInt(limit));
         
         // Format swaps for frontend
         const formattedSwaps = swaps.map(swap => ({
