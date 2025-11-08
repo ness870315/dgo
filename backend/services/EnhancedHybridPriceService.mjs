@@ -518,15 +518,17 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Add swap to metrics
     metrics.addSwap(swap);
     
-    // Save to ChartDatabase
-    this.chartDatabase.addSwap(swap.tokenMint, {
+    // Save to ChartDatabase (uses storeSwaps with array)
+    await this.chartDatabase.storeSwaps([{
+      tokenAddress: swap.tokenMint,
       timestamp: swap.timestamp,
       type: swap.type,
       price: swap.priceUsd,
-      amount: swap.tokenAmount,
+      tokenAmount: swap.tokenAmount,
       volumeUsd: swap.volumeUsd,
-      signature: swap.signature
-    });
+      signature: swap.signature,
+      source: 'grpc-dex'
+    }]);
     
     // Broadcast price update via WebSocket
     if (this.webSocketServer) {
@@ -625,18 +627,26 @@ class EnhancedHybridPriceService extends EventEmitter {
       const metrics = new TokenMetrics(swap.tokenMint);
       
       // Add all historical swaps
+      const swapsToStore = [];
       for (const historicalSwap of activity.swaps) {
         metrics.addSwap(historicalSwap);
         
-        // Save to ChartDatabase
-        this.chartDatabase.addSwap(swap.tokenMint, {
+        // Prepare swap for ChartDatabase
+        swapsToStore.push({
+          tokenAddress: swap.tokenMint,
           timestamp: historicalSwap.timestamp,
           type: historicalSwap.type,
           price: historicalSwap.priceUsd,
-          amount: historicalSwap.tokenAmount,
+          tokenAmount: historicalSwap.tokenAmount,
           volumeUsd: historicalSwap.volumeUsd,
-          signature: historicalSwap.signature
+          signature: historicalSwap.signature,
+          source: 'grpc-dex'
         });
+      }
+      
+      // Save all swaps to ChartDatabase at once
+      if (swapsToStore.length > 0) {
+        await this.chartDatabase.storeSwaps(swapsToStore);
       }
       
       this.knownTokens.set(swap.tokenMint, metrics);
