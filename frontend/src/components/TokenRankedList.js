@@ -52,15 +52,15 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     return { isFueled: false, multiplier: null };
   };
 
-  // ✅ Initialize rankings from tokens prop (NO HTTP fetch needed)
-  // Real-time updates come via WebSocket priceUpdate events
+  // ✅ Initialize and update rankings from tokens prop (NO HTTP fetch needed)
+  // Real-time updates come via WebSocket priceUpdate events in App.js
   useEffect(() => {
-    if (tokens && tokens.length > 0 && rankings.length === 0) {
-      console.log('🔍 [TokenRankedList] Initializing rankings from tokens prop:', tokens.length, 'tokens');
+    if (tokens && tokens.length > 0) {
+      console.log('🔍 [TokenRankedList] Updating rankings from tokens prop:', tokens.length, 'tokens');
       setRankings(tokens);
       setLastUpdate(new Date());
     }
-  }, [tokens, rankings.length]);
+  }, [tokens]);
 
   // ✅ REAL-TIME: Listen to WebSocket ranking updates (NO HTTP POLLING)
   // This provides LIVE updates for volume, marketcap, makers, price changes without page refreshes
