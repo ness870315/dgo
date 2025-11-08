@@ -205,9 +205,6 @@ class EnhancedTokenProcessor {
   async processCoinGeckoStage() {
     console.log('🪙 Stage 1: CONTRACT DISCOVERY - Fetching new Solana contracts from CoinGecko...');
     
-    // 🔄 CRITICAL: Reload existing tokens from cache to get latest data for deduplication
-    await this.loadExistingData();
-    
     // Get existing contract addresses to avoid duplicates
     // 🚨 CRITICAL FIX: Check ALL tokens in database, not just completed ones
     const existingTokens = this.processedTokens; // Check all tokens, not just completed
@@ -246,10 +243,21 @@ class EnhancedTokenProcessor {
           break;
         }
         
-        // Add ALL tokens to batch (including those with null contractAddress)
-        // They will be enriched with contract addresses later
-        allTokens.push(...batchTokens);
-        console.log(`✅ Fetched ${batchTokens.length} tokens from page ${page} (total: ${allTokens.length})`);
+        // 🚀 OPTIMIZATION: Filter out existing contracts - only add NEW contracts
+        const newTokens = batchTokens.filter(token => {
+          if (!token.contractAddress) return false;
+          const contractLower = token.contractAddress.toLowerCase();
+          if (existingContracts.has(contractLower)) {
+            return false; // Skip existing contract
+          }
+          existingContracts.add(contractLower); // Add to set to avoid duplicates within batch
+          newContractsFound++;
+          console.log(`🆕 TRULY NEW token discovered: ${token.symbol} (${token.contractAddress})`);
+          return true;
+        });
+        
+        allTokens.push(...newTokens);
+        console.log(`✅ Fetched ${batchTokens.length} tokens from page ${page}, added ${newTokens.length} NEW contracts (total: ${allTokens.length}, new contracts: ${newContractsFound})`);
         
         // Continue if we haven't reached target and got a full batch
         if (allTokens.length < targetTokens && batchTokens.length === batchSize) {
@@ -324,9 +332,6 @@ class EnhancedTokenProcessor {
     console.log('🔍 Stage 1.5: CONTRACT DISCOVERY - Fetching new Solana contracts from Dexscreener...');
 
     try {
-      // 🔄 CRITICAL: Reload existing tokens from cache to get latest data for deduplication
-      await this.loadExistingData();
-      
       // Get existing contract addresses to avoid duplicates
       // 🚨 CRITICAL FIX: Check ALL tokens in database, not just completed ones
       const existingTokens = this.processedTokens; // Check all tokens, not just completed
@@ -1065,6 +1070,105 @@ class EnhancedTokenProcessor {
     }
   }
 
+  /**
+   * Process new tokens discovered via DEX stream
+   * These tokens have already passed Layer 1 & 2 filters
+   */
+  async processNewTokensFromDexStream(tokenMints) {
+    try {
+      if (!tokenMints || tokenMints.length === 0) {
+        return;
+      }
+      
+      console.log(`🔄 [DEX STREAM] Processing ${tokenMints.length} new tokens from DEX stream...`);
+      
+      // Load existing cache
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+      let existingTokens = [];
+      try {
+        const cacheData = await fs.readFile(cachePath, 'utf8');
+        existingTokens = JSON.parse(cacheData);
+      } catch (error) {
+        console.log('⚠️ [DEX STREAM] No existing cache found');
+      }
+      
+      // Filter out tokens that are already in cache
+      const existingAddresses = new Set(existingTokens.map(t => t.contractAddress));
+      const newTokenMints = tokenMints.filter(mint => !existingAddresses.has(mint));
+      
+      if (newTokenMints.length === 0) {
+        console.log('📊 [DEX STREAM] All tokens already in cache, skipping');
+        return;
+      }
+      
+      console.log(`📊 [DEX STREAM] ${newTokenMints.length} new tokens to process (${tokenMints.length - newTokenMints.length} already in cache)`);
+      
+      // Fetch Jupiter data for each token
+      const tokensToProcess = [];
+      for (const tokenMint of newTokenMints) {
+        try {
+          console.log(`🔍 [DEX STREAM] Fetching Jupiter data for ${tokenMint.slice(0,8)}...`);
+          
+          const response = await axios.get(`https://api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+            timeout: 5000
+          });
+          
+          if (response.data && response.data.length > 0) {
+            const jupData = response.data[0];
+            
+            tokensToProcess.push({
+              contractAddress: tokenMint,
+              symbol: jupData.symbol || 'UNKNOWN',
+              name: jupData.name || 'Unknown Token',
+              source: 'dex-stream',
+              stage: 'jupiter',
+              hasJupiterData: true,
+              jupiterData: jupData,
+              lastDiscoveredAt: new Date().toISOString(),
+              addedAt: new Date().toISOString()
+            });
+            
+            console.log(`✅ [DEX STREAM] ${jupData.symbol} - Jupiter data fetched`);
+          } else {
+            console.log(`⚠️ [DEX STREAM] ${tokenMint.slice(0,8)}... - No Jupiter data found`);
+          }
+        } catch (error) {
+          console.error(`❌ [DEX STREAM] Failed to fetch Jupiter data for ${tokenMint.slice(0,8)}...:`, error.message);
+        }
+        
+        // Rate limit: 200ms between requests
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      if (tokensToProcess.length === 0) {
+        console.log('⚠️ [DEX STREAM] No tokens with Jupiter data to process');
+        return;
+      }
+      
+      console.log(`📝 [DEX STREAM] Processing ${tokensToProcess.length} tokens through enrichment pipeline...`);
+      
+      // Add to processing queue
+      this.processingQueue = tokensToProcess;
+      
+      // Process through Twitter stage
+      console.log('🐦 [DEX STREAM] Fetching Twitter data...');
+      await this.processTwitterStage();
+      
+      // Process through scoring stage
+      console.log('📊 [DEX STREAM] Calculating scores...');
+      await this.processScoringStage();
+      
+      // Save to cache
+      console.log('💾 [DEX STREAM] Saving to cache...');
+      await this.saveFinalDatabase();
+      
+      console.log(`✅ [DEX STREAM] Processing complete: ${tokensToProcess.length} tokens enriched and saved`);
+      
+    } catch (error) {
+      console.error('❌ [DEX STREAM] Token processing failed:', error.message);
+    }
+  }
+
   async processScoringStage() {
     console.log('📊 Stage 4: Calculating Enhanced Scores...');
     
@@ -1414,6 +1518,7 @@ class EnhancedTokenProcessor {
       const url = `${this.apis.coingecko}/coins/markets`;
       const params = {
         vs_currency: 'usd',
+        category: 'solana-meme-coins', // 🎯 Fetch specifically from Solana Meme Coins category
         order: 'market_cap_desc',
         per_page: effectiveBatchSize,
         page: page,
@@ -1421,7 +1526,9 @@ class EnhancedTokenProcessor {
         price_change_percentage: '1h,24h,7d' // Get price changes in one call
       };
       
-      console.log(`🌐 Fetching ${effectiveBatchSize} tokens from CoinGecko (page ${page})`);
+      console.log(`🌐 FAST Fetching ${effectiveBatchSize} Solana Meme Coins from CoinGecko (page ${page})`);
+      console.log(`🔍 Request URL: ${url}`);
+      console.log(`🔍 Request Params:`, JSON.stringify(params, null, 2));
       
       const response = await axios.get(url, { 
         params,
@@ -1431,8 +1538,11 @@ class EnhancedTokenProcessor {
         }
       });
       
+      console.log(`✅ CoinGecko Response Status: ${response.status}`);
+      console.log(`📊 Response Headers:`, JSON.stringify(response.headers, null, 2));
+      
       if (response.data && Array.isArray(response.data)) {
-        console.log(`📊 CoinGecko returned ${response.data.length} tokens`);
+        console.log(`📊 CoinGecko returned ${response.data.length} Solana meme coins`);
         
         // Filter out tokens with missing essential data and stable/infrastructure tokens
         const validTokens = response.data.filter(token => {

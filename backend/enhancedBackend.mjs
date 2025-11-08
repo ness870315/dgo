@@ -13160,6 +13160,19 @@ Thanks for using x402 payments on Twitter! ðŸš€`;
     // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
     this.enhancedHybridPriceService = new EnhancedHybridPriceService();
     
+    // 🔗 Connect DEX stream to Token Processor
+    this.enhancedHybridPriceService.on('newTokenDiscovered', async (tokenMint) => {
+      try {
+        console.log(`🆕 [Backend] New token discovered via DEX stream: ${tokenMint.slice(0,8)}...`);
+        console.log(`📝 [Backend] Adding to Token Processor queue for enrichment (Twitter, scoring, etc.)`);
+        
+        // Add to processor queue for full enrichment
+        await this.tokenProcessor.processNewTokensFromDexStream([tokenMint]);
+      } catch (error) {
+        console.error(`❌ [Backend] Failed to process new token ${tokenMint}:`, error.message);
+      }
+    });
+    
     // ðŸš€ NEW: Auto-start gRPC monitoring for PROBITY
     console.log('ðŸ”Œ [AUTO-START] Starting gRPC monitoring for PROBITY...');
     this.enhancedHybridPriceService.initializeAsync().catch(error => {
