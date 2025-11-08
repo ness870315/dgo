@@ -332,7 +332,6 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Handle stream data
       this.dexStream.on('data', (msg) => {
-        console.log('📨 [EnhancedHybridPriceService] Received stream message');
         this.handleStreamData(msg);
       });
       
@@ -374,21 +373,24 @@ class EnhancedHybridPriceService extends EventEmitter {
       const swaps = this.parseBalanceChanges(msg);
       
       if (!swaps || swaps.length === 0) {
-        console.log('⚠️ [EnhancedHybridPriceService] No swaps parsed from message');
+        // Most DEX transactions are not token swaps (SOL-only, NFTs, liquidity ops, etc.)
         return;
       }
       
-      console.log(`✅ [EnhancedHybridPriceService] Parsed ${swaps.length} swaps from message`);
+      // Log every 10th swap to reduce noise
+      if (this.stats.totalSwapsProcessed % 10 === 0) {
+        console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.totalSwapsProcessed} swaps (${swaps.length} in this batch)`);
+      }
       
       for (const swap of swaps) {
         this.stats.totalSwapsProcessed++;
         
         // Check if this is a known token or new token
         if (this.knownTokens.has(swap.tokenMint)) {
-          console.log(`📊 [EnhancedHybridPriceService] Processing known token swap: ${swap.tokenMint.slice(0, 8)}...`);
           this.processKnownTokenSwap(swap);
         } else {
-          console.log(`🆕 [EnhancedHybridPriceService] Processing new token swap: ${swap.tokenMint.slice(0, 8)}...`);
+          // Log new token discoveries
+          console.log(`🆕 [EnhancedHybridPriceService] New token detected: ${swap.tokenMint.slice(0, 8)}...`);
           this.processNewTokenSwap(swap);
         }
       }
@@ -429,7 +431,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       const postBalances = meta.postTokenBalances || [];
 
       if (preBalances.length === 0) {
-        return null;
+        return null; // Not a token swap (SOL-only, NFT, liquidity op, etc.)
       }
 
       // Find all unique token mints (excluding WSOL)
