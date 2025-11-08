@@ -258,41 +258,66 @@ function AppContent() {
       
       // Log every 20th update to confirm it's working
       if (Math.random() < 0.05) {
-        console.log(`📊 [App] Updating token ${tokenAddress.slice(0, 8)}... price: $${updateData.price?.toFixed(6)}, vol5m: $${updateData.volume5m?.toFixed(2)}`);
+        console.log(`📊 [App] Updating token ${tokenAddress.slice(0, 8)}...`, {
+          price: updateData.price,
+          vol5m: updateData.volume5m,
+          txns5m: updateData.txns5m,
+          makers5m: updateData.makers5m,
+          priceChange5m: updateData.priceChange5m
+        });
       }
       
       setTokens(prevTokens => {
+        let foundToken = false;
         const updated = prevTokens.map(token => {
           if (token.contractAddress === tokenAddress || token.tokenAddress === tokenAddress) {
-            return {
+            foundToken = true;
+            const updatedToken = {
               ...token,
               // Update with real-time data from DEX stream
-              price: updateData.price || token.price,
-              priceUsd: updateData.price || token.priceUsd,
-              priceChange5m: updateData.priceChange5m,
-              priceChange1h: updateData.priceChange1h,
-              priceChange6h: updateData.priceChange6h,
-              priceChange24h: updateData.priceChange24h,
-              volume5m: updateData.volume5m,
-              volume1h: updateData.volume1h,
-              volume6h: updateData.volume6h,
-              volume24h: updateData.volume24h,
-              txns5m: updateData.txns5m,
-              txns1h: updateData.txns1h,
-              txns6h: updateData.txns6h,
-              txns24h: updateData.txns24h,
-              makers5m: updateData.makers5m,
-              makers1h: updateData.makers1h,
-              makers6h: updateData.makers6h,
-              makers24h: updateData.makers24h,
-              marketCap: updateData.marketCap || token.marketCap,
-              liquidity: updateData.liquidity || token.liquidity,
-              isLive: updateData.isLive || true,
+              price: updateData.price !== undefined ? updateData.price : token.price,
+              priceUsd: updateData.price !== undefined ? updateData.price : token.priceUsd,
+              priceChange5m: updateData.priceChange5m !== undefined ? updateData.priceChange5m : token.priceChange5m,
+              priceChange1h: updateData.priceChange1h !== undefined ? updateData.priceChange1h : token.priceChange1h,
+              priceChange6h: updateData.priceChange6h !== undefined ? updateData.priceChange6h : token.priceChange6h,
+              priceChange24h: updateData.priceChange24h !== undefined ? updateData.priceChange24h : token.priceChange24h,
+              volume5m: updateData.volume5m !== undefined ? updateData.volume5m : token.volume5m,
+              volume1h: updateData.volume1h !== undefined ? updateData.volume1h : token.volume1h,
+              volume6h: updateData.volume6h !== undefined ? updateData.volume6h : token.volume6h,
+              volume24h: updateData.volume24h !== undefined ? updateData.volume24h : token.volume24h,
+              txns5m: updateData.txns5m !== undefined ? updateData.txns5m : token.txns5m,
+              txns1h: updateData.txns1h !== undefined ? updateData.txns1h : token.txns1h,
+              txns6h: updateData.txns6h !== undefined ? updateData.txns6h : token.txns6h,
+              txns24h: updateData.txns24h !== undefined ? updateData.txns24h : token.txns24h,
+              makers5m: updateData.makers5m !== undefined ? updateData.makers5m : token.makers5m,
+              makers1h: updateData.makers1h !== undefined ? updateData.makers1h : token.makers1h,
+              makers6h: updateData.makers6h !== undefined ? updateData.makers6h : token.makers6h,
+              makers24h: updateData.makers24h !== undefined ? updateData.makers24h : token.makers24h,
+              marketCap: updateData.marketCap !== undefined ? updateData.marketCap : token.marketCap,
+              liquidity: updateData.liquidity !== undefined ? updateData.liquidity : token.liquidity,
+              isLive: true,
               lastUpdated: Date.now()
             };
+            
+            // Log the update for debugging
+            if (Math.random() < 0.01) {
+              console.log(`✅ [App] Token ${token.symbol || tokenAddress.slice(0, 8)} updated:`, {
+                oldPrice: token.price,
+                newPrice: updatedToken.price,
+                oldVol5m: token.volume5m,
+                newVol5m: updatedToken.volume5m
+              });
+            }
+            
+            return updatedToken;
           }
           return token;
         });
+        
+        if (!foundToken) {
+          console.warn(`⚠️ [App] Token ${tokenAddress.slice(0, 8)} not found in tokens array`);
+        }
+        
         return updated;
       });
     };
