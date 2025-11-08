@@ -231,8 +231,8 @@ class EnhancedHybridPriceService extends EventEmitter {
       lastStreamStart: null
     };
     
-    // Initialize asynchronously
-    this.initializeAsync();
+    // DON'T initialize here - wait for WebSocket to be ready
+    // initializeAsync() will be called from enhancedBackend.mjs after WebSocket is initialized
   }
 
   /**
@@ -542,29 +542,29 @@ class EnhancedHybridPriceService extends EventEmitter {
       const marketCap = circSupply ? metricsData.currentPrice * circSupply : (jupiterData?.marketCap || 0);
       
       this.broadcastPriceUpdate(swap.tokenMint, {
-        // Real-time from DEX stream
-        price: metricsData.currentPrice,
+        // Real-time from DEX stream, fallback to Jupiter
+        price: metricsData.currentPrice || jupiterData?.price || 0,
         marketCap: marketCap,
         
-        // 5M window (real-time)
-        priceChange5m: metricsData['5m'].priceChange,
-        volume5m: metricsData['5m'].volume,
-        txns5m: metricsData['5m'].txns,
-        makers5m: metricsData['5m'].makers,
+        // 5M window (real-time, fallback to Jupiter)
+        priceChange5m: metricsData['5m'].priceChange || jupiterData?.stats5m?.priceChange || 0,
+        volume5m: metricsData['5m'].volume || jupiterData?.stats5m?.volume || 0,
+        txns5m: metricsData['5m'].txns || jupiterData?.stats5m?.txns || 0,
+        makers5m: metricsData['5m'].makers || jupiterData?.stats5m?.makers || 0,
         
-        // 1H window (real-time)
-        priceChange1h: metricsData['1h'].priceChange,
-        volume1h: metricsData['1h'].volume,
-        txns1h: metricsData['1h'].txns,
-        makers1h: metricsData['1h'].makers,
+        // 1H window (real-time, fallback to Jupiter)
+        priceChange1h: metricsData['1h'].priceChange || jupiterData?.stats1h?.priceChange || 0,
+        volume1h: metricsData['1h'].volume || jupiterData?.stats1h?.volume || 0,
+        txns1h: metricsData['1h'].txns || jupiterData?.stats1h?.txns || 0,
+        makers1h: metricsData['1h'].makers || jupiterData?.stats1h?.makers || 0,
         
-        // 6H window (real-time)
-        priceChange6h: metricsData['6h'].priceChange,
-        volume6h: metricsData['6h'].volume,
-        txns6h: metricsData['6h'].txns,
-        makers6h: metricsData['6h'].makers,
+        // 6H window (real-time, fallback to Jupiter)
+        priceChange6h: metricsData['6h'].priceChange || jupiterData?.stats6h?.priceChange || 0,
+        volume6h: metricsData['6h'].volume || jupiterData?.stats6h?.volume || 0,
+        txns6h: metricsData['6h'].txns || jupiterData?.stats6h?.txns || 0,
+        makers6h: metricsData['6h'].makers || jupiterData?.stats6h?.makers || 0,
         
-        // 24H window (real-time, fallback to Jupiter if insufficient data)
+        // 24H window (real-time, fallback to Jupiter)
         priceChange24h: metricsData['24h'].priceChange || jupiterData?.priceChange24h || 0,
         volume24h: metricsData['24h'].volume || jupiterData?.volume24h || 0,
         txns24h: metricsData['24h'].txns || jupiterData?.txns24h || 0,
