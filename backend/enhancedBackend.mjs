@@ -18188,8 +18188,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
-      // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
+      // Initialize Real-Time Token Monitor (pass existing EnhancedHybridPriceService instance)
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer, this.enhancedHybridPriceService);
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       

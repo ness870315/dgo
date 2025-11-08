@@ -3,9 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 
 class RealTimeTokenMonitor {
-    constructor(webSocketServer = null) {
+    constructor(webSocketServer = null, enhancedHybridPriceService = null) {
         this.webSocketServer = webSocketServer;
-        this.hybridPriceService = null;
+        this.hybridPriceService = enhancedHybridPriceService; // Use existing instance!
         this.isRunning = false;
         this.monitoringStats = {
             startTime: null,
@@ -26,11 +26,12 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // Initialize Enhanced HybridPriceService
-            this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
+            // Use the existing EnhancedHybridPriceService instance (passed in constructor)
+            if (!this.hybridPriceService) {
+                throw new Error('EnhancedHybridPriceService instance not provided!');
+            }
             
-            // Wait for gRPC client to initialize
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log('✅ [RealTimeTokenMonitor] Using existing EnhancedHybridPriceService instance');
             
             // Load token cache
             await this.loadTokenCache();
