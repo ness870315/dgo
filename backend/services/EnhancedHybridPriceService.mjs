@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
+const JUPITER_API_BASE = 'https://api.jup.ag/tokens/v2';
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
@@ -801,19 +801,21 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use correct Jupiter token info API endpoint
-      const response = await axios.get(`https://tokens.jup.ag/token/${tokenAddress}`, {
+      // Use Jupiter tokens search API (searches by mint address)
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${tokenAddress}`, {
         timeout: 5000
       });
       
       this.lastJupiterRequest = Date.now();
       
-      if (response.data) {
+      // Response is an array, get first result
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const tokenData = response.data[0];
         this.jupiterCache.set(tokenAddress, {
-          data: response.data,
+          data: tokenData,
           timestamp: Date.now()
         });
-        return response.data;
+        return tokenData;
       }
       
       return null;
@@ -836,15 +838,18 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use correct Jupiter price API endpoint
-      const response = await axios.get(`https://api.jup.ag/price/v2?ids=${WSOL}`, {
+      // Use Jupiter tokens search API for SOL
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data?.data?.[WSOL]?.price) {
-        this.solPriceUSD = parseFloat(response.data.data[WSOL].price);
-        this.lastSolPriceUpdate = now;
-        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const solData = response.data[0];
+        if (solData.usdPrice) {
+          this.solPriceUSD = parseFloat(solData.usdPrice);
+          this.lastSolPriceUpdate = now;
+          console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+        }
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
