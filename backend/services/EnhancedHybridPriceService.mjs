@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://tokens.jup.ag'; // Token API base
+const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Token API base
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
@@ -897,16 +897,16 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter token API (single token lookup)
-      const response = await axios.get(`${JUPITER_API_BASE}/token/${tokenAddress}`, {
+      // Use Jupiter search API (single token lookup)
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${tokenAddress}`, {
         timeout: 5000
       });
       
       this.lastJupiterRequest = Date.now();
       
-      // Response is the token data object
-      if (response.data) {
-        const tokenData = response.data;
+      // Response is an array, get first result
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const tokenData = response.data[0];
         this.jupiterCache.set(tokenAddress, {
           data: tokenData,
           timestamp: Date.now()
@@ -1004,24 +1004,28 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Jupiter batch endpoint: GET with comma-separated addresses
-      const addressesParam = tokenAddresses.join(',');
-      const response = await axios.get(`${JUPITER_API_BASE}/tokens?addresses=${addressesParam}`, {
-        timeout: 10000
+      // Jupiter batch endpoint: /search?query=addr1,addr2,addr3...
+      const mintQuery = tokenAddresses.join(',');
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${mintQuery}`, {
+        timeout: 15000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+        }
       });
       
       this.lastJupiterRequest = Date.now();
       
-      // Response is a map of address -> token data
+      // Response is an ARRAY of token data
       const resultMap = new Map();
       
-      if (response.data && typeof response.data === 'object') {
-        // Jupiter returns { "address1": {...}, "address2": {...} }
-        Object.entries(response.data).forEach(([address, tokenData]) => {
-          if (tokenData) {
-            resultMap.set(address, tokenData);
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        // Jupiter returns array: [{ id: "address", symbol: "...", ... }, ...]
+        response.data.forEach(tokenData => {
+          if (tokenData && tokenData.id) {
+            resultMap.set(tokenData.id, tokenData);
             // Cache individual results
-            this.jupiterCache.set(address, {
+            this.jupiterCache.set(tokenData.id, {
               data: tokenData,
               timestamp: Date.now()
             });
@@ -1137,15 +1141,18 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter token API for SOL
-      const response = await axios.get(`${JUPITER_API_BASE}/token/${WSOL}`, {
+      // Use Jupiter search API for SOL
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data && response.data.price) {
-        this.solPriceUSD = parseFloat(response.data.price);
-        this.lastSolPriceUpdate = now;
-        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const solData = response.data[0];
+        if (solData.price) {
+          this.solPriceUSD = parseFloat(solData.price);
+          this.lastSolPriceUpdate = now;
+          console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+        }
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
