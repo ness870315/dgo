@@ -1005,6 +1005,20 @@ class EnhancedHybridPriceService extends EventEmitter {
       return false;
     }
     
+    // DEBUG: Log Jupiter data structure for first token
+    if (Math.random() < 0.05) {
+      console.log(`🔍 [Jupiter Debug] Token ${tokenAddress.slice(0,8)} Jupiter data:`, {
+        hasUsdPrice: !!jupiterData.usdPrice,
+        hasStats5m: !!jupiterData.stats5m,
+        hasStats1h: !!jupiterData.stats1h,
+        hasStats6h: !!jupiterData.stats6h,
+        hasStats24h: !!jupiterData.stats24h,
+        keys: Object.keys(jupiterData),
+        stats5mKeys: jupiterData.stats5m ? Object.keys(jupiterData.stats5m) : 'N/A',
+        stats24hKeys: jupiterData.stats24h ? Object.keys(jupiterData.stats24h) : 'N/A'
+      });
+    }
+    
     try {
       // Seed baseline price (Jupiter uses 'usdPrice' field)
       if (jupiterData.usdPrice) {
