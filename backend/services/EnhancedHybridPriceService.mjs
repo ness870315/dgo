@@ -1551,6 +1551,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         debugCount++;
       }
       
+      // Debug: Log tokens with NON-ZERO price changes to see which ones have data
+      const hasData = 
+        metricsData['5m']?.priceChange !== 0 ||
+        metricsData['1h']?.priceChange !== 0 ||
+        metricsData['6h']?.priceChange !== 0 ||
+        metricsData['24h']?.priceChange !== 0;
+      
+      if (hasData && Math.random() < 0.1) {
+        console.log(`✅ [Token with data] ${jupiterData?.symbol || tokenAddress.slice(0,8)}: 5m=${metricsData['5m']?.priceChange?.toFixed(2)}%, 1h=${metricsData['1h']?.priceChange?.toFixed(2)}%, 6h=${metricsData['6h']?.priceChange?.toFixed(2)}%, 24h=${metricsData['24h']?.priceChange?.toFixed(2)}%`);
+      }
+      
       // Include ALL tokens (even if no swaps yet)
       // metricsData already contains baseline + live deltas merged
       state.push({
@@ -1583,6 +1594,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         lastUpdated: Date.now()
       });
     }
+    
+    // Summary: How many tokens have non-zero price changes?
+    const tokensWithData = state.filter(t => 
+      t.priceChange5m !== 0 || t.priceChange1h !== 0 || t.priceChange6h !== 0 || t.priceChange24h !== 0
+    );
+    console.log(`📊 [getAllTokensState] Returning ${state.length} tokens, ${tokensWithData.length} have price change data (${(tokensWithData.length / state.length * 100).toFixed(1)}%)`);
     
     return state;
   }
