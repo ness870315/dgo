@@ -1670,6 +1670,34 @@ class EnhancedBackend {
           console.log(`[🛡️ Enhanced Backend] 🔍 Search "${search}" matched ${validTokens.length} tokens`);
         }
         
+        // 🚀 NEW: Merge with live metrics from EnhancedHybridPriceService
+        // This ensures frontend gets data IMMEDIATELY, not after 30s seeding delay
+        if (this.enhancedHybridPriceService && this.enhancedHybridPriceService.knownTokens) {
+          const liveState = this.enhancedHybridPriceService.getAllTokensState();
+          const liveStateMap = new Map();
+          liveState.forEach(liveToken => {
+            liveStateMap.set(liveToken.tokenAddress, liveToken);
+          });
+          
+          // Merge live metrics with token metadata
+          validTokens = validTokens.map(token => {
+            const liveData = liveStateMap.get(token.contractAddress);
+            if (liveData) {
+              // Merge: Keep metadata from cache, add live metrics
+              return {
+                ...token,
+                ...liveData,
+                name: token.name, // Preserve from cache
+                symbol: token.symbol, // Preserve from cache
+                logoURI: token.logoURI // Preserve from cache
+              };
+            }
+            return token;
+          });
+          
+          console.log(`[🛡️ Enhanced Backend] 🔄 Merged ${liveState.length} tokens with live metrics`);
+        }
+        
         console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens${search ? ' matching search' : ''}`);
         res.json(validTokens);
 
