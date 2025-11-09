@@ -39,7 +39,25 @@ class TokenMetrics {
     this.priceHistory = []; // { timestamp, price }
     this.uniqueMakers = new Set(); // wallet addresses
     
-    // Cached metrics (updated on each swap)
+    // Jupiter baseline (NEVER replaced, only set once during seeding)
+    this.baseline = {
+      price: 0,
+      '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
+    };
+    
+    // Live deltas from DEX swaps (calculated from this.swaps)
+    this.liveDeltas = {
+      currentPrice: 0,
+      '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
+    };
+    
+    // Cached metrics (baseline + live deltas, updated on each swap)
     this.metrics = {
       currentPrice: 0,
       '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
@@ -65,6 +83,7 @@ class TokenMetrics {
 
   /**
    * Update all time-window metrics
+   * Strategy: Jupiter baseline + Live DEX deltas = Final metrics
    */
   updateMetrics() {
     const now = Date.now();
@@ -75,41 +94,61 @@ class TokenMetrics {
       '24h': 24 * 60 * 60 * 1000
     };
 
-    // Update current price from most recent swap
-    // ONLY if we have swaps, otherwise preserve Jupiter baseline
+    // Step 1: Calculate LIVE deltas from DEX swaps
     if (this.swaps.length > 0) {
       const latestSwapPrice = this.swaps[this.swaps.length - 1].priceUsd;
-      // Use swap price if it's valid (> 0)
-      if (latestSwapPrice > 0) {
-        this.metrics.currentPrice = latestSwapPrice;
-      }
-      // If swap price is 0 but we have a Jupiter baseline, keep the baseline
+      this.liveDeltas.currentPrice = latestSwapPrice > 0 ? latestSwapPrice : 0;
+    } else {
+      this.liveDeltas.currentPrice = 0;
     }
 
-    // Calculate metrics for each window
+    // Calculate live deltas for each window
     for (const [window, duration] of Object.entries(windows)) {
       const cutoffTime = now - duration;
       const recentSwaps = this.swaps.filter(s => s.timestamp >= cutoffTime);
       const recentPrices = this.priceHistory.filter(p => p.timestamp >= cutoffTime);
       
-      // Volume (sum of all swap volumes in USD)
-      this.metrics[window].volume = recentSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
+      // Live volume from DEX swaps
+      this.liveDeltas[window].volume = recentSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
       
-      // Transaction count
-      this.metrics[window].txns = recentSwaps.length;
+      // Live transaction count
+      this.liveDeltas[window].txns = recentSwaps.length;
       
-      // Unique makers
+      // Live unique makers
       const makers = new Set(recentSwaps.map(s => s.walletAddress).filter(Boolean));
-      this.metrics[window].makers = makers.size;
+      this.liveDeltas[window].makers = makers.size;
       
-      // Price change %
+      // Live price change %
       if (recentPrices.length >= 2) {
         const firstPrice = recentPrices[0].price;
         const lastPrice = recentPrices[recentPrices.length - 1].price;
-        this.metrics[window].priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+        this.liveDeltas[window].priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
       } else {
-        this.metrics[window].priceChange = 0;
+        this.liveDeltas[window].priceChange = 0;
       }
+    }
+
+    // Step 2: Merge baseline + live deltas into final metrics
+    // Price: Use live if available, otherwise baseline
+    this.metrics.currentPrice = this.liveDeltas.currentPrice > 0 
+      ? this.liveDeltas.currentPrice 
+      : this.baseline.price;
+
+    // For each window: ADD baseline + live deltas
+    for (const window of Object.keys(windows)) {
+      // Volume: Add baseline + live
+      this.metrics[window].volume = this.baseline[window].volume + this.liveDeltas[window].volume;
+      
+      // Txns: Add baseline + live
+      this.metrics[window].txns = this.baseline[window].txns + this.liveDeltas[window].txns;
+      
+      // Makers: Add baseline + live (unique makers are additive)
+      this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
+      
+      // Price change: Use live if available, otherwise baseline
+      this.metrics[window].priceChange = this.liveDeltas[window].txns > 0
+        ? this.liveDeltas[window].priceChange
+        : this.baseline[window].priceChange;
     }
   }
 
@@ -933,6 +972,7 @@ class EnhancedHybridPriceService extends EventEmitter {
   /**
    * Seed TokenMetrics with Jupiter baseline data
    * This provides immediate data for tokens without waiting for swaps
+   * Jupiter data is stored in BASELINE and NEVER replaced
    */
   async seedTokenMetricsFromJupiter(tokenAddress, jupiterData) {
     const metrics = this.knownTokens.get(tokenAddress);
@@ -942,15 +982,15 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Seed current price (Jupiter uses 'usdPrice' field)
+      // Seed baseline price (Jupiter uses 'usdPrice' field)
       if (jupiterData.usdPrice) {
-        metrics.metrics.currentPrice = jupiterData.usdPrice;
+        metrics.baseline.price = jupiterData.usdPrice;
       }
       
-      // Seed 5M window from stats5m
+      // Seed 5M window baseline from stats5m
       if (jupiterData.stats5m) {
         const stats = jupiterData.stats5m;
-        metrics.metrics['5m'] = {
+        metrics.baseline['5m'] = {
           volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
           txns: (stats.numBuys || 0) + (stats.numSells || 0),
           makers: stats.numTraders || 0,
@@ -958,10 +998,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
       }
       
-      // Seed 1H window from stats1h
+      // Seed 1H window baseline from stats1h
       if (jupiterData.stats1h) {
         const stats = jupiterData.stats1h;
-        metrics.metrics['1h'] = {
+        metrics.baseline['1h'] = {
           volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
           txns: (stats.numBuys || 0) + (stats.numSells || 0),
           makers: stats.numTraders || 0,
@@ -969,10 +1009,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
       }
       
-      // Seed 6H window from stats6h
+      // Seed 6H window baseline from stats6h
       if (jupiterData.stats6h) {
         const stats = jupiterData.stats6h;
-        metrics.metrics['6h'] = {
+        metrics.baseline['6h'] = {
           volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
           txns: (stats.numBuys || 0) + (stats.numSells || 0),
           makers: stats.numTraders || 0,
@@ -980,16 +1020,19 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
       }
       
-      // Seed 24H window from stats24h
+      // Seed 24H window baseline from stats24h
       if (jupiterData.stats24h) {
         const stats = jupiterData.stats24h;
-        metrics.metrics['24h'] = {
+        metrics.baseline['24h'] = {
           volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
           txns: (stats.numBuys || 0) + (stats.numSells || 0),
           makers: stats.numTraders || 0,
           priceChange: stats.priceChange || 0
         };
       }
+      
+      // After seeding baseline, recalculate metrics (baseline + live deltas)
+      metrics.updateMetrics();
       
       // Cache Jupiter data for liquidity/mcap
       this.jupiterCache.set(tokenAddress, {
@@ -1364,14 +1407,12 @@ class EnhancedHybridPriceService extends EventEmitter {
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
       
       // Include ALL tokens (even if no swaps yet)
-      // Use Jupiter price as fallback if no live price from DEX swaps
-      const price = metricsData.currentPrice || jupiterData?.usdPrice || 0;
-      
+      // metricsData already contains baseline + live deltas merged
       state.push({
         tokenAddress,
         contractAddress: tokenAddress, // For compatibility
-        price: price,
-        priceUsd: price,
+        price: metricsData.currentPrice,
+        priceUsd: metricsData.currentPrice,
         priceChange5m: metricsData['5m'].priceChange,
         priceChange1h: metricsData['1h'].priceChange,
         priceChange6h: metricsData['6h'].priceChange,
