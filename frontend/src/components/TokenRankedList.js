@@ -3,10 +3,35 @@ import { Flame } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
 import websocketService from '../services/websocketService';
 
-const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFilters }) => {
+const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect, categoryFilters }) => {
   const [rankings, setRankings] = useState([]);
   const [lastUpdate, setLastUpdate] = useState(null);
   const hasFetchedInitialRef = useRef(false); // Prevent multiple initial fetches
+  
+  // ✅ DEXSCREENER APPROACH: Merge live data from ref when rendering
+  // This gives us live updates WITHOUT triggering React re-renders
+  const tokensWithLiveData = useMemo(() => {
+    if (!tokens || tokens.length === 0) return [];
+    if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;
+    
+    return tokens.map(token => {
+      const address = token.contractAddress || token.tokenAddress;
+      const liveData = liveTokenDataRef.current.get(address);
+      
+      if (liveData) {
+        // Merge live data with token metadata
+        return {
+          ...token,
+          ...liveData,
+          name: token.name, // Preserve from metadata
+          symbol: token.symbol,
+          logoURI: token.logoURI
+        };
+      }
+      
+      return token;
+    });
+  }, [tokens, liveTokenDataRef]);
 
   // Format numbers
   const formatNumber = (num) => {
@@ -52,15 +77,15 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     return { isFueled: false, multiplier: null };
   };
 
-  // ✅ Initialize and update rankings from tokens prop (NO HTTP fetch needed)
-  // Real-time updates come via WebSocket priceUpdate events in App.js
+  // ✅ Initialize and update rankings from tokens with live data merged
+  // Live data comes from liveTokenDataRef (updated by WebSocket, no re-render)
   useEffect(() => {
-    if (tokens && tokens.length > 0) {
-      console.log('🔍 [TokenRankedList] Updating rankings from tokens prop:', tokens.length, 'tokens');
-      setRankings(tokens);
+    if (tokensWithLiveData && tokensWithLiveData.length > 0) {
+      console.log('🔍 [TokenRankedList] Updating rankings with live data:', tokensWithLiveData.length, 'tokens');
+      setRankings(tokensWithLiveData);
       setLastUpdate(new Date());
     }
-  }, [tokens]);
+  }, [tokensWithLiveData]);
 
   // ✅ REAL-TIME: Listen to WebSocket ranking updates (NO HTTP POLLING)
   // This provides LIVE updates for volume, marketcap, makers, price changes without page refreshes

@@ -247,100 +247,47 @@ function AppContent() {
     }
     
     // Listen for FULL STATE updates from backend (every 10 seconds)
+    // ✅ DEXSCREENER APPROACH: NO RE-RENDER for updates, only for new tokens
     const handleFullStateUpdate = (event) => {
       const { tokens: liveTokens } = event;
       
-      console.log(`📡 [App] fullStateUpdate event received:`, {
-        hasTokens: !!liveTokens,
-        tokenCount: liveTokens?.length || 0,
-        firstToken: liveTokens?.[0]
-      });
-      
       if (!liveTokens || liveTokens.length === 0) {
-        console.warn('⚠️ [App] Received fullStateUpdate with no tokens');
         return;
       }
       
-      console.log(`🔄 [App] Received full state update: ${liveTokens.length} tokens`);
+      // Update live data ref (no re-render)
+      liveTokens.forEach(liveToken => {
+        const address = liveToken.tokenAddress || liveToken.contractAddress;
+        liveTokenDataRef.current.set(address, liveToken);
+      });
       
-      // Merge live data with existing token metadata (name, symbol, etc. from Jupiter)
+      // Check if there are NEW tokens (not in current state)
       setTokens(prevTokens => {
         if (prevTokens.length === 0) {
-          // First load: use live data as-is
+          // First load: initialize with all tokens
+          console.log(`🚀 [App] Initial load: ${liveTokens.length} tokens`);
           return liveTokens;
         }
         
-        // Create a map of live data by token address for fast lookup
-        const liveDataMap = new Map();
-        liveTokens.forEach(liveToken => {
-          liveDataMap.set(liveToken.tokenAddress || liveToken.contractAddress, liveToken);
+        // Check for new tokens
+        const existingAddresses = new Set(
+          prevTokens.map(t => t.contractAddress || t.tokenAddress)
+        );
+        
+        const newTokens = liveTokens.filter(lt => {
+          const addr = lt.tokenAddress || lt.contractAddress;
+          return !existingAddresses.has(addr);
         });
         
-        // Track if any data actually changed
-        let hasChanges = false;
-        
-        // Merge: Update tokens with live data if available, keep metadata from Jupiter
-        const merged = prevTokens.map(token => {
-          const tokenAddress = token.contractAddress || token.tokenAddress;
-          const liveData = liveDataMap.get(tokenAddress);
-          
-          if (liveData) {
-            // Check if data actually changed (compare key metrics)
-            const priceChanged = Math.abs((liveData.price || 0) - (token.price || 0)) > 0.000001;
-            const volumeChanged = Math.abs((liveData.volume24h || 0) - (token.volume24h || 0)) > 0.01;
-            const txnsChanged = (liveData.txns24h || 0) !== (token.txns24h || 0);
-            
-            if (!priceChanged && !volumeChanged && !txnsChanged) {
-              // No meaningful change, return existing token object (same reference)
-              return token;
-            }
-            
-            hasChanges = true;
-            
-            // Token has live data, merge it
-            const merged = {
-              ...token, // Keep metadata (name, symbol, etc.)
-              ...liveData, // Override with live data (price, volume, etc.)
-              name: token.name, // Preserve name from Jupiter
-              symbol: token.symbol, // Preserve symbol from Jupiter
-              logoURI: token.logoURI, // Preserve logo from Jupiter
-              isLive: liveData.isLive || liveData.price > 0 // Use backend isLive flag
-            };
-            
-            // Debug: Log first token to see what data we're getting
-            if (Math.random() < 0.01) {
-              console.log(`🔍 [App] Merged token ${token.symbol}:`, {
-                livePrice: liveData.price,
-                liveTxns5m: liveData.txns5m,
-                liveMakers5m: liveData.makers5m,
-                livePriceChange5m: liveData.priceChange5m,
-                livePriceChange1h: liveData.priceChange1h,
-                livePriceChange24h: liveData.priceChange24h,
-                mergedPrice: merged.price,
-                mergedTxns5m: merged.txns5m,
-                mergedPriceChange5m: merged.priceChange5m,
-                mergedPriceChange1h: merged.priceChange1h,
-                mergedPriceChange24h: merged.priceChange24h
-              });
-            }
-            
-            return merged;
-          }
-          
-          // No live data, keep existing token
-          return token;
-        });
-        
-        // If no changes, return the SAME array reference to prevent re-render
-        if (!hasChanges) {
-          console.log(`⏭️ [App] No meaningful changes, skipping update`);
-          return prevTokens;
+        if (newTokens.length > 0) {
+          // New tokens discovered, add them to state (triggers re-render)
+          console.log(`🆕 [App] ${newTokens.length} new tokens discovered`);
+          return [...prevTokens, ...newTokens];
         }
         
-        const liveCount = merged.filter(t => t.isLive).length;
-        console.log(`✅ [App] Updated ${liveCount}/${merged.length} tokens with live data`);
-        
-        return merged;
+        // ✅ NO NEW TOKENS: Return SAME array reference (NO re-render)
+        // Live data is already in liveTokenDataRef, components will read from it
+        return prevTokens;
       });
     };
     
@@ -1691,6 +1638,7 @@ function AppContent() {
                 ) : (
                   <TokenRankedList
                     tokens={filteredTokens}
+                    liveTokenDataRef={liveTokenDataRef}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
                     isTrenchesFilter={categoryFilters.trenches}

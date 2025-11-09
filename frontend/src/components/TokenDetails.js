@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3, Users } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
@@ -113,23 +113,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   const fuelMultiplier = getFuelMultiplier();
 
-  // Store token identifiers to prevent re-running on every WebSocket update
-  const tokenId = useRef({ address: null, symbol: null });
-  
+  // Check if token is in watchlist on component mount (backend source of truth)
+  // ✅ FIX: Only depend on contractAddress and symbol (primitives), not entire token object
+  // This prevents re-running when token object reference changes from WebSocket updates
   useEffect(() => {
-    // Skip if same token (prevent infinite loop from WebSocket updates)
-    if (tokenId.current.address === token?.contractAddress && 
-        tokenId.current.symbol === token?.symbol) {
-      return;
-    }
-    
-    // Update stored token ID
-    tokenId.current = {
-      address: token?.contractAddress,
-      symbol: token?.symbol
-    };
-
-    // Check if token is in watchlist on component mount (backend source of truth)
     const checkWatchlistStatus = async () => {
       try {
         if (!token?.symbol) return;
@@ -149,7 +136,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     if (token?.contractAddress) {
       priorityService.boostTokenOnView(token.contractAddress, token.symbol);
     }
-  }, [token]); // Run on token change, but skip if same token via useRef check
+  }, [token?.contractAddress, token?.symbol]); // ✅ Only re-run when address or symbol changes
 
   // Check for pending fuel payment on modal open
   useEffect(() => {
