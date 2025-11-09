@@ -936,50 +936,52 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Seed current price (Jupiter uses 'price' field)
-      if (jupiterData.price) {
-        metrics.metrics.currentPrice = jupiterData.price;
-      } else {
-        console.warn(`⚠️ [EnhancedHybridPriceService] No price in Jupiter data for ${tokenAddress.slice(0,8)}...:`, Object.keys(jupiterData));
+      // Seed current price (Jupiter uses 'usdPrice' field)
+      if (jupiterData.usdPrice) {
+        metrics.metrics.currentPrice = jupiterData.usdPrice;
       }
       
-      // Seed 5M window
-      if (jupiterData.volume5m || jupiterData.txns5m || jupiterData.priceChange5m) {
+      // Seed 5M window from stats5m
+      if (jupiterData.stats5m) {
+        const stats = jupiterData.stats5m;
         metrics.metrics['5m'] = {
-          volume: jupiterData.volume5m || 0,
-          txns: jupiterData.txns5m || 0,
-          makers: jupiterData.makers5m || 0,
-          priceChange: jupiterData.priceChange5m || 0
+          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+          txns: (stats.numBuys || 0) + (stats.numSells || 0),
+          makers: stats.numTraders || 0,
+          priceChange: stats.priceChange || 0
         };
       }
       
-      // Seed 1H window
-      if (jupiterData.volume1h || jupiterData.txns1h || jupiterData.priceChange1h) {
+      // Seed 1H window from stats1h
+      if (jupiterData.stats1h) {
+        const stats = jupiterData.stats1h;
         metrics.metrics['1h'] = {
-          volume: jupiterData.volume1h || 0,
-          txns: jupiterData.txns1h || 0,
-          makers: jupiterData.makers1h || 0,
-          priceChange: jupiterData.priceChange1h || 0
+          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+          txns: (stats.numBuys || 0) + (stats.numSells || 0),
+          makers: stats.numTraders || 0,
+          priceChange: stats.priceChange || 0
         };
       }
       
-      // Seed 6H window
-      if (jupiterData.volume6h || jupiterData.txns6h || jupiterData.priceChange6h) {
+      // Seed 6H window from stats6h
+      if (jupiterData.stats6h) {
+        const stats = jupiterData.stats6h;
         metrics.metrics['6h'] = {
-          volume: jupiterData.volume6h || 0,
-          txns: jupiterData.txns6h || 0,
-          makers: jupiterData.makers6h || 0,
-          priceChange: jupiterData.priceChange6h || 0
+          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+          txns: (stats.numBuys || 0) + (stats.numSells || 0),
+          makers: stats.numTraders || 0,
+          priceChange: stats.priceChange || 0
         };
       }
       
-      // Seed 24H window
-      if (jupiterData.volume24h || jupiterData.txns24h || jupiterData.priceChange24h) {
+      // Seed 24H window from stats24h
+      if (jupiterData.stats24h) {
+        const stats = jupiterData.stats24h;
         metrics.metrics['24h'] = {
-          volume: jupiterData.volume24h || 0,
-          txns: jupiterData.txns24h || 0,
-          makers: jupiterData.makers24h || 0,
-          priceChange: jupiterData.priceChange24h || 0
+          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+          txns: (stats.numBuys || 0) + (stats.numSells || 0),
+          makers: stats.numTraders || 0,
+          priceChange: stats.priceChange || 0
         };
       }
       
