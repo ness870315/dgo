@@ -347,9 +347,23 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Seed all tokens with Jupiter baseline in BACKGROUND (non-blocking)
       console.log('🌱 [EnhancedHybridPriceService] Step 7: Seeding tokens with Jupiter baseline (background)...');
-      this.seedAllTokensFromJupiter().catch(error => {
-        console.error('❌ [EnhancedHybridPriceService] Jupiter seeding failed:', error.message);
-      });
+      this.seedAllTokensFromJupiter()
+        .then(() => {
+          // Trigger immediate broadcast after seeding completes so frontend gets baseline data
+          console.log('📡 [EnhancedHybridPriceService] Seeding complete, broadcasting updated state...');
+          const state = this.getAllTokensState();
+          if (this.webSocketServer && state.length > 0) {
+            this.webSocketServer.broadcast({
+              type: 'fullStateUpdate',
+              tokens: state,
+              timestamp: Date.now()
+            });
+            console.log(`✅ [EnhancedHybridPriceService] Broadcasted seeded state for ${state.length} tokens`);
+          }
+        })
+        .catch(error => {
+          console.error('❌ [EnhancedHybridPriceService] Jupiter seeding failed:', error.message);
+        });
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
       console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
