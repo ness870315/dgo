@@ -1308,11 +1308,70 @@ class EnhancedHybridPriceService extends EventEmitter {
           const metrics = new TokenMetrics(token.contractAddress);
           this.knownTokens.set(token.contractAddress, metrics);
           
-          // ✅ CRITICAL FIX: If token has Jupiter data in cache, seed immediately!
+          // ✅ CRITICAL FIX: If token has Jupiter data in cache, seed immediately (SYNCHRONOUSLY)!
           if (token.jupiterData) {
-            const seeded = await this.seedTokenMetricsFromJupiter(token.contractAddress, token.jupiterData);
-            if (seeded) {
+            // Seed synchronously by directly populating baseline (no await needed)
+            try {
+              if (token.jupiterData.usdPrice) {
+                metrics.baseline.price = token.jupiterData.usdPrice;
+              }
+              
+              // Seed 5M
+              if (token.jupiterData.stats5m) {
+                const stats = token.jupiterData.stats5m;
+                metrics.baseline['5m'] = {
+                  volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+                  txns: (stats.numBuys || 0) + (stats.numSells || 0),
+                  makers: stats.numTraders || 0,
+                  priceChange: stats.priceChange || 0
+                };
+              }
+              
+              // Seed 1H
+              if (token.jupiterData.stats1h) {
+                const stats = token.jupiterData.stats1h;
+                metrics.baseline['1h'] = {
+                  volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+                  txns: (stats.numBuys || 0) + (stats.numSells || 0),
+                  makers: stats.numTraders || 0,
+                  priceChange: stats.priceChange || 0
+                };
+              }
+              
+              // Seed 6H
+              if (token.jupiterData.stats6h) {
+                const stats = token.jupiterData.stats6h;
+                metrics.baseline['6h'] = {
+                  volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+                  txns: (stats.numBuys || 0) + (stats.numSells || 0),
+                  makers: stats.numTraders || 0,
+                  priceChange: stats.priceChange || 0
+                };
+              }
+              
+              // Seed 24H
+              if (token.jupiterData.stats24h) {
+                const stats = token.jupiterData.stats24h;
+                metrics.baseline['24h'] = {
+                  volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+                  txns: (stats.numBuys || 0) + (stats.numSells || 0),
+                  makers: stats.numTraders || 0,
+                  priceChange: stats.priceChange || 0
+                };
+              }
+              
+              // Update metrics to merge baseline + live deltas
+              metrics.updateMetrics();
+              
+              // Cache Jupiter data for liquidity/mcap
+              this.jupiterCache.set(token.contractAddress, {
+                data: token.jupiterData,
+                timestamp: Date.now()
+              });
+              
               seededCount++;
+            } catch (error) {
+              console.error(`❌ Failed to seed ${token.contractAddress.slice(0,8)}:`, error.message);
             }
           }
         }
