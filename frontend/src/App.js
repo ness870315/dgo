@@ -250,12 +250,18 @@ function AppContent() {
     const handleFullStateUpdate = (event) => {
       const { tokens: liveTokens } = event;
       
+      console.log(`📡 [App] fullStateUpdate event received:`, {
+        hasTokens: !!liveTokens,
+        tokenCount: liveTokens?.length || 0,
+        firstToken: liveTokens?.[0]
+      });
+      
       if (!liveTokens || liveTokens.length === 0) {
         console.warn('⚠️ [App] Received fullStateUpdate with no tokens');
         return;
       }
       
-      console.log(`🔄 [App] Received full state update: ${liveTokens.length} tokens with live data`);
+      console.log(`🔄 [App] Received full state update: ${liveTokens.length} tokens`);
       
       // Merge live data with existing token metadata (name, symbol, etc. from Jupiter)
       setTokens(prevTokens => {
@@ -283,7 +289,7 @@ function AppContent() {
               name: token.name, // Preserve name from Jupiter
               symbol: token.symbol, // Preserve symbol from Jupiter
               logoURI: token.logoURI, // Preserve logo from Jupiter
-              isLive: true
+              isLive: liveData.isLive || liveData.price > 0 // Use backend isLive flag
             };
           }
           
