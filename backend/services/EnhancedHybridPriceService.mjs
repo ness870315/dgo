@@ -1422,11 +1422,13 @@ class EnhancedHybridPriceService extends EventEmitter {
       if (debugCount === 0) {
         console.log(`📊 [getAllTokensState Debug] First token ${tokenAddress.slice(0,8)}:`, {
           price: metricsData.currentPrice,
-          priceChange5m: metricsData['5m'].priceChange,
-          priceChange1h: metricsData['1h'].priceChange,
-          priceChange24h: metricsData['24h'].priceChange,
-          vol24h: metricsData['24h'].volume,
-          txns24h: metricsData['24h'].txns
+          metricsData5m: metricsData['5m'],
+          metricsData1h: metricsData['1h'],
+          metricsData24h: metricsData['24h'],
+          baseline5m: metrics.baseline['5m'],
+          baseline1h: metrics.baseline['1h'],
+          liveDeltas5m: metrics.liveDeltas['5m'],
+          liveDeltas1h: metrics.liveDeltas['1h']
         });
         debugCount++;
       }
