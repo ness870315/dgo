@@ -298,8 +298,14 @@ function AppContent() {
                 livePrice: liveData.price,
                 liveTxns5m: liveData.txns5m,
                 liveMakers5m: liveData.makers5m,
+                livePriceChange5m: liveData.priceChange5m,
+                livePriceChange1h: liveData.priceChange1h,
+                livePriceChange24h: liveData.priceChange24h,
                 mergedPrice: merged.price,
-                mergedTxns5m: merged.txns5m
+                mergedTxns5m: merged.txns5m,
+                mergedPriceChange5m: merged.priceChange5m,
+                mergedPriceChange1h: merged.priceChange1h,
+                mergedPriceChange24h: merged.priceChange24h
               });
             }
             
