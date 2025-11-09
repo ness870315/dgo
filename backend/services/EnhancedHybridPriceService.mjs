@@ -280,12 +280,16 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
+      // Seed all tokens with Jupiter baseline (CRITICAL for instant data)
+      console.log('🌱 [EnhancedHybridPriceService] Step 5: Seeding tokens with Jupiter baseline...');
+      await this.seedAllTokensFromJupiter();
+      
       // Start DEX program stream
-      console.log('🚀 [EnhancedHybridPriceService] Step 5: Starting DEX program stream...');
+      console.log('🚀 [EnhancedHybridPriceService] Step 6: Starting DEX program stream...');
       await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
-      console.log('📡 [EnhancedHybridPriceService] Step 6: Starting periodic state broadcast...');
+      console.log('📡 [EnhancedHybridPriceService] Step 7: Starting periodic state broadcast...');
       this.startPeriodicBroadcast();
       
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
@@ -635,6 +639,15 @@ class EnhancedHybridPriceService extends EventEmitter {
   async processNewTokenSwap(swap) {
     this.stats.newTokenSwaps++;
     
+    // Check if token needs onboarding
+    if (!this.knownTokens.has(swap.tokenMint)) {
+      console.log(`🆕 [EnhancedHybridPriceService] New token detected from DEX stream: ${swap.tokenMint.slice(0,8)}...`);
+      // Onboard in background (don't block swap processing)
+      this.onboardNewToken(swap.tokenMint, 'dex-stream').catch(err => {
+        console.error(`❌ Failed to onboard ${swap.tokenMint.slice(0,8)}...:`, err.message);
+      });
+    }
+    
     // Track activity for this new token
     let activity = this.newTokenActivity.get(swap.tokenMint);
     if (!activity) {
@@ -917,6 +930,169 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Seed TokenMetrics with Jupiter baseline data
+   * This provides immediate data for tokens without waiting for swaps
+   */
+  async seedTokenMetricsFromJupiter(tokenAddress, jupiterData) {
+    const metrics = this.knownTokens.get(tokenAddress);
+    if (!metrics) {
+      console.warn(`⚠️ [EnhancedHybridPriceService] Cannot seed ${tokenAddress.slice(0,8)}... - not in knownTokens`);
+      return false;
+    }
+    
+    try {
+      // Seed current price
+      if (jupiterData.price) {
+        metrics.metrics.currentPrice = jupiterData.price;
+      }
+      
+      // Seed 5M window
+      if (jupiterData.volume5m || jupiterData.txns5m || jupiterData.priceChange5m) {
+        metrics.metrics['5m'] = {
+          volume: jupiterData.volume5m || 0,
+          txns: jupiterData.txns5m || 0,
+          makers: jupiterData.makers5m || 0,
+          priceChange: jupiterData.priceChange5m || 0
+        };
+      }
+      
+      // Seed 1H window
+      if (jupiterData.volume1h || jupiterData.txns1h || jupiterData.priceChange1h) {
+        metrics.metrics['1h'] = {
+          volume: jupiterData.volume1h || 0,
+          txns: jupiterData.txns1h || 0,
+          makers: jupiterData.makers1h || 0,
+          priceChange: jupiterData.priceChange1h || 0
+        };
+      }
+      
+      // Seed 6H window
+      if (jupiterData.volume6h || jupiterData.txns6h || jupiterData.priceChange6h) {
+        metrics.metrics['6h'] = {
+          volume: jupiterData.volume6h || 0,
+          txns: jupiterData.txns6h || 0,
+          makers: jupiterData.makers6h || 0,
+          priceChange: jupiterData.priceChange6h || 0
+        };
+      }
+      
+      // Seed 24H window
+      if (jupiterData.volume24h || jupiterData.txns24h || jupiterData.priceChange24h) {
+        metrics.metrics['24h'] = {
+          volume: jupiterData.volume24h || 0,
+          txns: jupiterData.txns24h || 0,
+          makers: jupiterData.makers24h || 0,
+          priceChange: jupiterData.priceChange24h || 0
+        };
+      }
+      
+      // Cache Jupiter data for liquidity/mcap
+      this.jupiterCache.set(tokenAddress, {
+        data: jupiterData,
+        timestamp: Date.now()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ [EnhancedHybridPriceService] Failed to seed ${tokenAddress.slice(0,8)}...:`, error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Seed ALL tokens with Jupiter baseline data on startup
+   * This ensures all tokens have data immediately, not just ones with recent swaps
+   */
+  async seedAllTokensFromJupiter() {
+    const tokenAddresses = Array.from(this.knownTokens.keys());
+    
+    if (tokenAddresses.length === 0) {
+      console.log('⚠️ [EnhancedHybridPriceService] No tokens to seed');
+      return;
+    }
+    
+    console.log(`🌱 [EnhancedHybridPriceService] Seeding ${tokenAddresses.length} tokens with Jupiter baseline...`);
+    
+    const batchSize = 100;
+    let seededCount = 0;
+    let failedCount = 0;
+    
+    for (let i = 0; i < tokenAddresses.length; i += batchSize) {
+      const batch = tokenAddresses.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const results = await Promise.allSettled(
+        batch.map(async (tokenAddress) => {
+          const jupiterData = await this.fetchJupiterData(tokenAddress);
+          if (jupiterData) {
+            const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
+            return seeded ? 'seeded' : 'failed';
+          }
+          return 'no_data';
+        })
+      );
+      
+      // Count results
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value === 'seeded') {
+          seededCount++;
+        } else {
+          failedCount++;
+        }
+      });
+      
+      console.log(`🌱 [EnhancedHybridPriceService] Progress: ${seededCount} seeded, ${failedCount} failed/no-data (${i + batch.length}/${tokenAddresses.length})`);
+      
+      // Rate limiting: 1 second between batches
+      if (i + batchSize < tokenAddresses.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log(`✅ [EnhancedHybridPriceService] Seeding complete: ${seededCount}/${tokenAddresses.length} tokens seeded, ${failedCount} failed/no-data`);
+  }
+
+  /**
+   * Onboard a new token (from any source)
+   * Creates TokenMetrics and seeds with Jupiter baseline
+   */
+  async onboardNewToken(tokenAddress, source = 'unknown') {
+    // Check if already exists
+    if (this.knownTokens.has(tokenAddress)) {
+      console.log(`ℹ️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... already onboarded`);
+      return true;
+    }
+    
+    console.log(`🆕 [EnhancedHybridPriceService] Onboarding new token: ${tokenAddress.slice(0,8)}... (source: ${source})`);
+    
+    // 1. Create TokenMetrics
+    const metrics = new TokenMetrics(tokenAddress);
+    this.knownTokens.set(tokenAddress, metrics);
+    
+    // 2. Fetch Jupiter baseline
+    const jupiterData = await this.fetchJupiterData(tokenAddress);
+    
+    if (jupiterData) {
+      // 3. Seed TokenMetrics with Jupiter baseline
+      const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
+      if (seeded) {
+        console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded with Jupiter baseline`);
+      } else {
+        console.warn(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded but seeding failed`);
+      }
+    } else {
+      console.warn(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded but no Jupiter data, will wait for DEX swaps`);
+    }
+    
+    // 4. Fetch and cache token metadata
+    this.fetchTokenMetadata(tokenAddress).catch(err => {
+      console.error(`⚠️ Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, err.message);
+    });
+    
+    return true;
+  }
+
+  /**
    * Update SOL price
    */
   async updateSolPrice() {
@@ -1196,25 +1372,11 @@ class EnhancedHybridPriceService extends EventEmitter {
   /**
    * Ensure token is being monitored (compatibility method)
    * With DEX program filtering, all tokens are automatically monitored
+   * Now uses onboardNewToken for Jupiter baseline seeding
    */
   async ensureTokenMonitoring(tokenAddress) {
-    // Check if token is already in known tokens
-    if (this.knownTokens.has(tokenAddress)) {
-      return true;
-    }
-    
-    // Add to known tokens
-    const metrics = new TokenMetrics(tokenAddress);
-    this.knownTokens.set(tokenAddress, metrics);
-    
-    // Fetch and cache token metadata (circSupply for market cap calculation)
-    this.fetchTokenMetadata(tokenAddress).catch(err => {
-      console.error(`⚠️ Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, err.message);
-    });
-    
-    console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress.slice(0, 8)}... to known tokens (will receive swaps from DEX stream)`);
-    
-    return true;
+    // Use the new onboarding method which includes Jupiter seeding
+    return await this.onboardNewToken(tokenAddress, 'manual-monitoring');
   }
   
   /**
