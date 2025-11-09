@@ -416,6 +416,7 @@ function AppContent() {
         
         // 2) ABSOLUTE MICRO-CAP FILTER - No tokens under $50k market cap
         if (mcap > 0 && mcap < 50_000) {
+          console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - mcap too low: $${mcap.toFixed(2)}`);
           return false;
         }
         
@@ -463,8 +464,14 @@ function AppContent() {
           return false;
         }
 
+        // Token passed all filters
+        if (Math.random() < 0.1) { // Log 10% of passing tokens to avoid spam
+          console.log(`✅ [Trending Filter] Passed ${token.symbol} - mcap: $${mcap.toFixed(2)}, volume: $${totalVolume.toFixed(2)}, score: ${score}`);
+        }
         return true;
       });
+      
+      console.log(`📊 [Trending Filter] ${highScoreTokens.length} tokens passed all filters`);
       
       // Separate fueled and regular tokens
       const fueledTokensList = highScoreTokens.filter(token => fueledSymbols.has(token.symbol));
