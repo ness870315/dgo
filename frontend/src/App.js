@@ -524,7 +524,8 @@ function AppContent() {
         }
         
         // 2.5) LIQUIDITY FILTER - No rugs with zero liquidity
-        const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
+        // CRITICAL: Use LIVE liquidity (top level) first, NOT cached jupiterData
+        const liquidity = token?.liquidity ?? token?.jupiterData?.liquidity ?? 0;
         if (liquidity <= 0) {
           console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - zero liquidity (RUG RISK)`);
           return false;
@@ -534,11 +535,6 @@ function AppContent() {
         if (liquidity < 5000) {
           console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - liquidity too low: $${liquidity.toFixed(2)}`);
           return false;
-        }
-        
-        // Debug: Log tokens that pass liquidity check
-        if (Math.random() < 0.1) {
-          console.log(`✅ [Trending Filter] ${token.symbol} passed liquidity check - liquidity: $${liquidity.toFixed(2)}, mcap: $${mcap.toFixed(2)}`);
         }
         
         // 3) HOLDER DUMP PROTECTION - Exclude massive holder exodus
