@@ -1707,6 +1707,63 @@ class EnhancedBackend {
       }
     });
 
+    // 🚀 NEW: Get current state of all tokens with live metrics (INSTANT)
+    // This endpoint returns data immediately without waiting for WebSocket
+    this.app.get('/api/tokens/state', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 📊 API request for token state received...');
+        
+        if (!this.enhancedHybridPriceService || !this.enhancedHybridPriceService.knownTokens) {
+          console.log('[🛡️ Enhanced Backend] ⚠️ EnhancedHybridPriceService not ready');
+          res.json([]);
+          return;
+        }
+        
+        // Get current state from EnhancedHybridPriceService (includes baseline + live)
+        const liveState = this.enhancedHybridPriceService.getAllTokensState();
+        
+        // Get token metadata from cache
+        const tokens = await this.getTokensFromCache();
+        const tokenMap = new Map();
+        tokens.forEach(token => {
+          tokenMap.set(token.contractAddress, token);
+        });
+        
+        // Merge: live metrics + metadata
+        const mergedTokens = liveState.map(liveToken => {
+          const metadata = tokenMap.get(liveToken.tokenAddress);
+          if (metadata) {
+            return {
+              ...liveToken,
+              name: metadata.name,
+              symbol: metadata.symbol,
+              logoURI: metadata.logoURI,
+              // Keep other metadata fields
+              description: metadata.description,
+              twitter: metadata.twitter,
+              telegram: metadata.telegram,
+              website: metadata.website
+            };
+          }
+          return liveToken;
+        });
+        
+        // Filter out suspicious/rugged tokens
+        const validTokens = mergedTokens.filter(t => 
+          !this.isSuspiciousToken(t) && 
+          !this.isRuggedToken(t) && 
+          !this.isExcludedMajorOrStable(t)
+        );
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} tokens with live state`);
+        res.json(validTokens);
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error fetching token state:', error);
+        res.status(500).json({ error: 'Failed to fetch token state' });
+      }
+    });
+
     // Get trending tokens (filtered by status)
     this.app.get('/api/tokens/trending', async (req, res) => {
       try {

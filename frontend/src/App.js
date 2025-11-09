@@ -819,10 +819,12 @@ function AppContent() {
       }
       setError(null);
               const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-              const [tokenData, fueledData] = await Promise.all([
-          tokenService.fetchTokens(settings.useRealTwitterData),
-          fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
-        ]);
+      
+      // 🚀 Use /api/tokens/state for INSTANT data (includes baseline + live metrics)
+      const [tokenData, fueledData] = await Promise.all([
+        fetch(`${apiBase}/api/tokens/state`).then(res => res.ok ? res.json() : []),
+        fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
+      ]);
         
         // 🚀 CRITICAL: Merge new token data with existing live WebSocket data
         // Don't overwrite live prices/volumes with stale API data!
