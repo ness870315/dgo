@@ -345,14 +345,14 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log('✅ [EnhancedHybridPriceService] TokenMetrics seeded - ALL tokens have baseline data');
       
       // Start DEX program stream
-      console.log('🚀 [EnhancedHybridPriceService] Step 6: Starting DEX program stream...');
+      console.log('🚀 [EnhancedHybridPriceService] Step 7: Starting DEX program stream...');
       await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
-      console.log('📡 [EnhancedHybridPriceService] Step 7: Starting periodic state broadcast...');
+      console.log('📡 [EnhancedHybridPriceService] Step 8: Starting periodic state broadcast...');
       this.startPeriodicBroadcast();
       
-      console.log('✅ [EnhancedHybridPriceService] Initialization complete - ALL tokens seeded with Jupiter data');
+      console.log('✅ [EnhancedHybridPriceService] Initialization complete - Token cache refreshed with fresh Jupiter data, TokenMetrics seeded, DEX stream active');
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
       console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
