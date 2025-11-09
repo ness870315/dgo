@@ -936,9 +936,11 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Seed current price
+      // Seed current price (Jupiter uses 'price' field)
       if (jupiterData.price) {
         metrics.metrics.currentPrice = jupiterData.price;
+      } else {
+        console.warn(`⚠️ [EnhancedHybridPriceService] No price in Jupiter data for ${tokenAddress.slice(0,8)}...:`, Object.keys(jupiterData));
       }
       
       // Seed 5M window
