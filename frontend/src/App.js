@@ -1635,6 +1635,7 @@ function AppContent() {
                 currentView === 'bubbles' ? (
                   <BubbleMap
                     tokens={filteredTokens}
+                    liveTokenDataRef={liveTokenDataRef}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
                     currentFilter={categoryFilters}

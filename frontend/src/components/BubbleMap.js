@@ -1,13 +1,36 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { getStatusFromScore } from '../utils/statusUtils';
 
-const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {} }) => {
+const BubbleMap = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect, currentFilter = {} }) => {
   const svgRef = useRef();
   const tooltipRef = useRef();
   const zoomRef = useRef();
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity);
+  
+  // ✅ DEXSCREENER APPROACH: Merge live data from ref
+  const tokensWithLiveData = useMemo(() => {
+    if (!tokens || tokens.length === 0) return [];
+    if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;
+    
+    return tokens.map(token => {
+      const address = token.contractAddress || token.tokenAddress;
+      const liveData = liveTokenDataRef.current.get(address);
+      
+      if (liveData) {
+        return {
+          ...token,
+          ...liveData,
+          name: token.name,
+          symbol: token.symbol,
+          logoURI: token.logoURI
+        };
+      }
+      
+      return token;
+    });
+  }, [tokens, liveTokenDataRef]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -37,7 +60,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         else if (isUltraWide) minHeight = 600; // Reduced
         
         // Dynamic height adjustment based on token count
-        const tokenCount = tokens?.length || 0;
+        const tokenCount = tokensWithLiveData?.length || 0;
         let dynamicHeight = Math.min(Math.max(minHeight, containerHeight), availableHeight);
         
         // Increase height for many tokens but cap at available height
@@ -62,7 +85,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
   }, []);
 
   useEffect(() => {
-    if (!tokens || tokens.length === 0) return;
+    if (!tokensWithLiveData || tokensWithLiveData.length === 0) return;
 
     const svg = d3.select(svgRef.current);
     
@@ -78,7 +101,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     const innerHeight = height - margin.top - margin.bottom;
 
     // Create scales with dynamic sizing based on token count and screen size
-    const tokenCount = tokens.length;
+    const tokenCount = tokensWithLiveData.length;
     const screenWidth = window.innerWidth;
     const isMobile = screenWidth < 640;
     const isTablet = screenWidth >= 640 && screenWidth < 1024;
@@ -176,7 +199,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     minSize = Math.max(minSize, baseSize - 10);
     
     const radiusScale = d3.scaleSqrt()
-      .domain(d3.extent(tokens, d => d.score || d.overallScore || 5))
+      .domain(d3.extent(tokensWithLiveData, d => d.score || d.overallScore || 5))
       .range([minSize, maxSize]);
 
     // Create custom temperature color scale (green = strong, purple = risky)
@@ -191,7 +214,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     const chargeStrength = tokenCount <= 10 ? -200 : tokenCount <= 25 ? -100 : tokenCount <= 50 ? -60 : -40;
     const centerStrength = tokenCount <= 10 ? 0.02 : tokenCount <= 25 ? 0.03 : 0.04; // Reduced center force for more natural spread
     
-    const simulation = d3.forceSimulation(tokens)
+    const simulation = d3.forceSimulation(tokensWithLiveData)
       .force('charge', d3.forceManyBody().strength(chargeStrength))
       .force('center', d3.forceCenter(innerWidth / 2, innerHeight / 2))
       .force('collision', d3.forceCollide().radius(d => radiusScale(d.score || d.overallScore || 5) + 2))
@@ -199,7 +222,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       .force('y', d3.forceY(innerHeight / 2).strength(centerStrength))
       // 🌊 SOFT BOUNDARY: Gentle repulsion from edges for natural clustering
       .force('boundary', function() {
-        tokens.forEach(d => {
+        tokensWithLiveData.forEach(d => {
           const radius = radiusScale(d.score || d.overallScore || 5);
           const boundaryStrength = 0.1; // Gentle repulsion
           const boundaryMargin = radius * 2; // Safe distance from edges
@@ -249,7 +272,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     // D3 Enter/Update/Exit pattern for efficient rendering
     // Bind data with key function for proper tracking
     const bubbles = g.selectAll('.bubble')
-      .data(tokens, d => d.contractAddress || d.symbol);
+      .data(tokensWithLiveData, d => d.contractAddress || d.symbol);
 
     // EXIT: Remove bubbles that no longer exist
     bubbles.exit()
@@ -797,7 +820,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     return () => {
       simulation.stop();
     };
-  }, [tokens, dimensions, onTokenSelect]);
+  }, [tokensWithLiveData, dimensions, onTokenSelect]);
 
   const resetZoom = () => {
     if (svgRef.current && zoomRef.current) {
@@ -885,7 +908,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       </style>
       
       {/* Zoom Controls */}
-      {tokens.length > 15 && (
+      {tokensWithLiveData.length > 15 && (
         <div className="zoom-controls">
           <div className="relative">
             <button 
@@ -909,7 +932,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       )}
       
       {/* Instructions for many bubbles */}
-      {tokens.length > 30 && (
+      {tokensWithLiveData.length > 30 && (
         <div className="zoom-instructions">
           💡 Scroll to zoom • Drag to pan • Click bubbles to explore
         </div>
