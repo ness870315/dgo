@@ -1154,6 +1154,21 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Seed each token with its data
       for (const tokenAddress of batch) {
+        const metrics = this.knownTokens.get(tokenAddress);
+        
+        // ✅ CRITICAL: Skip if token already has baseline data from cache!
+        const hasBaselineData = metrics && (
+          metrics.baseline['5m'].priceChange !== 0 ||
+          metrics.baseline['1h'].priceChange !== 0 ||
+          metrics.baseline['6h'].priceChange !== 0 ||
+          metrics.baseline['24h'].priceChange !== 0
+        );
+        
+        if (hasBaselineData) {
+          seededCount++;
+          continue; // Skip - already has data from cache
+        }
+        
         const jupiterData = jupiterDataMap.get(tokenAddress);
         if (jupiterData) {
           const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
@@ -1163,7 +1178,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             failedCount++;
           }
         } else {
-          failedCount++;
+          // Jupiter API didn't return data - check if we have cached data from token cache
+          const cached = this.jupiterCache.get(tokenAddress);
+          if (cached && cached.data) {
+            const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, cached.data);
+            if (seeded) {
+              seededCount++;
+            } else {
+              failedCount++;
+            }
+          } else {
+            failedCount++;
+          }
         }
       }
       
