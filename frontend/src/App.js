@@ -1340,6 +1340,13 @@ function AppContent() {
     applyFiltersAndSearch(tokens, filters, searchTerm);
   }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
 
+  // ✅ CRITICAL FIX: Re-apply filters whenever tokens state changes (from WebSocket updates)
+  useEffect(() => {
+    if (tokens.length > 0) {
+      applyFiltersAndSearch(tokens, filters, searchTerm);
+    }
+  }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
+
   // Load data on component mount (ONCE ONLY)
   useEffect(() => {
     loadTokens();
