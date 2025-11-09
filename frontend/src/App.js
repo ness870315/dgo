@@ -341,6 +341,51 @@ function AppContent() {
       0
     );
   };
+  
+  // Helper function to adjust score based on negative metrics (volume dumps, holder exodus, etc.)
+  const getAdjustedScore = (token) => {
+    let baseScore = token.score || token.overallScore || 0;
+    
+    // Get volume changes
+    const volChange1h = token?.jupiterData?.stats1h?.volumeChange ?? 0;
+    const volChange6h = token?.jupiterData?.stats6h?.volumeChange ?? 0;
+    const volChange24h = token?.jupiterData?.stats24h?.volumeChange ?? 0;
+    
+    // Get holder change
+    const holderChange24h = token?.jupiterData?.stats24h?.holderChange ?? 0;
+    
+    // Get price change
+    const priceChange24h = token?.jupiterData?.stats24h?.priceChange ?? token?.priceChange24h ?? 0;
+    
+    // Apply penalties for red flags
+    let penalty = 0;
+    
+    // Volume dump penalties
+    if (volChange24h <= -80) penalty += 3.0; // Catastrophic volume dump
+    else if (volChange24h <= -60) penalty += 2.0; // Severe volume dump
+    else if (volChange24h <= -40) penalty += 1.0; // Major volume dump
+    
+    if (volChange6h <= -50 && volChange1h <= -50) penalty += 1.5; // Sustained dump
+    
+    // Holder exodus penalty
+    if (holderChange24h <= -70) penalty += 2.5; // Massive holder exodus
+    else if (holderChange24h <= -50) penalty += 1.5; // Major holder exodus
+    else if (holderChange24h <= -30) penalty += 0.5; // Moderate holder exodus
+    
+    // Price crash penalty
+    if (priceChange24h <= -75) penalty += 2.0; // Catastrophic price crash
+    else if (priceChange24h <= -50) penalty += 1.0; // Major price crash
+    
+    // Apply penalty (minimum score of 0)
+    const adjustedScore = Math.max(0, baseScore - penalty);
+    
+    // Log significant adjustments
+    if (penalty > 0 && Math.random() < 0.1) {
+      console.log(`📉 [Score Adjustment] ${token.symbol}: ${baseScore.toFixed(1)} → ${adjustedScore.toFixed(1)} (penalty: -${penalty.toFixed(1)})`);
+    }
+    
+    return adjustedScore;
+  };
   const [filters, setFilters] = useState({
     minScore: 0,
     maxScore: 10,
@@ -387,9 +432,11 @@ function AppContent() {
       
       // Base filter: score & market cap (emerging)
       // ✅ CRITICAL: Must have minimum $50K mcap to prevent micro-caps
+      // ✅ Use ADJUSTED score that factors in volume dumps, holder exodus, etc.
       const baseTokens = tokenData.filter(token => {
         const mcap = getMarketCap(token);
-        return (token.score || token.overallScore || 0) >= 6.0 &&
+        const adjustedScore = getAdjustedScore(token);
+        return adjustedScore >= 6.0 && // Use adjusted score (penalized for red flags)
                mcap >= 50_000 && // Minimum $50K mcap
                mcap <= 10_000_000; // Maximum $10M mcap (emerging)
       });
@@ -521,6 +568,7 @@ function AppContent() {
       const regularTokens = highScoreTokens.filter(token => !fueledSymbols.has(token.symbol));
       
       // Sort by refined formula: 50% score + 30% turnover + 20% volume
+      // ✅ Use ADJUSTED score that factors in volume dumps, holder exodus, etc.
       const sortedFueledTokens = fueledTokensList.sort((a, b) => {
         const mcapA = Math.max(getMarketCap(a), 0);
         const mcapB = Math.max(getMarketCap(b), 0);
@@ -528,8 +576,8 @@ function AppContent() {
         const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 0;
         const turnoverA = mcapA > 0 ? volume24hA / mcapA : 0;
         const turnoverB = mcapB > 0 ? volume24hB / mcapB : 0;
-        const scoreA = (a.score || a.overallScore || 0) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
-        const scoreB = (b.score || b.overallScore || 0) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
+        const scoreA = getAdjustedScore(a) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
+        const scoreB = getAdjustedScore(b) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
         return scoreB - scoreA;
       });
       
@@ -540,8 +588,8 @@ function AppContent() {
         const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 0;
         const turnoverA = mcapA > 0 ? volume24hA / mcapA : 0;
         const turnoverB = mcapB > 0 ? volume24hB / mcapB : 0;
-        const scoreA = (a.score || a.overallScore || 0) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
-        const scoreB = (b.score || b.overallScore || 0) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
+        const scoreA = getAdjustedScore(a) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
+        const scoreB = getAdjustedScore(b) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
         return scoreB - scoreA;
       });
       
