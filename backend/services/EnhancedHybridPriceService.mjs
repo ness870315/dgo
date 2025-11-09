@@ -211,7 +211,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // Jupiter API rate limiting
     this.jupiterRequestQueue = [];
-    this.jupiterRequestDelay = 1000; // 1 second between requests
+    this.jupiterRequestDelay = 2000; // 2 seconds between requests (increased for rate limiting)
     this.lastJupiterRequest = 0;
     this.jupiterCache = new Map();
     this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
@@ -280,19 +280,21 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
-      // Seed all tokens with Jupiter baseline (CRITICAL for instant data)
-      console.log('🌱 [EnhancedHybridPriceService] Step 5: Seeding tokens with Jupiter baseline...');
-      await this.seedAllTokensFromJupiter();
-      
-      // Start DEX program stream
-      console.log('🚀 [EnhancedHybridPriceService] Step 6: Starting DEX program stream...');
+      // Start DEX program stream FIRST (don't block on seeding)
+      console.log('🚀 [EnhancedHybridPriceService] Step 5: Starting DEX program stream...');
       await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
-      console.log('📡 [EnhancedHybridPriceService] Step 7: Starting periodic state broadcast...');
+      console.log('📡 [EnhancedHybridPriceService] Step 6: Starting periodic state broadcast...');
       this.startPeriodicBroadcast();
       
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
+      
+      // Seed all tokens with Jupiter baseline in BACKGROUND (non-blocking)
+      console.log('🌱 [EnhancedHybridPriceService] Step 7: Seeding tokens with Jupiter baseline (background)...');
+      this.seedAllTokensFromJupiter().catch(error => {
+        console.error('❌ [EnhancedHybridPriceService] Jupiter seeding failed:', error.message);
+      });
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
       console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
@@ -1000,8 +1002,55 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Fetch Jupiter data for multiple tokens in one batch call
+   * Much more efficient than individual calls
+   */
+  async fetchJupiterDataBatch(tokenAddresses) {
+    if (!tokenAddresses || tokenAddresses.length === 0) {
+      return new Map();
+    }
+    
+    try {
+      // Jupiter batch endpoint: POST with array of addresses
+      const response = await axios.post(`${JUPITER_API_BASE}/tokens`, {
+        addresses: tokenAddresses
+      }, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      this.lastJupiterRequest = Date.now();
+      
+      // Response is a map of address -> token data
+      const resultMap = new Map();
+      
+      if (response.data && typeof response.data === 'object') {
+        // Jupiter returns { "address1": {...}, "address2": {...} }
+        Object.entries(response.data).forEach(([address, tokenData]) => {
+          if (tokenData) {
+            resultMap.set(address, tokenData);
+            // Cache individual results
+            this.jupiterCache.set(address, {
+              data: tokenData,
+              timestamp: Date.now()
+            });
+          }
+        });
+      }
+      
+      return resultMap;
+    } catch (error) {
+      console.error(`❌ [EnhancedHybridPriceService] Jupiter batch API error:`, error.message);
+      return new Map();
+    }
+  }
+
+  /**
    * Seed ALL tokens with Jupiter baseline data on startup
    * This ensures all tokens have data immediately, not just ones with recent swaps
+   * Uses BATCH requests to avoid rate limiting
    */
   async seedAllTokensFromJupiter() {
     const tokenAddresses = Array.from(this.knownTokens.keys());
@@ -1011,41 +1060,38 @@ class EnhancedHybridPriceService extends EventEmitter {
       return;
     }
     
-    console.log(`🌱 [EnhancedHybridPriceService] Seeding ${tokenAddresses.length} tokens with Jupiter baseline...`);
+    console.log(`🌱 [EnhancedHybridPriceService] Seeding ${tokenAddresses.length} tokens with Jupiter baseline (using batch API)...`);
     
-    const batchSize = 100;
+    const batchSize = 100; // Jupiter supports up to 100 tokens per batch
     let seededCount = 0;
     let failedCount = 0;
     
     for (let i = 0; i < tokenAddresses.length; i += batchSize) {
       const batch = tokenAddresses.slice(i, i + batchSize);
       
-      // Process batch in parallel
-      const results = await Promise.allSettled(
-        batch.map(async (tokenAddress) => {
-          const jupiterData = await this.fetchJupiterData(tokenAddress);
-          if (jupiterData) {
-            const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
-            return seeded ? 'seeded' : 'failed';
-          }
-          return 'no_data';
-        })
-      );
+      // Fetch batch data from Jupiter
+      const jupiterDataMap = await this.fetchJupiterDataBatch(batch);
       
-      // Count results
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value === 'seeded') {
-          seededCount++;
+      // Seed each token with its data
+      for (const tokenAddress of batch) {
+        const jupiterData = jupiterDataMap.get(tokenAddress);
+        if (jupiterData) {
+          const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
+          if (seeded) {
+            seededCount++;
+          } else {
+            failedCount++;
+          }
         } else {
           failedCount++;
         }
-      });
+      }
       
       console.log(`🌱 [EnhancedHybridPriceService] Progress: ${seededCount} seeded, ${failedCount} failed/no-data (${i + batch.length}/${tokenAddresses.length})`);
       
-      // Rate limiting: 1 second between batches
+      // Rate limiting: 2 seconds between batches (safer)
       if (i + batchSize < tokenAddresses.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
