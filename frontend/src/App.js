@@ -239,7 +239,10 @@ function AppContent() {
   };
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   
-  // 🚀 NEW: WebSocket Integration for Real-Time Updates (DEXScreener-style)
+  // ✅ DEXSCREENER APPROACH: Store live data in ref (NO re-renders on updates)
+  const liveTokenDataRef = useRef(new Map()); // tokenAddress -> live metrics
+  
+  // 🚀 WebSocket Integration for Real-Time Updates (NO RE-RENDERS!)
   useEffect(() => {
     // Connect to WebSocket
     if (!websocketService.isConnected) {
