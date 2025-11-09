@@ -282,6 +282,32 @@ function AppContent() {
           return !existingAddresses.has(addr);
         });
         
+        // ✅ CRITICAL: Also filter EXISTING tokens to remove any that no longer meet quality standards
+        const cleanedExistingTokens = prevTokens.filter(token => {
+          const mcap = getMarketCap(token);
+          const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
+          
+          // Remove tokens that don't meet minimum quality
+          if (mcap > 0 && mcap < 50_000) {
+            console.log(`🧹 [App] Removing ${token.symbol} - mcap too low: $${mcap.toFixed(2)}`);
+            return false;
+          }
+          if (liquidity <= 0) {
+            console.log(`🧹 [App] Removing ${token.symbol} - zero liquidity (RUG)`);
+            return false;
+          }
+          if (liquidity < 5000) {
+            console.log(`🧹 [App] Removing ${token.symbol} - liquidity too low: $${liquidity.toFixed(2)}`);
+            return false;
+          }
+          
+          return true;
+        });
+        
+        if (cleanedExistingTokens.length < prevTokens.length) {
+          console.log(`🧹 [App] Cleaned up ${prevTokens.length - cleanedExistingTokens.length} low-quality tokens`);
+        }
+        
         if (newTokens.length > 0) {
           // New tokens discovered, filter them before adding
           console.log(`🆕 [App] ${newTokens.length} new tokens discovered, filtering...`);
@@ -301,16 +327,15 @@ function AppContent() {
           
           if (filteredNewTokens.length > 0) {
             console.log(`✅ [App] ${filteredNewTokens.length}/${newTokens.length} new tokens passed quality filters`);
-            return [...prevTokens, ...filteredNewTokens];
+            return [...cleanedExistingTokens, ...filteredNewTokens];
           } else {
             console.log(`🚫 [App] All ${newTokens.length} new tokens rejected by quality filters`);
-            return prevTokens;
+            return cleanedExistingTokens;
           }
         }
         
-        // ✅ NO NEW TOKENS: Return SAME array reference (NO re-render)
-        // Live data is already in liveTokenDataRef, components will read from it
-        return prevTokens;
+        // Return cleaned tokens even if no new tokens
+        return cleanedExistingTokens;
       });
     };
     
