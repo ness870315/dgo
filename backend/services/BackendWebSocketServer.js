@@ -214,6 +214,13 @@ class BackendWebSocketServer extends EventEmitter {
     let sentCount = 0;
     
     this.clients.forEach((clientInfo, clientId) => {
+      // Safety check: clientInfo might be undefined if client disconnected
+      if (!clientInfo || !clientInfo.ws) {
+        console.warn(`⚠️ [BackendWS] Client ${clientId} has no valid connection, removing`);
+        this.clients.delete(clientId);
+        return;
+      }
+      
       if (clientInfo.ws.readyState === WebSocket.OPEN) {
         try {
           clientInfo.ws.send(messageStr);
