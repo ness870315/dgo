@@ -258,24 +258,10 @@ function AppContent() {
         return;
       }
       
-      // Update live data ref (no re-render) - BUT filter out low-quality tokens
+      // Update live data ref (no re-render)
+      // NOTE: We don't filter here - let each category decide what to show
       liveTokens.forEach(liveToken => {
         const address = liveToken.tokenAddress || liveToken.contractAddress;
-        const mcap = getMarketCap(liveToken);
-        const liquidity = liveToken?.jupiterData?.liquidity ?? liveToken?.liquidity ?? 0;
-        
-        // Only add to ref if meets quality standards
-        if (mcap > 0 && mcap < 50_000) {
-          console.log(`🚫 [WebSocket] Rejecting ${liveToken.symbol} from ref - mcap: $${mcap.toFixed(2)}`);
-          liveTokenDataRef.current.delete(address); // Remove if exists
-          return;
-        }
-        if (liquidity <= 0 || liquidity < 5000) {
-          console.log(`🚫 [WebSocket] Rejecting ${liveToken.symbol} from ref - liquidity: $${liquidity.toFixed(2)}`);
-          liveTokenDataRef.current.delete(address); // Remove if exists
-          return;
-        }
-        
         liveTokenDataRef.current.set(address, liveToken);
       });
       
@@ -548,6 +534,11 @@ function AppContent() {
         if (liquidity < 5000) {
           console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - liquidity too low: $${liquidity.toFixed(2)}`);
           return false;
+        }
+        
+        // Debug: Log tokens that pass liquidity check
+        if (Math.random() < 0.1) {
+          console.log(`✅ [Trending Filter] ${token.symbol} passed liquidity check - liquidity: $${liquidity.toFixed(2)}, mcap: $${mcap.toFixed(2)}`);
         }
         
         // 3) HOLDER DUMP PROTECTION - Exclude massive holder exodus
