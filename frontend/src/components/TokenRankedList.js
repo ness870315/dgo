@@ -9,7 +9,17 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
   const hasFetchedInitialRef = useRef(false); // Prevent multiple initial fetches
   
   // ✅ DEXSCREENER APPROACH: Merge live data from ref when rendering
-  // This gives us live updates WITHOUT triggering React re-renders from App.js
+  // Force re-calculation every 2 seconds to pick up live data changes
+  const [refreshTick, setRefreshTick] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshTick(prev => prev + 1);
+    }, 2000); // Refresh every 2 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+  
   const tokensWithLiveData = useMemo(() => {
     if (!tokens || tokens.length === 0) return [];
     if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;
@@ -31,7 +41,7 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
       
       return token;
     });
-  }, [tokens, liveTokenDataRef]);
+  }, [tokens, liveTokenDataRef, refreshTick]); // Re-run when refreshTick changes
 
   // Format numbers
   const formatNumber = (num) => {

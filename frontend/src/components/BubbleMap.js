@@ -10,6 +10,17 @@ const BubbleMap = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect,
   const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity);
   
   // ✅ DEXSCREENER APPROACH: Merge live data from ref
+  // Force re-calculation every 2 seconds to pick up live data changes
+  const [refreshTick, setRefreshTick] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshTick(prev => prev + 1);
+    }, 2000); // Refresh every 2 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+  
   const tokensWithLiveData = useMemo(() => {
     if (!tokens || tokens.length === 0) return [];
     if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;
@@ -30,7 +41,7 @@ const BubbleMap = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect,
       
       return token;
     });
-  }, [tokens, liveTokenDataRef]);
+  }, [tokens, liveTokenDataRef, refreshTick]); // Re-run when refreshTick changes
 
   useEffect(() => {
     const handleResize = () => {
