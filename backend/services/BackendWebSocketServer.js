@@ -19,7 +19,7 @@ class BackendWebSocketServer extends EventEmitter {
 
     this.wss.on('connection', (ws, req) => {
       const clientId = this.generateClientId();
-      this.clients.set(clientId, ws);
+      this.clients.set(clientId, { ws, connectedAt: Date.now() });
       
       console.log(`🔌 [BackendWS] Client connected: ${clientId}`);
       
@@ -166,9 +166,9 @@ class BackendWebSocketServer extends EventEmitter {
   }
 
   sendToClient(clientId, message) {
-    const client = this.clients.get(clientId);
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
+    const clientInfo = this.clients.get(clientId);
+    if (clientInfo && clientInfo.ws && clientInfo.ws.readyState === WebSocket.OPEN) {
+      clientInfo.ws.send(JSON.stringify(message));
     }
   }
 
