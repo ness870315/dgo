@@ -24,11 +24,25 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
     if (!tokens || tokens.length === 0) return [];
     if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;
     
-    return tokens.map(token => {
+    let mergedCount = 0;
+    const result = tokens.map(token => {
       const address = token.contractAddress || token.tokenAddress;
       const liveData = liveTokenDataRef.current.get(address);
       
       if (liveData) {
+        mergedCount++;
+        // Debug: Log first merge to see what data we're getting
+        if (mergedCount === 1) {
+          console.log('🔍 [TokenRankedList] First merged token:', {
+            symbol: token.symbol,
+            tokenPriceChange5m: token.priceChange5m,
+            livePriceChange5m: liveData.priceChange5m,
+            tokenPriceChange1h: token.priceChange1h,
+            livePriceChange1h: liveData.priceChange1h,
+            liveDataKeys: Object.keys(liveData)
+          });
+        }
+        
         // Merge live data with token metadata
         return {
           ...token,
@@ -41,6 +55,9 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
       
       return token;
     });
+    
+    console.log(`📊 [TokenRankedList] Merged ${mergedCount}/${tokens.length} tokens with live data`);
+    return result;
   }, [tokens, liveTokenDataRef, refreshTick]); // Re-run when refreshTick changes
 
   // Format numbers
