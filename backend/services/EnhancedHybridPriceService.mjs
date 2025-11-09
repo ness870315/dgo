@@ -1418,18 +1418,28 @@ class EnhancedHybridPriceService extends EventEmitter {
       const metricsData = metrics.getMetrics();
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
       
-      // Debug: Log first token to see what's in metricsData
+      // Debug: Log first token to see what's in metricsData AND what's being broadcast
       if (debugCount === 0) {
         console.log(`📊 [getAllTokensState Debug] First token ${tokenAddress.slice(0,8)}:`, {
           price: metricsData.currentPrice,
           metricsData5m: metricsData['5m'],
           metricsData1h: metricsData['1h'],
+          metricsData6h: metricsData['6h'],
           metricsData24h: metricsData['24h'],
           baseline5m: metrics.baseline['5m'],
           baseline1h: metrics.baseline['1h'],
-          liveDeltas5m: metrics.liveDeltas['5m'],
-          liveDeltas1h: metrics.liveDeltas['1h']
+          baseline6h: metrics.baseline['6h'],
+          baseline24h: metrics.baseline['24h']
         });
+        
+        // Log what will actually be broadcast
+        console.log(`📡 [Broadcast Debug] What will be sent for ${tokenAddress.slice(0,8)}:`, {
+          priceChange5m: metricsData['5m']?.priceChange ?? 0,
+          priceChange1h: metricsData['1h']?.priceChange ?? 0,
+          priceChange6h: metricsData['6h']?.priceChange ?? 0,
+          priceChange24h: metricsData['24h']?.priceChange ?? 0
+        });
+        
         debugCount++;
       }
       
