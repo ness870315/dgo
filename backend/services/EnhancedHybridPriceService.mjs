@@ -152,11 +152,16 @@ class TokenMetrics {
       // Makers: Add baseline + live (unique makers are additive)
       this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
       
-      // Price change: Use live if available, otherwise baseline
+      // Price change: Use live if it has actual data (non-zero), otherwise use baseline
       // Safety check: ensure no NaN or Infinity values
-      let priceChange = this.liveDeltas[window].txns > 0
-        ? this.liveDeltas[window].priceChange
-        : this.baseline[window].priceChange;
+      let priceChange;
+      if (this.liveDeltas[window].txns > 0 && this.liveDeltas[window].priceChange !== 0) {
+        // Have live data with actual price change
+        priceChange = this.liveDeltas[window].priceChange;
+      } else {
+        // No live data or live priceChange is 0, use baseline
+        priceChange = this.baseline[window].priceChange;
+      }
       
       this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
     }
