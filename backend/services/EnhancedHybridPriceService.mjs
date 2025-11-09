@@ -1556,6 +1556,9 @@ class EnhancedHybridPriceService extends EventEmitter {
       state.push({
         tokenAddress,
         contractAddress: tokenAddress, // For compatibility
+        symbol: jupiterData?.symbol || 'UNKNOWN',
+        name: jupiterData?.name || 'Unknown Token',
+        logoURI: jupiterData?.icon || null,
         price: metricsData.currentPrice || 0,
         priceUsd: metricsData.currentPrice || 0,
         priceChange5m: metricsData['5m']?.priceChange ?? 0,
