@@ -1507,9 +1507,18 @@ class EnhancedHybridPriceService extends EventEmitter {
     const state = [];
     let debugCount = 0;
     
+    // Create a map of token metadata from cache for quick lookup
+    const tokenMetadataMap = new Map();
+    for (const token of this.tokenCache) {
+      if (token.contractAddress) {
+        tokenMetadataMap.set(token.contractAddress, token);
+      }
+    }
+    
     for (const [tokenAddress, metrics] of this.knownTokens) {
       const metricsData = metrics.getMetrics();
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
+      const tokenMetadata = tokenMetadataMap.get(tokenAddress);
       
       // Debug: Log first token to see what's in metricsData AND what's being broadcast
       if (debugCount === 0) {
@@ -1549,12 +1558,16 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Include ALL tokens (even if no swaps yet)
       // metricsData already contains baseline + live deltas merged
+      // ✅ CRITICAL: Include ALL metadata from cache (score, overallScore, jupiterData, twitterData, etc.)
       state.push({
+        // Start with ALL metadata from cache (includes score, overallScore, jupiterData, twitterData, etc.)
+        ...(tokenMetadata || {}),
+        // Override with live metrics
         tokenAddress,
         contractAddress: tokenAddress, // For compatibility
-        symbol: jupiterData?.symbol || 'UNKNOWN',
-        name: jupiterData?.name || 'Unknown Token',
-        logoURI: jupiterData?.icon || null,
+        symbol: jupiterData?.symbol || tokenMetadata?.symbol || 'UNKNOWN',
+        name: jupiterData?.name || tokenMetadata?.name || 'Unknown Token',
+        logoURI: jupiterData?.icon || tokenMetadata?.logoURI || null,
         price: metricsData.currentPrice || 0,
         priceUsd: metricsData.currentPrice || 0,
         priceChange5m: metricsData['5m']?.priceChange ?? 0,
@@ -1573,8 +1586,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         makers1h: metricsData['1h']?.makers ?? 0,
         makers6h: metricsData['6h']?.makers ?? 0,
         makers24h: metricsData['24h']?.makers ?? 0,
-        marketCap: jupiterData?.mcap || 0,
-        liquidity: jupiterData?.liquidity || 0,
+        marketCap: jupiterData?.mcap || tokenMetadata?.jupiterData?.mcap || 0,
+        liquidity: jupiterData?.liquidity || tokenMetadata?.jupiterData?.liquidity || 0,
         isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
         lastUpdated: Date.now()
       });
