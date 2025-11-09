@@ -1623,6 +1623,25 @@ class EnhancedHybridPriceService extends EventEmitter {
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
       const tokenMetadata = tokenMetadataMap.get(tokenAddress);
       
+      // Debug: Log USELESS token specifically to see what's happening
+      if (jupiterData?.symbol === 'USELESS' || tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+        console.log(`🔍 [USELESS Debug] Token data:`, {
+          tokenAddress: tokenAddress.slice(0,8),
+          symbol: jupiterData?.symbol,
+          price: metricsData.currentPrice,
+          baseline5m: metrics.baseline['5m'],
+          baseline1h: metrics.baseline['1h'],
+          baseline6h: metrics.baseline['6h'],
+          baseline24h: metrics.baseline['24h'],
+          metricsData5m: metricsData['5m'],
+          metricsData1h: metricsData['1h'],
+          metricsData6h: metricsData['6h'],
+          metricsData24h: metricsData['24h'],
+          hasTokenMetadata: !!tokenMetadata,
+          tokenMetadataHasJupiterData: !!tokenMetadata?.jupiterData
+        });
+      }
+      
       // Debug: Log first token to see what's in metricsData AND what's being broadcast
       if (debugCount === 0) {
         console.log(`📊 [getAllTokensState Debug] First token ${tokenAddress.slice(0,8)}:`, {
