@@ -75,9 +75,15 @@ class TokenMetrics {
       '24h': 24 * 60 * 60 * 1000
     };
 
-    // Update current price
+    // Update current price from most recent swap
+    // ONLY if we have swaps, otherwise preserve Jupiter baseline
     if (this.swaps.length > 0) {
-      this.metrics.currentPrice = this.swaps[this.swaps.length - 1].priceUsd;
+      const latestSwapPrice = this.swaps[this.swaps.length - 1].priceUsd;
+      // Use swap price if it's valid (> 0)
+      if (latestSwapPrice > 0) {
+        this.metrics.currentPrice = latestSwapPrice;
+      }
+      // If swap price is 0 but we have a Jupiter baseline, keep the baseline
     }
 
     // Calculate metrics for each window
@@ -1358,12 +1364,14 @@ class EnhancedHybridPriceService extends EventEmitter {
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
       
       // Include ALL tokens (even if no swaps yet)
-      // Frontend will merge with Jupiter data for initial prices
+      // Use Jupiter price as fallback if no live price from DEX swaps
+      const price = metricsData.currentPrice || jupiterData?.usdPrice || 0;
+      
       state.push({
         tokenAddress,
         contractAddress: tokenAddress, // For compatibility
-        price: metricsData.currentPrice,
-        priceUsd: metricsData.currentPrice,
+        price: price,
+        priceUsd: price,
         priceChange5m: metricsData['5m'].priceChange,
         priceChange1h: metricsData['1h'].priceChange,
         priceChange6h: metricsData['6h'].priceChange,
