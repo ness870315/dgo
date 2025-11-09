@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Free tier API
+const JUPITER_API_BASE = 'https://tokens.jup.ag'; // Token API base
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
@@ -897,16 +897,16 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter tokens search API (searches by mint address)
-      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${tokenAddress}`, {
+      // Use Jupiter token API (single token lookup)
+      const response = await axios.get(`${JUPITER_API_BASE}/token/${tokenAddress}`, {
         timeout: 5000
       });
       
       this.lastJupiterRequest = Date.now();
       
-      // Response is an array, get first result
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        const tokenData = response.data[0];
+      // Response is the token data object
+      if (response.data) {
+        const tokenData = response.data;
         this.jupiterCache.set(tokenAddress, {
           data: tokenData,
           timestamp: Date.now()
@@ -1004,14 +1004,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Jupiter batch endpoint: POST with array of addresses
-      const response = await axios.post(`${JUPITER_API_BASE}/tokens`, {
-        addresses: tokenAddresses
-      }, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      // Jupiter batch endpoint: GET with comma-separated addresses
+      const addressesParam = tokenAddresses.join(',');
+      const response = await axios.get(`${JUPITER_API_BASE}/tokens?addresses=${addressesParam}`, {
+        timeout: 10000
       });
       
       this.lastJupiterRequest = Date.now();
@@ -1141,18 +1137,15 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter tokens search API for SOL
-      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
+      // Use Jupiter token API for SOL
+      const response = await axios.get(`${JUPITER_API_BASE}/token/${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        const solData = response.data[0];
-        if (solData.usdPrice) {
-          this.solPriceUSD = parseFloat(solData.usdPrice);
-          this.lastSolPriceUpdate = now;
-          console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
-        }
+      if (response.data && response.data.price) {
+        this.solPriceUSD = parseFloat(response.data.price);
+        this.lastSolPriceUpdate = now;
+        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
