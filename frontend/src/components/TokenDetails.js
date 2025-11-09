@@ -113,11 +113,23 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   const fuelMultiplier = getFuelMultiplier();
 
+  // Store token identifiers to prevent re-running on every WebSocket update
+  const tokenId = useRef({ address: null, symbol: null });
+  
   useEffect(() => {
-    // Debug: Log token data consistency
+    // Skip if same token (prevent infinite loop from WebSocket updates)
+    if (tokenId.current.address === token?.contractAddress && 
+        tokenId.current.symbol === token?.symbol) {
+      return;
+    }
+    
+    // Update stored token ID
+    tokenId.current = {
+      address: token?.contractAddress,
+      symbol: token?.symbol
+    };
 
     // Check if token is in watchlist on component mount (backend source of truth)
-    // Use contractAddress as dependency to prevent re-running on every WebSocket update
     const checkWatchlistStatus = async () => {
       try {
         if (!token?.symbol) return;
@@ -137,7 +149,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     if (token?.contractAddress) {
       priorityService.boostTokenOnView(token.contractAddress, token.symbol);
     }
-  }, [token?.contractAddress, token?.symbol]); // Only re-run if token ADDRESS changes, not on every update
+  }, [token]); // Run on token change, but skip if same token via useRef check
 
   // Check for pending fuel payment on modal open
   useEffect(() => {
