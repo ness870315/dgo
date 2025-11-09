@@ -24,6 +24,7 @@ import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple'
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import PreTokenDetail from './components/PreTokenDetail';
 import JupiterWidget from './components/JupiterWidget';
+import JupiterSearchModal from './components/JupiterSearchModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
@@ -232,6 +233,10 @@ function AppContent() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [chatPosition, setChatPosition] = useState(null);
   const [fueledTokens, setFueledTokens] = useState([]);
+  const [showJupiterSearch, setShowJupiterSearch] = useState(false);
+  const [jupiterSearchResults, setJupiterSearchResults] = useState([]);
+  const [jupiterSearchLoading, setJupiterSearchLoading] = useState(false);
+  const [jupiterSearchTerm, setJupiterSearchTerm] = useState('');
   
   // Handler for opening chat from floating button
   const handleOpenChat = () => {
@@ -968,11 +973,39 @@ function AppContent() {
   }, [filters, searchTerm, settings.useRealTwitterData, applyFiltersAndSearch, selectedToken]);
 
   // Handle search
-  const handleSearch = useCallback((term) => {
+  const handleSearch = useCallback(async (term) => {
     setSearchTerm(term);
     // Search is now global - always use regular tokens as base, search will combine with bonding tokens
     applyFiltersAndSearch(tokens, filters, term);
-  }, [tokens, filters, applyFiltersAndSearch]);
+    
+    // If search term looks like a contract address (40+ chars) or symbol and no results, trigger Jupiter search
+    if (term && term.trim().length >= 3) {
+      // Wait a bit to see if we have results
+      setTimeout(() => {
+        if (filteredTokens.length === 0) {
+          console.log('🔍 No results found, triggering Jupiter search for:', term);
+          setJupiterSearchTerm(term);
+          setShowJupiterSearch(true);
+          setJupiterSearchLoading(true);
+          
+          // Search Jupiter API
+          const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+          fetch(`${apiBase}/api/jupiter/search?query=${encodeURIComponent(term)}`)
+            .then(res => res.json())
+            .then(data => {
+              console.log('🔍 Jupiter search results:', data);
+              setJupiterSearchResults(data.tokens || []);
+              setJupiterSearchLoading(false);
+            })
+            .catch(err => {
+              console.error('❌ Jupiter search failed:', err);
+              setJupiterSearchResults([]);
+              setJupiterSearchLoading(false);
+            });
+        }
+      }, 300);
+    }
+  }, [tokens, filters, applyFiltersAndSearch, filteredTokens]);
 
   // Handle filter changes
   const handleFilter = useCallback((newFilters) => {
@@ -993,6 +1026,45 @@ function AppContent() {
       setShowPreTokenDetail(false);
     }
   }, []);
+  
+  // Handle Jupiter token selection (add to system)
+  const handleJupiterTokenSelect = useCallback(async (token) => {
+    console.log('🟢 Adding token to system:', token);
+    setShowJupiterSearch(false);
+    
+    // Submit token to backend for processing
+    const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    try {
+      const response = await fetch(`${apiBase}/api/tokens/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractAddress: token.address || token.mint,
+          symbol: token.symbol,
+          name: token.name,
+          source: 'user-search'
+        })
+      });
+      
+      if (response.ok) {
+        setSuccessMessage(`✅ ${token.symbol} has been added to the system and will be scored shortly!`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+        
+        // Refresh tokens after a short delay
+        setTimeout(() => {
+          loadTokens();
+        }, 2000);
+      } else {
+        const error = await response.json();
+        setError(error.message || 'Failed to add token');
+        setTimeout(() => setError(null), 5000);
+      }
+    } catch (err) {
+      console.error('❌ Failed to add token:', err);
+      setError('Failed to add token to system');
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [loadTokens]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -1783,6 +1855,16 @@ function AppContent() {
           onNavigateToPremium={() => setShowPremium(true)}
         />
       )}
+
+      {/* Jupiter Search Modal - Add Token to System */}
+      <JupiterSearchModal
+        isOpen={showJupiterSearch}
+        onClose={() => setShowJupiterSearch(false)}
+        searchTerm={jupiterSearchTerm}
+        results={jupiterSearchResults}
+        isLoading={jupiterSearchLoading}
+        onSelectToken={handleJupiterTokenSelect}
+      />
 
       {/* Settings Modal */}
       <Settings

@@ -7973,6 +7973,65 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Jupiter search endpoint (for adding tokens not in our system)
+    this.app.get('/api/jupiter/search', async (req, res) => {
+      try {
+        const { query } = req.query;
+        if (!query || query.trim().length < 3) {
+          return res.json({ tokens: [] });
+        }
+        
+        console.log(`[🛡️ Enhanced Backend] 🔍 Jupiter search for: ${query}`);
+        
+        // Search Jupiter API
+        const axios = (await import('axios')).default;
+        const response = await axios.get(`https://tokens.jup.ag/tokens?query=${encodeURIComponent(query)}`);
+        
+        // Return first 10 results
+        const tokens = (response.data || []).slice(0, 10);
+        console.log(`[🛡️ Enhanced Backend] ✅ Found ${tokens.length} tokens`);
+        
+        res.json({ tokens });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Jupiter search error:', error.message);
+        res.json({ tokens: [] });
+      }
+    });
+
+    // Submit token to be added to the system
+    this.app.post('/api/tokens/submit', async (req, res) => {
+      try {
+        const { contractAddress, symbol, name, source } = req.body;
+        
+        if (!contractAddress) {
+          return res.status(400).json({ error: 'Contract address is required' });
+        }
+        
+        console.log(`[🛡️ Enhanced Backend] 🆕 User submitting token: ${symbol} (${contractAddress.slice(0, 8)}...)`);
+        
+        // Add to token processor
+        const processedToken = await this.tokenProcessor.addPaidToken({
+          symbol: symbol || 'UNKNOWN',
+          name: name || 'Unknown Token',
+          contractAddress: contractAddress,
+          isPaid: false,
+          source: source || 'user-submission',
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`✅ Token ${processedToken.symbol} submitted successfully!`);
+        
+        res.json({ 
+          success: true, 
+          message: `${symbol || 'Token'} has been added to the system and will be scored shortly!`,
+          token: processedToken
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error submitting token:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Force refresh all tokens (preserves existing)
     this.app.post('/api/tokens/refresh-all', async (req, res) => {
       try {
