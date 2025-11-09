@@ -9,7 +9,7 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
   const hasFetchedInitialRef = useRef(false); // Prevent multiple initial fetches
   
   // ✅ DEXSCREENER APPROACH: Merge live data from ref when rendering
-  // This gives us live updates WITHOUT triggering React re-renders
+  // This gives us live updates WITHOUT triggering React re-renders from App.js
   const tokensWithLiveData = useMemo(() => {
     if (!tokens || tokens.length === 0) return [];
     if (!liveTokenDataRef || !liveTokenDataRef.current) return tokens;

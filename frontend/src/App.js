@@ -1202,10 +1202,11 @@ function AppContent() {
     applyFiltersAndSearch(tokens, filters, searchTerm);
   }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
 
-  // Load data on component mount
+  // Load data on component mount (ONCE ONLY)
   useEffect(() => {
     loadTokens();
-  }, [loadTokens]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty array = run once on mount only
 
   // Auto-switch to list view when Trenches filter is activated
   useEffect(() => {
