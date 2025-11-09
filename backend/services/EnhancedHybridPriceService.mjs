@@ -77,6 +77,11 @@ class TokenMetrics {
       this.uniqueMakers.add(swap.walletAddress);
     }
     
+    // Debug: Log USELESS swaps
+    if (this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+      console.log(`🔄 [USELESS Swap] ${swap.type}: price=$${swap.priceUsd.toFixed(6)}, volume=$${swap.volumeUsd.toFixed(2)}, total swaps=${this.swaps.length}`);
+    }
+    
     this.updateMetrics();
     this.pruneOldData();
   }
@@ -141,6 +146,12 @@ class TokenMetrics {
       ? this.liveDeltas.currentPrice 
       : this.baseline.price;
 
+    // Debug: Log USELESS metrics calculation
+    const isUSELESS = this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
+    if (isUSELESS && this.swaps.length % 10 === 0) { // Log every 10 swaps
+      console.log(`📊 [USELESS Metrics] Total swaps: ${this.swaps.length}`);
+    }
+
     // For each window: ADD baseline + live deltas
     for (const window of Object.keys(windows)) {
       // Volume: Add baseline + live
@@ -164,6 +175,13 @@ class TokenMetrics {
       }
       
       this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
+      
+      // Debug: Log USELESS window metrics
+      if (isUSELESS && this.swaps.length % 10 === 0) {
+        console.log(`  ${window}: baseline_txns=${this.baseline[window].txns}, live_txns=${this.liveDeltas[window].txns}, total=${this.metrics[window].txns}`);
+        console.log(`  ${window}: baseline_vol=$${this.baseline[window].volume.toFixed(2)}, live_vol=$${this.liveDeltas[window].volume.toFixed(2)}, total=$${this.metrics[window].volume.toFixed(2)}`);
+        console.log(`  ${window}: baseline_price%=${this.baseline[window].priceChange.toFixed(2)}%, live_price%=${this.liveDeltas[window].priceChange.toFixed(2)}%, final=${this.metrics[window].priceChange.toFixed(2)}%`);
+      }
     }
   }
 
