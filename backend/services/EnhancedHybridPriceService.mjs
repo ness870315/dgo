@@ -1138,35 +1138,34 @@ class EnhancedHybridPriceService extends EventEmitter {
       const metricsData = metrics.getMetrics();
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
       
-      // Only include tokens with actual price data
-      if (metricsData.currentPrice > 0) {
-        state.push({
-          tokenAddress,
-          contractAddress: tokenAddress, // For compatibility
-          price: metricsData.currentPrice,
-          priceUsd: metricsData.currentPrice,
-          priceChange5m: metricsData['5m'].priceChange,
-          priceChange1h: metricsData['1h'].priceChange,
-          priceChange6h: metricsData['6h'].priceChange,
-          priceChange24h: metricsData['24h'].priceChange,
-          volume5m: metricsData['5m'].volume,
-          volume1h: metricsData['1h'].volume,
-          volume6h: metricsData['6h'].volume,
-          volume24h: metricsData['24h'].volume,
-          txns5m: metricsData['5m'].txns,
-          txns1h: metricsData['1h'].txns,
-          txns6h: metricsData['6h'].txns,
-          txns24h: metricsData['24h'].txns,
-          makers5m: metricsData['5m'].makers,
-          makers1h: metricsData['1h'].makers,
-          makers6h: metricsData['6h'].makers,
-          makers24h: metricsData['24h'].makers,
-          marketCap: jupiterData?.mcap || 0,
-          liquidity: jupiterData?.liquidity || 0,
-          isLive: true,
-          lastUpdated: Date.now()
-        });
-      }
+      // Include ALL tokens (even if no swaps yet)
+      // Frontend will merge with Jupiter data for initial prices
+      state.push({
+        tokenAddress,
+        contractAddress: tokenAddress, // For compatibility
+        price: metricsData.currentPrice,
+        priceUsd: metricsData.currentPrice,
+        priceChange5m: metricsData['5m'].priceChange,
+        priceChange1h: metricsData['1h'].priceChange,
+        priceChange6h: metricsData['6h'].priceChange,
+        priceChange24h: metricsData['24h'].priceChange,
+        volume5m: metricsData['5m'].volume,
+        volume1h: metricsData['1h'].volume,
+        volume6h: metricsData['6h'].volume,
+        volume24h: metricsData['24h'].volume,
+        txns5m: metricsData['5m'].txns,
+        txns1h: metricsData['1h'].txns,
+        txns6h: metricsData['6h'].txns,
+        txns24h: metricsData['24h'].txns,
+        makers5m: metricsData['5m'].makers,
+        makers1h: metricsData['1h'].makers,
+        makers6h: metricsData['6h'].makers,
+        makers24h: metricsData['24h'].makers,
+        marketCap: jupiterData?.mcap || 0,
+        liquidity: jupiterData?.liquidity || 0,
+        isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
+        lastUpdated: Date.now()
+      });
     }
     
     return state;
