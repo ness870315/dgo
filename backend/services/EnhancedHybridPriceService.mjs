@@ -1300,16 +1300,27 @@ class EnhancedHybridPriceService extends EventEmitter {
       const data = await fs.readFile(this.cachePath, 'utf8');
       this.tokenCache = JSON.parse(data);
       
-      // Initialize TokenMetrics for all cached tokens
+      let seededCount = 0;
+      
+      // Initialize TokenMetrics for all cached tokens AND seed with Jupiter data if available
       for (const token of this.tokenCache) {
         if (token.contractAddress && !this.knownTokens.has(token.contractAddress)) {
           const metrics = new TokenMetrics(token.contractAddress);
           this.knownTokens.set(token.contractAddress, metrics);
+          
+          // ✅ CRITICAL FIX: If token has Jupiter data in cache, seed immediately!
+          if (token.jupiterData) {
+            const seeded = await this.seedTokenMetricsFromJupiter(token.contractAddress, token.jupiterData);
+            if (seeded) {
+              seededCount++;
+            }
+          }
         }
       }
       
       console.log(`✅ [EnhancedHybridPriceService] Loaded ${this.tokenCache.length} tokens from cache`);
       console.log(`📊 [EnhancedHybridPriceService] Tracking ${this.knownTokens.size} known tokens`);
+      console.log(`🌱 [EnhancedHybridPriceService] Seeded ${seededCount}/${this.tokenCache.length} tokens with cached Jupiter data`);
     } catch (error) {
       console.log('⚠️ [EnhancedHybridPriceService] No token cache found, starting fresh');
       this.tokenCache = [];
