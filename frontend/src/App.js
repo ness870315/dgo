@@ -283,7 +283,7 @@ function AppContent() {
           
           if (liveData) {
             // Token has live data, merge it
-            return {
+            const merged = {
               ...token, // Keep metadata (name, symbol, etc.)
               ...liveData, // Override with live data (price, volume, etc.)
               name: token.name, // Preserve name from Jupiter
@@ -291,6 +291,19 @@ function AppContent() {
               logoURI: token.logoURI, // Preserve logo from Jupiter
               isLive: liveData.isLive || liveData.price > 0 // Use backend isLive flag
             };
+            
+            // Debug: Log first token to see what data we're getting
+            if (Math.random() < 0.01) {
+              console.log(`🔍 [App] Merged token ${token.symbol}:`, {
+                livePrice: liveData.price,
+                liveTxns5m: liveData.txns5m,
+                liveMakers5m: liveData.makers5m,
+                mergedPrice: merged.price,
+                mergedTxns5m: merged.txns5m
+              });
+            }
+            
+            return merged;
           }
           
           // No live data, keep existing token
