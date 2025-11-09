@@ -140,19 +140,16 @@ class EnhancedBackend {
       const marketCap = j.marketCap || j.mcap || token.marketCap || token.mcap || 0;
 
       // Rug heuristics (conservative):
-      // - Market cap < $50K (micro-cap filter)
-      // - OR liquidity ≤ 0 (zero liquidity rug)
-      // - OR 24h drop ≤ -80%
+      // - 24h drop ≤ -80%
       // - OR 6h drop ≤ -70%
       // - OR liquidity collapsed (≤ $1,000) AND 24h drop ≤ -60%
-      const isMicroCap = marketCap > 0 && marketCap < 50000;
-      const zeroLiquidity = liquidityUsd !== undefined && liquidityUsd <= 0;
+      // NOTE: We removed mcap and zero liquidity filters - those should be applied per-category in frontend
       const big24hDrop = priceChange24h !== undefined && priceChange24h <= -80;
       const big6hDrop = priceChange6h !== undefined && priceChange6h <= -70;
       const collapsedLiq = liquidityUsd !== undefined && liquidityUsd <= 1000;
       const liqAndDrop = collapsedLiq && priceChange24h !== undefined && priceChange24h <= -60;
 
-      return Boolean(isMicroCap || zeroLiquidity || big24hDrop || big6hDrop || liqAndDrop);
+      return Boolean(big24hDrop || big6hDrop || liqAndDrop);
     } catch (_) {
       return false;
     }
