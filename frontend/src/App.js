@@ -889,9 +889,9 @@ function AppContent() {
       setError(null);
               const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       
-      // 🚀 Use /api/tokens/state for INSTANT data (includes baseline + live metrics)
+      // Use original /api/tokens endpoint (has proper filtering + live metrics merge)
       const [tokenData, fueledData] = await Promise.all([
-        fetch(`${apiBase}/api/tokens/state`).then(res => res.ok ? res.json() : []),
+        tokenService.fetchTokens(settings.useRealTwitterData),
         fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
       ]);
         
