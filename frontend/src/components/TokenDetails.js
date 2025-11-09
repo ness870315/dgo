@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3, Users } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
