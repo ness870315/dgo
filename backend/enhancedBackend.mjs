@@ -1734,15 +1734,11 @@ class EnhancedBackend {
           const metadata = tokenMap.get(liveToken.tokenAddress);
           if (metadata) {
             return {
-              ...liveToken,
-              name: metadata.name,
-              symbol: metadata.symbol,
-              logoURI: metadata.logoURI,
-              // Keep other metadata fields
-              description: metadata.description,
-              twitter: metadata.twitter,
-              telegram: metadata.telegram,
-              website: metadata.website
+              ...metadata, // Include ALL metadata fields (jupiterData, twitterData, etc.)
+              ...liveToken, // Override with live metrics
+              name: metadata.name, // Preserve from metadata
+              symbol: metadata.symbol, // Preserve from metadata
+              logoURI: metadata.logoURI // Preserve from metadata
             };
           }
           return liveToken;
