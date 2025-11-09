@@ -258,9 +258,24 @@ function AppContent() {
         return;
       }
       
-      // Update live data ref (no re-render)
+      // Update live data ref (no re-render) - BUT filter out low-quality tokens
       liveTokens.forEach(liveToken => {
         const address = liveToken.tokenAddress || liveToken.contractAddress;
+        const mcap = getMarketCap(liveToken);
+        const liquidity = liveToken?.jupiterData?.liquidity ?? liveToken?.liquidity ?? 0;
+        
+        // Only add to ref if meets quality standards
+        if (mcap > 0 && mcap < 50_000) {
+          console.log(`🚫 [WebSocket] Rejecting ${liveToken.symbol} from ref - mcap: $${mcap.toFixed(2)}`);
+          liveTokenDataRef.current.delete(address); // Remove if exists
+          return;
+        }
+        if (liquidity <= 0 || liquidity < 5000) {
+          console.log(`🚫 [WebSocket] Rejecting ${liveToken.symbol} from ref - liquidity: $${liquidity.toFixed(2)}`);
+          liveTokenDataRef.current.delete(address); // Remove if exists
+          return;
+        }
+        
         liveTokenDataRef.current.set(address, liveToken);
       });
       
