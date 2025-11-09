@@ -1031,6 +1031,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
       }
       
+      // Debug: Log first seeded token to verify data
+      if (Math.random() < 0.01) {
+        console.log(`🌱 [Seed Debug] Token ${tokenAddress.slice(0,8)}:`, {
+          price: metrics.baseline.price,
+          vol24h: metrics.baseline['24h'].volume,
+          txns24h: metrics.baseline['24h'].txns,
+          makers24h: metrics.baseline['24h'].makers,
+          priceChange24h: metrics.baseline['24h'].priceChange
+        });
+      }
+      
       // After seeding baseline, recalculate metrics (baseline + live deltas)
       metrics.updateMetrics();
       
@@ -1401,10 +1412,24 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   getAllTokensState() {
     const state = [];
+    let debugCount = 0;
     
     for (const [tokenAddress, metrics] of this.knownTokens) {
       const metricsData = metrics.getMetrics();
       const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
+      
+      // Debug: Log first token to see what's in metricsData
+      if (debugCount === 0) {
+        console.log(`📊 [getAllTokensState Debug] First token ${tokenAddress.slice(0,8)}:`, {
+          price: metricsData.currentPrice,
+          priceChange5m: metricsData['5m'].priceChange,
+          priceChange1h: metricsData['1h'].priceChange,
+          priceChange24h: metricsData['24h'].priceChange,
+          vol24h: metricsData['24h'].volume,
+          txns24h: metricsData['24h'].txns
+        });
+        debugCount++;
+      }
       
       // Include ALL tokens (even if no swaps yet)
       // metricsData already contains baseline + live deltas merged
