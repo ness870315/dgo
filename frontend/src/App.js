@@ -476,9 +476,14 @@ function AppContent() {
       const baseTokens = tokenData.filter(token => {
         const mcap = getMarketCap(token);
         const adjustedScore = getAdjustedScore(token);
-        return adjustedScore >= 6.0 && // Use adjusted score (penalized for red flags)
-               mcap >= 50_000 && // Minimum $50K mcap
-               mcap <= 10_000_000; // Maximum $10M mcap (emerging)
+        const passes = adjustedScore >= 6.0 && mcap >= 50_000 && mcap <= 10_000_000;
+        
+        // Debug: Log first 3 tokens that pass
+        if (passes && Math.random() < 0.05) {
+          console.log(`✅ [Trending Base] ${token.symbol} passed - mcap: $${mcap.toFixed(2)}, score: ${adjustedScore.toFixed(2)}`);
+        }
+        
+        return passes;
       });
 
       // PROBITY exception: Always include PROBITY in trending regardless of score
@@ -501,6 +506,8 @@ function AppContent() {
 
       // Apply guardrails
       const now = Date.now();
+      console.log(`🔍 [Trending] Starting guardrails check on ${allTrendingTokens.length} tokens`);
+      
       const highScoreTokens = allTrendingTokens.filter(token => {
         const mcap = Math.max(getMarketCap(token), 0);
         const volume24h = (
