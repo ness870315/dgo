@@ -420,30 +420,50 @@ function AppContent() {
           return false;
         }
         
-        // 3) PRICE CRASH PROTECTION - Exclude catastrophic dumps
+        // 2.5) LIQUIDITY FILTER - No rugs with zero liquidity
+        const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
+        if (liquidity <= 0) {
+          console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - zero liquidity (RUG RISK)`);
+          return false;
+        }
+        
+        // 2.6) MINIMUM LIQUIDITY - Must have at least $5K liquidity
+        if (liquidity < 5000) {
+          console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - liquidity too low: $${liquidity.toFixed(2)}`);
+          return false;
+        }
+        
+        // 3) HOLDER DUMP PROTECTION - Exclude massive holder exodus
+        const holderChange24h = token?.jupiterData?.stats24h?.holderChange ?? 0;
+        if (holderChange24h <= -50) {
+          console.log(`🚫 [Trending Filter] Rejected ${token.symbol} - holder dump: ${holderChange24h.toFixed(2)}%`);
+          return false;
+        }
+        
+        // 4) PRICE CRASH PROTECTION - Exclude catastrophic dumps
         const priceChange24h = token?.jupiterData?.stats24h?.priceChange ?? token?.priceChange24h ?? 0;
         const priceChange7d = token?.jupiterData?.stats7d?.priceChange ?? 0;
         if (priceChange24h <= -75 || priceChange7d <= -90) {
           return false;
         }
         
-        // 4) COMBINED RISK FILTER - Exclude small caps with major dumps
+        // 5) COMBINED RISK FILTER - Exclude small caps with major dumps
         if (mcap > 0 && mcap < 100_000 && priceChange24h <= -50) {
           return false;
         }
         
-        // 5) Volume dump penalty → exclude if heavy dump across 1h and 6h
+        // 6) Volume dump penalty → exclude if heavy dump across 1h and 6h
         if (volChange1h <= -50 && volChange6h <= -50) {
           return false;
         }
         
-        // 6) Social floor (relaxed) — only exclude if weak socials AND low score
+        // 7) Social floor (relaxed) — only exclude if weak socials AND low score
         const score = (token.score || token.overallScore || 0);
         if (community < 4 && mentions < 5 && score < 7) {
           return false;
         }
         
-        // 7) 🚨 NEW: TRADING ACTIVITY FILTER - Must have actual trading activity
+        // 8) TRADING ACTIVITY FILTER - Must have actual trading activity
         const buyVolume = token.jupiterData?.stats24h?.buyVolume || 0;
         const sellVolume = token.jupiterData?.stats24h?.sellVolume || 0;
         const totalVolume = buyVolume + sellVolume;
@@ -453,13 +473,13 @@ function AppContent() {
           return false;
         }
         
-        // 8) 🚨 NEW: BUY PRESSURE FILTER - Must have some organic buying
+        // 9) BUY PRESSURE FILTER - Must have some organic buying
         const buyPressure = buyVolume / (totalVolume || 1);
         if (buyPressure < 0.1) { // Less than 10% buy volume
           return false;
         }
         
-        // 9) 🚨 NEW: MINIMUM VOLUME FILTER - Must have minimum trading volume
+        // 10) MINIMUM VOLUME FILTER - Must have minimum trading volume
         if (totalVolume < 1000) { // Less than $1K volume
           return false;
         }
