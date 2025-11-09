@@ -283,56 +283,17 @@ function AppContent() {
           return !existingAddresses.has(addr);
         });
         
-        // ✅ CRITICAL: Also filter EXISTING tokens to remove any that no longer meet quality standards
-        const cleanedExistingTokens = prevTokens.filter(token => {
-          const mcap = getMarketCap(token);
-          const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
-          
-          // Remove tokens that don't meet minimum quality
-          if (mcap > 0 && mcap < 50_000) {
-            console.log(`🧹 [App] Removing ${token.symbol} - mcap too low: $${mcap.toFixed(2)}`);
-            return false;
-          }
-          if (liquidity <= 0) {
-            console.log(`🧹 [App] Removing ${token.symbol} - zero liquidity (RUG)`);
-            return false;
-          }
-          if (liquidity < 5000) {
-            console.log(`🧹 [App] Removing ${token.symbol} - liquidity too low: $${liquidity.toFixed(2)}`);
-            return false;
-          }
-          
-          return true;
-        });
+        // Keep all existing tokens - let category filters decide what to show
+        const cleanedExistingTokens = prevTokens;
         
         if (cleanedExistingTokens.length < prevTokens.length) {
           console.log(`🧹 [App] Cleaned up ${prevTokens.length - cleanedExistingTokens.length} low-quality tokens`);
         }
         
         if (newTokens.length > 0) {
-          // New tokens discovered, filter them before adding
-          console.log(`🆕 [App] ${newTokens.length} new tokens discovered, filtering...`);
-          
-          // Apply quality filters to new tokens
-          const filteredNewTokens = newTokens.filter(token => {
-            const mcap = getMarketCap(token);
-            const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
-            
-            // Minimum quality thresholds
-            if (mcap > 0 && mcap < 50_000) return false; // Min $50K mcap
-            if (liquidity <= 0) return false; // No zero liquidity rugs
-            if (liquidity < 5000) return false; // Min $5K liquidity
-            
-            return true;
-          });
-          
-          if (filteredNewTokens.length > 0) {
-            console.log(`✅ [App] ${filteredNewTokens.length}/${newTokens.length} new tokens passed quality filters`);
-            return [...cleanedExistingTokens, ...filteredNewTokens];
-          } else {
-            console.log(`🚫 [App] All ${newTokens.length} new tokens rejected by quality filters`);
-            return cleanedExistingTokens;
-          }
+          // New tokens discovered - add them all, let category filters decide
+          console.log(`🆕 [App] ${newTokens.length} new tokens discovered, adding all`);
+          return [...cleanedExistingTokens, ...newTokens];
         }
         
         // Return cleaned tokens even if no new tokens
