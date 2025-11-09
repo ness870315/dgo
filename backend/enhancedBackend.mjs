@@ -135,17 +135,24 @@ class EnhancedBackend {
       const priceChange6h = typeof s6.priceChange === 'number' ? s6.priceChange : undefined;
       const priceChange24h = typeof s24.priceChange === 'number' ? s24.priceChange : undefined;
       const liquidityUsd = typeof j.liquidity === 'number' ? j.liquidity : undefined;
+      
+      // Get market cap from various sources
+      const marketCap = j.marketCap || j.mcap || token.marketCap || token.mcap || 0;
 
       // Rug heuristics (conservative):
-      // - 24h drop ≤ -80%
+      // - Market cap < $50K (micro-cap filter)
+      // - OR liquidity ≤ 0 (zero liquidity rug)
+      // - OR 24h drop ≤ -80%
       // - OR 6h drop ≤ -70%
       // - OR liquidity collapsed (≤ $1,000) AND 24h drop ≤ -60%
+      const isMicroCap = marketCap > 0 && marketCap < 50000;
+      const zeroLiquidity = liquidityUsd !== undefined && liquidityUsd <= 0;
       const big24hDrop = priceChange24h !== undefined && priceChange24h <= -80;
       const big6hDrop = priceChange6h !== undefined && priceChange6h <= -70;
       const collapsedLiq = liquidityUsd !== undefined && liquidityUsd <= 1000;
       const liqAndDrop = collapsedLiq && priceChange24h !== undefined && priceChange24h <= -60;
 
-      return Boolean(big24hDrop || big6hDrop || liqAndDrop);
+      return Boolean(isMicroCap || zeroLiquidity || big24hDrop || big6hDrop || liqAndDrop);
     } catch (_) {
       return false;
     }
