@@ -45,6 +45,10 @@ class WebSocketService extends EventEmitter {
       this.ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          // Log all messages except pong (too noisy)
+          if (message.type !== 'pong') {
+            console.log(`📨 [WebSocketService] Received message:`, message.type);
+          }
           this.handleMessage(message);
         } catch (error) {
           console.error('❌ [WebSocketService] Error parsing message:', error);
