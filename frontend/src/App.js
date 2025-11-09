@@ -276,12 +276,27 @@ function AppContent() {
           liveDataMap.set(liveToken.tokenAddress || liveToken.contractAddress, liveToken);
         });
         
+        // Track if any data actually changed
+        let hasChanges = false;
+        
         // Merge: Update tokens with live data if available, keep metadata from Jupiter
         const merged = prevTokens.map(token => {
           const tokenAddress = token.contractAddress || token.tokenAddress;
           const liveData = liveDataMap.get(tokenAddress);
           
           if (liveData) {
+            // Check if data actually changed (compare key metrics)
+            const priceChanged = Math.abs((liveData.price || 0) - (token.price || 0)) > 0.000001;
+            const volumeChanged = Math.abs((liveData.volume24h || 0) - (token.volume24h || 0)) > 0.01;
+            const txnsChanged = (liveData.txns24h || 0) !== (token.txns24h || 0);
+            
+            if (!priceChanged && !volumeChanged && !txnsChanged) {
+              // No meaningful change, return existing token object (same reference)
+              return token;
+            }
+            
+            hasChanges = true;
+            
             // Token has live data, merge it
             const merged = {
               ...token, // Keep metadata (name, symbol, etc.)
@@ -315,6 +330,12 @@ function AppContent() {
           // No live data, keep existing token
           return token;
         });
+        
+        // If no changes, return the SAME array reference to prevent re-render
+        if (!hasChanges) {
+          console.log(`⏭️ [App] No meaningful changes, skipping update`);
+          return prevTokens;
+        }
         
         const liveCount = merged.filter(t => t.isLive).length;
         console.log(`✅ [App] Updated ${liveCount}/${merged.length} tokens with live data`);
