@@ -283,9 +283,29 @@ function AppContent() {
         });
         
         if (newTokens.length > 0) {
-          // New tokens discovered, add them to state (triggers re-render)
-          console.log(`🆕 [App] ${newTokens.length} new tokens discovered`);
-          return [...prevTokens, ...newTokens];
+          // New tokens discovered, filter them before adding
+          console.log(`🆕 [App] ${newTokens.length} new tokens discovered, filtering...`);
+          
+          // Apply quality filters to new tokens
+          const filteredNewTokens = newTokens.filter(token => {
+            const mcap = getMarketCap(token);
+            const liquidity = token?.jupiterData?.liquidity ?? token?.liquidity ?? 0;
+            
+            // Minimum quality thresholds
+            if (mcap > 0 && mcap < 50_000) return false; // Min $50K mcap
+            if (liquidity <= 0) return false; // No zero liquidity rugs
+            if (liquidity < 5000) return false; // Min $5K liquidity
+            
+            return true;
+          });
+          
+          if (filteredNewTokens.length > 0) {
+            console.log(`✅ [App] ${filteredNewTokens.length}/${newTokens.length} new tokens passed quality filters`);
+            return [...prevTokens, ...filteredNewTokens];
+          } else {
+            console.log(`🚫 [App] All ${newTokens.length} new tokens rejected by quality filters`);
+            return prevTokens;
+          }
         }
         
         // ✅ NO NEW TOKENS: Return SAME array reference (NO re-render)
@@ -366,10 +386,13 @@ function AppContent() {
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
       
       // Base filter: score & market cap (emerging)
-      const baseTokens = tokenData.filter(token =>
-        (token.score || token.overallScore || 0) >= 6.0 &&
-        getMarketCap(token) <= 10_000_000
-      );
+      // ✅ CRITICAL: Must have minimum $50K mcap to prevent micro-caps
+      const baseTokens = tokenData.filter(token => {
+        const mcap = getMarketCap(token);
+        return (token.score || token.overallScore || 0) >= 6.0 &&
+               mcap >= 50_000 && // Minimum $50K mcap
+               mcap <= 10_000_000; // Maximum $10M mcap (emerging)
+      });
 
       // PROBITY exception: Always include PROBITY in trending regardless of score
       const probityTokens = tokenData.filter(token =>
