@@ -335,35 +335,20 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
-      // Start DEX program stream FIRST (don't block on seeding)
-      console.log('🚀 [EnhancedHybridPriceService] Step 5: Starting DEX program stream...');
+      // ✅ CRITICAL: Seed ALL tokens with Jupiter baseline FIRST (BLOCKING)
+      console.log('🌱 [EnhancedHybridPriceService] Step 5: Seeding ALL tokens with Jupiter baseline (BLOCKING)...');
+      await this.seedAllTokensFromJupiter();
+      console.log('✅ [EnhancedHybridPriceService] Jupiter seeding complete - ALL tokens have baseline data');
+      
+      // Start DEX program stream
+      console.log('🚀 [EnhancedHybridPriceService] Step 6: Starting DEX program stream...');
       await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
-      console.log('📡 [EnhancedHybridPriceService] Step 6: Starting periodic state broadcast...');
+      console.log('📡 [EnhancedHybridPriceService] Step 7: Starting periodic state broadcast...');
       this.startPeriodicBroadcast();
       
-      console.log('✅ [EnhancedHybridPriceService] Initialization complete');
-      
-      // Seed all tokens with Jupiter baseline in BACKGROUND (non-blocking)
-      console.log('🌱 [EnhancedHybridPriceService] Step 7: Seeding tokens with Jupiter baseline (background)...');
-      this.seedAllTokensFromJupiter()
-        .then(() => {
-          // Trigger immediate broadcast after seeding completes so frontend gets baseline data
-          console.log('📡 [EnhancedHybridPriceService] Seeding complete, broadcasting updated state...');
-          const state = this.getAllTokensState();
-          if (this.webSocketServer && state.length > 0) {
-            this.webSocketServer.broadcast({
-              type: 'fullStateUpdate',
-              tokens: state,
-              timestamp: Date.now()
-            });
-            console.log(`✅ [EnhancedHybridPriceService] Broadcasted seeded state for ${state.length} tokens`);
-          }
-        })
-        .catch(error => {
-          console.error('❌ [EnhancedHybridPriceService] Jupiter seeding failed:', error.message);
-        });
+      console.log('✅ [EnhancedHybridPriceService] Initialization complete - ALL tokens seeded with Jupiter data');
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
       console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
