@@ -122,7 +122,14 @@ class TokenMetrics {
       if (recentPrices.length >= 2) {
         const firstPrice = recentPrices[0].price;
         const lastPrice = recentPrices[recentPrices.length - 1].price;
-        this.liveDeltas[window].priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+        
+        // Safety check: avoid NaN and Infinity
+        if (firstPrice > 0 && lastPrice > 0 && isFinite(firstPrice) && isFinite(lastPrice)) {
+          const priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+          this.liveDeltas[window].priceChange = isFinite(priceChange) ? priceChange : 0;
+        } else {
+          this.liveDeltas[window].priceChange = 0;
+        }
       } else {
         this.liveDeltas[window].priceChange = 0;
       }
@@ -146,9 +153,12 @@ class TokenMetrics {
       this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
       
       // Price change: Use live if available, otherwise baseline
-      this.metrics[window].priceChange = this.liveDeltas[window].txns > 0
+      // Safety check: ensure no NaN or Infinity values
+      let priceChange = this.liveDeltas[window].txns > 0
         ? this.liveDeltas[window].priceChange
         : this.baseline[window].priceChange;
+      
+      this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
     }
   }
 
