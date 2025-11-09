@@ -335,10 +335,14 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
-      // ✅ CRITICAL: Seed ALL tokens with Jupiter baseline FIRST (BLOCKING)
-      console.log('🌱 [EnhancedHybridPriceService] Step 5: Seeding ALL tokens with Jupiter baseline (BLOCKING)...');
-      await this.seedAllTokensFromJupiter();
-      console.log('✅ [EnhancedHybridPriceService] Jupiter seeding complete - ALL tokens have baseline data');
+      // ✅ CRITICAL: Update token cache with FRESH Jupiter data, THEN seed TokenMetrics
+      console.log('🔄 [EnhancedHybridPriceService] Step 5: Updating token cache with FRESH Jupiter data (BLOCKING)...');
+      await this.refreshTokenCacheWithJupiter();
+      console.log('✅ [EnhancedHybridPriceService] Token cache updated with fresh Jupiter data');
+      
+      console.log('🌱 [EnhancedHybridPriceService] Step 6: Seeding TokenMetrics from updated cache...');
+      await this.seedMetricsFromCache();
+      console.log('✅ [EnhancedHybridPriceService] TokenMetrics seeded - ALL tokens have baseline data');
       
       // Start DEX program stream
       console.log('🚀 [EnhancedHybridPriceService] Step 6: Starting DEX program stream...');
@@ -1125,6 +1129,140 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.error(`❌ [EnhancedHybridPriceService] Jupiter batch API error:`, error.message);
       return new Map();
     }
+  }
+
+  /**
+   * Refresh token cache with FRESH Jupiter data
+   * Updates jupiterData field for all tokens in cache
+   */
+  async refreshTokenCacheWithJupiter() {
+    if (this.tokenCache.length === 0) {
+      console.log('⚠️ [EnhancedHybridPriceService] No tokens in cache to refresh');
+      return;
+    }
+    
+    console.log(`🔄 [EnhancedHybridPriceService] Refreshing ${this.tokenCache.length} tokens with fresh Jupiter data...`);
+    
+    const batchSize = 100;
+    let updatedCount = 0;
+    let failedCount = 0;
+    
+    for (let i = 0; i < this.tokenCache.length; i += batchSize) {
+      const batch = this.tokenCache.slice(i, i + batchSize);
+      const tokenAddresses = batch.map(t => t.contractAddress);
+      
+      // Fetch fresh Jupiter data
+      const jupiterDataMap = await this.fetchJupiterDataBatch(tokenAddresses);
+      
+      // Update cache with fresh data
+      for (const token of batch) {
+        const freshData = jupiterDataMap.get(token.contractAddress);
+        if (freshData) {
+          token.jupiterData = freshData; // Update cache
+          updatedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+      
+      console.log(`🔄 [EnhancedHybridPriceService] Progress: ${updatedCount} updated, ${failedCount} failed (${i + batch.length}/${this.tokenCache.length})`);
+      
+      // Rate limiting: 2 seconds between batches
+      if (i + batchSize < this.tokenCache.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    console.log(`✅ [EnhancedHybridPriceService] Cache refresh complete: ${updatedCount}/${this.tokenCache.length} updated, ${failedCount} failed`);
+  }
+  
+  /**
+   * Seed TokenMetrics from updated token cache
+   * Uses the fresh Jupiter data that was just fetched
+   */
+  async seedMetricsFromCache() {
+    let seededCount = 0;
+    let failedCount = 0;
+    
+    for (const token of this.tokenCache) {
+      if (!token.contractAddress || !token.jupiterData) {
+        failedCount++;
+        continue;
+      }
+      
+      const metrics = this.knownTokens.get(token.contractAddress);
+      if (!metrics) {
+        failedCount++;
+        continue;
+      }
+      
+      // Seed from cache jupiterData
+      try {
+        if (token.jupiterData.usdPrice) {
+          metrics.baseline.price = token.jupiterData.usdPrice;
+        }
+        
+        // Seed 5M
+        if (token.jupiterData.stats5m) {
+          const stats = token.jupiterData.stats5m;
+          metrics.baseline['5m'] = {
+            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+            txns: (stats.numBuys || 0) + (stats.numSells || 0),
+            makers: stats.numTraders || 0,
+            priceChange: stats.priceChange || 0
+          };
+        }
+        
+        // Seed 1H
+        if (token.jupiterData.stats1h) {
+          const stats = token.jupiterData.stats1h;
+          metrics.baseline['1h'] = {
+            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+            txns: (stats.numBuys || 0) + (stats.numSells || 0),
+            makers: stats.numTraders || 0,
+            priceChange: stats.priceChange || 0
+          };
+        }
+        
+        // Seed 6H
+        if (token.jupiterData.stats6h) {
+          const stats = token.jupiterData.stats6h;
+          metrics.baseline['6h'] = {
+            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+            txns: (stats.numBuys || 0) + (stats.numSells || 0),
+            makers: stats.numTraders || 0,
+            priceChange: stats.priceChange || 0
+          };
+        }
+        
+        // Seed 24H
+        if (token.jupiterData.stats24h) {
+          const stats = token.jupiterData.stats24h;
+          metrics.baseline['24h'] = {
+            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
+            txns: (stats.numBuys || 0) + (stats.numSells || 0),
+            makers: stats.numTraders || 0,
+            priceChange: stats.priceChange || 0
+          };
+        }
+        
+        // Update metrics to merge baseline + live deltas
+        metrics.updateMetrics();
+        
+        // Update Jupiter cache
+        this.jupiterCache.set(token.contractAddress, {
+          data: token.jupiterData,
+          timestamp: Date.now()
+        });
+        
+        seededCount++;
+      } catch (error) {
+        console.error(`❌ Failed to seed ${token.contractAddress.slice(0,8)}:`, error.message);
+        failedCount++;
+      }
+    }
+    
+    console.log(`✅ [EnhancedHybridPriceService] Seeded ${seededCount}/${this.tokenCache.length} tokens from cache, ${failedCount} failed`);
   }
 
   /**
