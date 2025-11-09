@@ -641,16 +641,7 @@ class EnhancedHybridPriceService extends EventEmitter {
   async processNewTokenSwap(swap) {
     this.stats.newTokenSwaps++;
     
-    // Check if token needs onboarding
-    if (!this.knownTokens.has(swap.tokenMint)) {
-      console.log(`🆕 [EnhancedHybridPriceService] New token detected from DEX stream: ${swap.tokenMint.slice(0,8)}...`);
-      // Onboard in background (don't block swap processing)
-      this.onboardNewToken(swap.tokenMint, 'dex-stream').catch(err => {
-        console.error(`❌ Failed to onboard ${swap.tokenMint.slice(0,8)}...:`, err.message);
-      });
-    }
-    
-    // Track activity for this new token
+    // Track activity for this new token (DON'T onboard yet - wait for filters)
     let activity = this.newTokenActivity.get(swap.tokenMint);
     if (!activity) {
       activity = {
@@ -711,13 +702,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         return;
       }
       
-      // PASSED ALL FILTERS! Add to database
+      // PASSED ALL FILTERS! Onboard with Jupiter baseline
       console.log(`🆕 [EnhancedHybridPriceService] New token discovered: ${swap.tokenMint.slice(0, 8)}...`);
       console.log(`   Symbol: ${layer2Result.jupiterData.symbol}`);
       console.log(`   Swaps: ${activity.swapCount}, Volume: $${activity.totalVolume.toFixed(2)}, Traders: ${activity.uniqueTraders.size}`);
       
-      // Add to known tokens
+      // Create TokenMetrics
       const metrics = new TokenMetrics(swap.tokenMint);
+      this.knownTokens.set(swap.tokenMint, metrics);
+      
+      // Seed with Jupiter baseline (we already have the data from Layer 2)
+      await this.seedTokenMetricsFromJupiter(swap.tokenMint, layer2Result.jupiterData);
       
       // Add all historical swaps
       const swapsToStore = [];
@@ -741,8 +736,6 @@ class EnhancedHybridPriceService extends EventEmitter {
       if (swapsToStore.length > 0) {
         await this.chartDatabase.storeSwaps(swapsToStore);
       }
-      
-      this.knownTokens.set(swap.tokenMint, metrics);
       
       // Trigger token processing (scoring, Twitter data, etc.)
       this.triggerTokenProcessing(swap.tokenMint, layer2Result.jupiterData, activity);
