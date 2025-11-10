@@ -641,6 +641,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             const priceInSol = solAmount / tokenAmount;
             const priceUsd = priceInSol * this.solPriceUSD;
             const volumeUsd = solAmount * this.solPriceUSD;
+            
+            // Debug: Check if SOL price is 0
+            if (this.solPriceUSD === 0 && tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+              console.error(`❌ [USELESS] SOL price is 0! priceInSol=${priceInSol}, solAmount=${solAmount}, tokenAmount=${tokenAmount}`);
+            }
 
             swaps.push({
               signature: signature?.slice(0, 32) || 'unknown',
