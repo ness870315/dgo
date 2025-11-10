@@ -100,16 +100,35 @@ class TokenMetrics {
     };
 
     // Step 1: Calculate LIVE deltas from DEX swaps
-    // Use median price from recent swaps for stability (VWAP can be skewed by large outlier trades)
+    // Use median price from recent swaps with outlier filtering
     if (this.swaps.length > 0) {
-      const recentSwaps = this.swaps.slice(-20); // Last 20 swaps
-      const recentPrices = recentSwaps
+      const recentSwaps = this.swaps.slice(-50); // Last 50 swaps for better outlier detection
+      let recentPrices = recentSwaps
         .map(s => s.priceUsd)
         .filter(p => p > 0 && isFinite(p))
         .sort((a, b) => a - b);
       
+      if (recentPrices.length >= 5) {
+        // Remove outliers using IQR (Interquartile Range) method
+        const q1Index = Math.floor(recentPrices.length * 0.25);
+        const q3Index = Math.floor(recentPrices.length * 0.75);
+        const q1 = recentPrices[q1Index];
+        const q3 = recentPrices[q3Index];
+        const iqr = q3 - q1;
+        const lowerBound = q1 - (1.5 * iqr);
+        const upperBound = q3 + (1.5 * iqr);
+        
+        // Filter out outliers
+        const filteredPrices = recentPrices.filter(p => p >= lowerBound && p <= upperBound);
+        
+        // Use filtered prices if we still have enough data
+        if (filteredPrices.length >= 5) {
+          recentPrices = filteredPrices;
+        }
+      }
+      
       if (recentPrices.length > 0) {
-        // Use median price (more resistant to outliers than VWAP)
+        // Use median price from filtered data
         const midIndex = Math.floor(recentPrices.length / 2);
         if (recentPrices.length % 2 === 0) {
           this.liveDeltas.currentPrice = (recentPrices[midIndex - 1] + recentPrices[midIndex]) / 2;
@@ -123,7 +142,7 @@ class TokenMetrics {
       
       // Debug: Log USELESS price calculation
       if (this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' && this.swaps.length % 10 === 0) {
-        console.log(`💰 [USELESS Price] Median from ${recentPrices.length} prices: $${this.liveDeltas.currentPrice.toFixed(6)}, range: $${recentPrices[0]?.toFixed(6)} - $${recentPrices[recentPrices.length-1]?.toFixed(6)}`);
+        console.log(`💰 [USELESS Price] Median from ${recentPrices.length} filtered prices: $${this.liveDeltas.currentPrice.toFixed(6)}, range: $${recentPrices[0]?.toFixed(6)} - $${recentPrices[recentPrices.length-1]?.toFixed(6)}`);
       }
     } else {
       this.liveDeltas.currentPrice = 0;
