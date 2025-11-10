@@ -340,13 +340,21 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Initialize SOL price (with timeout)
       console.log('💰 [EnhancedHybridPriceService] Step 3: Fetching SOL price...');
-      await Promise.race([
-        this.updateSolPrice(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('SOL price fetch timeout')), 5000))
-      ]).catch(error => {
-        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price fetch failed: ${error.message}, using default $200`);
-        this.solPriceUSD = 200;
-      });
+      try {
+        await Promise.race([
+          this.updateSolPrice(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('SOL price fetch timeout')), 5000))
+        ]);
+      } catch (error) {
+        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price fetch failed: ${error.message}, using default $240`);
+      }
+      
+      // Ensure SOL price is set (fallback if fetch failed)
+      if (this.solPriceUSD === 0 || !this.solPriceUSD) {
+        this.solPriceUSD = 240;
+        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price was 0, using fallback: $240`);
+      }
+      
       console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
       
       // Initialize persistent swap storage (with timeout)
@@ -1466,25 +1474,24 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter search API for SOL
-      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
+      // Use Jupiter Price API v6 for SOL
+      const response = await axios.get(`https://price.jup.ag/v6/price?ids=${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        const solData = response.data[0];
-        if (solData.price) {
-          this.solPriceUSD = parseFloat(solData.price);
-          this.lastSolPriceUpdate = now;
-          console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
-        }
+      if (response.data?.data?.[WSOL]?.price) {
+        this.solPriceUSD = parseFloat(response.data.data[WSOL].price);
+        this.lastSolPriceUpdate = now;
+        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+      } else {
+        throw new Error('No price data in response');
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
       // Fallback to a reasonable default if API fails
       if (this.solPriceUSD === 0) {
-        this.solPriceUSD = 200; // Reasonable fallback
-        console.log('⚠️ [EnhancedHybridPriceService] Using fallback SOL price: $200');
+        this.solPriceUSD = 240; // Reasonable fallback
+        console.log('⚠️ [EnhancedHybridPriceService] Using fallback SOL price: $240');
       }
     }
   }
