@@ -55,6 +55,17 @@ const PriceChartModal = ({ token, onClose }) => {
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   const [realTimeData, setRealTimeData] = useState(null);
   
+  // ✅ CRITICAL FIX: Use token prop data directly (already has recentSwaps from WebSocket)
+  useEffect(() => {
+    if (token?.recentSwaps) {
+      console.log(`📊 [PriceChartModal] Using live data from token prop: ${token.recentSwaps.length} swaps`);
+      setRealTimeData({
+        recentSwaps: token.recentSwaps,
+        swapHistory: token.recentSwaps // Alias for compatibility
+      });
+    }
+  }, [token?.recentSwaps]);
+  
   // Use ref to track previous price for accurate change calculation
   const previousPriceRef = useRef(null);
   
