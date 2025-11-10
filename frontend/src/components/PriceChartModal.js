@@ -59,6 +59,21 @@ const PriceChartModal = ({ token, onClose }) => {
   useEffect(() => {
     if (token?.recentSwaps) {
       console.log(`📊 [PriceChartModal] Using live data from token prop: ${token.recentSwaps.length} swaps`);
+      
+      // Debug: Log first swap to see what data we have
+      if (token.recentSwaps.length > 0) {
+        const firstSwap = token.recentSwaps[0];
+        console.log(`🔍 [PriceChartModal] First swap data:`, {
+          signature: firstSwap.signature?.slice(0, 20) + '...',
+          type: firstSwap.type,
+          solAmount: firstSwap.solAmount,
+          baseAmount: firstSwap.baseAmount,
+          maker: firstSwap.maker,
+          volumeUsd: firstSwap.volumeUsd,
+          allKeys: Object.keys(firstSwap)
+        });
+      }
+      
       setRealTimeData({
         recentSwaps: token.recentSwaps,
         swapHistory: token.recentSwaps // Alias for compatibility
