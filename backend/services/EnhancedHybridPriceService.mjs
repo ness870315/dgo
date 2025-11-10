@@ -708,12 +708,27 @@ class EnhancedHybridPriceService extends EventEmitter {
 
         // Valid swap: has both token and SOL changes
         if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
-          // ✅ CRITICAL FIX: We're tracking POOL balance changes, so logic is inverted from user perspective
-          // If tokens go INTO pool → User SOLD tokens (gave tokens, got SOL)
-          // If tokens go OUT of pool → User BOUGHT tokens (gave SOL, got tokens)
-          const isBuy = tokenOut > 0; // tokenOut = user bought tokens from pool
-          const tokenAmount = isBuy ? tokenOut : tokenIn;
-          const solAmount = isBuy ? solIn : solOut;
+          // Debug: Log USELESS swap details to understand correct logic
+          if (tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+            console.log(`\n🔍 [USELESS Swap Debug]`);
+            console.log(`  tokenIn: ${tokenIn.toFixed(2)} (tokens flowing IN across all accounts)`);
+            console.log(`  tokenOut: ${tokenOut.toFixed(2)} (tokens flowing OUT across all accounts)`);
+            console.log(`  solIn: ${solIn.toFixed(4)} (SOL flowing IN across all accounts)`);
+            console.log(`  solOut: ${solOut.toFixed(4)} (SOL flowing OUT across all accounts)`);
+          }
+          
+          // Aggregate token movements across ALL accounts in transaction
+          // tokenIn > 0 means net tokens flowing IN → BUY (user bought tokens)
+          // tokenOut > 0 means net tokens flowing OUT → SELL (user sold tokens)
+          const isBuy = tokenIn > 0;
+          const tokenAmount = isBuy ? tokenIn : tokenOut;
+          const solAmount = isBuy ? solOut : solIn;
+          
+          if (tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+            console.log(`  → Detected as: ${isBuy ? 'BUY' : 'SELL'}`);
+            console.log(`  → Token amount: ${tokenAmount.toFixed(2)}`);
+            console.log(`  → SOL amount: ${solAmount.toFixed(4)}\n`);
+          }
 
           if (tokenAmount > 0 && solAmount > 0) {
             const priceInSol = solAmount / tokenAmount;
