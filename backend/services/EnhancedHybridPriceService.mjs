@@ -1813,7 +1813,16 @@ class EnhancedHybridPriceService extends EventEmitter {
         makers1h: metricsData['1h']?.makers ?? 0,
         makers6h: metricsData['6h']?.makers ?? 0,
         makers24h: metricsData['24h']?.makers ?? 0,
-        marketCap: jupiterData?.mcap || tokenMetadata?.jupiterData?.mcap || 0,
+        // Calculate LIVE market cap: currentPrice * circulatingSupply
+        marketCap: (() => {
+          const currentPrice = metricsData.currentPrice || 0;
+          const circSupply = jupiterData?.circSupply || tokenMetadata?.jupiterData?.circSupply;
+          if (currentPrice > 0 && circSupply > 0) {
+            return currentPrice * circSupply;
+          }
+          // Fallback to Jupiter's static mcap if we can't calculate
+          return jupiterData?.mcap || tokenMetadata?.jupiterData?.mcap || 0;
+        })(),
         liquidity: jupiterData?.liquidity || tokenMetadata?.jupiterData?.liquidity || 0,
         isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
         lastUpdated: Date.now()
