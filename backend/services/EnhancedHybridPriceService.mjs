@@ -1474,17 +1474,30 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter Price API v6 for SOL
-      const response = await axios.get(`https://price.jup.ag/v6/price?ids=${WSOL}`, {
+      // Use Jupiter search API for SOL
+      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
         timeout: 5000
       });
       
-      if (response.data?.data?.[WSOL]?.price) {
-        this.solPriceUSD = parseFloat(response.data.data[WSOL].price);
-        this.lastSolPriceUpdate = now;
-        console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+      console.log(`🔍 [SOL Price Debug] Response status: ${response.status}`);
+      console.log(`🔍 [SOL Price Debug] Response data type: ${typeof response.data}`);
+      console.log(`🔍 [SOL Price Debug] Is array: ${Array.isArray(response.data)}`);
+      console.log(`🔍 [SOL Price Debug] Data length: ${response.data?.length}`);
+      
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const solData = response.data[0];
+        console.log(`🔍 [SOL Price Debug] First item keys: ${Object.keys(solData).join(', ')}`);
+        console.log(`🔍 [SOL Price Debug] usdPrice value: ${solData.usdPrice}`);
+        
+        if (solData.usdPrice) {
+          this.solPriceUSD = parseFloat(solData.usdPrice);
+          this.lastSolPriceUpdate = now;
+          console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
+        } else {
+          console.error(`❌ [SOL Price Debug] No usdPrice field in response`);
+        }
       } else {
-        throw new Error('No price data in response');
+        console.error(`❌ [SOL Price Debug] Invalid response format`);
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
