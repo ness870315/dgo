@@ -179,15 +179,25 @@ class TokenMetrics {
       // Makers: Add baseline + live (unique makers are additive)
       this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
       
-      // Price change: Use BASELINE if available (more accurate historical data)
-      // Only use live deltas if baseline is missing or zero
+      // Price change: Hybrid approach
+      // 1. If we have enough live swaps covering the full window, use live data
+      // 2. Otherwise, use baseline (Jupiter) data
+      // 3. If no data at all, use 0
       let priceChange = 0;
       
-      if (this.baseline[window].txns > 0 && this.baseline[window].priceChange !== 0) {
-        // Have baseline data - use it (Jupiter has full historical data)
+      const windowDuration = windows[window];
+      const oldestSwapTime = this.swaps.length > 0 ? this.swaps[0].timestamp : Date.now();
+      const swapHistoryDuration = now - oldestSwapTime;
+      
+      // If our live swap history covers the full window duration, use live data
+      if (swapHistoryDuration >= windowDuration && this.liveDeltas[window].txns >= 10) {
+        // Have enough live data covering the full window - use live price change
+        priceChange = this.liveDeltas[window].priceChange;
+      } else if (this.baseline[window].txns > 0 && this.baseline[window].priceChange !== 0) {
+        // Don't have full live coverage - use baseline (Jupiter has full historical data)
         priceChange = this.baseline[window].priceChange;
       } else if (this.liveDeltas[window].txns > 0) {
-        // No baseline, but have live swaps - use live price change
+        // No baseline, but have some live swaps - use live price change
         priceChange = this.liveDeltas[window].priceChange;
       }
       // else: no data at all, leave as 0
