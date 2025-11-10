@@ -1872,7 +1872,20 @@ class EnhancedHybridPriceService extends EventEmitter {
         })(),
         liquidity: jupiterData?.liquidity || tokenMetadata?.jupiterData?.liquidity || 0,
         isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
+        // ✅ CRITICAL: Include recent swaps for SwapTable
+        recentSwaps: metrics.swaps.slice(-50).map(swap => ({
+          signature: swap.signature,
+          timestamp: swap.timestamp,
+          type: swap.type, // 'BUY' or 'SELL'
+          tokenAmount: swap.tokenAmount,
+          solAmount: swap.solAmount,
+          baseAmount: swap.solAmount, // Alias for compatibility
+          priceUsd: swap.priceUsd,
+          volumeUsd: swap.volumeUsd,
+          maker: swap.walletAddress,
+          price: swap.priceInSol
+        }))
       });
     }
     
