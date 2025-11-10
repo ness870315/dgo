@@ -632,13 +632,14 @@ class EnhancedHybridPriceService extends EventEmitter {
       const tx = msg.transaction.transaction;
       const slot = msg.transaction.slot;
       
-      // Extract signature
+      // Extract signature and convert to base58 (Solscan format)
       let signature = tx.signature || 
                      tx.transaction?.signatures?.[0] || 
                      msg.transaction?.signature;
       
       if (signature && Buffer.isBuffer(signature)) {
-        signature = Buffer.from(signature).toString('base64');
+        // Convert Buffer to base58 (Solana transaction signature format)
+        signature = bs58.encode(signature);
       }
 
       // Get balance changes from meta
@@ -722,7 +723,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
 
             swaps.push({
-              signature: signature?.slice(0, 32) || 'unknown',
+              signature: signature || 'unknown', // Full base58 signature (no truncation)
               tokenMint,
               slot,
               timestamp: Date.now(), // Estimate from current time
@@ -1874,18 +1875,33 @@ class EnhancedHybridPriceService extends EventEmitter {
         isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
         lastUpdated: Date.now(),
         // ✅ CRITICAL: Include recent swaps for SwapTable
-        recentSwaps: metrics.swaps.slice(-50).map(swap => ({
-          signature: swap.signature,
-          timestamp: swap.timestamp,
-          type: swap.type, // 'BUY' or 'SELL'
-          tokenAmount: swap.tokenAmount,
-          solAmount: swap.solAmount,
-          baseAmount: swap.solAmount, // Alias for compatibility
-          priceUsd: swap.priceUsd,
-          volumeUsd: swap.volumeUsd,
-          maker: swap.walletAddress,
-          price: swap.priceInSol
-        }))
+        recentSwaps: (() => {
+          const swaps = metrics.swaps.slice(-50).map(swap => ({
+            signature: swap.signature,
+            timestamp: swap.timestamp,
+            type: swap.type, // 'BUY' or 'SELL'
+            tokenAmount: swap.tokenAmount,
+            solAmount: swap.solAmount,
+            baseAmount: swap.solAmount, // Alias for compatibility
+            priceUsd: swap.priceUsd,
+            volumeUsd: swap.volumeUsd,
+            maker: swap.walletAddress,
+            price: swap.priceInSol
+          }));
+          
+          // Debug: Log USELESS swaps to verify data
+          if (tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' && swaps.length > 0) {
+            console.log(`🔍 [USELESS Swaps] Broadcasting ${swaps.length} swaps, first swap:`, {
+              signature: swaps[0].signature?.slice(0, 20) + '...',
+              type: swaps[0].type,
+              solAmount: swaps[0].solAmount,
+              maker: swaps[0].maker?.slice(0, 10) + '...',
+              volumeUsd: swaps[0].volumeUsd
+            });
+          }
+          
+          return swaps;
+        })()
       });
     }
     
