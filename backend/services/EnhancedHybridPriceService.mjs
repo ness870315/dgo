@@ -179,17 +179,16 @@ class TokenMetrics {
       // Makers: Add baseline + live (unique makers are additive)
       this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
       
-      // Price change: Calculate from combined data (baseline + live)
-      // If we have live swaps in this window, calculate price change from live data
-      // Otherwise, use baseline price change
+      // Price change: Use BASELINE if available (more accurate historical data)
+      // Only use live deltas if baseline is missing or zero
       let priceChange = 0;
       
-      if (this.liveDeltas[window].txns > 0) {
-        // Have live swaps in this window - use live price change
-        priceChange = this.liveDeltas[window].priceChange;
-      } else if (this.baseline[window].txns > 0) {
-        // No live swaps, but have baseline data - use baseline price change
+      if (this.baseline[window].txns > 0 && this.baseline[window].priceChange !== 0) {
+        // Have baseline data - use it (Jupiter has full historical data)
         priceChange = this.baseline[window].priceChange;
+      } else if (this.liveDeltas[window].txns > 0) {
+        // No baseline, but have live swaps - use live price change
+        priceChange = this.liveDeltas[window].priceChange;
       }
       // else: no data at all, leave as 0
       
