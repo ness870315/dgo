@@ -369,7 +369,9 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Start DEX program stream
       console.log('🚀 [EnhancedHybridPriceService] Step 7: Starting DEX program stream...');
-      await this.startDexProgramStream();
+      // TEMPORARILY DISABLED due to gRPC crashes
+      console.log('⚠️ [EnhancedHybridPriceService] DEX stream DISABLED - gRPC connection issues');
+      // await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
       console.log('📡 [EnhancedHybridPriceService] Step 8: Starting periodic state broadcast...');
