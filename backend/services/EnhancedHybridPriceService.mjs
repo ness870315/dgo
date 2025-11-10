@@ -193,6 +193,11 @@ class TokenMetrics {
       }
       // else: no data at all, leave as 0
       
+      // Debug: Log USELESS price change selection
+      if (isUSELESS && this.swaps.length % 10 === 0) {
+        console.log(`  ${window} priceChange: live_txns=${this.liveDeltas[window].txns}, baseline_txns=${this.baseline[window].txns}, selected=${priceChange.toFixed(2)}%`);
+      }
+      
       this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
       
       // Debug: Log USELESS window metrics
