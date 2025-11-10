@@ -216,6 +216,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     // gRPC client and stream
     this.grpcClient = null;
     this.dexStream = null; // Single stream for all DEX programs
+    this.isStreamActive = false; // Prevent duplicate streams
+    this.restartTimeout = null; // Track restart timer
     
     // Token tracking
     this.knownTokens = new Map(); // Map<tokenAddress, TokenMetrics>
@@ -369,9 +371,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Start DEX program stream
       console.log('🚀 [EnhancedHybridPriceService] Step 7: Starting DEX program stream...');
-      // TEMPORARILY DISABLED due to gRPC crashes
-      console.log('⚠️ [EnhancedHybridPriceService] DEX stream DISABLED - gRPC connection issues');
-      // await this.startDexProgramStream();
+      await this.startDexProgramStream();
       
       // Start periodic broadcast (DEXScreener-style real-time updates)
       console.log('📡 [EnhancedHybridPriceService] Step 8: Starting periodic state broadcast...');
@@ -404,9 +404,28 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Start DEX program stream (monitors ALL DEX programs)
    */
   async startDexProgramStream() {
+    // Prevent duplicate streams
+    if (this.isStreamActive) {
+      console.log('⚠️ [EnhancedHybridPriceService] Stream already active, skipping duplicate start');
+      return;
+    }
+    
     try {
       console.log('🔄 [EnhancedHybridPriceService] Starting DEX program stream...');
       console.log(`🎯 [EnhancedHybridPriceService] Monitoring ${DEX_PROGRAMS.length} DEX programs`);
+      
+      // Cleanup old stream if exists
+      if (this.dexStream) {
+        console.log('🧹 [EnhancedHybridPriceService] Cleaning up old stream...');
+        try {
+          this.dexStream.removeAllListeners();
+          this.dexStream = null;
+        } catch (e) {
+          console.warn('⚠️ [EnhancedHybridPriceService] Error cleaning up old stream:', e.message);
+        }
+      }
+      
+      this.isStreamActive = true;
       
       const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
       const CommitmentLevel = YellowstoneGrpc.CommitmentLevel || YellowstoneGrpc.default?.CommitmentLevel;
@@ -449,17 +468,20 @@ class EnhancedHybridPriceService extends EventEmitter {
       // Handle stream errors
       this.dexStream.on('error', (error) => {
         console.error('❌ [EnhancedHybridPriceService] Stream error:', error.message);
+        this.isStreamActive = false; // Mark as inactive
         this.scheduleStreamRestart();
       });
       
       // Handle stream end
       this.dexStream.on('end', () => {
         console.log('⚠️ [EnhancedHybridPriceService] Stream ended');
+        this.isStreamActive = false; // Mark as inactive
         this.scheduleStreamRestart();
       });
       
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to start DEX stream:', error.message);
+      this.isStreamActive = false; // Mark as inactive
       this.scheduleStreamRestart();
     }
   }
@@ -468,10 +490,17 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Schedule stream restart after error/end
    */
   scheduleStreamRestart() {
+    // Clear any existing restart timeout to prevent duplicates
+    if (this.restartTimeout) {
+      console.log('⚠️ [EnhancedHybridPriceService] Restart already scheduled, skipping duplicate');
+      return;
+    }
+    
     const restartDelay = 5000; // 5 seconds
     console.log(`🔄 [EnhancedHybridPriceService] Scheduling stream restart in ${restartDelay}ms...`);
     
-    setTimeout(() => {
+    this.restartTimeout = setTimeout(() => {
+      this.restartTimeout = null; // Clear timeout reference
       this.startDexProgramStream();
     }, restartDelay);
   }
