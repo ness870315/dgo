@@ -108,23 +108,26 @@ class TokenMetrics {
         .filter(p => p > 0 && isFinite(p))
         .sort((a, b) => a - b);
       
-      if (recentPrices.length >= 5) {
+      if (recentPrices.length >= 10) {
         // Remove outliers using IQR (Interquartile Range) method
         const q1Index = Math.floor(recentPrices.length * 0.25);
         const q3Index = Math.floor(recentPrices.length * 0.75);
         const q1 = recentPrices[q1Index];
         const q3 = recentPrices[q3Index];
         const iqr = q3 - q1;
-        const lowerBound = q1 - (1.5 * iqr);
-        const upperBound = q3 + (1.5 * iqr);
         
-        // Filter out outliers
+        // Use 3x IQR instead of 1.5x for less aggressive filtering (keeps more data)
+        const lowerBound = q1 - (3 * iqr);
+        const upperBound = q3 + (3 * iqr);
+        
+        // Filter out extreme outliers only
         const filteredPrices = recentPrices.filter(p => p >= lowerBound && p <= upperBound);
         
-        // Use filtered prices if we still have enough data
-        if (filteredPrices.length >= 5) {
+        // Use filtered prices if we still have at least 50% of original data
+        if (filteredPrices.length >= Math.floor(recentPrices.length * 0.5)) {
           recentPrices = filteredPrices;
         }
+        // else: keep all prices if filtering removed too much data
       }
       
       if (recentPrices.length > 0) {
@@ -138,6 +141,11 @@ class TokenMetrics {
       } else {
         // Fallback to latest swap price
         this.liveDeltas.currentPrice = this.swaps[this.swaps.length - 1].priceUsd || 0;
+      }
+      
+      // Debug: Log price calculation for ALL tokens if price is 0
+      if (this.liveDeltas.currentPrice === 0 || !isFinite(this.liveDeltas.currentPrice)) {
+        console.error(`❌ [Price Calc] ${this.tokenAddress.slice(0,8)}: currentPrice is ${this.liveDeltas.currentPrice}, recentPrices.length=${recentPrices.length}, swaps.length=${this.swaps.length}`);
       }
       
       // Debug: Log USELESS price calculation
