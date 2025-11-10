@@ -1837,7 +1837,15 @@ function AppContent() {
       {/* Token Details Modal */}
       {selectedToken && !showPreTokenDetail && (
         <TokenDetails
-          token={selectedToken}
+          token={(() => {
+            // ✅ CRITICAL: Merge selectedToken with live data from liveTokenDataRef
+            const address = selectedToken.contractAddress || selectedToken.tokenAddress;
+            const liveData = liveTokenDataRef.current.get(address);
+            if (liveData) {
+              return { ...selectedToken, ...liveData };
+            }
+            return selectedToken;
+          })()}
           fueledTokens={fueledTokens}
           onClose={() => setSelectedToken(null)}
           onTokenUpdated={handleTokenUpdated}
