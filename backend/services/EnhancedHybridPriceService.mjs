@@ -428,7 +428,8 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.isStreamActive = true;
       
       const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
-      const CommitmentLevel = YellowstoneGrpc.CommitmentLevel || YellowstoneGrpc.default?.CommitmentLevel;
+      const Client = YellowstoneGrpc.default || YellowstoneGrpc;
+      const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
       
       // Create transaction filters for DEX programs
       const transactionFilters = {
@@ -459,9 +460,15 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       console.log('✅ [EnhancedHybridPriceService] DEX program stream connected');
       console.log('👂 [EnhancedHybridPriceService] Listening for DEX transactions...');
+      console.log('⚠️ [EnhancedHybridPriceService] NOTE: If no swaps are detected, check Constant-K status at https://constant-k.com');
       
       // Handle stream data
+      let msgCount = 0;
       this.dexStream.on('data', (msg) => {
+        msgCount++;
+        if (msgCount % 100 === 0) {
+          console.log(`📨 [EnhancedHybridPriceService] Received ${msgCount} gRPC messages`);
+        }
         this.handleStreamData(msg);
       });
       
