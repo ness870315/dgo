@@ -666,12 +666,9 @@ class EnhancedHybridPriceService extends EventEmitter {
       // For each token, calculate balance changes
       const swaps = [];
       for (const tokenMint of tokenMints) {
-        let tokenIn = 0;
-        let tokenOut = 0;
-        let solIn = 0;
-        let solOut = 0;
-        let walletAddress = null;
-
+        // Track balance changes separately for each account
+        const accountChanges = [];
+        
         for (let i = 0; i < preBalances.length; i++) {
           const pre = preBalances[i];
           const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
@@ -682,49 +679,55 @@ class EnhancedHybridPriceService extends EventEmitter {
           const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
           const change = postAmount - preAmount;
 
-          // Capture wallet address (owner of the token account)
-          if (!walletAddress && pre.owner) {
-            walletAddress = pre.owner;
+          if (Math.abs(change) > 0.000001) {
+            accountChanges.push({
+              owner: pre.owner,
+              mint: pre.mint,
+              change: change
+            });
           }
+        }
 
-          // Token balance changes
-          if (pre.mint === tokenMint) {
-            if (change > 0) {
-              tokenIn += change;
-            } else if (change < 0) {
-              tokenOut += Math.abs(change);
-            }
+        // Find the user's wallet (the one with the largest token change)
+        let userWallet = null;
+        let maxTokenChange = 0;
+        
+        for (const acc of accountChanges) {
+          if (acc.mint === tokenMint && Math.abs(acc.change) > maxTokenChange) {
+            maxTokenChange = Math.abs(acc.change);
+            userWallet = acc.owner;
           }
+        }
 
-          // SOL balance changes
-          if (pre.mint === WSOL) {
-            if (change > 0) {
-              solIn += change;
-            } else if (change < 0) {
-              solOut += Math.abs(change);
+        // Now calculate token and SOL changes ONLY for the user's accounts
+        let tokenChange = 0;
+        let solChange = 0;
+        
+        for (const acc of accountChanges) {
+          if (acc.owner === userWallet) {
+            if (acc.mint === tokenMint) {
+              tokenChange = acc.change; // Positive = received tokens (BUY), Negative = sent tokens (SELL)
+            } else if (acc.mint === WSOL) {
+              solChange = acc.change; // Positive = received SOL (SELL), Negative = sent SOL (BUY)
             }
           }
         }
 
-        // Valid swap: has both token and SOL changes
-        if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
-          // Debug: Log USELESS swap details to understand correct logic
-          if (tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
-            console.log(`\n🔍 [USELESS Swap Debug]`);
-            console.log(`  tokenIn: ${tokenIn.toFixed(2)} (tokens flowing IN across all accounts)`);
-            console.log(`  tokenOut: ${tokenOut.toFixed(2)} (tokens flowing OUT across all accounts)`);
-            console.log(`  solIn: ${solIn.toFixed(4)} (SOL flowing IN across all accounts)`);
-            console.log(`  solOut: ${solOut.toFixed(4)} (SOL flowing OUT across all accounts)`);
-          }
+        // Valid swap: user has both token and SOL changes
+        if (Math.abs(tokenChange) > 0 && Math.abs(solChange) > 0) {
+          // Determine swap type from USER's perspective
+          // tokenChange > 0 = user RECEIVED tokens = BUY
+          // tokenChange < 0 = user SENT tokens = SELL
+          const isBuy = tokenChange > 0;
+          const tokenAmount = Math.abs(tokenChange);
+          const solAmount = Math.abs(solChange);
           
-          // Aggregate token movements across ALL accounts in transaction
-          // tokenIn > 0 means net tokens flowing IN → BUY (user bought tokens)
-          // tokenOut > 0 means net tokens flowing OUT → SELL (user sold tokens)
-          const isBuy = tokenIn > 0;
-          const tokenAmount = isBuy ? tokenIn : tokenOut;
-          const solAmount = isBuy ? solOut : solIn;
-          
+          // Debug: Log USELESS swap details
           if (tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+            console.log(`\n🔍 [USELESS Swap Debug - FIXED]`);
+            console.log(`  User wallet: ${userWallet?.slice(0, 10)}...`);
+            console.log(`  User token change: ${tokenChange > 0 ? '+' : ''}${tokenChange.toFixed(2)}`);
+            console.log(`  User SOL change: ${solChange > 0 ? '+' : ''}${solChange.toFixed(4)}`);
             console.log(`  → Detected as: ${isBuy ? 'BUY' : 'SELL'}`);
             console.log(`  → Token amount: ${tokenAmount.toFixed(2)}`);
             console.log(`  → SOL amount: ${solAmount.toFixed(4)}\n`);
@@ -734,24 +737,19 @@ class EnhancedHybridPriceService extends EventEmitter {
             const priceInSol = solAmount / tokenAmount;
             const priceUsd = priceInSol * this.solPriceUSD;
             const volumeUsd = solAmount * this.solPriceUSD;
-            
-            // Debug: Check if SOL price is 0
-            if (this.solPriceUSD === 0 && tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
-              console.error(`❌ [USELESS] SOL price is 0! priceInSol=${priceInSol}, solAmount=${solAmount}, tokenAmount=${tokenAmount}`);
-            }
 
             swaps.push({
-              signature: signature || 'unknown', // Full base58 signature (no truncation)
+              signature: signature || 'unknown',
               tokenMint,
               slot,
-              timestamp: Date.now(), // Estimate from current time
+              timestamp: Date.now(),
               type: isBuy ? 'BUY' : 'SELL',
               tokenAmount,
               solAmount,
               priceInSol,
               priceUsd,
               volumeUsd,
-              walletAddress
+              walletAddress: userWallet
             });
           }
         }
