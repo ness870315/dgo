@@ -708,9 +708,12 @@ class EnhancedHybridPriceService extends EventEmitter {
 
         // Valid swap: has both token and SOL changes
         if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
-          const isBuy = tokenIn > 0;
-          const tokenAmount = isBuy ? tokenIn : tokenOut;
-          const solAmount = isBuy ? solOut : solIn;
+          // ✅ CRITICAL FIX: We're tracking POOL balance changes, so logic is inverted from user perspective
+          // If tokens go INTO pool → User SOLD tokens (gave tokens, got SOL)
+          // If tokens go OUT of pool → User BOUGHT tokens (gave SOL, got tokens)
+          const isBuy = tokenOut > 0; // tokenOut = user bought tokens from pool
+          const tokenAmount = isBuy ? tokenOut : tokenIn;
+          const solAmount = isBuy ? solIn : solOut;
 
           if (tokenAmount > 0 && solAmount > 0) {
             const priceInSol = solAmount / tokenAmount;
