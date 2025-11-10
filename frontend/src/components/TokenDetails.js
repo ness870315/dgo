@@ -1097,7 +1097,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </div>
                   <span className="text-blue-200 text-sm mb-1 relative z-10">🏦 Market Cap</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
-                    {formatMarketCap(getMarketCap() || token?.jupiterData?.mcap || token?.marketCap)}
+                    {formatMarketCap(token?.marketCap || getMarketCap() || token?.jupiterData?.mcap)}
                   </span>
                   {isLive && (
                     <div className="text-xs text-green-400 mt-1 relative z-10">
@@ -1119,7 +1119,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <div className="absolute inset-0 bg-gradient-to-br from-green-600/5 to-transparent"></div>
                   <span className="text-green-200 text-sm mb-1 relative z-10">📈 Price</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
-                    {formatPrice(getPriceUsd() || token?.jupiterData?.usdPrice || token?.price)}
+                    {formatPrice(token?.priceUsd || token?.price || getPriceUsd() || token?.jupiterData?.usdPrice)}
                   </span>
                   {isLive && priceData && (
                     <div className="text-xs text-green-400 mt-1 relative z-10">
