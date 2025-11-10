@@ -100,24 +100,30 @@ class TokenMetrics {
     };
 
     // Step 1: Calculate LIVE deltas from DEX swaps
-    // Use VWAP (Volume Weighted Average Price) from recent swaps for more stable price
+    // Use median price from recent swaps for stability (VWAP can be skewed by large outlier trades)
     if (this.swaps.length > 0) {
-      const recentSwaps = this.swaps.slice(-20); // Last 20 swaps for VWAP
-      let totalVolume = 0;
-      let weightedPriceSum = 0;
+      const recentSwaps = this.swaps.slice(-20); // Last 20 swaps
+      const recentPrices = recentSwaps
+        .map(s => s.priceUsd)
+        .filter(p => p > 0 && isFinite(p))
+        .sort((a, b) => a - b);
       
-      for (const swap of recentSwaps) {
-        if (swap.volumeUsd > 0 && swap.priceUsd > 0) {
-          weightedPriceSum += swap.priceUsd * swap.volumeUsd;
-          totalVolume += swap.volumeUsd;
+      if (recentPrices.length > 0) {
+        // Use median price (more resistant to outliers than VWAP)
+        const midIndex = Math.floor(recentPrices.length / 2);
+        if (recentPrices.length % 2 === 0) {
+          this.liveDeltas.currentPrice = (recentPrices[midIndex - 1] + recentPrices[midIndex]) / 2;
+        } else {
+          this.liveDeltas.currentPrice = recentPrices[midIndex];
         }
+      } else {
+        // Fallback to latest swap price
+        this.liveDeltas.currentPrice = this.swaps[this.swaps.length - 1].priceUsd || 0;
       }
       
-      if (totalVolume > 0) {
-        this.liveDeltas.currentPrice = weightedPriceSum / totalVolume;
-      } else {
-        // Fallback to latest swap price if no volume data
-        this.liveDeltas.currentPrice = this.swaps[this.swaps.length - 1].priceUsd || 0;
+      // Debug: Log USELESS price calculation
+      if (this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' && this.swaps.length % 10 === 0) {
+        console.log(`💰 [USELESS Price] Median from ${recentPrices.length} prices: $${this.liveDeltas.currentPrice.toFixed(6)}, range: $${recentPrices[0]?.toFixed(6)} - $${recentPrices[recentPrices.length-1]?.toFixed(6)}`);
       }
     } else {
       this.liveDeltas.currentPrice = 0;
