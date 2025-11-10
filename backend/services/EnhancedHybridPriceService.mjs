@@ -100,9 +100,25 @@ class TokenMetrics {
     };
 
     // Step 1: Calculate LIVE deltas from DEX swaps
+    // Use VWAP (Volume Weighted Average Price) from recent swaps for more stable price
     if (this.swaps.length > 0) {
-      const latestSwapPrice = this.swaps[this.swaps.length - 1].priceUsd;
-      this.liveDeltas.currentPrice = latestSwapPrice > 0 ? latestSwapPrice : 0;
+      const recentSwaps = this.swaps.slice(-20); // Last 20 swaps for VWAP
+      let totalVolume = 0;
+      let weightedPriceSum = 0;
+      
+      for (const swap of recentSwaps) {
+        if (swap.volumeUsd > 0 && swap.priceUsd > 0) {
+          weightedPriceSum += swap.priceUsd * swap.volumeUsd;
+          totalVolume += swap.volumeUsd;
+        }
+      }
+      
+      if (totalVolume > 0) {
+        this.liveDeltas.currentPrice = weightedPriceSum / totalVolume;
+      } else {
+        // Fallback to latest swap price if no volume data
+        this.liveDeltas.currentPrice = this.swaps[this.swaps.length - 1].priceUsd || 0;
+      }
     } else {
       this.liveDeltas.currentPrice = 0;
     }
@@ -163,16 +179,19 @@ class TokenMetrics {
       // Makers: Add baseline + live (unique makers are additive)
       this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
       
-      // Price change: Use live if it has actual data (non-zero), otherwise use baseline
-      // Safety check: ensure no NaN or Infinity values
-      let priceChange;
-      if (this.liveDeltas[window].txns > 0 && this.liveDeltas[window].priceChange !== 0) {
-        // Have live data with actual price change
+      // Price change: Calculate from combined data (baseline + live)
+      // If we have live swaps in this window, calculate price change from live data
+      // Otherwise, use baseline price change
+      let priceChange = 0;
+      
+      if (this.liveDeltas[window].txns > 0) {
+        // Have live swaps in this window - use live price change
         priceChange = this.liveDeltas[window].priceChange;
-      } else {
-        // No live data or live priceChange is 0, use baseline
+      } else if (this.baseline[window].txns > 0) {
+        // No live swaps, but have baseline data - use baseline price change
         priceChange = this.baseline[window].priceChange;
       }
+      // else: no data at all, leave as 0
       
       this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
       
