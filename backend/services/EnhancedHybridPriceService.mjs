@@ -598,6 +598,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         return;
       }
       
+      // Debug: Log EVERY swap detection for first 100 swaps
+      if (this.stats.totalSwapsProcessed < 100) {
+        console.log(`🔍 [Swap Detected] #${this.stats.totalSwapsProcessed + 1}: ${swaps.length} swap(s) in tx, first: ${swaps[0].type} ${swaps[0].tokenMint.slice(0,8)}... $${swaps[0].volumeUsd.toFixed(2)}`);
+      }
+      
       // Log every 10th swap to reduce noise
       if (this.stats.totalSwapsProcessed % 10 === 0) {
         console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.totalSwapsProcessed} swaps (${swaps.length} in this batch)`);
