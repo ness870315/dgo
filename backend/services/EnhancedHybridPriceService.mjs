@@ -621,7 +621,144 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * AMM programs we trust for swap detection (not RFQ/routers)
+   */
+  static AMM_PROGRAMS = new Set([
+    '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8',  // Raydium AMM
+    'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK',  // Raydium CLMM
+    'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C',  // Raydium CPMM v2
+    'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',   // Orca Whirlpool
+    'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',   // Meteora DLMM
+    'Dooar9JkhdZ7J3LHN3A7YCuoGRUggXhQaG4kijfLGU2j',  // Meteora Pools
+    '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',   // Pump.fun AMM
+  ]);
+
+  /**
+   * Helper: Resolve account key by index from meta (for pre/postTokenBalances)
+   */
+  resolveMetaKeyByIndex(message, idx) {
+    const { PublicKey } = require('@solana/web3.js');
+    const statics = message.accountKeys || [];
+    const loaded = message.loadedAddresses || { writable: [], readonly: [] };
+    const combined = [...statics, ...loaded.writable, ...loaded.readonly];
+    
+    if (idx < 0 || idx >= combined.length) return 'unknown';
+    const k = combined[idx];
+    if (Buffer.isBuffer(k)) return new PublicKey(k).toBase58();
+    if (typeof k === 'string') return k;
+    if (k?.toBase58) return k.toBase58();
+    return String(k);
+  }
+
+  /**
+   * Helper: Resolve account key by index from instruction accounts
+   */
+  resolveIxKeyByIndex(message, idx) {
+    return this.resolveMetaKeyByIndex(message, idx);
+  }
+
+  /**
+   * Helper: Check if accountPubkey is an ATA of ownerPubkey for mint
+   */
+  isAtaOf(ownerPubkey, mint, accountPubkey) {
+    try {
+      const { PublicKey } = require('@solana/web3.js');
+      const { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } = require('@solana/spl-token');
+      
+      const owner = new PublicKey(ownerPubkey);
+      const mintKey = new PublicKey(mint);
+      const account = new PublicKey(accountPubkey);
+      
+      // Try both token programs
+      const ata1 = getAssociatedTokenAddressSync(mintKey, owner, false, TOKEN_PROGRAM_ID);
+      if (ata1.equals(account)) return true;
+      
+      const ata2 = getAssociatedTokenAddressSync(mintKey, owner, false, TOKEN_2022_PROGRAM_ID);
+      if (ata2.equals(account)) return true;
+      
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Extract token deltas from transaction (index-safe)
+   */
+  extractTokenDeltas(tx, meta, message) {
+    const deltas = [];
+    const preBalances = meta.preTokenBalances || [];
+    const postBalances = meta.postTokenBalances || [];
+    
+    for (const pre of preBalances) {
+      const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
+      if (!post) continue;
+      
+      // CRITICAL: Use raw amount (BigInt) instead of uiAmount (which can be null)
+      const decimals = Number(pre.uiTokenAmount?.decimals ?? 0);
+      const preRaw = BigInt(pre.uiTokenAmount?.amount ?? "0");
+      const postRaw = BigInt(post.uiTokenAmount?.amount ?? "0");
+      const dRaw = postRaw - preRaw;
+      
+      if (dRaw === 0n) continue;
+      
+      const deltaUI = Number(dRaw) / (10 ** decimals);
+      if (Math.abs(deltaUI) < 0.000001) continue; // Skip dust
+      
+      deltas.push({
+        accountIndex: pre.accountIndex,
+        accountPubkey: this.resolveMetaKeyByIndex(message, pre.accountIndex),
+        mint: pre.mint,
+        owner: pre.owner,
+        deltaUI,
+        decimals
+      });
+    }
+    
+    return deltas;
+  }
+
+  /**
+   * Get signer set (fee payer + signers)
+   */
+  getSignerSet(message) {
+    const { PublicKey } = require('@solana/web3.js');
+    const signers = new Set();
+    const statics = message.accountKeys || [];
+    const n = message.header?.numRequiredSignatures || 1;
+    
+    for (let i = 0; i < Math.min(n, statics.length); i++) {
+      const k = statics[i];
+      if (Buffer.isBuffer(k)) {
+        signers.add(new PublicKey(k).toBase58());
+      } else if (typeof k === 'string') {
+        signers.add(k);
+      } else if (k?.toBase58) {
+        signers.add(k.toBase58());
+      }
+    }
+    
+    return signers;
+  }
+
+  /**
+   * Check if delta is user-side (signer or ATA of signer)
+   */
+  isUserSideDelta(delta, signerSet) {
+    // Owner is a signer
+    if (signerSet.has(delta.owner)) return true;
+    
+    // accountPubkey is an ATA of a signer
+    for (const signer of signerSet) {
+      if (this.isAtaOf(signer, delta.mint, delta.accountPubkey)) return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Parse balance changes from gRPC transaction data
+   * BATTLE-TESTED APPROACH: Per-instruction processing with pool delta inversion
    */
   parseBalanceChanges(msg) {
     try {
@@ -631,6 +768,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
       const tx = msg.transaction.transaction;
       const slot = msg.transaction.slot;
+      const message = tx.message || msg.transaction.transaction.message;
       
       // Extract signature and convert to base58 (Solscan format)
       let signature = tx.signature || 
@@ -638,7 +776,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                      msg.transaction?.signature;
       
       if (signature && Buffer.isBuffer(signature)) {
-        // Convert Buffer to base58 (Solana transaction signature format)
         signature = bs58.encode(signature);
       }
 
@@ -648,110 +785,107 @@ class EnhancedHybridPriceService extends EventEmitter {
         return null;
       }
 
-      const preBalances = meta.preTokenBalances || [];
-      const postBalances = meta.postTokenBalances || [];
-
-      if (preBalances.length === 0) {
-        return null; // Not a token swap (SOL-only, NFT, liquidity op, etc.)
+      // ✅ GATE 1: Fast prefilter - check for any token balance changes
+      if (!meta.preTokenBalances || meta.preTokenBalances.length === 0) {
+        return null;
       }
 
-      // Find all unique token mints (excluding WSOL)
-      const tokenMints = new Set();
-      preBalances.forEach(b => {
-        if (b.mint && b.mint !== WSOL) {
-          tokenMints.add(b.mint);
-        }
-      });
+      // Step 1: Extract all token deltas using raw amounts (BigInt)
+      const deltas = this.extractTokenDeltas(tx, meta, message);
+      if (deltas.length < 2) return null;
 
-      // For each token, calculate balance changes
+      // Step 2: Get signer set (fee payer + signers)
+      const signerSet = this.getSignerSet(message);
+      const { PublicKey } = require('@solana/web3.js');
+      const feePayer = message.accountKeys?.[0];
+      const feePayerStr = feePayer 
+        ? (Buffer.isBuffer(feePayer) ? new PublicKey(feePayer).toBase58() : String(feePayer))
+        : 'unknown';
+
+      // Step 3: Flatten all instructions (top-level + inner)
+      const instrsTop = message.instructions || [];
+      const innerGroups = (meta.innerInstructions || []).flatMap(g => g.instructions || []);
+      const allIx = [...instrsTop, ...innerGroups];
+
+      // ✅ GATE 2: Process ALL instructions (not just AMM programs)
+      // This catches swaps through aggregators like Jupiter
       const swaps = [];
-      for (const tokenMint of tokenMints) {
-        // Track balance changes separately for each account
-        const accountChanges = [];
+      
+      // ✅ GATE 3: Process each instruction
+      for (const ix of allIx) {
+        const touched = this.deltasTouchedByIx(ix, deltas);
+        const nonZero = touched.filter(d => Math.abs(d.deltaUI) > 0.000001);
+        if (nonZero.length < 2) continue;
+
+        // Check if we have user-side deltas
+        const userSide = nonZero.filter(d => this.isUserSideDelta(d, signerSet));
+        const isUserSide = userSide.length >= 2;
         
-        for (let i = 0; i < preBalances.length; i++) {
-          const pre = preBalances[i];
-          const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
+        // Pick legs (prefer user-side, fallback to touched)
+        const picked = this.pickLegsForIx(nonZero, signerSet);
+        if (!picked) continue;
 
-          if (!post) continue;
-
-          const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
-          const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
-          const change = postAmount - preAmount;
-
-          if (Math.abs(change) > 0.000001) {
-            accountChanges.push({
-              owner: pre.owner,
-              mint: pre.mint,
-              change: change
-            });
-          }
-        }
-
-        // Find the user's wallet (the one with the largest token change)
-        let userWallet = null;
-        let maxTokenChange = 0;
+        let { input, output } = picked;
         
-        for (const acc of accountChanges) {
-          if (acc.mint === tokenMint && Math.abs(acc.change) > maxTokenChange) {
-            maxTokenChange = Math.abs(acc.change);
-            userWallet = acc.owner;
-          }
+        // CRITICAL: If we picked pool deltas (not user-side), INVERT them!
+        // Pool deltas are opposite of user deltas
+        if (!isUserSide) {
+          [input, output] = [output, input];
         }
-
-        // Now calculate token and SOL changes ONLY for the user's accounts
-        let tokenChange = 0;
-        let solChange = 0;
         
-        for (const acc of accountChanges) {
-          if (acc.owner === userWallet) {
-            if (acc.mint === tokenMint) {
-              tokenChange = acc.change; // Positive = received tokens (BUY), Negative = sent tokens (SELL)
-            } else if (acc.mint === WSOL) {
-              solChange = acc.change; // Positive = received SOL (SELL), Negative = sent SOL (BUY)
-            }
-          }
-        }
-
-        // Valid swap: user has both token and SOL changes
-        if (Math.abs(tokenChange) > 0 && Math.abs(solChange) > 0) {
-          // Determine swap type from USER's perspective
-          // tokenChange > 0 = user RECEIVED tokens = BUY
-          // tokenChange < 0 = user SENT tokens = SELL
-          const isBuy = tokenChange > 0;
-          const tokenAmount = Math.abs(tokenChange);
-          const solAmount = Math.abs(solChange);
+        // Process each non-WSOL token in this swap
+        const mints = [input.mint, output.mint].filter(m => m !== WSOL);
+        
+        for (const tokenMint of mints) {
+          let side, tokenAmount, counterAmount;
           
-          // Debug: Log USELESS swap details
-          if (tokenMint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
-            console.log(`\n🔍 [USELESS Swap Debug - FIXED]`);
-            console.log(`  User wallet: ${userWallet?.slice(0, 10)}...`);
-            console.log(`  User token change: ${tokenChange > 0 ? '+' : ''}${tokenChange.toFixed(2)}`);
-            console.log(`  User SOL change: ${solChange > 0 ? '+' : ''}${solChange.toFixed(4)}`);
-            console.log(`  → Detected as: ${isBuy ? 'BUY' : 'SELL'}`);
-            console.log(`  → Token amount: ${tokenAmount.toFixed(2)}`);
-            console.log(`  → SOL amount: ${solAmount.toFixed(4)}\n`);
+          // Determine BUY/SELL from user perspective
+          if (tokenMint === output.mint) {
+            // User RECEIVED target token = BUY
+            side = 'BUY';
+            tokenAmount = Math.abs(output.deltaUI);
+            counterAmount = Math.abs(input.deltaUI);
+          } else if (tokenMint === input.mint) {
+            // User PAID target token = SELL
+            side = 'SELL';
+            tokenAmount = Math.abs(input.deltaUI);
+            counterAmount = Math.abs(output.deltaUI);
+          } else {
+            continue;
           }
 
-          if (tokenAmount > 0 && solAmount > 0) {
-            const priceInSol = solAmount / tokenAmount;
-            const priceUsd = priceInSol * this.solPriceUSD;
-            const volumeUsd = solAmount * this.solPriceUSD;
+          if (!tokenAmount || !counterAmount) continue;
 
-            swaps.push({
-              signature: signature || 'unknown',
-              tokenMint,
-              slot,
-              timestamp: Date.now(),
-              type: isBuy ? 'BUY' : 'SELL',
-              tokenAmount,
-              solAmount,
-              priceInSol,
-              priceUsd,
-              volumeUsd,
-              walletAddress: userWallet
-            });
+          // Calculate price & volume (prefer SOL as counter)
+          const isCounterSOL = (input.mint === WSOL || output.mint === WSOL);
+          let priceInSol, priceUsd, volumeUsd;
+
+          if (isCounterSOL) {
+            priceInSol = counterAmount / tokenAmount;
+            priceUsd = priceInSol * this.solPriceUSD;
+            volumeUsd = counterAmount * this.solPriceUSD;
+          } else {
+            // Non-SOL pair - skip for now (would need USDC price lookup)
+            continue;
           }
+
+          // Dust filter (lowered to $0.01 to catch smaller swaps)
+          if (!isFinite(volumeUsd) || volumeUsd < 0.01) continue;
+
+          // Emit swap
+          swaps.push({
+            signature: signature || 'unknown',
+            tokenMint,
+            slot,
+            timestamp: Date.now(),
+            type: side,
+            tokenAmount,
+            solAmount: counterAmount,
+            priceInSol,
+            priceUsd,
+            volumeUsd,
+            walletAddress: feePayerStr
+          });
         }
       }
 
@@ -762,6 +896,56 @@ class EnhancedHybridPriceService extends EventEmitter {
       return null;
     }
   }
+
+  /**
+   * Helper: Get instruction account indices
+   */
+  ixAccountIdxs(ix) {
+    if (Array.isArray(ix.accounts)) return ix.accounts;
+    if (Buffer.isBuffer(ix.accounts)) return Array.from(ix.accounts);
+    if (ix.accounts?.data) return Array.from(ix.accounts.data);
+    if (ix.accountKeyIndexes) return ix.accountKeyIndexes;
+    return [];
+  }
+
+  /**
+   * Helper: Filter deltas touched by this instruction
+   */
+  deltasTouchedByIx(ix, deltas) {
+    const set = new Set(this.ixAccountIdxs(ix));
+    return deltas.filter(d => set.has(d.accountIndex));
+  }
+
+  /**
+   * Helper: Collapse deltas by mint, keeping largest absolute value
+   */
+  collapseByMintMaxAbs(legs) {
+    const byMint = new Map();
+    for (const d of legs) {
+      const cur = byMint.get(d.mint);
+      if (!cur || Math.abs(d.deltaUI) > Math.abs(cur.deltaUI)) {
+        byMint.set(d.mint, d);
+      }
+    }
+    return [...byMint.values()];
+  }
+
+  /**
+   * Helper: Pick input/output legs for an instruction
+   */
+  pickLegsForIx(touched, signerSet) {
+    const userSide = touched.filter(d => this.isUserSideDelta(d, signerSet));
+    const legs = (userSide.length >= 2 ? userSide : touched);
+    const uniq = this.collapseByMintMaxAbs(legs);
+
+    const inputs = uniq.filter(d => d.deltaUI < 0).sort((a,b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+    const outputs = uniq.filter(d => d.deltaUI > 0).sort((a,b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+    
+    if (!inputs.length || !outputs.length) return null;
+
+    return { input: inputs[0], output: outputs[0] };
+  }
+
 
   /**
    * Process swap for a known token (already in database)
