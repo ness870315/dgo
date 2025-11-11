@@ -157,6 +157,25 @@ const PriceChartModal = ({ token, onClose }) => {
 
   // WebSocket event listeners for real-time updates
   useEffect(() => {
+    const handleFullStateUpdate = (data) => {
+      if (!data.tokens || !token?.contractAddress) return;
+      
+      // Find this token in the full state update
+      const updatedToken = data.tokens.find(t => 
+        t.contractAddress === token.contractAddress || 
+        t.tokenAddress === token.contractAddress
+      );
+      
+      if (updatedToken && updatedToken.recentSwaps) {
+        console.log(`🔄 [PriceChartModal] Full state update: ${updatedToken.recentSwaps.length} swaps for ${updatedToken.symbol}`);
+        
+        setRealTimeData({
+          recentSwaps: updatedToken.recentSwaps,
+          swapHistory: updatedToken.recentSwaps
+        });
+      }
+    };
+
     const handleSwapUpdate = (data) => {
       if (data.tokenAddress === token?.contractAddress) {
         console.log('🔄 [PriceChartModal] Real-time swap update received:', data.swapData);
@@ -189,11 +208,13 @@ const PriceChartModal = ({ token, onClose }) => {
     };
 
     // Add event listeners
+    websocketService.on('fullStateUpdate', handleFullStateUpdate);
     websocketService.on('swapUpdate', handleSwapUpdate);
     websocketService.on('priceUpdate', handleWebSocketPriceUpdate);
 
     // Cleanup
     return () => {
+      websocketService.off('fullStateUpdate', handleFullStateUpdate);
       websocketService.off('swapUpdate', handleSwapUpdate);
       websocketService.off('priceUpdate', handleWebSocketPriceUpdate);
     };
