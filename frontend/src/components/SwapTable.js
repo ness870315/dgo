@@ -28,8 +28,15 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
         console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
       }
       
+      // ✅ CRITICAL FIX: Filter out null/undefined swaps before processing
+      const validSwaps = swapData.filter(swap => swap && typeof swap === 'object');
+      
+      if (validSwaps.length !== swapData.length) {
+        console.warn(`⚠️ [SwapTable] Filtered out ${swapData.length - validSwaps.length} invalid swaps`);
+      }
+      
       // ✅ CRITICAL FIX: Calculate correct amounts from available data
-      const processedSwaps = swapData.map(swap => {
+      const processedSwaps = validSwaps.map(swap => {
         // If amounts are 0, calculate them from volumeUsd and price
         let tokenAmount = swap.tokenAmount;
         let baseAmount = swap.baseAmount;
