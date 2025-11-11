@@ -991,6 +991,26 @@ class EnhancedHybridPriceService extends EventEmitter {
       source: 'grpc-dex'
     }]);
     
+    // ✅ REAL-TIME: Broadcast individual swap immediately
+    if (this.webSocketServer) {
+      this.webSocketServer.broadcastToTokenSubscribers(swap.tokenMint, {
+        type: 'swapUpdate',
+        tokenAddress: swap.tokenMint,
+        swapData: {
+          signature: swap.signature,
+          timestamp: swap.timestamp,
+          type: swap.type,
+          tokenAmount: swap.tokenAmount,
+          solAmount: swap.solAmount,
+          baseAmount: swap.solAmount,
+          priceUsd: swap.priceUsd,
+          volumeUsd: swap.volumeUsd,
+          maker: swap.walletAddress,
+          price: swap.priceInSol
+        }
+      });
+    }
+    
     // Broadcast price update via WebSocket
     if (this.webSocketServer) {
       const metricsData = metrics.getMetrics();
