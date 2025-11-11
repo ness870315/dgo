@@ -768,7 +768,12 @@ class EnhancedHybridPriceService extends EventEmitter {
 
       const tx = msg.transaction.transaction;
       const slot = msg.transaction.slot;
-      const message = tx.message || msg.transaction.transaction.message;
+      const message = tx.transaction?.message;
+      
+      // Early exit if message is missing
+      if (!message) {
+        return null;
+      }
       
       // Extract signature and convert to base58 (Solscan format)
       let signature = tx.signature || 
