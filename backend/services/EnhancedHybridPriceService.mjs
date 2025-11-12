@@ -68,6 +68,35 @@ class TokenMetrics {
   }
 
   /**
+   * Seed metrics from baseline data (e.g., Jupiter)
+   */
+  seedBaseline(baseline) {
+    if (!baseline) return;
+
+    if (typeof baseline.price === 'number' && baseline.price > 0) {
+      this.metrics.currentPrice = baseline.price;
+      this.priceHistory.push({ timestamp: Date.now(), price: baseline.price });
+    }
+
+    const applyWindow = (windowKey, stats) => {
+      if (!stats) return;
+      this.metrics[windowKey] = {
+        volume: Number(stats.volume ?? 0),
+        txns: Number(stats.txns ?? 0),
+        makers: Number(stats.makers ?? 0),
+        priceChange: Number(stats.priceChange ?? 0),
+      };
+    };
+
+    applyWindow('5m', baseline['5m']);
+    applyWindow('1h', baseline['1h']);
+    applyWindow('6h', baseline['6h']);
+    applyWindow('24h', baseline['24h']);
+
+    this.pruneOldData();
+  }
+
+  /**
    * Update all time-window metrics
    */
   updateMetrics() {
@@ -155,6 +184,25 @@ class EnhancedHybridPriceService extends EventEmitter {
     this.fullStateInterval = null;
     this.fullStateBroadcastMs = Number(process.env.FULL_STATE_BROADCAST_MS || 10000);
     this.lastFullStateBroadcast = 0;
+    this.baselineSeedingPromise = null;
+    this.baselineSeeded = false;
+    this.statsReporterInterval = null;
+    this.statsReportMs = Number(process.env.HYBRID_STATS_REPORT_MS || 60000);
+    this.lastStatsSnapshot = {
+      totalSwapsProcessed: 0,
+      rpcFetches: 0,
+      rpcSuccess: 0,
+      rpcSwaps: 0,
+      layer1Checked: 0,
+      layer1Passed: 0,
+      layer2Checked: 0,
+      layer2Passed: 0,
+      tokensDiscovered: 0,
+    };
+    this.recentLayer1Passes = [];
+    this.recentLayer2Passes = [];
+    this.recentDiscoveredTokens = [];
+    this.streamStarting = false;
     
     // Multi-layer filter configuration
     this.filters = {
@@ -233,6 +281,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     this.tokenCacheSet = new Set();
     // Use persistent cache path (Render volume mount)
     this.cachePath = process.env.CACHE_PATH || '/var/data/dgo/cache/tokens-cache.json';
+    this.cacheDir = path.dirname(this.cachePath);
     
     // Stats
     this.stats = {
@@ -272,6 +321,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Load token cache
       await this.loadTokenCache();
+      await this.seedJupiterBaseline();
       
       // Initialize SOL price
       await this.updateSolPrice();
@@ -284,6 +334,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Start DEX program stream
       await this.startDexProgramStream();
+      this.startStatsReporter();
       
       console.log('✅ [EnhancedHybridPriceService] Initialization complete');
     } catch (error) {
@@ -311,6 +362,20 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Start DEX program stream (monitors ALL DEX programs)
    */
   async startDexProgramStream() {
+    if (this.dexStream) {
+      console.log('⚠️ [EnhancedHybridPriceService] DEX program stream already active, skipping start');
+      return;
+    }
+    if (this.streamStarting) {
+      console.log('⚠️ [EnhancedHybridPriceService] Stream start already in progress, skipping');
+      return;
+    }
+    if (!this.grpcClient) {
+      console.log('⚠️ [EnhancedHybridPriceService] gRPC client not initialized yet, cannot start stream');
+      return;
+    }
+
+    this.streamStarting = true;
     try {
       console.log('🔄 [EnhancedHybridPriceService] Starting DEX program stream...');
       console.log(`🎯 [EnhancedHybridPriceService] Monitoring ${DEX_PROGRAMS.length} DEX programs`);
@@ -336,7 +401,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       };
       
       // Subscribe to stream
-      this.dexStream = await this.grpcClient.subscribeOnce(
+      const stream = await this.grpcClient.subscribeOnce(
         {}, // accounts
         {}, // slots
         transactionFilters, // transactions
@@ -348,31 +413,36 @@ class EnhancedHybridPriceService extends EventEmitter {
         [] // accountsDataSlice
       );
       
+      this.dexStream = stream;
       this.stats.lastStreamStart = Date.now();
       this.stats.streamRestarts++;
       
       console.log('✅ [EnhancedHybridPriceService] DEX program stream connected');
       
       // Handle stream data
-      this.dexStream.on('data', (msg) => {
+      stream.on('data', (msg) => {
         this.handleStreamData(msg);
       });
       
       // Handle stream errors
-      this.dexStream.on('error', (error) => {
+      stream.on('error', (error) => {
         console.error('❌ [EnhancedHybridPriceService] Stream error:', error.message);
+        this.dexStream = null;
         this.scheduleStreamRestart();
       });
       
       // Handle stream end
-      this.dexStream.on('end', () => {
+      stream.on('end', () => {
         console.log('⚠️ [EnhancedHybridPriceService] Stream ended');
+        this.dexStream = null;
         this.scheduleStreamRestart();
       });
       
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to start DEX stream:', error.message);
       this.scheduleStreamRestart();
+    } finally {
+      this.streamStarting = false;
     }
   }
 
@@ -381,6 +451,9 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   scheduleStreamRestart() {
     const restartDelay = 5000; // 5 seconds
+    if (this.streamStarting || this.dexStream) {
+      return;
+    }
     console.log(`🔄 [EnhancedHybridPriceService] Scheduling stream restart in ${restartDelay}ms...`);
     
     setTimeout(() => {
@@ -605,7 +678,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                      msg.transaction?.signature;
       
       if (signature && Buffer.isBuffer(signature)) {
-        signature = Buffer.from(signature).toString('base64');
+        signature = bs58.encode(signature);
       }
 
       // Get balance changes from meta
@@ -679,22 +752,33 @@ class EnhancedHybridPriceService extends EventEmitter {
           const solAmount = isBuy ? solOut : solIn;
 
           if (tokenAmount > 0 && solAmount > 0) {
+            const normalizedSignature = this.normalizeSignature(signature) || 'unknown';
+            const maker = walletAddress || null;
             const priceInSol = solAmount / tokenAmount;
             const priceUsd = priceInSol * this.solPriceUSD;
             const volumeUsd = solAmount * this.solPriceUSD;
 
             swaps.push({
-              signature: signature?.slice(0, 32) || 'unknown',
+              signature: normalizedSignature,
+              signatureShort:
+                normalizedSignature && normalizedSignature.length > 16
+                  ? `${normalizedSignature.slice(0, 8)}...${normalizedSignature.slice(-8)}`
+                  : normalizedSignature,
+              explorerUrl:
+                normalizedSignature && normalizedSignature !== 'unknown'
+                  ? `https://solscan.io/tx/${normalizedSignature}`
+                  : null,
               tokenMint,
               slot,
               timestamp: Date.now(), // Estimate from current time
-              type: isBuy ? 'BUY' : 'SELL',
+              type: isBuy ? 'Buy' : 'Sell',
               tokenAmount,
               solAmount,
               priceInSol,
               priceUsd,
               volumeUsd,
-              walletAddress
+              walletAddress: maker,
+              maker
             });
           }
         }
@@ -881,6 +965,17 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.filterStats.layer3.successful++;
       this.newTokenActivity.delete(swap.tokenMint);
 
+      this.recentDiscoveredTokens.push({
+        tokenMint: swap.tokenMint,
+        symbol: layer2Result.jupiterData?.symbol || null,
+        volume: activity.totalVolume,
+        traders: activity.uniqueTraders.size,
+        timestamp: Date.now(),
+      });
+      if (this.recentDiscoveredTokens.length > 20) {
+        this.recentDiscoveredTokens.shift();
+      }
+
       if (this.webSocketServer) {
         this.broadcastFullStateUpdate();
       }
@@ -946,6 +1041,16 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     this.filterStats.layer1.passed++;
+    this.recentLayer1Passes.push({
+      tokenMint,
+      swapCount: activity.swapCount,
+      volume: activity.totalVolume,
+      traders: activity.uniqueTraders.size,
+      timestamp: Date.now(),
+    });
+    if (this.recentLayer1Passes.length > 20) {
+      this.recentLayer1Passes.shift();
+    }
     console.log(`✅ [Layer1] ${tokenMint.slice(0,8)}... PASSED: Age=${(age/1000).toFixed(0)}s, Swaps=${activity.swapCount}, Volume=$${activity.totalVolume.toFixed(0)}, Traders=${activity.uniqueTraders.size}`);
     return true;
   }
@@ -996,6 +1101,15 @@ class EnhancedHybridPriceService extends EventEmitter {
         (hasOrganicScore ? 1 : 0);
 
       this.filterStats.layer2.passed++;
+      this.recentLayer2Passes.push({
+        tokenMint,
+        symbol: jupiterData.symbol || null,
+        qualityScore,
+        timestamp: Date.now(),
+      });
+      if (this.recentLayer2Passes.length > 20) {
+        this.recentLayer2Passes.shift();
+      }
       console.log(`✅ [Layer2] ${tokenMint.slice(0,8)}... PASSED: Quality=${qualityScore}/3, Symbol=${jupiterData.symbol}`);
 
       return { 
@@ -1115,8 +1229,23 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     const history = this.swapHistory.get(tokenMint);
+    const normalizedSignature = this.normalizeSignature(swap.signature) || 'unknown';
+    const maker =
+      swap.maker ||
+      swap.walletAddress ||
+      swap.feePayer ||
+      null;
+
     const normalizedSwap = {
-      signature: this.normalizeSignature(swap.signature) || 'unknown',
+      signature: normalizedSignature,
+      signatureShort:
+        normalizedSignature && normalizedSignature.length > 16
+          ? `${normalizedSignature.slice(0, 8)}...${normalizedSignature.slice(-8)}`
+          : normalizedSignature,
+      explorerUrl:
+        normalizedSignature && normalizedSignature !== 'unknown'
+          ? `https://solscan.io/tx/${normalizedSignature}`
+          : null,
       type: swap.type || 'UNKNOWN',
       tokenMint,
       tokenAmount: Number(swap.tokenAmount ?? 0),
@@ -1129,8 +1258,8 @@ class EnhancedHybridPriceService extends EventEmitter {
       priceInSol: Number(swap.priceInSol ?? swap.priceSol ?? 0),
       priceUsd: Number(swap.priceUsd ?? swap.price ?? 0),
       volumeUsd: Number(swap.volumeUsd ?? swap.usdAmount ?? 0),
-      walletAddress:
-        swap.walletAddress || swap.maker || swap.feePayer || null,
+      walletAddress: maker,
+      maker,
       timestamp: swap.timestamp ?? Date.now(),
       slot: swap.slot ?? null,
       source: swap.source || 'grpc-dex',
@@ -1244,6 +1373,125 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
   }
 
+  startStatsReporter() {
+    if (this.statsReporterInterval || this.statsReportMs <= 0) {
+      return;
+    }
+
+    const report = () => {
+      try {
+        this.reportStats();
+      } catch (error) {
+        console.error('❌ [EnhancedHybridPriceService] Failed to report stats:', error.message);
+      }
+    };
+
+    // Immediate report on startup
+    report();
+    this.statsReporterInterval = setInterval(report, this.statsReportMs);
+  }
+
+  stopStatsReporter() {
+    if (this.statsReporterInterval) {
+      clearInterval(this.statsReporterInterval);
+      this.statsReporterInterval = null;
+    }
+  }
+
+  reportStats() {
+    const stats = this.getStats();
+    const filterStats = this.getFilterStats();
+
+    const delta = (current, previous) => current - previous;
+
+    const swapsDelta = delta(stats.totalSwapsProcessed, this.lastStatsSnapshot.totalSwapsProcessed);
+    const rpcFetchesDelta = delta(stats.rpcFetches, this.lastStatsSnapshot.rpcFetches);
+    const rpcSuccessDelta = delta(stats.rpcSuccess, this.lastStatsSnapshot.rpcSuccess);
+    const rpcSwapsDelta = delta(stats.rpcSwaps, this.lastStatsSnapshot.rpcSwaps);
+    const layer1CheckedDelta = delta(filterStats.layer1.checked, this.lastStatsSnapshot.layer1Checked);
+    const layer1PassedDelta = delta(filterStats.layer1.passed, this.lastStatsSnapshot.layer1Passed);
+    const layer2CheckedDelta = delta(filterStats.layer2.checked, this.lastStatsSnapshot.layer2Checked);
+    const layer2PassedDelta = delta(filterStats.layer2.passed, this.lastStatsSnapshot.layer2Passed);
+    const tokensDiscoveredDelta = delta(stats.tokensDiscovered, this.lastStatsSnapshot.tokensDiscovered);
+
+    const runtimeSeconds = stats.streamUptime ? Math.floor(stats.streamUptime / 1000) : 0;
+
+    console.log('\n📊 [EnhancedHybridPriceService] STATS REPORT');
+    console.log('============================================================');
+    console.log(`⏰ Stream Uptime: ${runtimeSeconds}s`);
+    console.log(`📈 Known Tokens: ${stats.knownTokens} | New Tokens Tracking: ${stats.newTokensTracking}`);
+    console.log(
+      `💰 Swaps Processed: ${stats.totalSwapsProcessed} (Δ ${swapsDelta >= 0 ? '+' : ''}${swapsDelta})`
+    );
+    console.log(
+      `🛰️ RPC Fallback: fetches=${stats.rpcFetches} (Δ ${rpcFetchesDelta >= 0 ? '+' : ''}${rpcFetchesDelta}), success=${stats.rpcSuccess} (Δ ${rpcSuccessDelta >= 0 ? '+' : ''}${rpcSuccessDelta}), swaps=${stats.rpcSwaps} (Δ ${rpcSwapsDelta >= 0 ? '+' : ''}${rpcSwapsDelta}), queuePeak=${stats.rpcQueuePeak}`
+    );
+    console.log(
+      `🚦 Layer1: checked=${filterStats.layer1.checked} (Δ ${layer1CheckedDelta >= 0 ? '+' : ''}${layer1CheckedDelta}), passed=${filterStats.layer1.passed} (Δ ${layer1PassedDelta >= 0 ? '+' : ''}${layer1PassedDelta})`
+    );
+    console.log(
+      `🪐 Layer2: checked=${filterStats.layer2.checked} (Δ ${layer2CheckedDelta >= 0 ? '+' : ''}${layer2CheckedDelta}), passed=${filterStats.layer2.passed} (Δ ${layer2PassedDelta >= 0 ? '+' : ''}${layer2PassedDelta})`
+    );
+    console.log(
+      `🆕 Tokens Discovered: ${stats.tokensDiscovered} (Δ ${tokensDiscoveredDelta >= 0 ? '+' : ''}${tokensDiscoveredDelta})`
+    );
+
+    const formatPass = (entry) => {
+      const mint = entry.tokenMint || 'unknown';
+      const shortMint = mint.length > 8 ? `${mint.slice(0, 8)}...` : mint;
+      const label = entry.symbol || shortMint;
+      return entry.tokenMint ? `${label} (${shortMint})` : label;
+    };
+
+    if (this.recentLayer1Passes.length > 0) {
+      console.log(
+        `✅ Layer 1 passes (${this.recentLayer1Passes.length}): ${this.recentLayer1Passes
+          .map((entry) => {
+            const volume = typeof entry.volume === 'number' ? `$${entry.volume.toFixed(2)}` : 'n/a';
+            return `${formatPass(entry)} swaps=${entry.swapCount ?? 'n/a'} volume=${volume}`;
+          })
+          .join(', ')}`
+      );
+      this.recentLayer1Passes = [];
+    }
+
+    if (this.recentLayer2Passes.length > 0) {
+      console.log(
+        `🌐 Layer 2 passes (${this.recentLayer2Passes.length}): ${this.recentLayer2Passes
+          .map((entry) => `${formatPass(entry)} quality=${entry.qualityScore ?? 'N/A'}`)
+          .join(', ')}`
+      );
+      this.recentLayer2Passes = [];
+    }
+
+    if (this.recentDiscoveredTokens.length > 0) {
+      console.log(
+        `🚀 Newly discovered tokens (${this.recentDiscoveredTokens.length}): ${this.recentDiscoveredTokens
+          .map((entry) => {
+            const volume = typeof entry.volume === 'number' ? `$${entry.volume.toFixed(2)}` : 'n/a';
+            const traders = entry.traders ?? 'n/a';
+            return `${formatPass(entry)} volume=${volume} traders=${traders}`;
+          })
+          .join(', ')}`
+      );
+      this.recentDiscoveredTokens = [];
+    }
+
+    console.log('============================================================\n');
+
+    this.lastStatsSnapshot = {
+      totalSwapsProcessed: stats.totalSwapsProcessed,
+      rpcFetches: stats.rpcFetches,
+      rpcSuccess: stats.rpcSuccess,
+      rpcSwaps: stats.rpcSwaps,
+      layer1Checked: filterStats.layer1.checked,
+      layer1Passed: filterStats.layer1.passed,
+      layer2Checked: filterStats.layer2.checked,
+      layer2Passed: filterStats.layer2.passed,
+      tokensDiscovered: stats.tokensDiscovered,
+    };
+  }
+
   /**
    * Load token cache from disk
    */
@@ -1275,6 +1523,19 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log('⚠️ [EnhancedHybridPriceService] No token cache found, starting fresh');
       this.tokenCache = [];
       this.tokenCacheSet = new Set();
+    }
+  }
+
+  /**
+   * Persist token cache to disk
+   */
+  async saveTokenCache() {
+    try {
+      await fs.mkdir(this.cacheDir, { recursive: true });
+      await fs.writeFile(this.cachePath, JSON.stringify(this.tokenCache, null, 2), 'utf8');
+      console.log(`💾 [EnhancedHybridPriceService] Saved ${this.tokenCache.length} tokens to cache`);
+    } catch (error) {
+      console.error('❌ [EnhancedHybridPriceService] Failed to save token cache:', error.message);
     }
   }
 
@@ -1412,6 +1673,27 @@ class EnhancedHybridPriceService extends EventEmitter {
         );
       }) || null
     );
+  }
+
+  ensureTokenCacheEntry(tokenAddress) {
+    const existing = this.findTokenRecord(tokenAddress);
+    if (existing) return existing;
+
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) return null;
+
+    const entry = {
+      contractAddress: normalized,
+      tokenAddress: normalized,
+      source: 'jupiter',
+      stage: 'jupiter',
+      hasJupiterData: false,
+    };
+
+    this.tokenCache.push(entry);
+    this.tokenCacheSet.add(normalized);
+    this.tokenCacheSet.add(normalized.toLowerCase());
+    return entry;
   }
 
   /**
@@ -1620,6 +1902,191 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     return [...history].reverse();
+  }
+
+  /**
+   * Seed baseline Jupiter data for all tracked tokens
+   */
+  async seedJupiterBaseline(force = false) {
+    if (this.baselineSeedingPromise) {
+      return this.baselineSeedingPromise;
+    }
+
+    if (this.baselineSeeded && !force) {
+      return;
+    }
+
+    const needsSeeding = () => {
+      if (force) return true;
+      if (!this.tokenCache || this.tokenCache.length === 0) return true;
+      return this.tokenCache.some(
+        (token) =>
+          !token?.hasJupiterData ||
+          !token?.jupiterData ||
+          !token.jupiterData?.stats24h
+      );
+    };
+
+    if (!needsSeeding()) {
+      this.baselineSeeded = true;
+      return;
+    }
+
+    this.baselineSeedingPromise = (async () => {
+      const startTime = Date.now();
+      const addresses = new Set();
+
+      for (const token of this.tokenCache || []) {
+        const normalized = this.normalizeAddress(
+          token.contractAddress ||
+            token.tokenAddress ||
+            token.mint ||
+            token.address ||
+            token.id
+        );
+        if (normalized) {
+          addresses.add(normalized);
+        }
+      }
+
+      for (const [knownAddress] of this.knownTokens) {
+        const normalized = this.normalizeAddress(knownAddress);
+        if (normalized) {
+          addresses.add(normalized);
+        }
+      }
+
+      if (addresses.size === 0) {
+        console.log(
+          '⚠️ [EnhancedHybridPriceService] No tokens available for Jupiter baseline seeding'
+        );
+        this.baselineSeeded = true;
+        return;
+      }
+
+      console.log(
+        `🚀 [EnhancedHybridPriceService] Seeding Jupiter baseline for ${addresses.size} tokens...`
+      );
+
+      let seededCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+      let metadataUpdated = false;
+
+      for (const address of addresses) {
+        if (!address) continue;
+
+        const cacheEntry = this.ensureTokenCacheEntry(address);
+        if (!cacheEntry) {
+          skippedCount++;
+          continue;
+        }
+
+        const hasBaseline =
+          cacheEntry.hasJupiterData &&
+          cacheEntry.jupiterData &&
+          cacheEntry.jupiterData.stats24h &&
+          !force;
+
+        if (hasBaseline) {
+          skippedCount++;
+          continue;
+        }
+
+        try {
+          const jupiterData = await this.fetchJupiterData(address);
+          if (!jupiterData) {
+            skippedCount++;
+            continue;
+          }
+
+          const baseline = this.buildBaselineFromJupiter(jupiterData);
+
+          cacheEntry.jupiterData = jupiterData;
+          cacheEntry.hasJupiterData = true;
+          cacheEntry.jupiterTimestamp = new Date().toISOString();
+          cacheEntry.price =
+            typeof baseline.price === 'number' && baseline.price > 0
+              ? baseline.price
+              : cacheEntry.price ?? jupiterData.usdPrice ?? null;
+          cacheEntry.priceUsd = cacheEntry.price;
+          cacheEntry.marketCap =
+            baseline.marketCap ?? cacheEntry.marketCap ?? null;
+          cacheEntry.liquidity =
+            baseline.liquidity ?? cacheEntry.liquidity ?? null;
+          cacheEntry.volume24h =
+            baseline.volume24h ?? cacheEntry.volume24h ?? null;
+          cacheEntry.baselineSeededAt = Date.now();
+
+          if (jupiterData.symbol && !cacheEntry.symbol) {
+            cacheEntry.symbol = jupiterData.symbol;
+          }
+          if (jupiterData.name && !cacheEntry.name) {
+            cacheEntry.name = jupiterData.name;
+          }
+
+          this.tokenMetadataCache.set(address, jupiterData);
+
+          let metrics =
+            this.getMapValueIgnoreCase(this.knownTokens, address) || null;
+          if (!metrics) {
+            metrics = new TokenMetrics(address);
+            this.knownTokens.set(address, metrics);
+          }
+
+          metrics.seedBaseline({
+            price: baseline.price,
+            '5m': baseline.metricsData5m,
+            '1h': baseline.metricsData1h,
+            '6h': baseline.metricsData6h,
+            '24h': baseline.metricsData24h,
+          });
+
+          seededCount++;
+          metadataUpdated = true;
+
+          if (seededCount % 50 === 0) {
+            console.log(
+              `📈 [EnhancedHybridPriceService] Jupiter baseline seeded for ${seededCount}/${addresses.size} tokens...`
+            );
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(
+            `❌ [EnhancedHybridPriceService] Failed to seed Jupiter baseline for ${address}:`,
+            error.message
+          );
+        }
+      }
+
+      if (metadataUpdated) {
+        await this.saveTokenCache();
+      }
+
+      console.log(
+        `✅ [EnhancedHybridPriceService] Jupiter baseline seeding complete. Seeded: ${seededCount}, skipped: ${skippedCount}, errors: ${errorCount}, duration: ${(
+          (Date.now() - startTime) /
+          1000
+        ).toFixed(1)}s`
+      );
+
+      if (metadataUpdated && this.webSocketServer) {
+        this.broadcastFullStateUpdate();
+      }
+
+      this.baselineSeeded = true;
+    })()
+      .catch((error) => {
+        console.error(
+          '❌ [EnhancedHybridPriceService] Jupiter baseline seeding failed:',
+          error.message
+        );
+      })
+      .finally(() => {
+        this.baselineSeedingPromise = null;
+      });
+
+    return this.baselineSeedingPromise;
   }
 
   /**
@@ -1870,6 +2337,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       await this.chartDatabase.stopBatchWriter();
     }
 
+    this.stopStatsReporter();
     this.stopFullStateBroadcast();
     
     console.log('✅ [EnhancedHybridPriceService] Shutdown complete');

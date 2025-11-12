@@ -3,9 +3,10 @@ import fs from 'fs/promises';
 import path from 'path';
 
 class RealTimeTokenMonitor {
-    constructor(webSocketServer = null, enhancedHybridPriceService = null) {
+    constructor(webSocketServer = null, hybridPriceService = null) {
         this.webSocketServer = webSocketServer;
-        this.hybridPriceService = enhancedHybridPriceService; // Use existing instance!
+        this.hybridPriceService = hybridPriceService || null;
+        this.ownsServiceInstance = !hybridPriceService;
         this.isRunning = false;
         this.monitoringStats = {
             startTime: null,
@@ -26,12 +27,13 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // Use the existing EnhancedHybridPriceService instance (passed in constructor)
+            // Initialize Enhanced HybridPriceService if not provided
             if (!this.hybridPriceService) {
-                throw new Error('EnhancedHybridPriceService instance not provided!');
+                this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
+                
+                // Wait for gRPC client to initialize
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
-            
-            console.log('✅ [RealTimeTokenMonitor] Using existing EnhancedHybridPriceService instance');
             
             // Load token cache
             await this.loadTokenCache();
@@ -234,13 +236,7 @@ class RealTimeTokenMonitor {
     // Add new token to monitoring
     async addToken(tokenData) {
         if (!this.hybridPriceService) {
-            console.log(`⚠️ [RealTimeTokenMonitor] HybridPriceService not initialized, skipping token ${tokenData.symbol}`);
-            return false;
-        }
-
-        if (!this.hybridPriceService.knownTokens) {
-            console.log(`⚠️ [RealTimeTokenMonitor] HybridPriceService not fully initialized (knownTokens missing), skipping token ${tokenData.symbol}`);
-            return false;
+            throw new Error('RealTimeTokenMonitor not initialized');
         }
 
         const contractAddress = tokenData.contractAddress || tokenData.tokenAddress;
@@ -248,23 +244,28 @@ class RealTimeTokenMonitor {
             throw new Error('Token address not provided');
         }
 
-        // With DEX program filtering, all tokens are automatically monitored
-        // Just need to ensure token is in knownTokens map
-        try {
-            await this.hybridPriceService.ensureTokenMonitoring(contractAddress);
+        // Add to pool addresses if pool exists
+        let poolAddress = null;
+        if (tokenData.jupiterData?.firstPool?.id) {
+            poolAddress = tokenData.jupiterData.firstPool.id;
+        } else if (tokenData.graduatedPool) {
+            poolAddress = typeof tokenData.graduatedPool === 'string' ? 
+                tokenData.graduatedPool : tokenData.graduatedPool?.address;
+        }
+
+        if (poolAddress) {
+            this.hybridPriceService.poolAddresses.set(contractAddress, poolAddress);
+            this.hybridPriceService.swapHistory.set(contractAddress, []);
             
-            // Store token data for later use
-            const token = this.hybridPriceService.knownTokens.get(contractAddress);
-            if (token) {
-                token.jupiterData = tokenData.jupiterData;
-                token.symbol = tokenData.symbol;
-                token.name = tokenData.name;
-            }
+            // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
+            console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to include new token ${tokenData.symbol}`);
+            await this.hybridPriceService.stopRealTimeMonitoring();
+            await this.hybridPriceService.startRealTimeMonitoring();
             
-            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring (DEX stream will auto-detect swaps)`);
+            console.log(`✅ [RealTimeTokenMonitor] Added token ${tokenData.symbol} to monitoring`);
             return true;
-        } catch (error) {
-            console.error(`❌ [RealTimeTokenMonitor] Failed to add token ${tokenData.symbol}:`, error.message);
+        } else {
+            console.log(`⚠️ [RealTimeTokenMonitor] No pool found for token ${tokenData.symbol}`);
             return false;
         }
     }
@@ -276,10 +277,12 @@ class RealTimeTokenMonitor {
         this.hybridPriceService.poolAddresses.delete(tokenAddress);
         this.hybridPriceService.swapHistory.delete(tokenAddress);
         
-        // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
-        console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to remove token ${tokenAddress.substring(0, 8)}...`);
-        await this.hybridPriceService.stopRealTimeMonitoring();
-        await this.hybridPriceService.startRealTimeMonitoring();
+        if (this.ownsServiceInstance) {
+            // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
+            console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to remove token ${tokenAddress.substring(0, 8)}...`);
+            await this.hybridPriceService.stopRealTimeMonitoring();
+            await this.hybridPriceService.startRealTimeMonitoring();
+        }
         
         console.log(`✅ [RealTimeTokenMonitor] Removed token ${tokenAddress.substring(0, 8)}... from monitoring`);
     }
@@ -296,7 +299,7 @@ class RealTimeTokenMonitor {
             
             this.isRunning = false;
             
-            if (this.hybridPriceService) {
+            if (this.hybridPriceService && this.ownsServiceInstance) {
                 await this.hybridPriceService.shutdown();
             }
             

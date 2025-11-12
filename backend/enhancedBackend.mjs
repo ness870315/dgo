@@ -18239,7 +18239,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
       // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(
+        this.backendWebSocketServer,
+        this.enhancedHybridPriceService
+      );
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       
