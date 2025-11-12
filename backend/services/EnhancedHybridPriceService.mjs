@@ -147,6 +147,11 @@ class EnhancedHybridPriceService extends EventEmitter {
     this.knownTokens = new Map(); // Map<tokenAddress, TokenMetrics>
     this.newTokenActivity = new Map(); // Map<tokenAddress, { swapCount, firstSeen, lastSeen, ... }>
     this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, supply }>
+    this.activeConnections = new Map(); // Map<tokenAddress, Set<connectionId>>
+    this.subscribedTokens = new Set(); // Set<tokenAddress>
+    this.poolAddresses = new Map(); // Map<tokenAddress, poolAddress>
+    this.swapHistory = new Map(); // Map<tokenAddress, Array<Swap>>
+    this.swapHistoryLimit = Number(process.env.SWAP_HISTORY_LIMIT || 200);
     
     // Multi-layer filter configuration
     this.filters = {
@@ -566,10 +571,12 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   isMintMonitored(mint) {
-    if (!mint) return false;
-    if (this.knownTokens.has(mint)) return true;
-    if (this.newTokenActivity.has(mint)) return true;
-    if (this.tokenCacheSet.has(mint)) return true;
+    const normalized = this.normalizeAddress(mint);
+    if (!normalized) return false;
+    if (this.knownTokens.has(normalized)) return true;
+    if (this.getMapValueIgnoreCase(this.knownTokens, normalized)) return true;
+    if (this.newTokenActivity.has(normalized)) return true;
+    if (this.tokenCacheSet.has(normalized) || this.tokenCacheSet.has(normalized.toLowerCase())) return true;
     return false;
   }
 
@@ -709,10 +716,13 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (!metrics) {
       metrics = new TokenMetrics(swap.tokenMint);
       this.knownTokens.set(swap.tokenMint, metrics);
+      this.tokenCacheSet.add(swap.tokenMint);
+      this.tokenCacheSet.add(swap.tokenMint.toLowerCase());
     }
     
     // Add swap to metrics
     metrics.addSwap(swap);
+    const recordedSwap = this.recordSwap(swap);
     
     // Save to ChartDatabase (uses storeSwaps with array)
     await this.chartDatabase.storeSwaps([{
@@ -740,6 +750,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         isLive: true
       });
     }
+
+    if (recordedSwap) {
+      this.broadcastSwapUpdate(swap.tokenMint, recordedSwap);
+    }
     
     // Log every 100th swap
     if (this.stats.knownTokenSwaps % 100 === 0) {
@@ -752,6 +766,8 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   async processNewTokenSwap(swap) {
     this.stats.newTokenSwaps++;
+
+    const recordedSwap = this.recordSwap(swap);
     
     // Track activity for this new token
     let activity = this.newTokenActivity.get(swap.tokenMint);
@@ -779,7 +795,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (swap.walletAddress) {
       activity.uniqueTraders.add(swap.walletAddress);
     }
-    activity.swaps.push(swap);
+    activity.swaps.push(recordedSwap || swap);
     activity.priceHistory.push({ timestamp: swap.timestamp, price: swap.priceUsd });
     
     // Keep only last 100 swaps and prices (memory management)
@@ -1017,6 +1033,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       // Response is an array, get first result
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         const tokenData = response.data[0];
+        const cacheKey = tokenData.address || tokenData.id || tokenAddress;
+        if (cacheKey) {
+          this.tokenMetadataCache.set(cacheKey, tokenData);
+        }
         this.jupiterCache.set(tokenAddress, {
           data: tokenData,
           timestamp: Date.now()
@@ -1068,6 +1088,67 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Record swap for history and return normalized record
+   */
+  recordSwap(swap) {
+    if (!swap || !swap.tokenMint) {
+      return null;
+    }
+
+    const tokenMint = swap.tokenMint;
+    if (!this.swapHistory.has(tokenMint)) {
+      this.swapHistory.set(tokenMint, []);
+    }
+
+    const history = this.swapHistory.get(tokenMint);
+    const normalizedSwap = {
+      signature: this.normalizeSignature(swap.signature) || 'unknown',
+      type: swap.type || 'UNKNOWN',
+      tokenMint,
+      tokenAmount: Number(swap.tokenAmount ?? 0),
+      solAmount: Number(
+        swap.solAmount ?? swap.baseAmount ?? swap.counterAmount ?? 0
+      ),
+      baseAmount: Number(
+        swap.baseAmount ?? swap.solAmount ?? swap.counterAmount ?? 0
+      ),
+      priceInSol: Number(swap.priceInSol ?? swap.priceSol ?? 0),
+      priceUsd: Number(swap.priceUsd ?? swap.price ?? 0),
+      volumeUsd: Number(swap.volumeUsd ?? swap.usdAmount ?? 0),
+      walletAddress:
+        swap.walletAddress || swap.maker || swap.feePayer || null,
+      timestamp: swap.timestamp ?? Date.now(),
+      slot: swap.slot ?? null,
+      source: swap.source || 'grpc-dex',
+    };
+
+    history.push(normalizedSwap);
+    if (history.length > this.swapHistoryLimit) {
+      history.splice(0, history.length - this.swapHistoryLimit);
+    }
+    this.swapHistory.set(tokenMint, history);
+    return normalizedSwap;
+  }
+
+  /**
+   * Broadcast swap update to subscribers
+   */
+  broadcastSwapUpdate(tokenAddress, swapData) {
+    if (!this.webSocketServer || !swapData) {
+      return;
+    }
+
+    try {
+      this.webSocketServer.broadcastSwapUpdate(tokenAddress, swapData);
+    } catch (error) {
+      console.error(
+        '❌ [EnhancedHybridPriceService] Failed to broadcast swap update:',
+        error.message
+      );
+    }
+  }
+
+  /**
    * Broadcast price update via WebSocket
    */
   broadcastPriceUpdate(tokenAddress, data) {
@@ -1102,6 +1183,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
         if (token.contractAddress) {
           this.tokenCacheSet.add(token.contractAddress);
+          this.tokenCacheSet.add(token.contractAddress.toLowerCase());
         }
       }
       
@@ -1175,7 +1257,7 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Get metrics for a specific token
    */
   getTokenMetrics(tokenAddress) {
-    const metrics = this.knownTokens.get(tokenAddress);
+    const metrics = this.getMapValueIgnoreCase(this.knownTokens, tokenAddress);
     return metrics ? metrics.getMetrics() : null;
   }
 
@@ -1189,39 +1271,475 @@ class EnhancedHybridPriceService extends EventEmitter {
   /**
    * Get real-time token data (for API endpoints)
    */
-  async getRealTimeTokenData(tokenAddress) {
-    const metrics = this.knownTokens.get(tokenAddress);
-    
-    if (!metrics) {
+  async getRealTimeTokenData(tokenAddress, options = {}) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) {
       return null;
     }
-    
-    const metricsData = metrics.getMetrics();
-    
-    // Fetch Jupiter data for additional info
-    const jupiterData = await this.fetchJupiterData(tokenAddress);
-    
+
+    const tokenRecord =
+      this.findTokenRecord(normalized) || { contractAddress: normalized };
+
+    let jupiterData =
+      options.jupiterData ||
+      tokenRecord.jupiterData ||
+      this.tokenMetadataCache.get(normalized);
+
+    if (!jupiterData && options.fetchJupiterOnMiss !== false) {
+      jupiterData = await this.fetchJupiterData(normalized);
+    }
+
+    const snapshot = this.buildTokenStateSnapshot(normalized, tokenRecord, {
+      includeRecentSwaps: options.includeRecentSwaps !== false,
+      swapLimit: options.swapLimit ?? 50,
+      jupiterData,
+    });
+
+    return snapshot;
+  }
+
+  /**
+   * Normalize token address input
+   */
+  normalizeAddress(address) {
+    if (!address) return null;
+    if (typeof address === 'string') return address.trim();
+    return String(address).trim();
+  }
+
+  /**
+   * Find token record from cache using address
+   */
+  findTokenRecord(tokenAddress) {
+    if (!tokenAddress || !this.tokenCache || this.tokenCache.length === 0) {
+      return null;
+    }
+
+    const target = tokenAddress.toLowerCase();
+    return (
+      this.tokenCache.find((token) => {
+        const candidates = [
+          token.contractAddress,
+          token.tokenAddress,
+          token.mint,
+          token.address,
+          token.id,
+        ];
+        return candidates.some(
+          (addr) => typeof addr === 'string' && addr.toLowerCase() === target
+        );
+      }) || null
+    );
+  }
+
+  /**
+   * Retrieve map value ignoring case (fallback helper)
+   */
+  getMapValueIgnoreCase(map, key) {
+    if (!key || !map) return null;
+    if (map.has(key)) return map.get(key);
+    const target = key.toLowerCase();
+    for (const [candidate, value] of map.entries()) {
+      if (candidate && candidate.toLowerCase() === target) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Format metrics window to consistent shape
+   */
+  formatMetricsWindow(windowData = {}) {
     return {
-      tokenAddress,
-      price: metricsData.currentPrice,
-      priceChange5m: metricsData['5m'].priceChange,
-      priceChange1h: metricsData['1h'].priceChange,
-      priceChange6h: metricsData['6h'].priceChange,
-      priceChange24h: metricsData['24h'].priceChange,
-      volume5m: metricsData['5m'].volume,
-      volume1h: metricsData['1h'].volume,
-      volume6h: metricsData['6h'].volume,
-      volume24h: metricsData['24h'].volume,
-      txns5m: metricsData['5m'].txns,
-      txns1h: metricsData['1h'].txns,
-      txns24h: metricsData['24h'].txns,
-      makers5m: metricsData['5m'].makers,
-      makers1h: metricsData['1h'].makers,
-      makers24h: metricsData['24h'].makers,
-      marketCap: jupiterData?.mcap || 0,
-      isLive: true,
-      lastUpdate: Date.now()
+      volume: Number(windowData.volume ?? 0),
+      txns: Number(windowData.txns ?? 0),
+      makers: Number(windowData.makers ?? 0),
+      priceChange: Number(windowData.priceChange ?? 0),
     };
+  }
+
+  /**
+   * Build baseline metrics from Jupiter data
+   */
+  buildBaselineFromJupiter(jupiterData) {
+    const emptyWindow = () => ({
+      volume: 0,
+      txns: 0,
+      makers: 0,
+      priceChange: 0,
+    });
+
+    if (!jupiterData) {
+      return {
+        hasJupiterData: false,
+        symbol: null,
+        name: null,
+        price: 0,
+        marketCap: 0,
+        liquidity: 0,
+        volume24h: 0,
+        metricsData5m: emptyWindow(),
+        metricsData1h: emptyWindow(),
+        metricsData6h: emptyWindow(),
+        metricsData24h: emptyWindow(),
+      };
+    }
+
+    const formatStats = (stats) => ({
+      volume: Number((stats?.buyVolume ?? 0) + (stats?.sellVolume ?? 0)),
+      txns: Number((stats?.numBuys ?? 0) + (stats?.numSells ?? 0)),
+      makers: Number(
+        stats?.numTraders ?? stats?.numNetBuyers ?? stats?.numOrganicBuyers ?? 0
+      ),
+      priceChange: Number(stats?.priceChange ?? 0),
+    });
+
+    const baseline = {
+      hasJupiterData: true,
+      symbol: jupiterData.symbol || null,
+      name: jupiterData.name || null,
+      price: Number(jupiterData.usdPrice ?? jupiterData.price ?? 0),
+      marketCap: Number(jupiterData.mcap ?? jupiterData.marketCap ?? 0),
+      liquidity: Number(jupiterData.liquidity ?? 0),
+      volume24h: Number(
+        (jupiterData.stats24h?.buyVolume ?? 0) +
+          (jupiterData.stats24h?.sellVolume ?? 0)
+      ),
+      metricsData5m: formatStats(jupiterData.stats5m ?? {}),
+      metricsData1h: formatStats(jupiterData.stats1h ?? {}),
+      metricsData6h: formatStats(jupiterData.stats6h ?? {}),
+      metricsData24h: formatStats(jupiterData.stats24h ?? {}),
+    };
+
+    return baseline;
+  }
+
+  /**
+   * Build token state snapshot combining baseline + live metrics
+   */
+  buildTokenStateSnapshot(tokenAddress, baseRecord = {}, options = {}) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) return null;
+
+    const metrics =
+      this.getMapValueIgnoreCase(this.knownTokens, normalized) || null;
+    const metricsData = metrics ? metrics.getMetrics() : null;
+    const jupiterData =
+      options.jupiterData ||
+      baseRecord.jupiterData ||
+      this.getMapValueIgnoreCase(this.tokenMetadataCache, normalized);
+    const baseline = this.buildBaselineFromJupiter(jupiterData || null);
+
+    const metrics5m = metricsData
+      ? this.formatMetricsWindow(metricsData['5m'])
+      : null;
+    const metrics1h = metricsData
+      ? this.formatMetricsWindow(metricsData['1h'])
+      : null;
+    const metrics6h = metricsData
+      ? this.formatMetricsWindow(metricsData['6h'])
+      : null;
+    const metrics24h = metricsData
+      ? this.formatMetricsWindow(metricsData['24h'])
+      : null;
+
+    const price =
+      (metricsData?.currentPrice ?? null) ??
+      baseRecord.price ??
+      baseRecord.priceUsd ??
+      baseline.price;
+
+    const liquidity =
+      baseRecord.liquidity ??
+      baseline.liquidity ??
+      (metricsData?.liquidity ?? 0);
+
+    const marketCap =
+      baseRecord.marketCap ?? baseline.marketCap ?? metricsData?.marketCap ?? 0;
+
+    const volume24h =
+      baseRecord.volume24h ??
+      baseline.volume24h ??
+      metrics24h?.volume ??
+      0;
+
+    const resolvedSymbol =
+      baseRecord.symbol || jupiterData?.symbol || baseline.symbol;
+    const resolvedName =
+      baseRecord.name || jupiterData?.name || baseline.name;
+
+    const payload = {
+      ...baseRecord,
+      tokenAddress: normalized,
+      contractAddress: baseRecord.contractAddress || normalized,
+      symbol: resolvedSymbol,
+      name: resolvedName,
+      price,
+      priceUsd: price,
+      marketCap,
+      liquidity,
+      volume24h,
+      priceChange5m:
+        metrics5m?.priceChange ?? baseline.metricsData5m.priceChange,
+      priceChange1h:
+        metrics1h?.priceChange ?? baseline.metricsData1h.priceChange,
+      priceChange6h:
+        metrics6h?.priceChange ?? baseline.metricsData6h.priceChange,
+      priceChange24h:
+        metrics24h?.priceChange ?? baseline.metricsData24h.priceChange,
+      volume5m: metrics5m?.volume ?? baseline.metricsData5m.volume,
+      volume1h: metrics1h?.volume ?? baseline.metricsData1h.volume,
+      volume6h: metrics6h?.volume ?? baseline.metricsData6h.volume,
+      txns5m: metrics5m?.txns ?? baseline.metricsData5m.txns,
+      txns1h: metrics1h?.txns ?? baseline.metricsData1h.txns,
+      txns6h: metrics6h?.txns ?? baseline.metricsData6h.txns,
+      txns24h: metrics24h?.txns ?? baseline.metricsData24h.txns,
+      makers5m: metrics5m?.makers ?? baseline.metricsData5m.makers,
+      makers1h: metrics1h?.makers ?? baseline.metricsData1h.makers,
+      makers6h: metrics6h?.makers ?? baseline.metricsData6h.makers,
+      makers24h: metrics24h?.makers ?? baseline.metricsData24h.makers,
+      metricsData5m: metrics5m ?? baseline.metricsData5m,
+      metricsData1h: metrics1h ?? baseline.metricsData1h,
+      metricsData6h: metrics6h ?? baseline.metricsData6h,
+      metricsData24h: metrics24h ?? baseline.metricsData24h,
+      baseline5m: baseline.metricsData5m,
+      baseline1h: baseline.metricsData1h,
+      baseline6h: baseline.metricsData6h,
+      baseline24h: baseline.metricsData24h,
+      hasJupiterData: baseline.hasJupiterData,
+      jupiterData: jupiterData || null,
+      isLive: Boolean(metricsData),
+      lastUpdated: Date.now(),
+    };
+
+    if (options.includeRecentSwaps) {
+      payload.recentSwaps = this.getSwapHistory(
+        normalized,
+        options.swapLimit ?? 50
+      );
+    }
+
+    return payload;
+  }
+
+  /**
+   * Get recent swap history for a token
+   */
+  getSwapHistory(tokenAddress, limit = 50) {
+    const history =
+      this.getMapValueIgnoreCase(this.swapHistory, tokenAddress) || [];
+    if (!history || history.length === 0) {
+      return [];
+    }
+
+    if (typeof limit === 'number' && limit > 0) {
+      return history.slice(-limit).reverse();
+    }
+
+    return [...history].reverse();
+  }
+
+  /**
+   * Get real-time price snapshot for a token
+   */
+  getRealTimePrice(tokenAddress) {
+    const snapshot = this.buildTokenStateSnapshot(
+      tokenAddress,
+      this.findTokenRecord(tokenAddress) || { contractAddress: tokenAddress },
+      {
+        includeRecentSwaps: false,
+        swapLimit: 0,
+      }
+    );
+
+    if (!snapshot) {
+      return null;
+    }
+
+    return {
+      tokenAddress: snapshot.tokenAddress,
+      price: snapshot.price,
+      priceUsd: snapshot.priceUsd,
+      priceChange5m: snapshot.priceChange5m,
+      priceChange1h: snapshot.priceChange1h,
+      priceChange6h: snapshot.priceChange6h,
+      priceChange24h: snapshot.priceChange24h,
+      volume5m: snapshot.volume5m,
+      volume1h: snapshot.volume1h,
+      volume6h: snapshot.volume6h,
+      volume24h: snapshot.volume24h,
+      lastUpdated: snapshot.lastUpdated,
+      isLive: snapshot.isLive,
+    };
+  }
+
+  /**
+   * Return full token state (baseline + live metrics) for all tracked tokens
+   */
+  getAllTokensState(options = {}) {
+    const config = {
+      includeRecentSwaps:
+        options.includeRecentSwaps !== undefined
+          ? options.includeRecentSwaps
+          : true,
+      swapLimit: options.swapLimit ?? 50,
+    };
+
+    const tokens = [];
+    const seen = new Set();
+
+    for (const token of this.tokenCache || []) {
+      const address = this.normalizeAddress(
+        token.contractAddress ||
+          token.tokenAddress ||
+          token.mint ||
+          token.address ||
+          token.id
+      );
+      if (!address) continue;
+      const snapshot = this.buildTokenStateSnapshot(address, token, {
+        ...config,
+        jupiterData: token.jupiterData,
+      });
+      if (snapshot) {
+        tokens.push(snapshot);
+        seen.add(address);
+      }
+    }
+
+    for (const [address] of this.knownTokens) {
+      if (seen.has(address)) continue;
+      const metadata =
+        this.getMapValueIgnoreCase(this.tokenMetadataCache, address) || null;
+      const placeholder = {
+        contractAddress: address,
+        tokenAddress: address,
+        symbol: metadata?.symbol,
+        name: metadata?.name,
+        jupiterData: metadata,
+      };
+      const snapshot = this.buildTokenStateSnapshot(address, placeholder, {
+        ...config,
+        jupiterData: metadata,
+      });
+      if (snapshot) {
+        tokens.push(snapshot);
+        seen.add(address);
+      }
+    }
+
+    return {
+      tokens,
+      totals: {
+        tokens: tokens.length,
+        knownTokens: this.knownTokens.size,
+        monitoredTokens: this.subscribedTokens.size,
+      },
+      timestamp: Date.now(),
+      source: 'enhanced-hybrid',
+    };
+  }
+
+  /**
+   * Get real-time operational stats
+   */
+  getRealTimeStats() {
+    return {
+      totalTokens: this.knownTokens.size,
+      monitoredTokens: this.subscribedTokens.size,
+      activeStreams: Array.from(this.knownTokens.keys()),
+      subscribedTokens: Array.from(this.subscribedTokens.values()),
+      activeConnections: Array.from(this.activeConnections.entries()).map(
+        ([token, connections]) => ({
+          tokenAddress: token,
+          connectionCount: connections.size,
+        })
+      ),
+      rpc: {
+        queueLength: this.rpcQueue.length,
+        queuePeak: this.stats.rpcQueuePeak,
+        fetches: this.stats.rpcFetches,
+        success: this.stats.rpcSuccess,
+        swaps: this.stats.rpcSwaps,
+      },
+      stream: {
+        restarts: this.stats.streamRestarts,
+        lastStart: this.stats.lastStreamStart,
+        uptimeMs: this.stats.lastStreamStart
+          ? Date.now() - this.stats.lastStreamStart
+          : 0,
+      },
+      newTokensTracking: this.newTokenActivity.size,
+      grpcInitialized: this.isGrpcInitialized(),
+    };
+  }
+
+  /**
+   * Register a connection for a token (compatibility helper)
+   */
+  registerConnection(tokenAddress, connectionId) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized || !connectionId) return;
+    if (!this.activeConnections.has(normalized)) {
+      this.activeConnections.set(normalized, new Set());
+    }
+    this.activeConnections.get(normalized).add(connectionId);
+  }
+
+  /**
+   * Remove a connection for a token (compatibility helper)
+   */
+  removeConnection(tokenAddress, connectionId) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized || !connectionId) return;
+
+    const connections = this.activeConnections.get(normalized);
+    if (connections) {
+      connections.delete(connectionId);
+      if (connections.size === 0) {
+        this.activeConnections.delete(normalized);
+      }
+    }
+  }
+
+  /**
+   * Subscribe to token updates (compatibility helper)
+   */
+  subscribeToToken(tokenAddress) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) return false;
+    this.subscribedTokens.add(normalized);
+    return true;
+  }
+
+  /**
+   * Unsubscribe from token updates (compatibility helper)
+   */
+  unsubscribeFromToken(tokenAddress) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) return false;
+    return this.subscribedTokens.delete(normalized);
+  }
+
+  /**
+   * Stop real-time monitoring (no-op for unified program stream)
+   */
+  async stopRealTimeMonitoring() {
+    console.log(
+      'ℹ️ [EnhancedHybridPriceService] stopRealTimeMonitoring is a no-op (unified DEX stream always on)'
+    );
+    return true;
+  }
+
+  /**
+   * Start real-time monitoring (ensures stream is active)
+   */
+  async startRealTimeMonitoring() {
+    if (!this.dexStream) {
+      await this.startDexProgramStream();
+    }
+    return true;
   }
 
   /**
@@ -1230,15 +1748,27 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   async ensureTokenMonitoring(tokenAddress) {
     // Check if token is already in known tokens
-    if (this.knownTokens.has(tokenAddress)) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) {
+      return false;
+    }
+
+    if (this.knownTokens.has(normalized)) {
+      this.subscribedTokens.add(normalized);
       return true;
     }
     
     // Add to known tokens
-    const metrics = new TokenMetrics(tokenAddress);
-    this.knownTokens.set(tokenAddress, metrics);
-    
-    console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress.slice(0, 8)}... to known tokens (will receive swaps from DEX stream)`);
+    const metrics = new TokenMetrics(normalized);
+    this.knownTokens.set(normalized, metrics);
+    this.subscribedTokens.add(normalized);
+
+    console.log(
+      `✅ [EnhancedHybridPriceService] Added ${normalized.slice(
+        0,
+        8
+      )}... to known tokens (will receive swaps from DEX stream)`
+    );
     
     return true;
   }

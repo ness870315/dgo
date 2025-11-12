@@ -135,15 +135,11 @@ class EnhancedBackend {
       const priceChange6h = typeof s6.priceChange === 'number' ? s6.priceChange : undefined;
       const priceChange24h = typeof s24.priceChange === 'number' ? s24.priceChange : undefined;
       const liquidityUsd = typeof j.liquidity === 'number' ? j.liquidity : undefined;
-      
-      // Get market cap from various sources
-      const marketCap = j.marketCap || j.mcap || token.marketCap || token.mcap || 0;
 
       // Rug heuristics (conservative):
       // - 24h drop ≤ -80%
       // - OR 6h drop ≤ -70%
       // - OR liquidity collapsed (≤ $1,000) AND 24h drop ≤ -60%
-      // NOTE: We removed mcap and zero liquidity filters - those should be applied per-category in frontend
       const big24hDrop = priceChange24h !== undefined && priceChange24h <= -80;
       const big6hDrop = priceChange6h !== undefined && priceChange6h <= -70;
       const collapsedLiq = liquidityUsd !== undefined && liquidityUsd <= 1000;
@@ -1674,93 +1670,12 @@ class EnhancedBackend {
           console.log(`[🛡️ Enhanced Backend] 🔍 Search "${search}" matched ${validTokens.length} tokens`);
         }
         
-        // 🚀 NEW: Merge with live metrics from EnhancedHybridPriceService
-        // This ensures frontend gets data IMMEDIATELY, not after 30s seeding delay
-        if (this.enhancedHybridPriceService && this.enhancedHybridPriceService.knownTokens) {
-          const liveState = this.enhancedHybridPriceService.getAllTokensState();
-          const liveStateMap = new Map();
-          liveState.forEach(liveToken => {
-            liveStateMap.set(liveToken.tokenAddress, liveToken);
-          });
-          
-          // Merge live metrics with token metadata
-          validTokens = validTokens.map(token => {
-            const liveData = liveStateMap.get(token.contractAddress);
-            if (liveData) {
-              // Merge: Keep metadata from cache, add live metrics
-              return {
-                ...token,
-                ...liveData,
-                name: token.name, // Preserve from cache
-                symbol: token.symbol, // Preserve from cache
-                logoURI: token.logoURI // Preserve from cache
-              };
-            }
-            return token;
-          });
-          
-          console.log(`[🛡️ Enhanced Backend] 🔄 Merged ${liveState.length} tokens with live metrics`);
-        }
-        
         console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens${search ? ' matching search' : ''}`);
         res.json(validTokens);
 
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching tokens:', error);
         res.status(500).json({ error: 'Failed to fetch tokens' });
-      }
-    });
-
-    // 🚀 NEW: Get current state of all tokens with live metrics (INSTANT)
-    // This endpoint returns data immediately without waiting for WebSocket
-    this.app.get('/api/tokens/state', async (req, res) => {
-      try {
-        console.log('[🛡️ Enhanced Backend] 📊 API request for token state received...');
-        
-        if (!this.enhancedHybridPriceService || !this.enhancedHybridPriceService.knownTokens) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ EnhancedHybridPriceService not ready');
-          res.json([]);
-          return;
-        }
-        
-        // Get current state from EnhancedHybridPriceService (includes baseline + live)
-        const liveState = this.enhancedHybridPriceService.getAllTokensState();
-        
-        // Get token metadata from cache
-        const tokens = await this.getTokensFromCache();
-        const tokenMap = new Map();
-        tokens.forEach(token => {
-          tokenMap.set(token.contractAddress, token);
-        });
-        
-        // Merge: live metrics + metadata
-        const mergedTokens = liveState.map(liveToken => {
-          const metadata = tokenMap.get(liveToken.tokenAddress);
-          if (metadata) {
-            return {
-              ...metadata, // Include ALL metadata fields (jupiterData, twitterData, etc.)
-              ...liveToken, // Override with live metrics
-              name: metadata.name, // Preserve from metadata
-              symbol: metadata.symbol, // Preserve from metadata
-              logoURI: metadata.logoURI // Preserve from metadata
-            };
-          }
-          return liveToken;
-        });
-        
-        // Filter out suspicious/rugged tokens
-        const validTokens = mergedTokens.filter(t => 
-          !this.isSuspiciousToken(t) && 
-          !this.isRuggedToken(t) && 
-          !this.isExcludedMajorOrStable(t)
-        );
-        
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} tokens with live state`);
-        res.json(validTokens);
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error fetching token state:', error);
-        res.status(500).json({ error: 'Failed to fetch token state' });
       }
     });
 
@@ -7973,65 +7888,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Jupiter search endpoint (for adding tokens not in our system)
-    this.app.get('/api/jupiter/search', async (req, res) => {
-      try {
-        const { query } = req.query;
-        if (!query || query.trim().length < 3) {
-          return res.json({ tokens: [] });
-        }
-        
-        console.log(`[🛡️ Enhanced Backend] 🔍 Jupiter search for: ${query}`);
-        
-        // Search Jupiter API
-        const axios = (await import('axios')).default;
-        const response = await axios.get(`https://tokens.jup.ag/tokens?query=${encodeURIComponent(query)}`);
-        
-        // Return first 10 results
-        const tokens = (response.data || []).slice(0, 10);
-        console.log(`[🛡️ Enhanced Backend] ✅ Found ${tokens.length} tokens`);
-        
-        res.json({ tokens });
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Jupiter search error:', error.message);
-        res.json({ tokens: [] });
-      }
-    });
-
-    // Submit token to be added to the system
-    this.app.post('/api/tokens/submit', async (req, res) => {
-      try {
-        const { contractAddress, symbol, name, source } = req.body;
-        
-        if (!contractAddress) {
-          return res.status(400).json({ error: 'Contract address is required' });
-        }
-        
-        console.log(`[🛡️ Enhanced Backend] 🆕 User submitting token: ${symbol} (${contractAddress.slice(0, 8)}...)`);
-        
-        // Add to token processor
-        const processedToken = await this.tokenProcessor.addPaidToken({
-          symbol: symbol || 'UNKNOWN',
-          name: name || 'Unknown Token',
-          contractAddress: contractAddress,
-          isPaid: false,
-          source: source || 'user-submission',
-          timestamp: new Date().toISOString()
-        });
-        
-        console.log(`✅ Token ${processedToken.symbol} submitted successfully!`);
-        
-        res.json({ 
-          success: true, 
-          message: `${symbol || 'Token'} has been added to the system and will be scored shortly!`,
-          token: processedToken
-        });
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error submitting token:', error);
-        res.status(500).json({ error: error.message });
-      }
-    });
-
     // Force refresh all tokens (preserves existing)
     this.app.post('/api/tokens/refresh-all', async (req, res) => {
       try {
@@ -13633,10 +13489,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`✅ [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
-          volume5m: realTimeData.volume5m,
-          txns5m: realTimeData.txns5m,
-          isLive: realTimeData.isLive
+          liquidity: realTimeData.liquidity,
+          source: realTimeData.source,
+          swaps: realTimeData.recentSwaps ? realTimeData.recentSwaps.length : 0
         });
+
+        this.enhancedHybridPriceService.registerConnection(contract, connectionId);
 
         res.json({
           success: true,
@@ -13691,11 +13549,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.price,
-          volume5m: realTimeData.volume5m,
-          txns5m: realTimeData.txns5m,
-          swaps: realTimeData.recentSwaps?.length || 0,
-          isLive: realTimeData.isLive
+          liquidity: realTimeData.liquidity,
+          source: realTimeData.source,
+          swaps: realTimeData.recentSwaps ? realTimeData.recentSwaps.length : 0
         });
+
+        this.enhancedHybridPriceService.registerConnection(contract, connectionId);
 
         res.json({
           success: true,
@@ -13716,14 +13575,31 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
     this.app.get('/api/hybrid-price/stats', (req, res) => {
       try {
-        const stats = this.hybridPriceService.getConnectionStats();
-        res.json({
-          success: true,
-          stats: {
-            ...stats,
-            cacheSize: this.hybridPriceService.priceCache.size,
-            pendingRequests: this.hybridPriceService.pendingRequests.size
-          }
+        if (this.enhancedHybridPriceService) {
+          const stats = this.enhancedHybridPriceService.getRealTimeStats();
+          res.json({
+            success: true,
+            stats,
+          });
+          return;
+        }
+
+        if (this.hybridPriceService) {
+          const stats = this.hybridPriceService.getConnectionStats();
+          res.json({
+            success: true,
+            stats: {
+              ...stats,
+              cacheSize: this.hybridPriceService.priceCache.size,
+              pendingRequests: this.hybridPriceService.pendingRequests.size,
+            },
+          });
+          return;
+        }
+
+        res.status(503).json({
+          success: false,
+          error: 'Hybrid price service not available',
         });
       } catch (error) {
         console.error('❌ [HybridPrice] Error getting stats:', error.message);
@@ -13735,16 +13611,45 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {
         const { tokenAddress, connectionId } = req.body;
-        
-        if (tokenAddress && connectionId) {
+
+        if (!tokenAddress || !connectionId) {
+          res
+            .status(400)
+            .json({
+              success: false,
+              error: 'Token address and connection ID required',
+            });
+          return;
+        }
+
+        if (this.enhancedHybridPriceService) {
+          this.enhancedHybridPriceService.removeConnection(
+            tokenAddress,
+            connectionId
+          );
+          res.json({ success: true, message: 'Connection removed' });
+          return;
+        }
+
+        if (this.hybridPriceService) {
           this.hybridPriceService.removeConnection(tokenAddress, connectionId);
           res.json({ success: true, message: 'Connection removed' });
-        } else {
-          res.status(400).json({ success: false, error: 'Token address and connection ID required' });
+          return;
         }
+
+        res.status(503).json({
+          success: false,
+          error: 'Hybrid price service not available',
+        });
       } catch (error) {
-        console.error('❌ [HybridPrice] Error cleaning up connection:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to cleanup connection' });
+        console.error(
+          '❌ [HybridPrice] Error cleaning up connection:',
+          error.message
+        );
+        res.status(500).json({
+          success: false,
+          error: 'Failed to cleanup connection',
+        });
       }
     });
 
@@ -15003,34 +14908,62 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
-        // Get swaps from ChartDatabase (DEX stream data)
+        // Get pool address for the token
+        // First try from EnhancedHybridPriceService (for gRPC monitored tokens)
+        let poolAddress = this.enhancedHybridPriceService?.poolAddresses.get(token);
+        let useEnhancedHybrid = !!poolAddress;
+        
+        // Fallback to hybridChartService
+        if (!poolAddress) {
+          poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
+        }
+        
+        if (!poolAddress) {
+          console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
+          return res.json({
+            success: true,
+            swaps: [],
+            source: 'none',
+            lastUpdate: Date.now(),
+            totalSwaps: 0,
+            message: 'No pool address found - token may not be trading yet'
+          });
+        }
+        
+        // Get recent swaps from database - use EnhancedHybridPriceService if available
         const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
         let swaps = [];
         
-        if (this.enhancedHybridPriceService?.chartDatabase) {
-          // Get swaps from token database by TOKEN ADDRESS
+        if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
+          // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
           const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
           
           // The database loads from file automatically when getTokenDatabase is called
-          if (tokenDb && tokenDb.swaps && tokenDb.swaps.size > 0) {
+          // No need to manually call loadTokenDatabaseFromFile here
+          
+          if (tokenDb && tokenDb.swaps) {
             for (const swap of tokenDb.swaps.values()) {
               swaps.push(swap);
             }
-            console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from DEX stream database for ${token.substring(0, 8)}`);
-          } else {
-            console.log(`⚠️ [SWAPS-API] No swaps found in DEX stream database for ${token.substring(0, 8)}`);
           }
-        } else {
-          console.log(`⚠️ [SWAPS-API] ChartDatabase not available`);
-        }
           
-        
-        // Apply limit and sort
-        if (sinceTimestamp) {
-          swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
+          // Apply limit and sort
+          if (sinceTimestamp) {
+            swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
+          }
+          swaps.sort((a, b) => b.timestamp - a.timestamp);
+          swaps = swaps.slice(0, parseInt(limit));
+          
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
+        } else {
+          // Fallback to hybridChartService
+          swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+            poolAddress, 
+            parseInt(limit), 
+            sinceTimestamp
+          );
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
         }
-        swaps.sort((a, b) => b.timestamp - a.timestamp);
-        swaps = swaps.slice(0, parseInt(limit));
         
         // Format swaps for frontend
         const formattedSwaps = swaps.map(swap => ({
@@ -18305,8 +18238,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
-      // Initialize Real-Time Token Monitor (pass existing EnhancedHybridPriceService instance)
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer, this.enhancedHybridPriceService);
+      // Initialize Real-Time Token Monitor
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       
