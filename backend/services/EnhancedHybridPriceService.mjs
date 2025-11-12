@@ -832,6 +832,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         const nonZero = touched.filter(d => Math.abs(d.deltaUI) > 0.000001);
         if (nonZero.length < 2) continue;
 
+        // ✅ GATE 4: Skip liquidity operations (add/remove liquidity, rebalance, etc.)
+        // Only process actual swaps
+        // Liquidity ops typically have BOTH tokens going in the same direction (both in or both out)
+        const positiveDeltas = nonZero.filter(d => d.deltaUI > 0);
+        const negativeDeltas = nonZero.filter(d => d.deltaUI < 0);
+        
+        // If all deltas are same sign, it's likely a liquidity operation, not a swap
+        if (positiveDeltas.length === 0 || negativeDeltas.length === 0) {
+          continue;
+        }
+
         // Check if we have user-side deltas
         const userSide = nonZero.filter(d => this.isUserSideDelta(d, signerSet));
         const isUserSide = userSide.length >= 2;
