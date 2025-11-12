@@ -88,13 +88,19 @@ class TwitterAutoPostService {
       // Use existing oauthXService to post tweet
       const tweet = await this.oauthXService.postTweet(this.dgnOracleUserId, text);
       
+      const tweetUrl = tweet?.id ? `https://twitter.com/dgnoracle/status/${tweet.id}` : null;
       console.log('✅ Tweet posted successfully!');
       console.log(`   Tweet ID: ${tweet.id}`);
+      if (tweetUrl) {
+        console.log(`   Tweet URL: ${tweetUrl}`);
+      }
       
       return {
         success: true,
         tweetId: tweet.id,
-        text: tweet.text
+        text: tweet.text,
+        url: tweetUrl,
+        created_at: tweet.created_at || new Date().toISOString()
       };
 
     } catch (error) {
@@ -258,7 +264,9 @@ class TwitterAutoPostService {
       return {
         success: true,
         tweetId: tweet.id,
-        text: tweet.text
+        text: tweet.text,
+        url: tweet?.id ? `https://twitter.com/dgnoracle/status/${tweet.id}` : null,
+        created_at: tweet.created_at || new Date().toISOString()
       };
 
     } catch (error) {
@@ -288,11 +296,16 @@ class TwitterAutoPostService {
       
       console.log('✅ Promotional tweet posted successfully!');
       console.log(`   Tweet ID: ${tweet.id}`);
+      if (tweet?.id) {
+        console.log(`   Tweet URL: https://twitter.com/dgnoracle/status/${tweet.id}`);
+      }
       
       return {
         success: true,
         tweetId: tweet.id,
-        text: tweet.text
+        text: tweet.text,
+        url: tweet?.id ? `https://twitter.com/dgnoracle/status/${tweet.id}` : null,
+        created_at: tweet.created_at || new Date().toISOString()
       };
 
     } catch (error) {
@@ -309,6 +322,55 @@ class TwitterAutoPostService {
    */
   isAutoPostEnabled() {
     return !!this.dgnOracleUserId;
+  }
+
+  /**
+   * Post a generic reply using OAuth service
+   */
+  async postReplyTweet(text, replyToTweetId) {
+    if (!this.dgnOracleUserId) {
+      console.log('⚠️ Twitter Auto-Post is disabled - @dgnoracle not authenticated');
+      return { success: false, reason: 'not_authenticated' };
+    }
+
+    if (!replyToTweetId) {
+      return { success: false, error: 'reply_to_id_required' };
+    }
+
+    try {
+      console.log('💬 Posting reply via OAuth...');
+      console.log(`   Replying to: ${replyToTweetId}`);
+
+      const tweet = await this.oauthXService.postReply(
+        this.dgnOracleUserId,
+        text,
+        replyToTweetId
+      );
+
+      const tweetUrl = tweet?.id ? `https://twitter.com/dgnoracle/status/${tweet.id}` : null;
+
+      console.log('✅ Reply posted successfully via OAuth!');
+      console.log(`   Tweet ID: ${tweet.id}`);
+      if (tweetUrl) {
+        console.log(`   URL: ${tweetUrl}`);
+      }
+
+      return {
+        success: true,
+        tweetId: tweet.id,
+        text: tweet.text,
+        url: tweetUrl,
+        created_at: tweet.created_at || new Date().toISOString(),
+        inReplyTo: replyToTweetId
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to post reply via OAuth:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 
