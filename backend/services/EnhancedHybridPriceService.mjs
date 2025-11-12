@@ -512,7 +512,14 @@ class EnhancedHybridPriceService extends EventEmitter {
           accountExclude: [],
           accountRequired: [],
           vote: false,
-          failed: false
+          failed: false,
+          // ✅ CRITICAL: Request ALL data needed for swap detection
+          include_meta: true,
+          include_token_balances: true,
+          include_instructions: true,
+          include_inner_instructions: true,
+          include_loaded_addresses: true,
+          include_accounts: true
         }
       };
       
