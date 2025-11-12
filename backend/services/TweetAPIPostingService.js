@@ -234,6 +234,7 @@ class TweetAPIPostingService {
 
       if ((response.status === 403 || response.status === 504) && retryCount < maxRetries) {
         console.warn(`⚠️ [TWEETAPI V2] Got ${response.status}, retrying... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
         return await this.postTweet(text, retryCount + 1);
       }
 
@@ -271,6 +272,7 @@ class TweetAPIPostingService {
 
         if ((status === 403 || status === 504) && retryCount < maxRetries) {
           console.warn(`⚠️ [TWEETAPI V2] Retrying after ${status} error (${retryCount + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
           return await this.postTweet(text, retryCount + 1);
         }
 

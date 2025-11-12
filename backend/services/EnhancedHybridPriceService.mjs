@@ -51,6 +51,14 @@ class TokenMetrics {
       '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
       '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
     };
+
+    this.baseline = {
+      currentPrice: 0,
+      '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
+    };
   }
 
   /**
@@ -74,24 +82,35 @@ class TokenMetrics {
     if (!baseline) return;
 
     if (typeof baseline.price === 'number' && baseline.price > 0) {
-      this.metrics.currentPrice = baseline.price;
-      this.priceHistory.push({ timestamp: Date.now(), price: baseline.price });
+      this.baseline.currentPrice = baseline.price;
+      if (!this.metrics.currentPrice || this.metrics.currentPrice === 0) {
+        this.metrics.currentPrice = baseline.price;
+      }
+      if (this.priceHistory.length === 0) {
+        this.priceHistory.push({ timestamp: Date.now(), price: baseline.price });
+      }
     }
 
-    const applyWindow = (windowKey, stats) => {
-      if (!stats) return;
-      this.metrics[windowKey] = {
-        volume: Number(stats.volume ?? 0),
-        txns: Number(stats.txns ?? 0),
-        makers: Number(stats.makers ?? 0),
-        priceChange: Number(stats.priceChange ?? 0),
+    const applyBaseline = (windowKey, stats) => {
+      const target = this.baseline[windowKey] || {
+        volume: 0,
+        txns: 0,
+        makers: 0,
+        priceChange: 0,
       };
+
+      target.volume = Number(stats?.volume ?? 0);
+      target.txns = Number(stats?.txns ?? 0);
+      target.makers = Number(stats?.makers ?? 0);
+      target.priceChange = Number(stats?.priceChange ?? 0);
+
+      this.baseline[windowKey] = target;
     };
 
-    applyWindow('5m', baseline['5m']);
-    applyWindow('1h', baseline['1h']);
-    applyWindow('6h', baseline['6h']);
-    applyWindow('24h', baseline['24h']);
+    applyBaseline('5m', baseline['5m']);
+    applyBaseline('1h', baseline['1h']);
+    applyBaseline('6h', baseline['6h']);
+    applyBaseline('24h', baseline['24h']);
 
     this.pruneOldData();
   }
@@ -153,7 +172,50 @@ class TokenMetrics {
    * Get current metrics
    */
   getMetrics() {
-    return this.metrics;
+    const combineWindow = (windowKey) => {
+      const baselineWindow = this.baseline[windowKey] || {
+        volume: 0,
+        txns: 0,
+        makers: 0,
+        priceChange: 0,
+      };
+      const liveWindow = this.metrics[windowKey] || {
+        volume: 0,
+        txns: 0,
+        makers: 0,
+        priceChange: 0,
+      };
+
+      const combinedVolume = (baselineWindow.volume || 0) + (liveWindow.volume || 0);
+      const combinedTxns = (baselineWindow.txns || 0) + (liveWindow.txns || 0);
+      const combinedMakers = (baselineWindow.makers || 0) + (liveWindow.makers || 0);
+
+      const hasLiveActivity =
+        (liveWindow.txns || 0) > 0 ||
+        (liveWindow.volume || 0) > 0 ||
+        (typeof liveWindow.priceChange === 'number' && liveWindow.priceChange !== 0);
+
+      return {
+        volume: combinedVolume,
+        txns: combinedTxns,
+        makers: combinedMakers,
+        priceChange: hasLiveActivity
+          ? Number(liveWindow.priceChange || 0)
+          : Number(baselineWindow.priceChange || 0),
+      };
+    };
+
+    const currentPrice = this.metrics.currentPrice || this.baseline.currentPrice || 0;
+    const hasLiveData = this.swaps.length > 0;
+
+    return {
+      currentPrice,
+      '5m': combineWindow('5m'),
+      '1h': combineWindow('1h'),
+      '6h': combineWindow('6h'),
+      '24h': combineWindow('24h'),
+      _hasLiveData: hasLiveData,
+    };
   }
 }
 
@@ -778,7 +840,10 @@ class EnhancedHybridPriceService extends EventEmitter {
               priceUsd,
               volumeUsd,
               walletAddress: maker,
-              maker
+              maker,
+              timestamp: swap.timestamp ?? Date.now(),
+              slot: swap.slot ?? null,
+              source: swap.source || 'grpc-dex',
             });
           }
         }
@@ -1789,6 +1854,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     const metrics =
       this.getMapValueIgnoreCase(this.knownTokens, normalized) || null;
     const metricsData = metrics ? metrics.getMetrics() : null;
+    const metricsHasLiveData = metricsData?._hasLiveData ?? false;
     const jupiterData =
       options.jupiterData ||
       baseRecord.jupiterData ||
@@ -1873,7 +1939,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       baseline24h: baseline.metricsData24h,
       hasJupiterData: baseline.hasJupiterData,
       jupiterData: jupiterData || null,
-      isLive: Boolean(metricsData),
+      isLive: metricsHasLiveData,
       lastUpdated: Date.now(),
     };
 
