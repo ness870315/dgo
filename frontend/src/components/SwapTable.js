@@ -19,24 +19,20 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   useEffect(() => {
     try {
       let swapData = [];
-      
-      if (realTimeData?.swapHistory) {
+      const existingSignatures = new Set(swaps.map(s => s.signature));
+
+      if (realTimeData?.swapHistory && realTimeData.swapHistory.length > 0) {
         swapData = realTimeData.swapHistory;
         console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
-      } else if (realTimeData?.recentSwaps) {
+      } else if (realTimeData?.recentSwaps && realTimeData.recentSwaps.length > 0) {
         swapData = realTimeData.recentSwaps;
         console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
       }
       
-      // ✅ CRITICAL FIX: Filter out null/undefined swaps before processing
-      const validSwaps = swapData.filter(swap => swap && typeof swap === 'object');
-      
-      if (validSwaps.length !== swapData.length) {
-        console.warn(`⚠️ [SwapTable] Filtered out ${swapData.length - validSwaps.length} invalid swaps`);
-      }
-      
       // ✅ CRITICAL FIX: Calculate correct amounts from available data
-      const processedSwaps = validSwaps.map(swap => {
+      const processedSwaps = swapData
+        .filter(swap => !existingSignatures.has(swap.signature))
+        .map(swap => {
         // If amounts are 0, calculate them from volumeUsd and price
         let tokenAmount = swap.tokenAmount;
         let baseAmount = swap.baseAmount;
@@ -61,7 +57,13 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
         };
       });
       
-      setSwaps(processedSwaps);
+      if (processedSwaps.length > 0) {
+        setSwaps(prev => {
+          const combined = [...processedSwaps, ...prev];
+          combined.sort((a, b) => b.timestamp - a.timestamp);
+          return combined;
+        });
+      }
       
     } catch (error) {
       console.error('❌ [SwapTable] Error processing swap data:', error);
