@@ -169,9 +169,31 @@ const PriceChartModal = ({ token, onClose }) => {
       if (updatedToken && updatedToken.recentSwaps) {
         console.log(`🔄 [PriceChartModal] Full state update: ${updatedToken.recentSwaps.length} swaps for ${updatedToken.symbol}`);
         
-        setRealTimeData({
-          recentSwaps: updatedToken.recentSwaps,
-          swapHistory: updatedToken.recentSwaps
+        // ✅ CRITICAL FIX: Merge with existing swaps, don't replace
+        setRealTimeData(prevData => {
+          if (!prevData || !prevData.swapHistory || prevData.swapHistory.length === 0) {
+            // No existing data, use the broadcast data
+            return {
+              recentSwaps: updatedToken.recentSwaps,
+              swapHistory: updatedToken.recentSwaps
+            };
+          }
+          
+          // Merge: Keep existing historical swaps, prepend any new swaps from broadcast
+          const existingSignatures = new Set(prevData.swapHistory.map(s => s.signature));
+          const newSwaps = updatedToken.recentSwaps.filter(s => !existingSignatures.has(s.signature));
+          
+          if (newSwaps.length > 0) {
+            console.log(`✅ [PriceChartModal] Merged ${newSwaps.length} new swaps with ${prevData.swapHistory.length} existing swaps`);
+            return {
+              ...prevData,
+              swapHistory: [...newSwaps, ...prevData.swapHistory],
+              recentSwaps: [...newSwaps, ...prevData.swapHistory].slice(0, 100) // Keep last 100
+            };
+          }
+          
+          // No new swaps, keep existing data
+          return prevData;
         });
       }
     };
