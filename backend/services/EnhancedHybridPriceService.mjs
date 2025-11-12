@@ -547,7 +547,8 @@ class EnhancedHybridPriceService extends EventEmitter {
       let msgCount = 0;
       this.dexStream.on('data', (msg) => {
         msgCount++;
-        if (msgCount % 100 === 0) {
+        // Log every 10000 messages instead of 100
+        if (msgCount % 10000 === 0) {
           console.log(`📨 [EnhancedHybridPriceService] Received ${msgCount} gRPC messages`);
         }
         this.handleStreamData(msg);
@@ -611,12 +612,18 @@ class EnhancedHybridPriceService extends EventEmitter {
       }
       
       // Log every 10th swap to reduce noise
-      if (this.stats.totalSwapsProcessed % 10 === 0) {
-        console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.totalSwapsProcessed} swaps (${swaps.length} in this batch)`);
+      // Log every 1000 swaps instead of 10
+      if (this.stats.totalSwapsProcessed % 1000 === 0) {
+        console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.totalSwapsProcessed} swaps`);
       }
       
       for (const swap of swaps) {
         this.stats.totalSwapsProcessed++;
+        
+        // Debug: Log INCOG swaps specifically
+        if (swap.tokenMint === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3') {
+          console.log(`🔵 [INCOG SWAP DETECTED] ${swap.type} $${swap.volumeUsd.toFixed(2)} - Known: ${this.knownTokens.has(swap.tokenMint)}`);
+        }
         
         // Check if this is a known token or new token
         if (this.knownTokens.has(swap.tokenMint)) {
@@ -823,6 +830,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       // Step 2: Get signer set (fee payer + signers)
       const signerSet = this.getSignerSet(message);
       const { PublicKey } = require('@solana/web3.js');
+      
+      // Try to find the actual user (not bot/router)
+      // Priority: 1) User-side delta owner, 2) First non-fee-payer signer, 3) Fee payer
+      let actualUser = 'unknown';
       const feePayer = message.accountKeys?.[0];
       const feePayerStr = feePayer 
         ? (Buffer.isBuffer(feePayer) ? new PublicKey(feePayer).toBase58() : String(feePayer))
@@ -919,6 +930,14 @@ class EnhancedHybridPriceService extends EventEmitter {
             continue; // Skip bot swaps
           }
 
+          // Find actual user: prefer delta owner over fee payer
+          let maker = feePayerStr;
+          if (input.owner && signerSet.has(input.owner)) {
+            maker = input.owner;
+          } else if (output.owner && signerSet.has(output.owner)) {
+            maker = output.owner;
+          }
+
           // Emit swap
           swaps.push({
             signature: signature || 'unknown',
@@ -931,7 +950,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             priceInSol,
             priceUsd,
             volumeUsd,
-            walletAddress: feePayerStr
+            walletAddress: maker
           });
         }
       }
@@ -1034,9 +1053,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     metrics.addSwap(swap);
     
     // Log every 100th known token swap
-    if (this.stats.knownTokenSwaps % 100 === 0) {
-      console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.knownTokenSwaps} known token swaps`);
-    }
+    // Removed verbose logging
     
     // Save to ChartDatabase (uses storeSwaps with array)
     await this.chartDatabase.storeSwaps([{
@@ -1052,10 +1069,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // ✅ REAL-TIME: Broadcast individual swap immediately
     if (this.webSocketServer) {
-      this.webSocketServer.broadcastToTokenSubscribers(swap.tokenMint, {
+      const swapPayload = {
         type: 'swapUpdate',
         tokenAddress: swap.tokenMint,
-        swapData: {
+        data: {
           signature: swap.signature,
           timestamp: swap.timestamp,
           type: swap.type,
@@ -1067,7 +1084,15 @@ class EnhancedHybridPriceService extends EventEmitter {
           maker: swap.walletAddress,
           price: swap.priceInSol
         }
-      });
+      };
+      
+      // Debug log for first 50 swaps
+      if (this.stats.knownTokenSwaps < 50) {
+        const token = this.knownTokens.get(swap.tokenMint);
+        console.log(`🔴 [SWAP BROADCAST] ${token?.jupiterData?.symbol || swap.tokenMint.slice(0,8)}: ${swap.type} $${swap.volumeUsd.toFixed(2)}`);
+      }
+      
+      this.webSocketServer.broadcastToTokenSubscribers(swap.tokenMint, swapPayload);
     }
     
     // Broadcast price update via WebSocket
@@ -1118,9 +1143,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     // Log every 100th swap
-    if (this.stats.knownTokenSwaps % 100 === 0) {
-      console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.knownTokenSwaps} known token swaps`);
-    }
+    // Removed verbose logging
   }
 
   /**
@@ -1910,6 +1933,14 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       console.log(`✅ [EnhancedHybridPriceService] Loaded ${this.tokenCache.length} tokens from cache`);
       console.log(`📊 [EnhancedHybridPriceService] Initialized ${this.knownTokens.size} TokenMetrics (empty, will be seeded with fresh Jupiter data)`);
+      
+      // Debug: Check if INCOG is loaded
+      const incogToken = this.tokenCache.find(t => t.contractAddress === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3');
+      if (incogToken) {
+        console.log(`🔵 [INCOG CHECK] Found in cache: ${incogToken.symbol}, in knownTokens: ${this.knownTokens.has('DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3')}`);
+      } else {
+        console.log(`🔵 [INCOG CHECK] NOT found in cache`);
+      }
     } catch (error) {
       console.log('⚠️ [EnhancedHybridPriceService] No token cache found, starting fresh');
       this.tokenCache = [];
@@ -2115,10 +2146,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         metricsData['1h']?.priceChange !== 0 ||
         metricsData['6h']?.priceChange !== 0 ||
         metricsData['24h']?.priceChange !== 0;
-      
-      if (hasData && Math.random() < 0.1) {
-        console.log(`✅ [Token with data] ${jupiterData?.symbol || tokenAddress.slice(0,8)}: 5m=${metricsData['5m']?.priceChange?.toFixed(2)}%, 1h=${metricsData['1h']?.priceChange?.toFixed(2)}%, 6h=${metricsData['6h']?.priceChange?.toFixed(2)}%, 24h=${metricsData['24h']?.priceChange?.toFixed(2)}%`);
-      }
+      // Removed verbose logging
       
       // Include ALL tokens (even if no swaps yet)
       // metricsData already contains baseline + live deltas merged

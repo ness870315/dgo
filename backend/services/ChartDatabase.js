@@ -312,9 +312,7 @@ class ChartDatabase {
                 lastSwap: Date.now(),
                 lastWriteTime: tokenDb.lastWriteTime
             });
-            
-            console.log(`💾 [ChartDatabase] Token ${tokenAddress.substring(0,8)}: ${batch.length} swaps saved (total: ${tokenDb.swapCount})`);
-            
+            // Removed verbose logging
         } catch (error) {
             console.error(`❌ [ChartDatabase] Token ${tokenAddress.substring(0,8)} write failed:`, error.message);
             // ✅ CRITICAL FIX: Re-queue failed swaps only if batch has items
@@ -620,8 +618,7 @@ class ChartDatabase {
                 await this.processTokenWriteQueue(tokenAddress);
             }
         }
-        
-        console.log(`📝 [ChartDatabase] Queued ${swaps.length} swaps across ${swapsByToken.size} tokens`);
+        // Removed verbose logging
     }
 
     /**
