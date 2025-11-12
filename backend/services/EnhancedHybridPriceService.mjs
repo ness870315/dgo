@@ -4,6 +4,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
+import { Connection } from '@solana/web3.js';
+import { detectSwapsForMint } from './SwapDetectionHelpers.mjs';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -11,9 +13,11 @@ const require = createRequire(import.meta.url);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Token API base
+const CONSTANT_K_RPC_ENDPOINT = process.env.CONSTANT_K_RPC_ENDPOINT || 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Free tier API
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
+const RPC_FETCH_DELAY_MS = Number(process.env.RPC_FETCH_DELAY_MS || 50);
 
 // DEX Program IDs for broad filtering
 const DEX_PROGRAMS = [
@@ -23,8 +27,6 @@ const DEX_PROGRAMS = [
   'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',   // Orca Whirlpool
   'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',   // Meteora DLMM
   'Dooar9JkhdZ7J3LHN3A7YCuoGRUggXhQaG4kijfLGU2j',  // Meteora Pools
-  'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG',   // Meteora DAMM v2
-  'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',   // PumpSwap (Pump.fun AMM)
   'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',   // Jupiter Aggregator v6
   'JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB',   // Jupiter Aggregator v4
   'PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'    // Phoenix
@@ -41,25 +43,7 @@ class TokenMetrics {
     this.priceHistory = []; // { timestamp, price }
     this.uniqueMakers = new Set(); // wallet addresses
     
-    // Jupiter baseline (NEVER replaced, only set once during seeding)
-    this.baseline = {
-      price: 0,
-      '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
-    };
-    
-    // Live deltas from DEX swaps (calculated from this.swaps)
-    this.liveDeltas = {
-      currentPrice: 0,
-      '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
-    };
-    
-    // Cached metrics (baseline + live deltas, updated on each swap)
+    // Cached metrics (updated on each swap)
     this.metrics = {
       currentPrice: 0,
       '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
@@ -79,18 +63,12 @@ class TokenMetrics {
       this.uniqueMakers.add(swap.walletAddress);
     }
     
-    // Debug: Log USELESS swaps
-    if (this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
-      console.log(`🔄 [USELESS Swap] ${swap.type}: price=$${swap.priceUsd.toFixed(6)}, volume=$${swap.volumeUsd.toFixed(2)}, total swaps=${this.swaps.length}`);
-    }
-    
     this.updateMetrics();
     this.pruneOldData();
   }
 
   /**
    * Update all time-window metrics
-   * Strategy: Jupiter baseline + Live DEX deltas = Final metrics
    */
   updateMetrics() {
     const now = Date.now();
@@ -101,154 +79,34 @@ class TokenMetrics {
       '24h': 24 * 60 * 60 * 1000
     };
 
-    // Step 1: Calculate LIVE deltas from DEX swaps
-    // Use median price from recent swaps with outlier filtering
+    // Update current price
     if (this.swaps.length > 0) {
-      const recentSwaps = this.swaps.slice(-50); // Last 50 swaps for better outlier detection
-      let recentPrices = recentSwaps
-        .map(s => s.priceUsd)
-        .filter(p => p > 0 && isFinite(p))
-        .sort((a, b) => a - b);
-      
-      if (recentPrices.length >= 10) {
-        // Remove outliers using IQR (Interquartile Range) method
-        const q1Index = Math.floor(recentPrices.length * 0.25);
-        const q3Index = Math.floor(recentPrices.length * 0.75);
-        const q1 = recentPrices[q1Index];
-        const q3 = recentPrices[q3Index];
-        const iqr = q3 - q1;
-        
-        // Use 3x IQR instead of 1.5x for less aggressive filtering (keeps more data)
-        const lowerBound = q1 - (3 * iqr);
-        const upperBound = q3 + (3 * iqr);
-        
-        // Filter out extreme outliers only
-        const filteredPrices = recentPrices.filter(p => p >= lowerBound && p <= upperBound);
-        
-        // Use filtered prices if we still have at least 50% of original data
-        if (filteredPrices.length >= Math.floor(recentPrices.length * 0.5)) {
-          recentPrices = filteredPrices;
-        }
-        // else: keep all prices if filtering removed too much data
-      }
-      
-      if (recentPrices.length > 0) {
-        // Use median price from filtered data
-        const midIndex = Math.floor(recentPrices.length / 2);
-        if (recentPrices.length % 2 === 0) {
-          this.liveDeltas.currentPrice = (recentPrices[midIndex - 1] + recentPrices[midIndex]) / 2;
-        } else {
-          this.liveDeltas.currentPrice = recentPrices[midIndex];
-        }
-      } else {
-        // Fallback to latest swap price
-        this.liveDeltas.currentPrice = this.swaps[this.swaps.length - 1].priceUsd || 0;
-      }
-      
-      // Debug: Log price calculation for ALL tokens if price is 0
-      if (this.liveDeltas.currentPrice === 0 || !isFinite(this.liveDeltas.currentPrice)) {
-        console.error(`❌ [Price Calc] ${this.tokenAddress.slice(0,8)}: currentPrice is ${this.liveDeltas.currentPrice}, recentPrices.length=${recentPrices.length}, swaps.length=${this.swaps.length}`);
-      }
-      
-      // Debug: Log USELESS price calculation
-      if (this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' && this.swaps.length % 10 === 0) {
-        console.log(`💰 [USELESS Price] Median from ${recentPrices.length} filtered prices: $${this.liveDeltas.currentPrice.toFixed(6)}, range: $${recentPrices[0]?.toFixed(6)} - $${recentPrices[recentPrices.length-1]?.toFixed(6)}`);
-      }
-    } else {
-      this.liveDeltas.currentPrice = 0;
+      this.metrics.currentPrice = this.swaps[this.swaps.length - 1].priceUsd;
     }
 
-    // Calculate live deltas for each window
+    // Calculate metrics for each window
     for (const [window, duration] of Object.entries(windows)) {
       const cutoffTime = now - duration;
       const recentSwaps = this.swaps.filter(s => s.timestamp >= cutoffTime);
       const recentPrices = this.priceHistory.filter(p => p.timestamp >= cutoffTime);
       
-      // Live volume from DEX swaps
-      this.liveDeltas[window].volume = recentSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
+      // Volume (sum of all swap volumes in USD)
+      this.metrics[window].volume = recentSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
       
-      // Live transaction count
-      this.liveDeltas[window].txns = recentSwaps.length;
+      // Transaction count
+      this.metrics[window].txns = recentSwaps.length;
       
-      // Live unique makers
+      // Unique makers
       const makers = new Set(recentSwaps.map(s => s.walletAddress).filter(Boolean));
-      this.liveDeltas[window].makers = makers.size;
+      this.metrics[window].makers = makers.size;
       
-      // Live price change %
+      // Price change %
       if (recentPrices.length >= 2) {
         const firstPrice = recentPrices[0].price;
         const lastPrice = recentPrices[recentPrices.length - 1].price;
-        
-        // Safety check: avoid NaN and Infinity
-        if (firstPrice > 0 && lastPrice > 0 && isFinite(firstPrice) && isFinite(lastPrice)) {
-          const priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
-          this.liveDeltas[window].priceChange = isFinite(priceChange) ? priceChange : 0;
-        } else {
-          this.liveDeltas[window].priceChange = 0;
-        }
+        this.metrics[window].priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
       } else {
-        this.liveDeltas[window].priceChange = 0;
-      }
-    }
-
-    // Step 2: Merge baseline + live deltas into final metrics
-    // Price: Use live if available, otherwise baseline
-    this.metrics.currentPrice = this.liveDeltas.currentPrice > 0 
-      ? this.liveDeltas.currentPrice 
-      : this.baseline.price;
-
-    // Debug: Log USELESS metrics calculation
-    const isUSELESS = this.tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
-    if (isUSELESS && this.swaps.length % 10 === 0) { // Log every 10 swaps
-      console.log(`📊 [USELESS Metrics] Total swaps: ${this.swaps.length}`);
-    }
-
-    // For each window: ADD baseline + live deltas
-    for (const window of Object.keys(windows)) {
-      // Volume: Add baseline + live
-      this.metrics[window].volume = this.baseline[window].volume + this.liveDeltas[window].volume;
-      
-      // Txns: Add baseline + live
-      this.metrics[window].txns = this.baseline[window].txns + this.liveDeltas[window].txns;
-      
-      // Makers: Add baseline + live (unique makers are additive)
-      this.metrics[window].makers = this.baseline[window].makers + this.liveDeltas[window].makers;
-      
-      // Price change: Hybrid approach
-      // 1. If we have enough live swaps covering the full window, use live data
-      // 2. Otherwise, use baseline (Jupiter) data
-      // 3. If no data at all, use 0
-      let priceChange = 0;
-      
-      const windowDuration = windows[window];
-      const oldestSwapTime = this.swaps.length > 0 ? this.swaps[0].timestamp : Date.now();
-      const swapHistoryDuration = now - oldestSwapTime;
-      
-      // If our live swap history covers the full window duration, use live data
-      if (swapHistoryDuration >= windowDuration && this.liveDeltas[window].txns >= 10) {
-        // Have enough live data covering the full window - use live price change
-        priceChange = this.liveDeltas[window].priceChange;
-      } else if (this.baseline[window].txns > 0 && this.baseline[window].priceChange !== 0) {
-        // Don't have full live coverage - use baseline (Jupiter has full historical data)
-        priceChange = this.baseline[window].priceChange;
-      } else if (this.liveDeltas[window].txns > 0) {
-        // No baseline, but have some live swaps - use live price change
-        priceChange = this.liveDeltas[window].priceChange;
-      }
-      // else: no data at all, leave as 0
-      
-      // Debug: Log USELESS price change selection
-      if (isUSELESS && this.swaps.length % 10 === 0) {
-        console.log(`  ${window} priceChange: live_txns=${this.liveDeltas[window].txns}, baseline_txns=${this.baseline[window].txns}, selected=${priceChange.toFixed(2)}%`);
-      }
-      
-      this.metrics[window].priceChange = (isFinite(priceChange) && !isNaN(priceChange)) ? priceChange : 0;
-      
-      // Debug: Log USELESS window metrics
-      if (isUSELESS && this.swaps.length % 10 === 0) {
-        console.log(`  ${window}: baseline_txns=${this.baseline[window].txns}, live_txns=${this.liveDeltas[window].txns}, total=${this.metrics[window].txns}`);
-        console.log(`  ${window}: baseline_vol=$${this.baseline[window].volume.toFixed(2)}, live_vol=$${this.liveDeltas[window].volume.toFixed(2)}, total=$${this.metrics[window].volume.toFixed(2)}`);
-        console.log(`  ${window}: baseline_price%=${this.baseline[window].priceChange.toFixed(2)}%, live_price%=${this.liveDeltas[window].priceChange.toFixed(2)}%, final=${this.metrics[window].priceChange.toFixed(2)}%`);
+        this.metrics[window].priceChange = 0;
       }
     }
   }
@@ -284,25 +142,23 @@ class EnhancedHybridPriceService extends EventEmitter {
     // gRPC client and stream
     this.grpcClient = null;
     this.dexStream = null; // Single stream for all DEX programs
-    this.isStreamActive = false; // Prevent duplicate streams
-    this.restartTimeout = null; // Track restart timer
     
     // Token tracking
     this.knownTokens = new Map(); // Map<tokenAddress, TokenMetrics>
     this.newTokenActivity = new Map(); // Map<tokenAddress, { swapCount, firstSeen, lastSeen, ... }>
-    this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, circSupply, supply }>
+    this.tokenMetadataCache = new Map(); // Map<tokenAddress, { name, symbol, decimals, supply }>
     
     // Multi-layer filter configuration
     this.filters = {
       layer1: {
         minimumAge: 0, // DISABLED: Let activity filters do the work
         activityThresholds: {
-          minSwaps: 5,      // Lowered from 10 (catch earlier)
-          minVolume: 500,   // Lowered from $1000 (catch smaller tokens)
-          minTraders: 3     // Lowered from 5 (more realistic)
+          minSwaps: 10,
+          minVolume: 1000,  // $1000
+          minTraders: 5
         },
         sustainedActivity: {
-          minSwapsPerMinute: 1  // Lowered from 2 (1 swap/min = 60 swaps/hour)
+          minSwapsPerMinute: 2
         },
         priceSanity: {
           maxPriceChange1m: 500,    // 500%
@@ -359,13 +215,14 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // Jupiter API rate limiting
     this.jupiterRequestQueue = [];
-    this.jupiterRequestDelay = 2000; // 2 seconds between requests (increased for rate limiting)
+    this.jupiterRequestDelay = 1000; // 1 second between requests
     this.lastJupiterRequest = 0;
     this.jupiterCache = new Map();
     this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
     
     // Token cache management
     this.tokenCache = [];
+    this.tokenCacheSet = new Set();
     // Use persistent cache path (Render volume mount)
     this.cachePath = process.env.CACHE_PATH || '/var/data/dgo/cache/tokens-cache.json';
     
@@ -376,11 +233,23 @@ class EnhancedHybridPriceService extends EventEmitter {
       newTokenSwaps: 0,
       tokensDiscovered: 0,
       streamRestarts: 0,
-      lastStreamStart: null
+      lastStreamStart: null,
+      rpcFetches: 0,
+      rpcSuccess: 0,
+      rpcSwaps: 0,
+      rpcQueuePeak: 0
     };
     
-    // DON'T initialize here - wait for WebSocket to be ready
-    // initializeAsync() will be called from enhancedBackend.mjs after WebSocket is initialized
+    this.enableRpcFallback = process.env.ENABLE_RPC_FALLBACK !== 'false';
+    this.rpcEndpoint = CONSTANT_K_RPC_ENDPOINT;
+    this.rpcConnection = new Connection(this.rpcEndpoint, 'confirmed');
+    this.rpcQueue = [];
+    this.rpcQueueMap = new Map();
+    this.rpcWorkerActive = false;
+    this.rpcTokenPriceCache = new Map();
+    
+    // Initialize asynchronously
+    this.initializeAsync();
   }
 
   /**
@@ -391,72 +260,26 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
       
       // Initialize gRPC client
-      console.log('📡 [EnhancedHybridPriceService] Step 1: Initializing gRPC client...');
       await this.initializeGrpcClient();
-      console.log('✅ [EnhancedHybridPriceService] gRPC client initialized');
       
-      // Load token cache (with timeout to prevent hanging)
-      console.log('📂 [EnhancedHybridPriceService] Step 2: Loading token cache...');
-      await Promise.race([
-        this.loadTokenCache(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Token cache load timeout')), 10000))
-      ]).catch(error => {
-        console.warn(`⚠️ [EnhancedHybridPriceService] Token cache load failed: ${error.message}, continuing without cache`);
-        this.tokenCache = [];
-      });
-      console.log(`✅ [EnhancedHybridPriceService] Token cache loaded: ${this.tokenCache.length} tokens`);
+      // Load token cache
+      await this.loadTokenCache();
       
-      // Initialize SOL price (with timeout)
-      console.log('💰 [EnhancedHybridPriceService] Step 3: Fetching SOL price...');
-      try {
-        await Promise.race([
-          this.updateSolPrice(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('SOL price fetch timeout')), 5000))
-        ]);
-      } catch (error) {
-        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price fetch failed: ${error.message}, using default $240`);
-      }
-      
-      // Ensure SOL price is set (fallback if fetch failed)
-      if (this.solPriceUSD === 0 || !this.solPriceUSD) {
-        this.solPriceUSD = 240;
-        console.warn(`⚠️ [EnhancedHybridPriceService] SOL price was 0, using fallback: $240`);
-      }
-      
+      // Initialize SOL price
+      await this.updateSolPrice();
       console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
       
-      // Initialize persistent swap storage (with timeout)
-      console.log('💾 [EnhancedHybridPriceService] Step 4: Initializing swap storage...');
-      await Promise.race([
-        this.chartDatabase.loadData(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Chart database load timeout')), 15000))
-      ]).catch(error => {
-        console.warn(`⚠️ [EnhancedHybridPriceService] Chart database load failed: ${error.message}, starting fresh`);
-      });
+      // Initialize persistent swap storage
+      await this.chartDatabase.loadData();
       this.chartDatabase.startBatchWriter();
       console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
       
-      // ✅ CRITICAL: Update token cache with FRESH Jupiter data, THEN seed TokenMetrics
-      console.log('🔄 [EnhancedHybridPriceService] Step 5: Updating token cache with FRESH Jupiter data (BLOCKING)...');
-      await this.refreshTokenCacheWithJupiter();
-      console.log('✅ [EnhancedHybridPriceService] Token cache updated with fresh Jupiter data');
-      
-      console.log('🌱 [EnhancedHybridPriceService] Step 6: Seeding TokenMetrics from updated cache...');
-      await this.seedMetricsFromCache();
-      console.log('✅ [EnhancedHybridPriceService] TokenMetrics seeded - ALL tokens have baseline data');
-      
       // Start DEX program stream
-      console.log('🚀 [EnhancedHybridPriceService] Step 7: Starting DEX program stream...');
       await this.startDexProgramStream();
       
-      // Start periodic broadcast (DEXScreener-style real-time updates)
-      console.log('📡 [EnhancedHybridPriceService] Step 8: Starting periodic state broadcast...');
-      this.startPeriodicBroadcast();
-      
-      console.log('✅ [EnhancedHybridPriceService] Initialization complete - Token cache refreshed with fresh Jupiter data, TokenMetrics seeded, DEX stream active');
+      console.log('✅ [EnhancedHybridPriceService] Initialization complete');
     } catch (error) {
-      console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error);
-      console.error('❌ [EnhancedHybridPriceService] Error stack:', error.stack);
+      console.error('❌ [EnhancedHybridPriceService] Initialization failed:', error.message);
     }
   }
 
@@ -480,32 +303,12 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Start DEX program stream (monitors ALL DEX programs)
    */
   async startDexProgramStream() {
-    // Prevent duplicate streams
-    if (this.isStreamActive) {
-      console.log('⚠️ [EnhancedHybridPriceService] Stream already active, skipping duplicate start');
-      return;
-    }
-    
     try {
       console.log('🔄 [EnhancedHybridPriceService] Starting DEX program stream...');
       console.log(`🎯 [EnhancedHybridPriceService] Monitoring ${DEX_PROGRAMS.length} DEX programs`);
       
-      // Cleanup old stream if exists
-      if (this.dexStream) {
-        console.log('🧹 [EnhancedHybridPriceService] Cleaning up old stream...');
-        try {
-          this.dexStream.removeAllListeners();
-          this.dexStream = null;
-        } catch (e) {
-          console.warn('⚠️ [EnhancedHybridPriceService] Error cleaning up old stream:', e.message);
-        }
-      }
-      
-      this.isStreamActive = true;
-      
       const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
-      const Client = YellowstoneGrpc.default || YellowstoneGrpc;
-      const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+      const CommitmentLevel = YellowstoneGrpc.CommitmentLevel || YellowstoneGrpc.default?.CommitmentLevel;
       
       // Create transaction filters for DEX programs
       const transactionFilters = {
@@ -515,13 +318,12 @@ class EnhancedHybridPriceService extends EventEmitter {
           accountRequired: [],
           vote: false,
           failed: false,
-          // ✅ CRITICAL: Request ALL data needed for swap detection
           include_meta: true,
           include_token_balances: true,
           include_instructions: true,
           include_inner_instructions: true,
           include_loaded_addresses: true,
-          include_accounts: true
+          include_accounts: true,
         }
       };
       
@@ -542,37 +344,26 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.stats.streamRestarts++;
       
       console.log('✅ [EnhancedHybridPriceService] DEX program stream connected');
-      console.log('👂 [EnhancedHybridPriceService] Listening for DEX transactions...');
-      console.log('⚠️ [EnhancedHybridPriceService] NOTE: If no swaps are detected, check Constant-K status at https://constant-k.com');
       
       // Handle stream data
-      let msgCount = 0;
       this.dexStream.on('data', (msg) => {
-        msgCount++;
-        // Log every 10000 messages instead of 100
-        if (msgCount % 10000 === 0) {
-          console.log(`📨 [EnhancedHybridPriceService] Received ${msgCount} gRPC messages`);
-        }
         this.handleStreamData(msg);
       });
       
       // Handle stream errors
       this.dexStream.on('error', (error) => {
         console.error('❌ [EnhancedHybridPriceService] Stream error:', error.message);
-        this.isStreamActive = false; // Mark as inactive
         this.scheduleStreamRestart();
       });
       
       // Handle stream end
       this.dexStream.on('end', () => {
         console.log('⚠️ [EnhancedHybridPriceService] Stream ended');
-        this.isStreamActive = false; // Mark as inactive
         this.scheduleStreamRestart();
       });
       
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to start DEX stream:', error.message);
-      this.isStreamActive = false; // Mark as inactive
       this.scheduleStreamRestart();
     }
   }
@@ -581,17 +372,10 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Schedule stream restart after error/end
    */
   scheduleStreamRestart() {
-    // Clear any existing restart timeout to prevent duplicates
-    if (this.restartTimeout) {
-      console.log('⚠️ [EnhancedHybridPriceService] Restart already scheduled, skipping duplicate');
-      return;
-    }
-    
     const restartDelay = 5000; // 5 seconds
     console.log(`🔄 [EnhancedHybridPriceService] Scheduling stream restart in ${restartDelay}ms...`);
     
-    this.restartTimeout = setTimeout(() => {
-      this.restartTimeout = null; // Clear timeout reference
+    setTimeout(() => {
       this.startDexProgramStream();
     }, restartDelay);
   }
@@ -601,196 +385,200 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   handleStreamData(msg) {
     try {
+      const signature = this.extractSignatureFromMessage(msg);
       const swaps = this.parseBalanceChanges(msg);
       
-      if (!swaps || swaps.length === 0) {
-        // Most DEX transactions are not token swaps (SOL-only, NFTs, liquidity ops, etc.)
-        return;
-      }
-      
-      // Debug: Log EVERY swap detection for first 100 swaps
-      if (this.stats.totalSwapsProcessed < 100) {
-        console.log(`🔍 [Swap Detected] #${this.stats.totalSwapsProcessed + 1}: ${swaps.length} swap(s) in tx, first: ${swaps[0].type} ${swaps[0].tokenMint.slice(0,8)}... $${swaps[0].volumeUsd.toFixed(2)}`);
-      }
-      
-      // Log every 10th swap to reduce noise
-      // Log every 1000 swaps instead of 10
-      if (this.stats.totalSwapsProcessed % 1000 === 0) {
-        console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.totalSwapsProcessed} swaps`);
-      }
-      
-      for (const swap of swaps) {
-        this.stats.totalSwapsProcessed++;
-        
-        // Debug: Log INCOG swaps specifically with more details
-        if (swap.tokenMint === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3') {
-          console.log(`🔵 [INCOG SWAP DETECTED] ${swap.type} $${swap.volumeUsd.toFixed(2)} | ${swap.tokenAmount.toFixed(2)} tokens @ $${swap.priceUsd.toFixed(6)} - Known: ${this.knownTokens.has(swap.tokenMint)}`);
+      if (swaps && swaps.length > 0) {
+        for (const swap of swaps) {
+          this.stats.totalSwapsProcessed++;
+          
+          // Check if this is a known token or new token
+          if (this.knownTokens.has(swap.tokenMint)) {
+            this.processKnownTokenSwap(swap);
+          } else {
+            this.processNewTokenSwap(swap);
+          }
         }
-        
-        // Check if this is a known token or new token
-        if (this.knownTokens.has(swap.tokenMint)) {
-          this.processKnownTokenSwap(swap);
-        } else {
-          // Process new token (log only when it passes filters)
-          this.processNewTokenSwap(swap);
+      } else if (this.enableRpcFallback) {
+        const candidateMints = this.extractCandidateMints(msg);
+        if (signature && candidateMints.size > 0) {
+          const slot = msg.transaction?.slot ?? null;
+          this.enqueueRpcFallback(signature, candidateMints, slot);
         }
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Error handling stream data:', error.message);
-      console.error('❌ Stack:', error.stack);
     }
   }
 
-  /**
-   * AMM programs we trust for swap detection (not RFQ/routers)
-   */
-  static AMM_PROGRAMS = new Set([
-    '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8',  // Raydium AMM
-    'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK',  // Raydium CLMM
-    'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C',  // Raydium CPMM v2
-    'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',   // Orca Whirlpool
-    'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',   // Meteora DLMM
-    'Dooar9JkhdZ7J3LHN3A7YCuoGRUggXhQaG4kijfLGU2j',  // Meteora Pools
-    'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG',   // Meteora DAMM v2
-    '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',   // Pump.fun AMM
-    'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',   // PumpSwap (Pump.fun AMM)
-  ]);
+  extractSignatureFromMessage(msg) {
+    const container = msg.transaction?.transaction || msg.transactioon?.transaction;
+    const direct = this.normalizeSignature(container?.signature);
+    if (direct) return direct;
 
-  /**
-   * Known automated liquidity bot addresses to filter out
-   * These are market makers that add noise, not real user swaps
-   */
-  static LIQUIDITY_BOTS = new Set([
-    'MfDuWeqSHEqTFVYZ7LoexgAK9dxk7cy4DFJWjWMGVWa',  // Wintermute Automated Liquidity Bot
-    // Add more as we discover them
-  ]);
+    const nestedSignature = container?.transaction?.signatures?.[0];
+    const normalizedNested = this.normalizeSignature(nestedSignature);
+    if (normalizedNested) return normalizedNested;
 
-  /**
-   * Helper: Resolve account key by index from meta (for pre/postTokenBalances)
-   */
-  resolveMetaKeyByIndex(message, idx) {
-    const { PublicKey } = require('@solana/web3.js');
-    const statics = message.accountKeys || [];
-    const loaded = message.loadedAddresses || { writable: [], readonly: [] };
-    const combined = [...statics, ...loaded.writable, ...loaded.readonly];
-    
-    if (idx < 0 || idx >= combined.length) return 'unknown';
-    const k = combined[idx];
-    if (Buffer.isBuffer(k)) return new PublicKey(k).toBase58();
-    if (typeof k === 'string') return k;
-    if (k?.toBase58) return k.toBase58();
-    return String(k);
+    return this.normalizeSignature(msg.transaction?.signature || msg.transactioon?.signature);
   }
 
-  /**
-   * Helper: Resolve account key by index from instruction accounts
-   */
-  resolveIxKeyByIndex(message, idx) {
-    return this.resolveMetaKeyByIndex(message, idx);
-  }
-
-  /**
-   * Helper: Check if accountPubkey is an ATA of ownerPubkey for mint
-   */
-  isAtaOf(ownerPubkey, mint, accountPubkey) {
-    try {
-      const { PublicKey } = require('@solana/web3.js');
-      const { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } = require('@solana/spl-token');
-      
-      const owner = new PublicKey(ownerPubkey);
-      const mintKey = new PublicKey(mint);
-      const account = new PublicKey(accountPubkey);
-      
-      // Try both token programs
-      const ata1 = getAssociatedTokenAddressSync(mintKey, owner, false, TOKEN_PROGRAM_ID);
-      if (ata1.equals(account)) return true;
-      
-      const ata2 = getAssociatedTokenAddressSync(mintKey, owner, false, TOKEN_2022_PROGRAM_ID);
-      if (ata2.equals(account)) return true;
-      
-      return false;
-    } catch {
-      return false;
+  normalizeSignature(sig) {
+    if (!sig) return null;
+    if (typeof sig === 'string') return sig;
+    if (Buffer.isBuffer(sig)) return bs58.encode(sig);
+    if (sig instanceof Uint8Array) return bs58.encode(sig);
+    if (sig.type === 'Buffer' && Array.isArray(sig.data)) {
+      return bs58.encode(Uint8Array.from(sig.data));
     }
+    return String(sig);
   }
 
-  /**
-   * Extract token deltas from transaction (index-safe)
-   */
-  extractTokenDeltas(tx, meta, message) {
-    const deltas = [];
-    const preBalances = meta.preTokenBalances || [];
-    const postBalances = meta.postTokenBalances || [];
-    
-    for (const pre of preBalances) {
-      const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
-      if (!post) continue;
-      
-      // CRITICAL: Use raw amount (BigInt) instead of uiAmount (which can be null)
-      const decimals = Number(pre.uiTokenAmount?.decimals ?? 0);
-      const preRaw = BigInt(pre.uiTokenAmount?.amount ?? "0");
-      const postRaw = BigInt(post.uiTokenAmount?.amount ?? "0");
-      const dRaw = postRaw - preRaw;
-      
-      if (dRaw === 0n) continue;
-      
-      const deltaUI = Number(dRaw) / (10 ** decimals);
-      if (Math.abs(deltaUI) < 0.000001) continue; // Skip dust
-      
-      deltas.push({
-        accountIndex: pre.accountIndex,
-        accountPubkey: this.resolveMetaKeyByIndex(message, pre.accountIndex),
-        mint: pre.mint,
-        owner: pre.owner,
-        deltaUI,
-        decimals
-      });
-    }
-    
-    return deltas;
-  }
+  extractCandidateMints(msg) {
+    const mints = new Set();
+    const meta =
+      msg.transaction?.transaction?.meta ||
+      msg.transaction?.meta ||
+      msg.transactioon?.transaction?.meta ||
+      msg.transactioon?.meta;
 
-  /**
-   * Get signer set (fee payer + signers)
-   */
-  getSignerSet(message) {
-    const { PublicKey } = require('@solana/web3.js');
-    const signers = new Set();
-    const statics = message.accountKeys || [];
-    const n = message.header?.numRequiredSignatures || 1;
-    
-    for (let i = 0; i < Math.min(n, statics.length); i++) {
-      const k = statics[i];
-      if (Buffer.isBuffer(k)) {
-        signers.add(new PublicKey(k).toBase58());
-      } else if (typeof k === 'string') {
-        signers.add(k);
-      } else if (k?.toBase58) {
-        signers.add(k.toBase58());
+    if (!meta) return mints;
+
+    const consider = (balance) => {
+      const mint = balance?.mint;
+      if (!mint || mint === WSOL) return;
+      if (this.isMintMonitored(mint)) {
+        mints.add(mint);
       }
-    }
-    
-    return signers;
+    };
+
+    (meta.preTokenBalances ?? []).forEach(consider);
+    (meta.postTokenBalances ?? []).forEach(consider);
+
+    return mints;
   }
 
-  /**
-   * Check if delta is user-side (signer or ATA of signer)
-   */
-  isUserSideDelta(delta, signerSet) {
-    // Owner is a signer
-    if (signerSet.has(delta.owner)) return true;
-    
-    // accountPubkey is an ATA of a signer
-    for (const signer of signerSet) {
-      if (this.isAtaOf(signer, delta.mint, delta.accountPubkey)) return true;
+  enqueueRpcFallback(signature, candidateMints, slot) {
+    if (!this.enableRpcFallback) return;
+    if (!signature || candidateMints.size === 0) return;
+
+    let item = this.rpcQueueMap.get(signature);
+    if (item) {
+      candidateMints.forEach((mint) => item.mints.add(mint));
+      return;
     }
-    
+
+    item = {
+      signature,
+      mints: new Set(candidateMints),
+      slot: slot ?? null,
+    };
+
+    this.rpcQueueMap.set(signature, item);
+    this.rpcQueue.push(item);
+    if (this.rpcQueue.length > this.stats.rpcQueuePeak) {
+      this.stats.rpcQueuePeak = this.rpcQueue.length;
+    }
+    this.startRpcWorker();
+  }
+
+  async startRpcWorker() {
+    if (!this.enableRpcFallback || this.rpcWorkerActive) return;
+    if (this.rpcQueue.length === 0) return;
+
+    this.rpcWorkerActive = true;
+    try {
+      while (this.rpcQueue.length > 0) {
+        const item = this.rpcQueue.shift();
+        if (!item) continue;
+        this.rpcQueueMap.delete(item.signature);
+        await this.processRpcQueueItem(item);
+        if (RPC_FETCH_DELAY_MS > 0 && this.rpcQueue.length > 0) {
+          await this.delay(RPC_FETCH_DELAY_MS);
+        }
+      }
+    } finally {
+      this.rpcWorkerActive = false;
+    }
+  }
+
+  async processRpcQueueItem(item) {
+    try {
+      this.stats.rpcFetches++;
+      const tx = await this.rpcConnection.getTransaction(item.signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!tx) {
+        return;
+      }
+
+      this.stats.rpcSuccess++;
+
+      const swapsDetected = [];
+      for (const mint of item.mints) {
+        if (!this.isMintMonitored(mint)) continue;
+
+        const swaps = detectSwapsForMint(
+          tx,
+          mint,
+          this.solPriceUSD || 0,
+          this.rpcTokenPriceCache,
+          undefined
+        );
+
+        for (const swap of swaps) {
+          swap.signature = this.normalizeSignature(swap.signature) || item.signature;
+          swap.slot = swap.slot ?? tx.slot ?? item.slot ?? null;
+          swap.timestamp =
+            swap.timestamp ?? (tx.blockTime ? tx.blockTime * 1000 : Date.now());
+          swap.tokenMint = swap.tokenMint || mint;
+          swap.walletAddress = swap.walletAddress || swap.maker || null;
+          swap.source = swap.source || 'rpc-fallback';
+          swapsDetected.push(swap);
+        }
+      }
+
+      if (!swapsDetected.length) {
+        return;
+      }
+
+      for (const swap of swapsDetected) {
+        this.stats.totalSwapsProcessed++;
+        this.stats.rpcSwaps++;
+
+        if (this.knownTokens.has(swap.tokenMint)) {
+          await this.processKnownTokenSwap(swap);
+        } else {
+          await this.processNewTokenSwap(swap);
+        }
+      }
+
+      if (this.stats.rpcSwaps % 20 === 0) {
+        console.log(
+          `🛰️ [RPC Fallback] Processed ${this.stats.rpcSwaps} swaps via RPC (queue size: ${this.rpcQueue.length})`
+        );
+      }
+    } catch (error) {
+      console.error(`❌ [RPC Fallback] Error processing ${item.signature}:`, error.message);
+    }
+  }
+
+  isMintMonitored(mint) {
+    if (!mint) return false;
+    if (this.knownTokens.has(mint)) return true;
+    if (this.newTokenActivity.has(mint)) return true;
+    if (this.tokenCacheSet.has(mint)) return true;
     return false;
+  }
+
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
    * Parse balance changes from gRPC transaction data
-   * BATTLE-TESTED APPROACH: Per-instruction processing with pool delta inversion
    */
   parseBalanceChanges(msg) {
     try {
@@ -800,20 +588,14 @@ class EnhancedHybridPriceService extends EventEmitter {
 
       const tx = msg.transaction.transaction;
       const slot = msg.transaction.slot;
-      const message = tx.transaction?.message;
       
-      // Early exit if message is missing
-      if (!message) {
-        return null;
-      }
-      
-      // Extract signature and convert to base58 (Solscan format)
+      // Extract signature
       let signature = tx.signature || 
                      tx.transaction?.signatures?.[0] || 
                      msg.transaction?.signature;
       
       if (signature && Buffer.isBuffer(signature)) {
-        signature = bs58.encode(signature);
+        signature = Buffer.from(signature).toString('base64');
       }
 
       // Get balance changes from meta
@@ -822,145 +604,89 @@ class EnhancedHybridPriceService extends EventEmitter {
         return null;
       }
 
-      // ✅ GATE 1: Fast prefilter - check for any token balance changes
-      if (!meta.preTokenBalances || meta.preTokenBalances.length === 0) {
+      const preBalances = meta.preTokenBalances || [];
+      const postBalances = meta.postTokenBalances || [];
+
+      if (preBalances.length === 0) {
         return null;
       }
 
-      // Step 1: Extract all token deltas using raw amounts (BigInt)
-      const deltas = this.extractTokenDeltas(tx, meta, message);
-      if (deltas.length < 2) return null;
-
-      // Step 2: Get signer set (fee payer + signers)
-      const signerSet = this.getSignerSet(message);
-      const { PublicKey } = require('@solana/web3.js');
-      
-      // Try to find the actual user (not bot/router)
-      // Priority: 1) User-side delta owner, 2) First non-fee-payer signer, 3) Fee payer
-      let actualUser = 'unknown';
-      const feePayer = message.accountKeys?.[0];
-      const feePayerStr = feePayer 
-        ? (Buffer.isBuffer(feePayer) ? new PublicKey(feePayer).toBase58() : String(feePayer))
-        : 'unknown';
-
-      // Step 3: Flatten all instructions (top-level + inner)
-      const instrsTop = message.instructions || [];
-      const innerGroups = (meta.innerInstructions || []).flatMap(g => g.instructions || []);
-      const allIx = [...instrsTop, ...innerGroups];
-
-      // ✅ GATE 2: Filter to ONLY AMM instructions (skip aggregator wrappers like Jupiter/DFlow/Obric)
-      // This prevents wrapper noise and matches Dexscreener behavior
-      const ammIx = allIx.filter(ix => {
-        const pid = this.resolveProgramId(ix, message);
-        return EnhancedHybridPriceService.AMM_PROGRAMS.has(pid);
+      // Find all unique token mints (excluding WSOL)
+      const tokenMints = new Set();
+      preBalances.forEach(b => {
+        if (b.mint && b.mint !== WSOL) {
+          tokenMints.add(b.mint);
+        }
       });
-      
-      // Debug: Log INCOG transactions being processed
-      if (deltas.some(d => d.mint === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3')) {
-        console.log(`🟡 [INCOG TX] Processing transaction with ${ammIx.length} AMM instructions, ${deltas.length} deltas`);
-      }
-      
+
+      // For each token, calculate balance changes
       const swaps = [];
-      
-      // ✅ GATE 3: Process each AMM instruction
-      for (const ix of ammIx) {
-        const touched = this.deltasTouchedByIx(ix, deltas);
-        const nonZero = touched.filter(d => Math.abs(d.deltaUI) > 0.000001);
-        if (nonZero.length < 2) continue;
+      for (const tokenMint of tokenMints) {
+        let tokenIn = 0;
+        let tokenOut = 0;
+        let solIn = 0;
+        let solOut = 0;
+        let walletAddress = null;
 
-        // ✅ GATE 4: Skip liquidity operations (add/remove liquidity, rebalance, etc.)
-        // Only process actual swaps
-        // Liquidity ops typically have BOTH tokens going in the same direction (both in or both out)
-        const positiveDeltas = nonZero.filter(d => d.deltaUI > 0);
-        const negativeDeltas = nonZero.filter(d => d.deltaUI < 0);
-        
-        // If all deltas are same sign, it's likely a liquidity operation, not a swap
-        if (positiveDeltas.length === 0 || negativeDeltas.length === 0) {
-          continue;
+        for (let i = 0; i < preBalances.length; i++) {
+          const pre = preBalances[i];
+          const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
+
+          if (!post) continue;
+
+          const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
+          const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
+          const change = postAmount - preAmount;
+
+          // Capture wallet address (owner of the token account)
+          if (!walletAddress && pre.owner) {
+            walletAddress = pre.owner;
+          }
+
+          // Token balance changes
+          if (pre.mint === tokenMint) {
+            if (change > 0) {
+              tokenIn += change;
+            } else if (change < 0) {
+              tokenOut += Math.abs(change);
+            }
+          }
+
+          // SOL balance changes
+          if (pre.mint === WSOL) {
+            if (change > 0) {
+              solIn += change;
+            } else if (change < 0) {
+              solOut += Math.abs(change);
+            }
+          }
         }
 
-        // Check if we have user-side deltas
-        const userSide = nonZero.filter(d => this.isUserSideDelta(d, signerSet));
-        const isUserSide = userSide.length >= 2;
-        
-        // Pick legs (prefer user-side, fallback to touched)
-        const picked = this.pickLegsForIx(nonZero, signerSet);
-        if (!picked) continue;
+        // Valid swap: has both token and SOL changes
+        if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
+          const isBuy = tokenIn > 0;
+          const tokenAmount = isBuy ? tokenIn : tokenOut;
+          const solAmount = isBuy ? solOut : solIn;
 
-        let { input, output } = picked;
-        
-        // CRITICAL: If we picked pool deltas (not user-side), INVERT them!
-        // Pool deltas are opposite of user deltas
-        if (!isUserSide) {
-          [input, output] = [output, input];
-        }
-        
-        // Process each non-WSOL token in this swap
-        const mints = [input.mint, output.mint].filter(m => m !== WSOL);
-        
-        for (const tokenMint of mints) {
-          let side, tokenAmount, counterAmount;
-          
-          // Determine BUY/SELL from user perspective
-          if (tokenMint === output.mint) {
-            // User RECEIVED target token = BUY
-            side = 'BUY';
-            tokenAmount = Math.abs(output.deltaUI);
-            counterAmount = Math.abs(input.deltaUI);
-          } else if (tokenMint === input.mint) {
-            // User PAID target token = SELL
-            side = 'SELL';
-            tokenAmount = Math.abs(input.deltaUI);
-            counterAmount = Math.abs(output.deltaUI);
-          } else {
-            continue;
+          if (tokenAmount > 0 && solAmount > 0) {
+            const priceInSol = solAmount / tokenAmount;
+            const priceUsd = priceInSol * this.solPriceUSD;
+            const volumeUsd = solAmount * this.solPriceUSD;
+
+            swaps.push({
+              signature: signature?.slice(0, 32) || 'unknown',
+              tokenMint,
+              slot,
+              timestamp: Date.now(), // Estimate from current time
+              type: isBuy ? 'BUY' : 'SELL',
+              tokenAmount,
+              solAmount,
+              priceInSol,
+              priceUsd,
+              volumeUsd,
+              walletAddress
+            });
           }
-
-          if (!tokenAmount || !counterAmount) continue;
-
-          // Calculate price & volume (prefer SOL as counter)
-          const isCounterSOL = (input.mint === WSOL || output.mint === WSOL);
-          let priceInSol, priceUsd, volumeUsd;
-
-          if (isCounterSOL) {
-            priceInSol = counterAmount / tokenAmount;
-            priceUsd = priceInSol * this.solPriceUSD;
-            volumeUsd = counterAmount * this.solPriceUSD;
-          } else {
-            // Non-SOL pair - skip for now (would need USDC price lookup)
-            continue;
-          }
-
-          // Dust filter (lowered to $0.01 to catch smaller swaps)
-          if (!isFinite(volumeUsd) || volumeUsd < 0.01) continue;
-
-          // ✅ GATE 5: Filter out automated liquidity bots (market makers)
-          if (EnhancedHybridPriceService.LIQUIDITY_BOTS.has(feePayerStr)) {
-            continue; // Skip bot swaps
-          }
-
-          // Find actual user: prefer delta owner over fee payer
-          let maker = feePayerStr;
-          if (input.owner && signerSet.has(input.owner)) {
-            maker = input.owner;
-          } else if (output.owner && signerSet.has(output.owner)) {
-            maker = output.owner;
-          }
-
-          // Emit swap
-          swaps.push({
-            signature: signature || 'unknown',
-            tokenMint,
-            slot,
-            timestamp: Date.now(),
-            type: side,
-            tokenAmount,
-            solAmount: counterAmount,
-            priceInSol,
-            priceUsd,
-            volumeUsd,
-            walletAddress: maker
-          });
         }
       }
 
@@ -973,78 +699,6 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
-   * Helper: Resolve program ID from instruction
-   */
-  resolveProgramId(ix, message) {
-    // Direct programId field (string or PublicKey)
-    if (ix.programId) {
-      if (typeof ix.programId === 'string') return ix.programId;
-      if (Buffer.isBuffer(ix.programId)) {
-        const { PublicKey } = require('@solana/web3.js');
-        return new PublicKey(ix.programId).toBase58();
-      }
-      if (ix.programId.toBase58) return ix.programId.toBase58();
-    }
-    
-    // programIdIndex references accountKeys
-    if (typeof ix.programIdIndex === 'number') {
-      return this.resolveIxKeyByIndex(message, ix.programIdIndex);
-    }
-    
-    return '';
-  }
-
-  /**
-   * Helper: Get instruction account indices
-   */
-  ixAccountIdxs(ix) {
-    if (Array.isArray(ix.accounts)) return ix.accounts;
-    if (Buffer.isBuffer(ix.accounts)) return Array.from(ix.accounts);
-    if (ix.accounts?.data) return Array.from(ix.accounts.data);
-    if (ix.accountKeyIndexes) return ix.accountKeyIndexes;
-    return [];
-  }
-
-  /**
-   * Helper: Filter deltas touched by this instruction
-   */
-  deltasTouchedByIx(ix, deltas) {
-    const set = new Set(this.ixAccountIdxs(ix));
-    return deltas.filter(d => set.has(d.accountIndex));
-  }
-
-  /**
-   * Helper: Collapse deltas by mint, keeping largest absolute value
-   */
-  collapseByMintMaxAbs(legs) {
-    const byMint = new Map();
-    for (const d of legs) {
-      const cur = byMint.get(d.mint);
-      if (!cur || Math.abs(d.deltaUI) > Math.abs(cur.deltaUI)) {
-        byMint.set(d.mint, d);
-      }
-    }
-    return [...byMint.values()];
-  }
-
-  /**
-   * Helper: Pick input/output legs for an instruction
-   */
-  pickLegsForIx(touched, signerSet) {
-    const userSide = touched.filter(d => this.isUserSideDelta(d, signerSet));
-    const legs = (userSide.length >= 2 ? userSide : touched);
-    const uniq = this.collapseByMintMaxAbs(legs);
-
-    const inputs = uniq.filter(d => d.deltaUI < 0).sort((a,b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
-    const outputs = uniq.filter(d => d.deltaUI > 0).sort((a,b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
-    
-    if (!inputs.length || !outputs.length) return null;
-
-    return { input: inputs[0], output: outputs[0] };
-  }
-
-
-  /**
    * Process swap for a known token (already in database)
    */
   async processKnownTokenSwap(swap) {
@@ -1055,14 +709,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (!metrics) {
       metrics = new TokenMetrics(swap.tokenMint);
       this.knownTokens.set(swap.tokenMint, metrics);
-      console.log(`📊 [EnhancedHybridPriceService] Created new TokenMetrics for known token: ${swap.tokenMint.slice(0, 8)}...`);
     }
     
     // Add swap to metrics
     metrics.addSwap(swap);
-    
-    // Log every 100th known token swap
-    // Removed verbose logging
     
     // Save to ChartDatabase (uses storeSwaps with array)
     await this.chartDatabase.storeSwaps([{
@@ -1073,86 +723,28 @@ class EnhancedHybridPriceService extends EventEmitter {
       tokenAmount: swap.tokenAmount,
       volumeUsd: swap.volumeUsd,
       signature: swap.signature,
-      source: 'grpc-dex'
+      source: swap.source || 'grpc-dex'
     }]);
-    
-    // ✅ REAL-TIME: Broadcast individual swap immediately
-    if (this.webSocketServer) {
-      const swapPayload = {
-        type: 'swapUpdate',
-        tokenAddress: swap.tokenMint,
-        data: {
-          signature: swap.signature,
-          timestamp: swap.timestamp,
-          type: swap.type,
-          tokenAmount: swap.tokenAmount,
-          solAmount: swap.solAmount,
-          baseAmount: swap.solAmount,
-          priceUsd: swap.priceUsd,
-          volumeUsd: swap.volumeUsd,
-          maker: swap.walletAddress,
-          price: swap.priceInSol
-        }
-      };
-      
-      // Debug log for first 50 swaps
-      if (this.stats.knownTokenSwaps < 50) {
-        const token = this.knownTokens.get(swap.tokenMint);
-        console.log(`🔴 [SWAP BROADCAST] ${token?.jupiterData?.symbol || swap.tokenMint.slice(0,8)}: ${swap.type} $${swap.volumeUsd.toFixed(2)}`);
-      }
-      
-      this.webSocketServer.broadcastToTokenSubscribers(swap.tokenMint, swapPayload);
-    }
     
     // Broadcast price update via WebSocket
     if (this.webSocketServer) {
       const metricsData = metrics.getMetrics();
-      const token = this.knownTokens.get(swap.tokenMint);
-      const jupiterData = token?.jupiterData;
-      
-      // Calculate real-time market cap using circulating supply from Jupiter
-      const metadata = this.tokenMetadataCache.get(swap.tokenMint);
-      const circSupply = metadata?.circSupply || jupiterData?.circSupply;
-      const marketCap = circSupply ? metricsData.currentPrice * circSupply : (jupiterData?.marketCap || 0);
-      
       this.broadcastPriceUpdate(swap.tokenMint, {
-        // Real-time from DEX stream, fallback to Jupiter
-        price: metricsData.currentPrice || jupiterData?.price || 0,
-        marketCap: marketCap,
-        
-        // 5M window (real-time, fallback to Jupiter)
-        priceChange5m: metricsData['5m'].priceChange || jupiterData?.stats5m?.priceChange || 0,
-        volume5m: metricsData['5m'].volume || jupiterData?.stats5m?.volume || 0,
-        txns5m: metricsData['5m'].txns || jupiterData?.stats5m?.txns || 0,
-        makers5m: metricsData['5m'].makers || jupiterData?.stats5m?.makers || 0,
-        
-        // 1H window (real-time, fallback to Jupiter)
-        priceChange1h: metricsData['1h'].priceChange || jupiterData?.stats1h?.priceChange || 0,
-        volume1h: metricsData['1h'].volume || jupiterData?.stats1h?.volume || 0,
-        txns1h: metricsData['1h'].txns || jupiterData?.stats1h?.txns || 0,
-        makers1h: metricsData['1h'].makers || jupiterData?.stats1h?.makers || 0,
-        
-        // 6H window (real-time, fallback to Jupiter)
-        priceChange6h: metricsData['6h'].priceChange || jupiterData?.stats6h?.priceChange || 0,
-        volume6h: metricsData['6h'].volume || jupiterData?.stats6h?.volume || 0,
-        txns6h: metricsData['6h'].txns || jupiterData?.stats6h?.txns || 0,
-        makers6h: metricsData['6h'].makers || jupiterData?.stats6h?.makers || 0,
-        
-        // 24H window (real-time, fallback to Jupiter)
-        priceChange24h: metricsData['24h'].priceChange || jupiterData?.priceChange24h || 0,
-        volume24h: metricsData['24h'].volume || jupiterData?.volume24h || 0,
-        txns24h: metricsData['24h'].txns || jupiterData?.txns24h || 0,
-        makers24h: metricsData['24h'].makers || jupiterData?.makers24h || 0,
-        
-        // Liquidity (only from Jupiter, not available from DEX stream)
-        liquidity: jupiterData?.liquidity || 0,
-        
+        price: metricsData.currentPrice,
+        priceChange5m: metricsData['5m'].priceChange,
+        priceChange1h: metricsData['1h'].priceChange,
+        volume5m: metricsData['5m'].volume,
+        volume1h: metricsData['1h'].volume,
+        txns5m: metricsData['5m'].txns,
+        makers5m: metricsData['5m'].makers,
         isLive: true
       });
     }
     
     // Log every 100th swap
-    // Removed verbose logging
+    if (this.stats.knownTokenSwaps % 100 === 0) {
+      console.log(`📊 [EnhancedHybridPriceService] Processed ${this.stats.knownTokenSwaps} known token swaps`);
+    }
   }
 
   /**
@@ -1161,7 +753,7 @@ class EnhancedHybridPriceService extends EventEmitter {
   async processNewTokenSwap(swap) {
     this.stats.newTokenSwaps++;
     
-    // Track activity for this new token (DON'T onboard yet - wait for filters)
+    // Track activity for this new token
     let activity = this.newTokenActivity.get(swap.tokenMint);
     if (!activity) {
       activity = {
@@ -1222,17 +814,13 @@ class EnhancedHybridPriceService extends EventEmitter {
         return;
       }
       
-      // PASSED ALL FILTERS! Onboard with Jupiter baseline
+      // PASSED ALL FILTERS! Add to database
       console.log(`🆕 [EnhancedHybridPriceService] New token discovered: ${swap.tokenMint.slice(0, 8)}...`);
       console.log(`   Symbol: ${layer2Result.jupiterData.symbol}`);
       console.log(`   Swaps: ${activity.swapCount}, Volume: $${activity.totalVolume.toFixed(2)}, Traders: ${activity.uniqueTraders.size}`);
       
-      // Create TokenMetrics
+      // Add to known tokens
       const metrics = new TokenMetrics(swap.tokenMint);
-      this.knownTokens.set(swap.tokenMint, metrics);
-      
-      // Seed with Jupiter baseline (we already have the data from Layer 2)
-      await this.seedTokenMetricsFromJupiter(swap.tokenMint, layer2Result.jupiterData);
       
       // Add all historical swaps
       const swapsToStore = [];
@@ -1248,7 +836,7 @@ class EnhancedHybridPriceService extends EventEmitter {
           tokenAmount: historicalSwap.tokenAmount,
           volumeUsd: historicalSwap.volumeUsd,
           signature: historicalSwap.signature,
-          source: 'grpc-dex'
+        source: historicalSwap.source || 'grpc-dex'
         });
       }
       
@@ -1256,6 +844,8 @@ class EnhancedHybridPriceService extends EventEmitter {
       if (swapsToStore.length > 0) {
         await this.chartDatabase.storeSwaps(swapsToStore);
       }
+      
+      this.knownTokens.set(swap.tokenMint, metrics);
       
       // Trigger token processing (scoring, Twitter data, etc.)
       this.triggerTokenProcessing(swap.tokenMint, layer2Result.jupiterData, activity);
@@ -1417,7 +1007,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter search API (single token lookup)
+      // Use Jupiter tokens search API (searches by mint address)
       const response = await axios.get(`${JUPITER_API_BASE}/search?query=${tokenAddress}`, {
         timeout: 5000
       });
@@ -1445,414 +1035,6 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
-   * Seed TokenMetrics with Jupiter baseline data
-   * This provides immediate data for tokens without waiting for swaps
-   * Jupiter data is stored in BASELINE and NEVER replaced
-   */
-  async seedTokenMetricsFromJupiter(tokenAddress, jupiterData) {
-    const metrics = this.knownTokens.get(tokenAddress);
-    if (!metrics) {
-      console.warn(`⚠️ [EnhancedHybridPriceService] Cannot seed ${tokenAddress.slice(0,8)}... - not in knownTokens`);
-      return false;
-    }
-    
-    // DEBUG: Log Jupiter data structure for first token
-    if (Math.random() < 0.05) {
-      console.log(`🔍 [Jupiter Debug] Token ${tokenAddress.slice(0,8)} Jupiter data:`, {
-        hasUsdPrice: !!jupiterData.usdPrice,
-        hasStats5m: !!jupiterData.stats5m,
-        hasStats1h: !!jupiterData.stats1h,
-        hasStats6h: !!jupiterData.stats6h,
-        hasStats24h: !!jupiterData.stats24h,
-        keys: Object.keys(jupiterData),
-        stats5mKeys: jupiterData.stats5m ? Object.keys(jupiterData.stats5m) : 'N/A',
-        stats24hKeys: jupiterData.stats24h ? Object.keys(jupiterData.stats24h) : 'N/A'
-      });
-    }
-    
-    try {
-      // Seed baseline price (Jupiter uses 'usdPrice' field)
-      if (jupiterData.usdPrice) {
-        metrics.baseline.price = jupiterData.usdPrice;
-      }
-      
-      // Seed 5M window baseline from stats5m
-      if (jupiterData.stats5m) {
-        const stats = jupiterData.stats5m;
-        metrics.baseline['5m'] = {
-          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-          txns: (stats.numBuys || 0) + (stats.numSells || 0),
-          makers: stats.numTraders || 0,
-          priceChange: stats.priceChange || 0
-        };
-      }
-      
-      // Seed 1H window baseline from stats1h
-      if (jupiterData.stats1h) {
-        const stats = jupiterData.stats1h;
-        metrics.baseline['1h'] = {
-          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-          txns: (stats.numBuys || 0) + (stats.numSells || 0),
-          makers: stats.numTraders || 0,
-          priceChange: stats.priceChange || 0
-        };
-      }
-      
-      // Seed 6H window baseline from stats6h
-      if (jupiterData.stats6h) {
-        const stats = jupiterData.stats6h;
-        metrics.baseline['6h'] = {
-          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-          txns: (stats.numBuys || 0) + (stats.numSells || 0),
-          makers: stats.numTraders || 0,
-          priceChange: stats.priceChange || 0
-        };
-      }
-      
-      // Seed 24H window baseline from stats24h
-      if (jupiterData.stats24h) {
-        const stats = jupiterData.stats24h;
-        metrics.baseline['24h'] = {
-          volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-          txns: (stats.numBuys || 0) + (stats.numSells || 0),
-          makers: stats.numTraders || 0,
-          priceChange: stats.priceChange || 0
-        };
-      }
-      
-      // Debug: Log first seeded token to verify data
-      if (Math.random() < 0.01) {
-        console.log(`🌱 [Seed Debug] Token ${tokenAddress.slice(0,8)}:`, {
-          price: metrics.baseline.price,
-          vol24h: metrics.baseline['24h'].volume,
-          txns24h: metrics.baseline['24h'].txns,
-          makers24h: metrics.baseline['24h'].makers,
-          priceChange24h: metrics.baseline['24h'].priceChange
-        });
-      }
-      
-      // After seeding baseline, recalculate metrics (baseline + live deltas)
-      metrics.updateMetrics();
-      
-      // Cache Jupiter data for liquidity/mcap
-      this.jupiterCache.set(tokenAddress, {
-        data: jupiterData,
-        timestamp: Date.now()
-      });
-      
-      return true;
-    } catch (error) {
-      console.error(`❌ [EnhancedHybridPriceService] Failed to seed ${tokenAddress.slice(0,8)}...:`, error.message);
-      return false;
-    }
-  }
-
-  /**
-   * Fetch Jupiter data for multiple tokens in one batch call
-   * Much more efficient than individual calls
-   */
-  async fetchJupiterDataBatch(tokenAddresses) {
-    if (!tokenAddresses || tokenAddresses.length === 0) {
-      return new Map();
-    }
-    
-    try {
-      // Jupiter batch endpoint: /search?query=addr1,addr2,addr3...
-      const mintQuery = tokenAddresses.join(',');
-      const response = await axios.get(`${JUPITER_API_BASE}/search?query=${mintQuery}`, {
-        timeout: 15000,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
-        }
-      });
-      
-      this.lastJupiterRequest = Date.now();
-      
-      // Response is an ARRAY of token data
-      const resultMap = new Map();
-      
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        // Jupiter returns array: [{ id: "address", symbol: "...", ... }, ...]
-        response.data.forEach(tokenData => {
-          if (tokenData && tokenData.id) {
-            resultMap.set(tokenData.id, tokenData);
-            // Cache individual results
-            this.jupiterCache.set(tokenData.id, {
-              data: tokenData,
-              timestamp: Date.now()
-            });
-          }
-        });
-      }
-      
-      return resultMap;
-    } catch (error) {
-      console.error(`❌ [EnhancedHybridPriceService] Jupiter batch API error:`, error.message);
-      return new Map();
-    }
-  }
-
-  /**
-   * Refresh token cache with FRESH Jupiter data
-   * Updates jupiterData field for all tokens in cache
-   */
-  async refreshTokenCacheWithJupiter() {
-    if (this.tokenCache.length === 0) {
-      console.log('⚠️ [EnhancedHybridPriceService] No tokens in cache to refresh');
-      return;
-    }
-    
-    console.log(`🔄 [EnhancedHybridPriceService] Refreshing ${this.tokenCache.length} tokens with fresh Jupiter data...`);
-    
-    const batchSize = 100;
-    let updatedCount = 0;
-    let failedCount = 0;
-    
-    for (let i = 0; i < this.tokenCache.length; i += batchSize) {
-      const batch = this.tokenCache.slice(i, i + batchSize);
-      const tokenAddresses = batch.map(t => t.contractAddress);
-      
-      // Fetch fresh Jupiter data
-      const jupiterDataMap = await this.fetchJupiterDataBatch(tokenAddresses);
-      
-      // Update cache with fresh data
-      for (const token of batch) {
-        const freshData = jupiterDataMap.get(token.contractAddress);
-        if (freshData) {
-          token.jupiterData = freshData; // Update cache
-          updatedCount++;
-        } else {
-          failedCount++;
-        }
-      }
-      
-      console.log(`🔄 [EnhancedHybridPriceService] Progress: ${updatedCount} updated, ${failedCount} failed (${i + batch.length}/${this.tokenCache.length})`);
-      
-      // Rate limiting: 2 seconds between batches
-      if (i + batchSize < this.tokenCache.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    console.log(`✅ [EnhancedHybridPriceService] Cache refresh complete: ${updatedCount}/${this.tokenCache.length} updated, ${failedCount} failed`);
-    
-    // Write updated cache back to disk
-    try {
-      await fs.writeFile(this.cachePath, JSON.stringify(this.tokenCache, null, 2), 'utf8');
-      console.log(`💾 [EnhancedHybridPriceService] Updated cache saved to disk: ${this.cachePath}`);
-    } catch (error) {
-      console.error(`❌ [EnhancedHybridPriceService] Failed to save updated cache:`, error.message);
-    }
-  }
-  
-  /**
-   * Seed TokenMetrics from updated token cache
-   * Uses the fresh Jupiter data that was just fetched
-   */
-  async seedMetricsFromCache() {
-    let seededCount = 0;
-    let failedCount = 0;
-    
-    for (const token of this.tokenCache) {
-      if (!token.contractAddress || !token.jupiterData) {
-        failedCount++;
-        continue;
-      }
-      
-      const metrics = this.knownTokens.get(token.contractAddress);
-      if (!metrics) {
-        failedCount++;
-        continue;
-      }
-      
-      // Seed from cache jupiterData
-      try {
-        if (token.jupiterData.usdPrice) {
-          metrics.baseline.price = token.jupiterData.usdPrice;
-        }
-        
-        // Seed 5M
-        if (token.jupiterData.stats5m) {
-          const stats = token.jupiterData.stats5m;
-          metrics.baseline['5m'] = {
-            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-            txns: (stats.numBuys || 0) + (stats.numSells || 0),
-            makers: stats.numTraders || 0,
-            priceChange: stats.priceChange || 0
-          };
-        }
-        
-        // Seed 1H
-        if (token.jupiterData.stats1h) {
-          const stats = token.jupiterData.stats1h;
-          metrics.baseline['1h'] = {
-            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-            txns: (stats.numBuys || 0) + (stats.numSells || 0),
-            makers: stats.numTraders || 0,
-            priceChange: stats.priceChange || 0
-          };
-        }
-        
-        // Seed 6H
-        if (token.jupiterData.stats6h) {
-          const stats = token.jupiterData.stats6h;
-          metrics.baseline['6h'] = {
-            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-            txns: (stats.numBuys || 0) + (stats.numSells || 0),
-            makers: stats.numTraders || 0,
-            priceChange: stats.priceChange || 0
-          };
-        }
-        
-        // Seed 24H
-        if (token.jupiterData.stats24h) {
-          const stats = token.jupiterData.stats24h;
-          metrics.baseline['24h'] = {
-            volume: (stats.buyVolume || 0) + (stats.sellVolume || 0),
-            txns: (stats.numBuys || 0) + (stats.numSells || 0),
-            makers: stats.numTraders || 0,
-            priceChange: stats.priceChange || 0
-          };
-        }
-        
-        // Update metrics to merge baseline + live deltas
-        metrics.updateMetrics();
-        
-        // Update Jupiter cache
-        this.jupiterCache.set(token.contractAddress, {
-          data: token.jupiterData,
-          timestamp: Date.now()
-        });
-        
-        seededCount++;
-      } catch (error) {
-        console.error(`❌ Failed to seed ${token.contractAddress.slice(0,8)}:`, error.message);
-        failedCount++;
-      }
-    }
-    
-    console.log(`✅ [EnhancedHybridPriceService] Seeded ${seededCount}/${this.tokenCache.length} tokens from cache, ${failedCount} failed`);
-  }
-
-  /**
-   * Seed ALL tokens with Jupiter baseline data on startup
-   * This ensures all tokens have data immediately, not just ones with recent swaps
-   * Uses BATCH requests to avoid rate limiting
-   */
-  async seedAllTokensFromJupiter() {
-    const tokenAddresses = Array.from(this.knownTokens.keys());
-    
-    if (tokenAddresses.length === 0) {
-      console.log('⚠️ [EnhancedHybridPriceService] No tokens to seed');
-      return;
-    }
-    
-    console.log(`🌱 [EnhancedHybridPriceService] Seeding ${tokenAddresses.length} tokens with Jupiter baseline (using batch API)...`);
-    
-    const batchSize = 100; // Jupiter supports up to 100 tokens per batch
-    let seededCount = 0;
-    let failedCount = 0;
-    
-    for (let i = 0; i < tokenAddresses.length; i += batchSize) {
-      const batch = tokenAddresses.slice(i, i + batchSize);
-      
-      // Fetch batch data from Jupiter
-      const jupiterDataMap = await this.fetchJupiterDataBatch(batch);
-      
-      // Seed each token with its data
-      for (const tokenAddress of batch) {
-        const metrics = this.knownTokens.get(tokenAddress);
-        
-        // ✅ CRITICAL: Skip if token already has baseline data from cache!
-        const hasBaselineData = metrics && (
-          metrics.baseline['5m'].priceChange !== 0 ||
-          metrics.baseline['1h'].priceChange !== 0 ||
-          metrics.baseline['6h'].priceChange !== 0 ||
-          metrics.baseline['24h'].priceChange !== 0
-        );
-        
-        if (hasBaselineData) {
-          seededCount++;
-          continue; // Skip - already has data from cache
-        }
-        
-        const jupiterData = jupiterDataMap.get(tokenAddress);
-        if (jupiterData) {
-          const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
-          if (seeded) {
-            seededCount++;
-          } else {
-            failedCount++;
-          }
-        } else {
-          // Jupiter API didn't return data - check if we have cached data from token cache
-          const cached = this.jupiterCache.get(tokenAddress);
-          if (cached && cached.data) {
-            const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, cached.data);
-            if (seeded) {
-              seededCount++;
-            } else {
-              failedCount++;
-            }
-          } else {
-            failedCount++;
-          }
-        }
-      }
-      
-      console.log(`🌱 [EnhancedHybridPriceService] Progress: ${seededCount} seeded, ${failedCount} failed/no-data (${i + batch.length}/${tokenAddresses.length})`);
-      
-      // Rate limiting: 2 seconds between batches (safer)
-      if (i + batchSize < tokenAddresses.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    console.log(`✅ [EnhancedHybridPriceService] Seeding complete: ${seededCount}/${tokenAddresses.length} tokens seeded, ${failedCount} failed/no-data`);
-  }
-
-  /**
-   * Onboard a new token (from any source)
-   * Creates TokenMetrics and seeds with Jupiter baseline
-   */
-  async onboardNewToken(tokenAddress, source = 'unknown') {
-    // Check if already exists
-    if (this.knownTokens.has(tokenAddress)) {
-      console.log(`ℹ️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... already onboarded`);
-      return true;
-    }
-    
-    console.log(`🆕 [EnhancedHybridPriceService] Onboarding new token: ${tokenAddress.slice(0,8)}... (source: ${source})`);
-    
-    // 1. Create TokenMetrics
-    const metrics = new TokenMetrics(tokenAddress);
-    this.knownTokens.set(tokenAddress, metrics);
-    
-    // 2. Fetch Jupiter baseline
-    const jupiterData = await this.fetchJupiterData(tokenAddress);
-    
-    if (jupiterData) {
-      // 3. Seed TokenMetrics with Jupiter baseline
-      const seeded = await this.seedTokenMetricsFromJupiter(tokenAddress, jupiterData);
-      if (seeded) {
-        console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded with Jupiter baseline`);
-      } else {
-        console.warn(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded but seeding failed`);
-      }
-    } else {
-      console.warn(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress.slice(0,8)}... onboarded but no Jupiter data, will wait for DEX swaps`);
-    }
-    
-    // 4. Fetch and cache token metadata
-    this.fetchTokenMetadata(tokenAddress).catch(err => {
-      console.error(`⚠️ Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, err.message);
-    });
-    
-    return true;
-  }
-
-  /**
    * Update SOL price
    */
   async updateSolPrice() {
@@ -1862,37 +1044,25 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     try {
-      // Use Jupiter search API for SOL
+      // Use Jupiter tokens search API for SOL
       const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
         timeout: 5000
       });
       
-      console.log(`🔍 [SOL Price Debug] Response status: ${response.status}`);
-      console.log(`🔍 [SOL Price Debug] Response data type: ${typeof response.data}`);
-      console.log(`🔍 [SOL Price Debug] Is array: ${Array.isArray(response.data)}`);
-      console.log(`🔍 [SOL Price Debug] Data length: ${response.data?.length}`);
-      
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         const solData = response.data[0];
-        console.log(`🔍 [SOL Price Debug] First item keys: ${Object.keys(solData).join(', ')}`);
-        console.log(`🔍 [SOL Price Debug] usdPrice value: ${solData.usdPrice}`);
-        
         if (solData.usdPrice) {
           this.solPriceUSD = parseFloat(solData.usdPrice);
           this.lastSolPriceUpdate = now;
           console.log(`💰 [EnhancedHybridPriceService] SOL Price updated: $${this.solPriceUSD.toFixed(2)}`);
-        } else {
-          console.error(`❌ [SOL Price Debug] No usdPrice field in response`);
         }
-      } else {
-        console.error(`❌ [SOL Price Debug] Invalid response format`);
       }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to update SOL price:', error.message);
       // Fallback to a reasonable default if API fails
       if (this.solPriceUSD === 0) {
-        this.solPriceUSD = 240; // Reasonable fallback
-        console.log('⚠️ [EnhancedHybridPriceService] Using fallback SOL price: $240');
+        this.solPriceUSD = 200; // Reasonable fallback
+        console.log('⚠️ [EnhancedHybridPriceService] Using fallback SOL price: $200');
       }
     }
   }
@@ -1901,10 +1071,7 @@ class EnhancedHybridPriceService extends EventEmitter {
    * Broadcast price update via WebSocket
    */
   broadcastPriceUpdate(tokenAddress, data) {
-    if (!this.webSocketServer) {
-      console.log('⚠️ [EnhancedHybridPriceService] WebSocket server not available for broadcast');
-      return;
-    }
+    if (!this.webSocketServer) return;
     
     try {
       // Use correct WebSocket method: broadcastToTokenSubscribers
@@ -1913,11 +1080,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         tokenAddress,
         data
       });
-      
-      // Log every 50th broadcast to confirm it's working
-      if (this.stats.totalSwapsProcessed % 50 === 0) {
-        console.log(`📡 [EnhancedHybridPriceService] Broadcasting price update for ${tokenAddress.slice(0, 8)}... (price: $${data.price?.toFixed(6)})`);
-      }
     } catch (error) {
       console.error('❌ [EnhancedHybridPriceService] Failed to broadcast price update:', error.message);
     }
@@ -1930,29 +1092,25 @@ class EnhancedHybridPriceService extends EventEmitter {
     try {
       const data = await fs.readFile(this.cachePath, 'utf8');
       this.tokenCache = JSON.parse(data);
+      this.tokenCacheSet = new Set();
       
-      // Just initialize empty TokenMetrics for all cached tokens
-      // We'll seed them later with FRESH Jupiter data
+      // Initialize TokenMetrics for all cached tokens
       for (const token of this.tokenCache) {
         if (token.contractAddress && !this.knownTokens.has(token.contractAddress)) {
           const metrics = new TokenMetrics(token.contractAddress);
           this.knownTokens.set(token.contractAddress, metrics);
         }
+        if (token.contractAddress) {
+          this.tokenCacheSet.add(token.contractAddress);
+        }
       }
       
       console.log(`✅ [EnhancedHybridPriceService] Loaded ${this.tokenCache.length} tokens from cache`);
-      console.log(`📊 [EnhancedHybridPriceService] Initialized ${this.knownTokens.size} TokenMetrics (empty, will be seeded with fresh Jupiter data)`);
-      
-      // Debug: Check if INCOG is loaded
-      const incogToken = this.tokenCache.find(t => t.contractAddress === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3');
-      if (incogToken) {
-        console.log(`🔵 [INCOG CHECK] Found in cache: ${incogToken.symbol}, in knownTokens: ${this.knownTokens.has('DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3')}`);
-      } else {
-        console.log(`🔵 [INCOG CHECK] NOT found in cache`);
-      }
+      console.log(`📊 [EnhancedHybridPriceService] Tracking ${this.knownTokens.size} known tokens`);
     } catch (error) {
       console.log('⚠️ [EnhancedHybridPriceService] No token cache found, starting fresh');
       this.tokenCache = [];
+      this.tokenCacheSet = new Set();
     }
   }
 
@@ -2043,21 +1201,6 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Fetch Jupiter data for additional info
     const jupiterData = await this.fetchJupiterData(tokenAddress);
     
-    // Get recent swaps from ChartDatabase
-    let recentSwaps = [];
-    try {
-      const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
-      if (tokenDb && tokenDb.swaps && tokenDb.swaps.size > 0) {
-        const swapsArray = Array.from(tokenDb.swaps.values());
-        // Get last 50 swaps, sorted by timestamp descending
-        recentSwaps = swapsArray
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, 50);
-      }
-    } catch (error) {
-      console.error(`⚠️ Failed to load swaps for ${tokenAddress.slice(0, 8)}:`, error.message);
-    }
-    
     return {
       tokenAddress,
       price: metricsData.currentPrice,
@@ -2076,227 +1219,28 @@ class EnhancedHybridPriceService extends EventEmitter {
       makers1h: metricsData['1h'].makers,
       makers24h: metricsData['24h'].makers,
       marketCap: jupiterData?.mcap || 0,
-      liquidity: jupiterData?.liquidity || 0,
-      recentSwaps: recentSwaps,
       isLive: true,
-      source: 'dex-stream',
       lastUpdate: Date.now()
     };
   }
 
   /**
-   * Get current state of ALL known tokens (for periodic broadcast)
-   * This is the KEY method that enables DEXScreener-style real-time updates
-   */
-  getAllTokensState() {
-    const state = [];
-    let debugCount = 0;
-    
-    // Create a map of token metadata from cache for quick lookup
-    const tokenMetadataMap = new Map();
-    for (const token of this.tokenCache) {
-      if (token.contractAddress) {
-        tokenMetadataMap.set(token.contractAddress, token);
-      }
-    }
-    
-    for (const [tokenAddress, metrics] of this.knownTokens) {
-      const metricsData = metrics.getMetrics();
-      const jupiterData = this.jupiterCache.get(tokenAddress)?.data;
-      const tokenMetadata = tokenMetadataMap.get(tokenAddress);
-      
-      // Debug: Log USELESS token specifically to see what's happening
-      if (jupiterData?.symbol === 'USELESS' || tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
-        console.log(`🔍 [USELESS Debug] Token data:`, {
-          tokenAddress: tokenAddress.slice(0,8),
-          symbol: jupiterData?.symbol,
-          price: metricsData.currentPrice,
-          baseline5m: metrics.baseline['5m'],
-          baseline1h: metrics.baseline['1h'],
-          baseline6h: metrics.baseline['6h'],
-          baseline24h: metrics.baseline['24h'],
-          metricsData5m: metricsData['5m'],
-          metricsData1h: metricsData['1h'],
-          metricsData6h: metricsData['6h'],
-          metricsData24h: metricsData['24h'],
-          hasTokenMetadata: !!tokenMetadata,
-          tokenMetadataHasJupiterData: !!tokenMetadata?.jupiterData
-        });
-      }
-      
-      // Debug: Log first token to see what's in metricsData AND what's being broadcast
-      if (debugCount === 0) {
-        console.log(`📊 [getAllTokensState Debug] First token ${tokenAddress.slice(0,8)}:`, {
-          price: metricsData.currentPrice,
-          metricsData5m: metricsData['5m'],
-          metricsData1h: metricsData['1h'],
-          metricsData6h: metricsData['6h'],
-          metricsData24h: metricsData['24h'],
-          baseline5m: metrics.baseline['5m'],
-          baseline1h: metrics.baseline['1h'],
-          baseline6h: metrics.baseline['6h'],
-          baseline24h: metrics.baseline['24h']
-        });
-        
-        // Log what will actually be broadcast
-        console.log(`📡 [Broadcast Debug] What will be sent for ${tokenAddress.slice(0,8)}:`, {
-          priceChange5m: metricsData['5m']?.priceChange ?? 0,
-          priceChange1h: metricsData['1h']?.priceChange ?? 0,
-          priceChange6h: metricsData['6h']?.priceChange ?? 0,
-          priceChange24h: metricsData['24h']?.priceChange ?? 0
-        });
-        
-        debugCount++;
-      }
-      
-      // Debug: Log tokens with NON-ZERO price changes to see which ones have data
-      const hasData = 
-        metricsData['5m']?.priceChange !== 0 ||
-        metricsData['1h']?.priceChange !== 0 ||
-        metricsData['6h']?.priceChange !== 0 ||
-        metricsData['24h']?.priceChange !== 0;
-      // Removed verbose logging
-      
-      // Include ALL tokens (even if no swaps yet)
-      // metricsData already contains baseline + live deltas merged
-      // ✅ CRITICAL: Include ALL metadata from cache (score, overallScore, jupiterData, twitterData, etc.)
-      state.push({
-        // Start with ALL metadata from cache (includes score, overallScore, jupiterData, twitterData, etc.)
-        ...(tokenMetadata || {}),
-        // Override with live metrics
-        tokenAddress,
-        contractAddress: tokenAddress, // For compatibility
-        symbol: jupiterData?.symbol || tokenMetadata?.symbol || 'UNKNOWN',
-        name: jupiterData?.name || tokenMetadata?.name || 'Unknown Token',
-        logoURI: jupiterData?.icon || tokenMetadata?.logoURI || null,
-        price: metricsData.currentPrice || 0,
-        priceUsd: metricsData.currentPrice || 0,
-        priceChange5m: metricsData['5m']?.priceChange ?? 0,
-        priceChange1h: metricsData['1h']?.priceChange ?? 0,
-        priceChange6h: metricsData['6h']?.priceChange ?? 0,
-        priceChange24h: metricsData['24h']?.priceChange ?? 0,
-        volume5m: metricsData['5m']?.volume ?? 0,
-        volume1h: metricsData['1h']?.volume ?? 0,
-        volume6h: metricsData['6h']?.volume ?? 0,
-        volume24h: metricsData['24h']?.volume ?? 0,
-        txns5m: metricsData['5m']?.txns ?? 0,
-        txns1h: metricsData['1h']?.txns ?? 0,
-        txns6h: metricsData['6h']?.txns ?? 0,
-        txns24h: metricsData['24h']?.txns ?? 0,
-        makers5m: metricsData['5m']?.makers ?? 0,
-        makers1h: metricsData['1h']?.makers ?? 0,
-        makers6h: metricsData['6h']?.makers ?? 0,
-        makers24h: metricsData['24h']?.makers ?? 0,
-        // Calculate LIVE market cap: currentPrice * circulatingSupply
-        marketCap: (() => {
-          const currentPrice = metricsData.currentPrice || 0;
-          const circSupply = jupiterData?.circSupply || tokenMetadata?.jupiterData?.circSupply;
-          if (currentPrice > 0 && circSupply > 0) {
-            return currentPrice * circSupply;
-          }
-          // Fallback to Jupiter's static mcap if we can't calculate
-          return jupiterData?.mcap || tokenMetadata?.jupiterData?.mcap || 0;
-        })(),
-        liquidity: jupiterData?.liquidity || tokenMetadata?.jupiterData?.liquidity || 0,
-        isLive: metricsData.currentPrice > 0, // Only mark as live if we have real-time price
-        lastUpdated: Date.now(),
-        // ✅ CRITICAL: Include recent swaps for SwapTable
-        recentSwaps: (() => {
-          const swaps = metrics.swaps.slice(-50).map(swap => ({
-            signature: swap.signature,
-            timestamp: swap.timestamp,
-            type: swap.type, // 'BUY' or 'SELL'
-            tokenAmount: swap.tokenAmount,
-            solAmount: swap.solAmount,
-            baseAmount: swap.solAmount, // Alias for compatibility
-            priceUsd: swap.priceUsd,
-            volumeUsd: swap.volumeUsd,
-            maker: swap.walletAddress,
-            price: swap.priceInSol
-          }));
-          
-          // Debug: Log USELESS swaps to verify data
-          if (tokenAddress === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' && swaps.length > 0) {
-            console.log(`🔍 [USELESS Swaps] Broadcasting ${swaps.length} swaps, first swap:`, {
-              signature: swaps[0].signature?.slice(0, 20) + '...',
-              type: swaps[0].type,
-              solAmount: swaps[0].solAmount,
-              maker: swaps[0].maker?.slice(0, 10) + '...',
-              volumeUsd: swaps[0].volumeUsd
-            });
-          }
-          
-          return swaps;
-        })()
-      });
-    }
-    
-    // Summary: How many tokens have non-zero price changes?
-    const tokensWithData = state.filter(t => 
-      t.priceChange5m !== 0 || t.priceChange1h !== 0 || t.priceChange6h !== 0 || t.priceChange24h !== 0
-    );
-    console.log(`📊 [getAllTokensState] Returning ${state.length} tokens, ${tokensWithData.length} have price change data (${(tokensWithData.length / state.length * 100).toFixed(1)}%)`);
-    
-    return state;
-  }
-
-  /**
-   * Start periodic broadcast of full state to ALL connected clients
-   * This is how DEXScreener maintains real-time updates without subscription complexity
-   */
-  startPeriodicBroadcast() {
-    console.log('🔄 [EnhancedHybridPriceService] Starting periodic state broadcast (every 10s)');
-    
-    this.broadcastInterval = setInterval(() => {
-      const state = this.getAllTokensState();
-      
-      if (this.webSocketServer && state.length > 0) {
-        this.webSocketServer.broadcast({
-          type: 'fullStateUpdate',
-          tokens: state,
-          timestamp: Date.now()
-        });
-        
-        console.log(`📡 [EnhancedHybridPriceService] Broadcasted state for ${state.length} tokens`);
-      }
-    }, 10000); // Every 10 seconds
-  }
-
-  /**
    * Ensure token is being monitored (compatibility method)
    * With DEX program filtering, all tokens are automatically monitored
-   * Now uses onboardNewToken for Jupiter baseline seeding
    */
   async ensureTokenMonitoring(tokenAddress) {
-    // Use the new onboarding method which includes Jupiter seeding
-    return await this.onboardNewToken(tokenAddress, 'manual-monitoring');
-  }
-  
-  /**
-   * Fetch and cache token metadata (circSupply, decimals, etc.) from Jupiter
-   */
-  async fetchTokenMetadata(tokenAddress) {
-    try {
-      // Fetch from Jupiter API
-      const jupData = await this.fetchJupiterData(tokenAddress);
-      
-      if (jupData) {
-        this.tokenMetadataCache.set(tokenAddress, {
-          name: jupData.name,
-          symbol: jupData.symbol,
-          decimals: jupData.decimals,
-          circSupply: jupData.circSupply, // Circulating supply for market cap calculation
-          supply: jupData.supply // Total supply (backup)
-        });
-        
-        console.log(`📊 [Metadata] Cached ${jupData.symbol} - circSupply: ${jupData.circSupply?.toLocaleString()}`);
-      }
-    } catch (error) {
-      // Silent fail - will use Jupiter fallback in broadcast
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`Failed to fetch metadata for ${tokenAddress.slice(0, 8)}...:`, error.message);
-      }
+    // Check if token is already in known tokens
+    if (this.knownTokens.has(tokenAddress)) {
+      return true;
     }
+    
+    // Add to known tokens
+    const metrics = new TokenMetrics(tokenAddress);
+    this.knownTokens.set(tokenAddress, metrics);
+    
+    console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress.slice(0, 8)}... to known tokens (will receive swaps from DEX stream)`);
+    
+    return true;
   }
 
   /**
@@ -2304,13 +1248,6 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   async shutdown() {
     console.log('🛑 [EnhancedHybridPriceService] Shutting down...');
-    
-    // Stop periodic broadcast
-    if (this.broadcastInterval) {
-      clearInterval(this.broadcastInterval);
-      this.broadcastInterval = null;
-      console.log('✅ [EnhancedHybridPriceService] Stopped periodic broadcast');
-    }
     
     if (this.dexStream) {
       this.dexStream.cancel();

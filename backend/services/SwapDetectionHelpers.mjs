@@ -52,16 +52,38 @@ function hasAmmProgram(tx) {
     const message = tx.transaction?.message ?? {};
     const { combined } = buildCombinedKeys(message);
     const instructions = message.instructions || [];
-    
+
+    const resolveProgramId = (ix) => {
+        if (ix.programIdIndex !== undefined) {
+            return combined[ix.programIdIndex];
+        }
+        if (ix.programId) {
+            if (typeof ix.programId === 'string') return ix.programId;
+            if (ix.programId.toBase58) return ix.programId.toBase58();
+            if (ix.programId.type === 'Buffer' && Array.isArray(ix.programId.data)) {
+                return bs58.encode(Uint8Array.from(ix.programId.data));
+            }
+        }
+        return undefined;
+    };
+
     for (const instruction of instructions) {
-        if (instruction.programIdIndex !== undefined) {
-            const programId = combined[instruction.programIdIndex];
+        const programId = resolveProgramId(instruction);
+        if (programId && AMM_PROGRAMS.has(programId)) {
+            return true;
+        }
+    }
+
+    const innerGroups = tx.meta?.innerInstructions ?? [];
+    for (const group of innerGroups) {
+        for (const ix of group.instructions ?? []) {
+            const programId = resolveProgramId(ix) ?? (typeof ix.programId === 'number' ? combined[ix.programId] : undefined);
             if (programId && AMM_PROGRAMS.has(programId)) {
                 return true;
             }
         }
     }
-    
+
     return false;
 }
 
@@ -714,6 +736,180 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
         priceUsd,
         counterMint: legs.counter.mint, // NEW: track what we're trading against
     };
+}
+
+/**
+ * Detect swaps for a target mint, including aggregator fallbacks
+ */
+export function detectSwapsForMint(tx, targetMint, solUsd, tokenPriceCache, knownPoolAddress = null) {
+    const primary = processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, null, null, knownPoolAddress);
+    if (primary) {
+        return [primary];
+    }
+    const fallback = detectAggregatorFallbackSwap(tx, targetMint, solUsd, tokenPriceCache, knownPoolAddress);
+    return fallback.length ? fallback : [];
+}
+
+/**
+ * Aggregator fallback detection (handles router-mediated swaps)
+ */
+function detectAggregatorFallbackSwap(tx, targetMint, solUsd, tokenPriceCache, knownPoolAddress = null) {
+    const message = tx.transaction?.message ?? {};
+    const signerSet = getSignerSet(message);
+    const deltas = extractTokenDeltas(tx);
+    if (!deltas.length) return [];
+
+    const tokenDeltas = deltas.filter(d => d.mint === targetMint);
+    if (!tokenDeltas.length) return [];
+
+    const poolAddress = knownPoolAddress || guessPoolFromIx(tx) || null;
+
+    const tokenUserDelta = pickUserDelta(tokenDeltas, signerSet, poolAddress);
+    if (!tokenUserDelta || tokenUserDelta.deltaUI === 0) return [];
+
+    const tokenPoolDelta = pickPoolDelta(tokenDeltas, tokenUserDelta, poolAddress);
+
+    const counterDelta = pickCounterDelta({
+        tx,
+        deltas,
+        signerSet,
+        poolAddress,
+        tokenUserDelta,
+        solUsd,
+    });
+
+    if (!counterDelta || counterDelta.deltaUI === 0) return [];
+
+    const side = tokenUserDelta.deltaUI > 0 ? 'BUY' : 'SELL';
+    const tokenAmount = Math.abs(tokenUserDelta.deltaUI);
+    const baseAmount = Math.abs(counterDelta.deltaUI);
+    if (tokenAmount === 0 || baseAmount === 0) return [];
+
+    const { priceUsd, volumeUsd, priceInSol } = computeAggregatorPricing({
+        counterDelta,
+        tokenAmount,
+        baseAmount,
+        solUsd,
+        tokenPriceCache,
+    });
+
+    if (!isFinite(volumeUsd) || volumeUsd < 0.01) return [];
+
+    const signature = tx.transaction?.signatures?.[0] || tx.signature || tx.meta?.transaction?.signatures?.[0];
+    const walletAddress = tokenUserDelta.owner || counterDelta.owner || getFeePayer(tx) || 'unknown';
+
+    const swap = {
+        timestamp: (tx.blockTime ?? Math.floor(Date.now() / 1000)) * 1000,
+        slot: Number(tx.slot),
+        type: side,
+        tokenMint: targetMint,
+        tokenAmount,
+        baseAmount,
+        volumeUsd,
+        priceUsd,
+        priceInSol,
+        signature: typeof signature === 'string' ? signature : bs58.encode(Buffer.from(signature)),
+        walletAddress,
+        counterMint: counterDelta.mint,
+        solAmount: counterDelta.mint === WSOL_MINT ? baseAmount : undefined,
+        source: 'rpc-fallback',
+    };
+
+    if (tokenPoolDelta && tokenPoolDelta.accountPubkey) {
+        swap.poolAddress = tokenPoolDelta.accountPubkey;
+    } else if (poolAddress) {
+        swap.poolAddress = poolAddress;
+    }
+
+    return [swap];
+}
+
+function pickUserDelta(tokenDeltas, signerSet, poolAddress) {
+    const userSide = tokenDeltas
+        .filter(d => isUserSide(d, signerSet))
+        .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+    if (userSide.length) return userSide[0];
+
+    if (poolAddress) {
+        const nonPool = tokenDeltas
+            .filter(d => d.owner !== poolAddress)
+            .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+        if (nonPool.length) return nonPool[0];
+    }
+
+    return tokenDeltas.slice().sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
+}
+
+function pickPoolDelta(tokenDeltas, tokenUserDelta, poolAddress) {
+    if (poolAddress) {
+        const poolMatch = tokenDeltas
+            .filter(d => d.owner === poolAddress)
+            .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+        if (poolMatch.length) return poolMatch[0];
+    }
+
+    const userIndex = tokenDeltas.indexOf(tokenUserDelta);
+    const candidates = tokenDeltas
+        .filter((_, idx) => idx !== userIndex)
+        .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+    return candidates[0] || null;
+}
+
+function pickCounterDelta({ tx, deltas, signerSet, poolAddress, tokenUserDelta, solUsd }) {
+    const preferredMints = new Set([WSOL_MINT, ...STABLECOIN_MINTS]);
+    const counterCandidates = deltas.filter(d => preferredMints.has(d.mint));
+
+    const sorted = counterCandidates.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+
+    const byPool = poolAddress
+        ? sorted.find(d => d.owner === poolAddress && Math.sign(d.deltaUI) !== Math.sign(tokenUserDelta.deltaUI))
+        : null;
+    if (byPool) return byPool;
+
+    const userSide = sorted.find(d => isUserSide(d, signerSet) && Math.sign(d.deltaUI) !== Math.sign(tokenUserDelta.deltaUI));
+    if (userSide) return userSide;
+
+    const oppositeSign = sorted.find(d => Math.sign(d.deltaUI) !== Math.sign(tokenUserDelta.deltaUI));
+    if (oppositeSign) return oppositeSign;
+
+    if (!sorted.length) {
+        const solBySigner = extractNativeSolDeltaBySigner(tx);
+        for (const delta of solBySigner.values()) {
+            if (Math.abs(delta) > 1e-9) {
+                return {
+                    mint: WSOL_MINT,
+                    owner: getFeePayer(tx),
+                    deltaUI: -delta,
+                };
+            }
+        }
+    }
+
+    return sorted[0] || null;
+}
+
+function computeAggregatorPricing({ counterDelta, tokenAmount, baseAmount, solUsd, tokenPriceCache }) {
+    let priceUsd = NaN;
+    let volumeUsd = 0;
+    let priceInSol = undefined;
+
+    if (counterDelta.mint === WSOL_MINT) {
+        priceInSol = baseAmount / tokenAmount;
+        priceUsd = solUsd > 0 ? priceInSol * solUsd : NaN;
+        volumeUsd = solUsd > 0 ? baseAmount * solUsd : 0;
+    } else if (STABLECOIN_MINTS.has(counterDelta.mint)) {
+        priceUsd = baseAmount / tokenAmount;
+        volumeUsd = baseAmount;
+        priceInSol = solUsd > 0 ? priceUsd / solUsd : undefined;
+    } else {
+        const cachedPrice = tokenPriceCache?.get(counterDelta.mint);
+        if (cachedPrice) {
+            priceUsd = (baseAmount * cachedPrice) / tokenAmount;
+            volumeUsd = baseAmount * cachedPrice;
+        }
+    }
+
+    return { priceUsd, volumeUsd, priceInSol };
 }
 
 // Export helper functions for testing
