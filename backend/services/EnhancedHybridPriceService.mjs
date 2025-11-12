@@ -817,12 +817,17 @@ class EnhancedHybridPriceService extends EventEmitter {
       const innerGroups = (meta.innerInstructions || []).flatMap(g => g.instructions || []);
       const allIx = [...instrsTop, ...innerGroups];
 
-      // ✅ GATE 2: Process ALL instructions (not just AMM programs)
-      // This catches swaps through aggregators like Jupiter
+      // ✅ GATE 2: Filter to ONLY AMM instructions (skip aggregator wrappers like Jupiter/DFlow/Obric)
+      // This prevents wrapper noise and matches Dexscreener behavior
+      const ammIx = allIx.filter(ix => {
+        const pid = this.resolveProgramId(ix, message);
+        return EnhancedHybridPriceService.AMM_PROGRAMS.has(pid);
+      });
+      
       const swaps = [];
       
-      // ✅ GATE 3: Process each instruction
-      for (const ix of allIx) {
+      // ✅ GATE 3: Process each AMM instruction
+      for (const ix of ammIx) {
         const touched = this.deltasTouchedByIx(ix, deltas);
         const nonZero = touched.filter(d => Math.abs(d.deltaUI) > 0.000001);
         if (nonZero.length < 2) continue;
@@ -905,6 +910,28 @@ class EnhancedHybridPriceService extends EventEmitter {
       console.error('❌ [EnhancedHybridPriceService] Error parsing transaction:', error.message);
       return null;
     }
+  }
+
+  /**
+   * Helper: Resolve program ID from instruction
+   */
+  resolveProgramId(ix, message) {
+    // Direct programId field (string or PublicKey)
+    if (ix.programId) {
+      if (typeof ix.programId === 'string') return ix.programId;
+      if (Buffer.isBuffer(ix.programId)) {
+        const { PublicKey } = require('@solana/web3.js');
+        return new PublicKey(ix.programId).toBase58();
+      }
+      if (ix.programId.toBase58) return ix.programId.toBase58();
+    }
+    
+    // programIdIndex references accountKeys
+    if (typeof ix.programIdIndex === 'number') {
+      return this.resolveIxKeyByIndex(message, ix.programIdIndex);
+    }
+    
+    return '';
   }
 
   /**
