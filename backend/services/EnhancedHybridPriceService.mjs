@@ -321,7 +321,7 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       // Load token cache
       await this.loadTokenCache();
-      await this.seedJupiterBaseline();
+      await this.seedJupiterBaseline(true);
       
       // Initialize SOL price
       await this.updateSolPrice();
