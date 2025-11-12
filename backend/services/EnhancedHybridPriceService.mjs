@@ -820,6 +820,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             const priceUsd = priceInSol * this.solPriceUSD;
             const volumeUsd = solAmount * this.solPriceUSD;
 
+            const timestamp = Date.now();
+
             swaps.push({
               signature: normalizedSignature,
               signatureShort:
@@ -832,7 +834,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                   : null,
               tokenMint,
               slot,
-              timestamp: Date.now(), // Estimate from current time
+              timestamp,
               type: isBuy ? 'Buy' : 'Sell',
               tokenAmount,
               solAmount,
@@ -841,9 +843,7 @@ class EnhancedHybridPriceService extends EventEmitter {
               volumeUsd,
               walletAddress: maker,
               maker,
-              timestamp: swap.timestamp ?? Date.now(),
-              slot: swap.slot ?? null,
-              source: swap.source || 'grpc-dex',
+              source: 'grpc-dex',
             });
           }
         }
