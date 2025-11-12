@@ -622,9 +622,9 @@ class EnhancedHybridPriceService extends EventEmitter {
       for (const swap of swaps) {
         this.stats.totalSwapsProcessed++;
         
-        // Debug: Log INCOG swaps specifically
+        // Debug: Log INCOG swaps specifically with more details
         if (swap.tokenMint === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3') {
-          console.log(`🔵 [INCOG SWAP DETECTED] ${swap.type} $${swap.volumeUsd.toFixed(2)} - Known: ${this.knownTokens.has(swap.tokenMint)}`);
+          console.log(`🔵 [INCOG SWAP DETECTED] ${swap.type} $${swap.volumeUsd.toFixed(2)} | ${swap.tokenAmount.toFixed(2)} tokens @ $${swap.priceUsd.toFixed(6)} - Known: ${this.knownTokens.has(swap.tokenMint)}`);
         }
         
         // Check if this is a known token or new token
@@ -854,6 +854,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         const pid = this.resolveProgramId(ix, message);
         return EnhancedHybridPriceService.AMM_PROGRAMS.has(pid);
       });
+      
+      // Debug: Log INCOG transactions being processed
+      if (deltas.some(d => d.mint === 'DKAN3tyxnvgUrgGHAHsorBGgVGDVt9uEiRUybHrs77P3')) {
+        console.log(`🟡 [INCOG TX] Processing transaction with ${ammIx.length} AMM instructions, ${deltas.length} deltas`);
+      }
       
       const swaps = [];
       
