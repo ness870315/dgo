@@ -639,6 +639,15 @@ class EnhancedHybridPriceService extends EventEmitter {
   ]);
 
   /**
+   * Known automated liquidity bot addresses to filter out
+   * These are market makers that add noise, not real user swaps
+   */
+  static LIQUIDITY_BOTS = new Set([
+    'MfDuWeqSHEqTFVYZ7LoexgAK9dxk7cy4DFJWjWMGVWa',  // Wintermute Automated Liquidity Bot
+    // Add more as we discover them
+  ]);
+
+  /**
    * Helper: Resolve account key by index from meta (for pre/postTokenBalances)
    */
   resolveMetaKeyByIndex(message, idx) {
@@ -897,6 +906,11 @@ class EnhancedHybridPriceService extends EventEmitter {
 
           // Dust filter (lowered to $0.01 to catch smaller swaps)
           if (!isFinite(volumeUsd) || volumeUsd < 0.01) continue;
+
+          // ✅ GATE 5: Filter out automated liquidity bots (market makers)
+          if (EnhancedHybridPriceService.LIQUIDITY_BOTS.has(feePayerStr)) {
+            continue; // Skip bot swaps
+          }
 
           // Emit swap
           swaps.push({
