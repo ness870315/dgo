@@ -152,6 +152,9 @@ class EnhancedHybridPriceService extends EventEmitter {
     this.poolAddresses = new Map(); // Map<tokenAddress, poolAddress>
     this.swapHistory = new Map(); // Map<tokenAddress, Array<Swap>>
     this.swapHistoryLimit = Number(process.env.SWAP_HISTORY_LIMIT || 200);
+    this.fullStateInterval = null;
+    this.fullStateBroadcastMs = Number(process.env.FULL_STATE_BROADCAST_MS || 10000);
+    this.lastFullStateBroadcast = 0;
     
     // Multi-layer filter configuration
     this.filters = {
@@ -754,6 +757,13 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (recordedSwap) {
       this.broadcastSwapUpdate(swap.tokenMint, recordedSwap);
     }
+
+    if (
+      this.webSocketServer &&
+      Date.now() - this.lastFullStateBroadcast > this.fullStateBroadcastMs
+    ) {
+      this.broadcastFullStateUpdate();
+    }
     
     // Log every 100th swap
     if (this.stats.knownTokenSwaps % 100 === 0) {
@@ -870,6 +880,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       this.filterStats.layer3.processed++;
       this.filterStats.layer3.successful++;
       this.newTokenActivity.delete(swap.tokenMint);
+
+      if (this.webSocketServer) {
+        this.broadcastFullStateUpdate();
+      }
     }
   }
 
@@ -1166,6 +1180,70 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
   }
 
+  setWebSocketServer(server) {
+    if (this.webSocketServer === server) return;
+    this.webSocketServer = server;
+    if (server) {
+      this.startFullStateBroadcast(true);
+    } else {
+      this.stopFullStateBroadcast();
+    }
+  }
+
+  startFullStateBroadcast(forceImmediate = false) {
+    if (!this.webSocketServer) return;
+    if (this.fullStateInterval) return;
+
+    if (forceImmediate) {
+      this.broadcastFullStateUpdate();
+    } else {
+      setTimeout(() => this.broadcastFullStateUpdate(), 0);
+    }
+
+    this.fullStateInterval = setInterval(() => {
+      this.broadcastFullStateUpdate();
+    }, this.fullStateBroadcastMs);
+  }
+
+  stopFullStateBroadcast() {
+    if (this.fullStateInterval) {
+      clearInterval(this.fullStateInterval);
+      this.fullStateInterval = null;
+    }
+  }
+
+  broadcastFullStateUpdate() {
+    if (!this.webSocketServer) return;
+
+    try {
+      const snapshot = this.getAllTokensState({
+        includeRecentSwaps: false,
+        swapLimit: 0,
+      });
+
+      const tokens = snapshot.tokens || [];
+      const payload = {
+        tokens,
+        totals: snapshot.totals || {},
+        tokenCount: tokens.length,
+        hasTokens: tokens.length > 0,
+        firstToken: tokens[0] || null,
+        meta: {
+          source: 'enhanced-hybrid',
+          generatedAt: snapshot.timestamp || Date.now(),
+        },
+      };
+
+      this.webSocketServer.broadcastFullStateUpdate(payload);
+      this.lastFullStateBroadcast = Date.now();
+    } catch (error) {
+      console.error(
+        '❌ [EnhancedHybridPriceService] Failed to broadcast full state:',
+        error.message
+      );
+    }
+  }
+
   /**
    * Load token cache from disk
    */
@@ -1189,6 +1267,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       
       console.log(`✅ [EnhancedHybridPriceService] Loaded ${this.tokenCache.length} tokens from cache`);
       console.log(`📊 [EnhancedHybridPriceService] Tracking ${this.knownTokens.size} known tokens`);
+
+      if (this.webSocketServer) {
+        this.broadcastFullStateUpdate();
+      }
     } catch (error) {
       console.log('⚠️ [EnhancedHybridPriceService] No token cache found, starting fresh');
       this.tokenCache = [];
@@ -1787,6 +1869,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     if (this.chartDatabase) {
       await this.chartDatabase.stopBatchWriter();
     }
+
+    this.stopFullStateBroadcast();
     
     console.log('✅ [EnhancedHybridPriceService] Shutdown complete');
   }

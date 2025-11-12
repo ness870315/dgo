@@ -19,7 +19,7 @@ class BackendWebSocketServer extends EventEmitter {
 
     this.wss.on('connection', (ws, req) => {
       const clientId = this.generateClientId();
-      this.clients.set(clientId, { ws, connectedAt: Date.now() });
+      this.clients.set(clientId, ws);
       
       console.log(`🔌 [BackendWS] Client connected: ${clientId}`);
       
@@ -166,16 +166,15 @@ class BackendWebSocketServer extends EventEmitter {
   }
 
   sendToClient(clientId, message) {
-    const clientInfo = this.clients.get(clientId);
-    if (clientInfo && clientInfo.ws && clientInfo.ws.readyState === WebSocket.OPEN) {
-      clientInfo.ws.send(JSON.stringify(message));
+    const client = this.clients.get(clientId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
     }
   }
 
   broadcastToTokenSubscribers(tokenAddress, message) {
     const subscribers = this.tokenSubscriptions.get(tokenAddress);
-    if (subscribers && subscribers.size > 0) {
-      console.log(`📡 [BackendWS] Broadcasting to ${subscribers.size} subscribers for ${tokenAddress.slice(0, 8)}...`);
+    if (subscribers) {
       subscribers.forEach(clientId => {
         this.sendToClient(clientId, {
           ...message,
@@ -183,11 +182,6 @@ class BackendWebSocketServer extends EventEmitter {
           timestamp: Date.now()
         });
       });
-    } else {
-      // Log when there are no subscribers (every 100th broadcast to reduce noise)
-      if (Math.random() < 0.01) {
-        console.log(`⚠️ [BackendWS] No subscribers for ${tokenAddress.slice(0, 8)}... (token not being watched)`);
-      }
     }
   }
 
@@ -205,36 +199,29 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
-  /**
-   * Broadcast message to ALL connected clients (no subscription filtering)
-   * This is used for periodic full state updates (DEXScreener-style)
-   */
-  broadcast(message) {
-    const messageStr = JSON.stringify(message);
-    let sentCount = 0;
-    
-    this.clients.forEach((clientInfo, clientId) => {
-      // Safety check: clientInfo might be undefined if client disconnected
-      if (!clientInfo || !clientInfo.ws) {
-        console.warn(`⚠️ [BackendWS] Client ${clientId} has no valid connection, removing`);
-        this.clients.delete(clientId);
-        return;
-      }
-      
-      if (clientInfo.ws.readyState === WebSocket.OPEN) {
-        try {
-          clientInfo.ws.send(messageStr);
-          sentCount++;
-        } catch (error) {
-          console.error(`❌ [BackendWS] Failed to send to client ${clientId}:`, error.message);
-        }
+  // ✅ NEW: Broadcast full state update to all connected clients
+  broadcastFullStateUpdate(payload = {}) {
+    const tokens = payload.tokens || [];
+    const message = {
+      type: 'fullStateUpdate',
+      tokens,
+      totals: payload.totals || {},
+      hasTokens: payload.hasTokens ?? tokens.length > 0,
+      tokenCount: payload.tokenCount ?? tokens.length,
+      firstToken: payload.firstToken || tokens[0] || null,
+      meta: payload.meta || {},
+      timestamp: Date.now(),
+    };
+
+    this.clients.forEach((client, clientId) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
       }
     });
-    
-    // Log every 10th broadcast to reduce noise
-    if (Math.random() < 0.1) {
-      console.log(`📡 [BackendWS] Broadcasted ${message.type} to ${sentCount}/${this.clients.size} clients`);
-    }
+
+    console.log(
+      `📡 [BackendWS] Broadcasted fullStateUpdate to ${this.clients.size} clients (tokens: ${message.tokenCount})`
+    );
   }
 
   // 🚀 NEW: Send recent swaps to a specific client (for late joiners)
