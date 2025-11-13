@@ -883,22 +883,57 @@ export default class DexScreenerStyleMonitor {
       const tokenData = this.tokens.get(mint);
       if (!tokenData) return;
 
+      const poolData = this.pools.get(mint);
+      
+      // Calculate market cap
+      const circSupply = tokenData.metadata?.circSupply || 0;
+      const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
+      
+      // Calculate liquidity (SOL reserves × SOL price × 2)
+      const liquidity = poolData && poolData.solReserve 
+        ? poolData.solReserve * this.solPriceUSD * 2 
+        : 0;
+      
+      // Calculate age (if createdAt is available)
+      const age = tokenData.createdAt 
+        ? Math.floor((Date.now() - tokenData.createdAt) / 1000)
+        : 0;
+
       // Format price data for frontend compatibility
       const priceData = {
         priceUsd: metrics.currentPrice,
         currentPrice: metrics.currentPrice,
+        
+        // Market data
+        marketCap: marketCap,
+        liquidity: liquidity,
+        age: age,
+        createdAt: tokenData.createdAt || null,
+        
+        // Volume stats
         volume24h: metrics['24h'].volume,
+        volume6h: metrics['6h'].volume,
         volume1h: metrics['1h'].volume,
         volume5m: metrics['5m'].volume,
+        
+        // Transaction stats
         txns24h: metrics['24h'].txns,
+        txns6h: metrics['6h'].txns,
         txns1h: metrics['1h'].txns,
         txns5m: metrics['5m'].txns,
+        
+        // Maker stats
         makers24h: metrics['24h'].makers,
+        makers6h: metrics['6h'].makers,
         makers1h: metrics['1h'].makers,
         makers5m: metrics['5m'].makers,
+        
+        // Price change stats
         priceChange24h: metrics['24h'].priceChange,
+        priceChange6h: metrics['6h'].priceChange,
         priceChange1h: metrics['1h'].priceChange,
         priceChange5m: metrics['5m'].priceChange,
+        
         source: 'dexscreener-monitor',
         timestamp: Date.now()
       };
