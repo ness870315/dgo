@@ -42,6 +42,15 @@ class TokenMetrics {
     this.swaps = []; // All swaps (pruned to 24h)
     this.priceHistory = []; // { timestamp, price }
     this.uniqueMakers = new Set(); // wallet addresses
+    this.firstSwapTimestamp = null;
+    this.lastSwapTimestamp = null;
+    this.baselineTimestamp = 0;
+    this.baselineOpenPrices = {
+      '5m': null,
+      '1h': null,
+      '6h': null,
+      '24h': null,
+    };
     
     // Cached metrics (updated on each swap)
     this.metrics = {
@@ -70,6 +79,12 @@ class TokenMetrics {
     if (swap.walletAddress) {
       this.uniqueMakers.add(swap.walletAddress);
     }
+
+    const swapTimestamp = swap.timestamp ?? Date.now();
+    if (!this.firstSwapTimestamp) {
+      this.firstSwapTimestamp = swapTimestamp;
+    }
+    this.lastSwapTimestamp = swapTimestamp;
     
     this.updateMetrics();
     this.pruneOldData();
@@ -90,6 +105,37 @@ class TokenMetrics {
         this.priceHistory.push({ timestamp: Date.now(), price: baseline.price });
       }
     }
+
+    this.baselineTimestamp = Date.now();
+
+    const computeOpenPrice = (currentPrice, windowStats) => {
+      const priceChange = Number(windowStats?.priceChange ?? 0);
+      const price = Number(currentPrice ?? 0);
+      if (!isFinite(price) || price <= 0) return null;
+      if (!isFinite(priceChange) || priceChange === 0) return price;
+      const ratio = 1 + priceChange / 100;
+      if (!isFinite(ratio) || ratio === 0) return price;
+      const open = price / ratio;
+      if (!isFinite(open) || open <= 0) return price;
+      return open;
+    };
+
+    this.baselineOpenPrices['5m'] = computeOpenPrice(
+      baseline.price,
+      baseline['5m']
+    );
+    this.baselineOpenPrices['1h'] = computeOpenPrice(
+      baseline.price,
+      baseline['1h']
+    );
+    this.baselineOpenPrices['6h'] = computeOpenPrice(
+      baseline.price,
+      baseline['6h']
+    );
+    this.baselineOpenPrices['24h'] = computeOpenPrice(
+      baseline.price,
+      baseline['24h']
+    );
 
     const applyBaseline = (windowKey, stats) => {
       const target = this.baseline[windowKey] || {
@@ -185,6 +231,12 @@ class TokenMetrics {
         makers: 0,
         priceChange: 0,
       };
+      const windowDurationMs = {
+        '5m': 5 * 60 * 1000,
+        '1h': 60 * 60 * 1000,
+        '6h': 6 * 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+      }[windowKey] ?? 0;
 
       const combinedVolume = (baselineWindow.volume || 0) + (liveWindow.volume || 0);
       const combinedTxns = (baselineWindow.txns || 0) + (liveWindow.txns || 0);
@@ -195,13 +247,38 @@ class TokenMetrics {
         (liveWindow.volume || 0) > 0 ||
         (typeof liveWindow.priceChange === 'number' && liveWindow.priceChange !== 0);
 
+      let priceChangeValue = Number(baselineWindow.priceChange || 0);
+      if (hasLiveActivity) {
+        const currentPrice =
+          Number(this.metrics.currentPrice || 0) ||
+          Number(this.baseline.currentPrice || 0);
+        const baselineOpen =
+          this.baselineOpenPrices?.[windowKey] ??
+          Number(this.baseline.currentPrice || 0);
+        const timeSinceBaseline = this.baselineTimestamp
+          ? Date.now() - this.baselineTimestamp
+          : Number.MAX_SAFE_INTEGER;
+        const hasWindowCoverage =
+          timeSinceBaseline >= windowDurationMs || windowDurationMs === 0;
+
+        if (!hasWindowCoverage && baselineOpen && currentPrice > 0) {
+          const effectivePriceChange =
+            ((currentPrice - baselineOpen) / baselineOpen) * 100;
+          if (isFinite(effectivePriceChange)) {
+            priceChangeValue = effectivePriceChange;
+          } else {
+            priceChangeValue = Number(liveWindow.priceChange || baselineWindow.priceChange || 0);
+          }
+        } else {
+          priceChangeValue = Number(liveWindow.priceChange || baselineWindow.priceChange || 0);
+        }
+      }
+
       return {
         volume: combinedVolume,
         txns: combinedTxns,
         makers: combinedMakers,
-        priceChange: hasLiveActivity
-          ? Number(liveWindow.priceChange || 0)
-          : Number(baselineWindow.priceChange || 0),
+        priceChange: priceChangeValue,
       };
     };
 
@@ -730,100 +807,67 @@ class EnhancedHybridPriceService extends EventEmitter {
    */
   parseBalanceChanges(msg) {
     try {
-      if (!msg.transaction?.transaction) {
+      const txContainer = msg?.transaction;
+      if (!txContainer?.transaction) {
         return null;
       }
 
-      const tx = msg.transaction.transaction;
-      const slot = msg.transaction.slot;
-      
-      // Extract signature
-      let signature = tx.signature || 
-                     tx.transaction?.signatures?.[0] || 
-                     msg.transaction?.signature;
-      
-      if (signature && Buffer.isBuffer(signature)) {
-        signature = bs58.encode(signature);
-      }
-
-      // Get balance changes from meta
-      const meta = tx.meta || msg.transaction.meta;
+      const rawTx = txContainer.transaction;
+      const meta = rawTx.meta || txContainer.meta;
       if (!meta) {
         return null;
       }
 
       const preBalances = meta.preTokenBalances || [];
-      const postBalances = meta.postTokenBalances || [];
-
       if (preBalances.length === 0) {
         return null;
       }
 
-      // Find all unique token mints (excluding WSOL)
-      const tokenMints = new Set();
-      preBalances.forEach(b => {
-        if (b.mint && b.mint !== WSOL) {
-          tokenMints.add(b.mint);
-        }
-      });
+      let signature =
+        rawTx.signature ||
+        rawTx.transaction?.signatures?.[0] ||
+        txContainer.signature;
 
-      // For each token, calculate balance changes
+      if (signature && Buffer.isBuffer(signature)) {
+        signature = bs58.encode(signature);
+      } else if (signature && typeof signature !== 'string') {
+        signature = this.normalizeSignature(signature);
+      }
+
+      const canonicalTx = {
+        transaction: rawTx.transaction || rawTx,
+        meta,
+        slot: Number(txContainer.slot ?? rawTx.slot ?? 0),
+        blockTime: txContainer.blockTime ?? rawTx.blockTime ?? null,
+        signature: this.normalizeSignature(signature) || undefined,
+      };
+
+      const tokenMints = new Set();
+      for (const balance of preBalances) {
+        const candidateMint = balance?.mint;
+        if (!candidateMint || candidateMint === WSOL) continue;
+        if (!this.isMintMonitored(candidateMint)) continue;
+        tokenMints.add(candidateMint);
+      }
+
+      if (tokenMints.size === 0) {
+        return null;
+      }
+
       const swaps = [];
       for (const tokenMint of tokenMints) {
-        let tokenIn = 0;
-        let tokenOut = 0;
-        let solIn = 0;
-        let solOut = 0;
-        let walletAddress = null;
+        try {
+          const detected = detectSwapsForMint(
+            canonicalTx,
+            tokenMint,
+            this.solPriceUSD || 0,
+            this.rpcTokenPriceCache,
+            this.poolAddresses.get(tokenMint) || null
+          );
 
-        for (let i = 0; i < preBalances.length; i++) {
-          const pre = preBalances[i];
-          const post = postBalances.find(p => p.accountIndex === pre.accountIndex);
-
-          if (!post) continue;
-
-          const preAmount = parseFloat(pre.uiTokenAmount?.uiAmount || 0);
-          const postAmount = parseFloat(post.uiTokenAmount?.uiAmount || 0);
-          const change = postAmount - preAmount;
-
-          // Capture wallet address (owner of the token account)
-          if (!walletAddress && pre.owner) {
-            walletAddress = pre.owner;
-          }
-
-          // Token balance changes
-          if (pre.mint === tokenMint) {
-            if (change > 0) {
-              tokenIn += change;
-            } else if (change < 0) {
-              tokenOut += Math.abs(change);
-            }
-          }
-
-          // SOL balance changes
-          if (pre.mint === WSOL) {
-            if (change > 0) {
-              solIn += change;
-            } else if (change < 0) {
-              solOut += Math.abs(change);
-            }
-          }
-        }
-
-        // Valid swap: has both token and SOL changes
-        if ((tokenIn > 0 || tokenOut > 0) && (solIn > 0 || solOut > 0)) {
-          const isBuy = tokenIn > 0;
-          const tokenAmount = isBuy ? tokenIn : tokenOut;
-          const solAmount = isBuy ? solOut : solIn;
-
-          if (tokenAmount > 0 && solAmount > 0) {
-            const normalizedSignature = this.normalizeSignature(signature) || 'unknown';
-            const maker = walletAddress || null;
-            const priceInSol = solAmount / tokenAmount;
-            const priceUsd = priceInSol * this.solPriceUSD;
-            const volumeUsd = solAmount * this.solPriceUSD;
-
-            const timestamp = Date.now();
+          for (const swap of detected) {
+            const normalizedSignature =
+              this.normalizeSignature(swap.signature || signature) || 'unknown';
 
             swaps.push({
               signature: normalizedSignature,
@@ -835,27 +879,71 @@ class EnhancedHybridPriceService extends EventEmitter {
                 normalizedSignature && normalizedSignature !== 'unknown'
                   ? `https://solscan.io/tx/${normalizedSignature}`
                   : null,
-              tokenMint,
-              slot,
-              timestamp,
-              type: isBuy ? 'Buy' : 'Sell',
-              tokenAmount,
-              solAmount,
-              priceInSol,
-              priceUsd,
-              volumeUsd,
-              walletAddress: maker,
-              maker,
+              tokenMint: swap.tokenMint || tokenMint,
+              slot: canonicalTx.slot || txContainer.slot || null,
+              timestamp:
+                swap.timestamp ??
+                (txContainer.blockTime
+                  ? txContainer.blockTime * 1000
+                  : Date.now()),
+              type: swap.type === 'SELL' ? 'Sell' : 'Buy',
+              tokenAmount: Number(swap.tokenAmount ?? 0),
+              solAmount: Number(
+                swap.solAmount ??
+                  (swap.counterMint === WSOL ? swap.baseAmount : 0)
+              ),
+              priceInSol: Number(
+                swap.priceInSol ??
+                  (swap.counterMint === WSOL && swap.tokenAmount
+                    ? swap.baseAmount / swap.tokenAmount
+                    : 0)
+              ),
+              priceUsd: Number(swap.priceUsd ?? 0),
+              volumeUsd: Number(swap.volumeUsd ?? 0),
+              walletAddress: swap.walletAddress || swap.maker || null,
+              maker: swap.maker || swap.walletAddress || null,
+              baseAmount: Number(swap.baseAmount ?? swap.counterAmount ?? 0),
+              counterMint: swap.counterMint || null,
+              price:
+                swap.price ??
+                (swap.priceUsd && swap.tokenAmount
+                  ? swap.priceUsd / Math.max(swap.tokenAmount, 1e-12)
+                  : undefined),
               source: 'grpc-dex',
             });
           }
+        } catch (innerError) {
+          console.error(
+            `❌ [EnhancedHybridPriceService] Swap detection failed for ${tokenMint.slice(
+              0,
+              8
+            )}...:`,
+            innerError.message
+          );
         }
       }
 
-      return swaps.length > 0 ? swaps : null;
+      if (swaps.length === 0) {
+        return null;
+      }
 
+      const deduped = [];
+      const seen = new Set();
+      for (const swap of swaps) {
+        const key = `${swap.signature}-${swap.tokenMint}-${swap.type}-${Math.round(
+          (swap.tokenAmount ?? 0) * 1e6
+        )}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(swap);
+      }
+
+      return deduped.length > 0 ? deduped : null;
     } catch (error) {
-      console.error('❌ [EnhancedHybridPriceService] Error parsing transaction:', error.message);
+      console.error(
+        '❌ [EnhancedHybridPriceService] Error parsing transaction:',
+        error.message
+      );
       return null;
     }
   }
@@ -2553,3 +2641,4 @@ class EnhancedHybridPriceService extends EventEmitter {
 }
 
 export default EnhancedHybridPriceService;
+
