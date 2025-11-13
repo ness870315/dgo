@@ -74,11 +74,15 @@ class PoolData {
     this.tokenMint = tokenMint;
     this.config = config;
     this.poolTokenAccount = null;
-    this.poolSolAccount = null;
+    this.poolQuoteAccount = null; // Renamed from poolSolAccount (supports SOL/USDC/USDT)
     this.tokenReserve = null;
-    this.solReserve = null;
-    this.price = 0; // SOL per token
+    this.quoteReserve = null; // Renamed from solReserve
+    this.price = 0; // Quote token per token
+    this.quoteMint = null; // Which quote token (SOL/USDC/USDT)
+    this.quoteName = null; // 'SOL', 'USDC', or 'USDT'
+    this.quoteDecimals = 9; // Decimals for quote token
     this.pendingTransactions = []; // For matching swaps with transactions
+    this.pendingSwaps = []; // Swaps waiting for transaction data (buffering)
     this.lastUpdate = Date.now();
   }
 }
@@ -96,19 +100,32 @@ export default class DexScreenerStyleMonitor {
     // Data structures
     this.tokens = new Map(); // mint -> TokenData
     this.pools = new Map(); // mint -> PoolData
-    this.streams = new Map(); // streamId -> gRPC stream
+    this.stream = null; // SINGLE gRPC stream for ALL pools
+    this.accountFilters = {}; // Accumulated account filters
+    this.transactionFilters = {}; // Accumulated transaction filters
     
     // Global state
     this.solPriceUSD = 0;
     this.priceUpdater = null;
     this.isInitialized = false;
     
-    // Stats
+    // Stats (per-token)
     this.stats = {
       tokensMonitored: 0,
       totalSwaps: 0,
       swapsPerSecond: 0,
       lastSwapTime: 0
+    };
+    
+    // Global cumulative statistics (persist across stream recreations)
+    this.globalStats = {
+      totalAccountUpdates: 0,
+      totalTransactions: 0,
+      totalSwapsDetected: 0,
+      totalBuys: 0,
+      totalSells: 0,
+      streamRecreations: 0,
+      startTime: Date.now()
     };
 
     console.log('🚀 [DexScreenerStyleMonitor] Initialized');
@@ -126,6 +143,41 @@ export default class DexScreenerStyleMonitor {
     const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
     const Client = YellowstoneGrpc.default || YellowstoneGrpc;
     this.grpcClient = new Client(GRPC_ENDPOINT, GRPC_TOKEN);
+    
+    // Create ONE stream that will handle ALL pools
+    console.log('📡 [DexScreenerStyleMonitor] Creating single gRPC stream...');
+    this.stream = await this.grpcClient.subscribeOnce(
+      this.accountFilters,
+      {}, // slots
+      this.transactionFilters,
+      {}, // blocks
+      {}, // blocksMeta
+      {}, // entry
+      {}, // transactionsStatus
+      1, // CONFIRMED
+      []
+    );
+    
+    // Handle stream data - route to correct pool
+    this.stream.on('data', (msg) => {
+      if (msg.account) {
+        this.handleAccountUpdate(msg);
+      }
+      if (msg.transaction) {
+        this.handleTransaction(msg);
+      }
+    });
+    
+    this.stream.on('error', (error) => {
+      console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
+    });
+    
+    this.stream.on('end', () => {
+      console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended, reconnecting...`);
+      // TODO: Implement reconnection logic
+    });
+    
+    console.log('✅ [DexScreenerStyleMonitor] Single gRPC stream created');
     
     // Fetch initial SOL price
     await this.fetchSOLPrice();
@@ -182,6 +234,75 @@ export default class DexScreenerStyleMonitor {
     // We don't need Jupiter baseline anymore
     // We calculate all stats from real swaps in ChartDatabase
     return null;
+  }
+
+  /**
+   * Discover reserve accounts for DLMM pools by analyzing recent transactions
+   * Used when getParsedTokenAccountsByOwner returns 0 accounts (DLMM/CLMM pools)
+   */
+  async discoverDLMMReserves(poolAddress, tokenMint, quoteMint) {
+    try {
+      const poolPubkey = new PublicKey(poolAddress);
+      
+      // Get recent transactions
+      const signatures = await this.connection.getSignaturesForAddress(poolPubkey, { limit: 10 });
+      
+      if (signatures.length === 0) {
+        return null;
+      }
+      
+      // Try each transaction until we find one with token balances
+      for (let i = 0; i < signatures.length; i++) {
+        const tx = await this.connection.getParsedTransaction(signatures[i].signature, {
+          maxSupportedTransactionVersion: 0
+        });
+        
+        if (!tx || !tx.meta || !tx.meta.postTokenBalances || tx.meta.postTokenBalances.length === 0) {
+          continue;
+        }
+        
+        // Group token accounts by mint
+        const accountsByMint = new Map();
+        
+        tx.meta.postTokenBalances.forEach(balance => {
+          const accountIndex = balance.accountIndex;
+          const account = tx.transaction.message.accountKeys[accountIndex];
+          const pubkey = typeof account === 'object' && account.pubkey ? account.pubkey.toBase58() : account.toBase58();
+          
+          if (!accountsByMint.has(balance.mint)) {
+            accountsByMint.set(balance.mint, []);
+          }
+          
+          accountsByMint.get(balance.mint).push({
+            pubkey,
+            amount: balance.uiTokenAmount.uiAmount,
+            decimals: balance.uiTokenAmount.decimals
+          });
+        });
+        
+        // Find the reserve accounts (largest balance for each mint)
+        const tokenReserve = accountsByMint.get(tokenMint)?.sort((a, b) => b.amount - a.amount)[0];
+        const quoteReserve = accountsByMint.get(quoteMint)?.sort((a, b) => b.amount - a.amount)[0];
+        
+        if (tokenReserve && quoteReserve) {
+          console.log(`   ✅ [DLMM Discovery] Found reserves via transaction analysis`);
+          return {
+            poolTokenAccount: tokenReserve.pubkey,
+            poolQuoteAccount: quoteReserve.pubkey,
+            tokenReserve: tokenReserve.amount,
+            quoteReserve: quoteReserve.amount,
+            quoteMint: quoteMint,
+            quoteDecimals: quoteReserve.decimals
+          };
+        }
+      }
+      
+      return null;
+      
+    } catch (error) {
+      console.error(`   ❌ [DLMM Discovery] Error:`, error.message);
+      return null;
+    }
   }
 
   /**
@@ -274,6 +395,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Subscribe to pool for real-time swap detection
+   * Supports ALL DEX types: Standard AMM, DLMM, CLMM, Whirlpool
    */
   async subscribeToPool(mint, config) {
     console.log(`📡 [DexScreenerStyleMonitor] Subscribing to pool for ${config.name}...`);
@@ -282,94 +404,157 @@ export default class DexScreenerStyleMonitor {
       const poolPubkey = new PublicKey(config.pool);
       const tokenMint = new PublicKey(mint);
       const solMint = new PublicKey(SOL_MINT);
+      
+      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
 
-      // Calculate pool token accounts
-      const poolTokenAccount = getAssociatedTokenAddressSync(tokenMint, poolPubkey, true);
-      const poolSolAccount = getAssociatedTokenAddressSync(solMint, poolPubkey, true);
-
-      // Fetch initial reserves
-      const tokenInfo = await this.connection.getTokenAccountBalance(poolTokenAccount);
-      const solInfo = await this.connection.getTokenAccountBalance(poolSolAccount);
-
-      const tokenReserve = tokenInfo.value.uiAmount;
-      const solReserve = solInfo.value.uiAmount;
-      const price = solReserve / tokenReserve;
-
+      console.log(`   🔍 Finding token accounts for pool...`);
+      
+      // Try to find token accounts owned by the pool (Standard AMM)
+      const poolAccounts = await this.connection.getParsedTokenAccountsByOwner(poolPubkey, {
+        programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+      });
+      
+      let poolTokenAccount = null;
+      let poolQuoteAccount = null;
+      let tokenReserve = 0;
+      let quoteReserve = 0;
+      let quoteMint = null;
+      let quoteDecimals = 9;
+      
+      // Find token and quote accounts from pool-owned accounts
+      for (const account of poolAccounts.value) {
+        const accountMint = account.account.data.parsed.info.mint;
+        const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
+        const decimals = account.account.data.parsed.info.tokenAmount.decimals;
+        
+        if (accountMint === mint) {
+          poolTokenAccount = account.pubkey;
+          tokenReserve = amount;
+          console.log(`   ✅ Token Account: ${account.pubkey.toBase58()} (${amount.toLocaleString()} tokens)`);
+        } else if (accountMint === SOL_MINT || accountMint === USDC_MINT || accountMint === USDT_MINT) {
+          poolQuoteAccount = account.pubkey;
+          quoteReserve = amount;
+          quoteMint = accountMint;
+          quoteDecimals = decimals;
+          const quoteName = accountMint === SOL_MINT ? 'SOL' : (accountMint === USDC_MINT ? 'USDC' : 'USDT');
+          console.log(`   ✅ Quote Account (${quoteName}): ${account.pubkey.toBase58()} (${amount.toLocaleString()})`);
+        }
+      }
+      
+      // If no token accounts found (DLMM/CLMM pools), try transaction-based discovery
+      if (!poolTokenAccount || !poolQuoteAccount) {
+        console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM)`);
+        console.log(`   🔍 Trying transaction-based discovery...`);
+        
+        const reserves = await this.discoverDLMMReserves(config.pool, mint, SOL_MINT);
+        if (!reserves) {
+          throw new Error(`Could not discover reserves for pool ${config.pool}`);
+        }
+        
+        poolTokenAccount = new PublicKey(reserves.poolTokenAccount);
+        poolQuoteAccount = new PublicKey(reserves.poolQuoteAccount);
+        tokenReserve = reserves.tokenReserve;
+        quoteReserve = reserves.quoteReserve;
+        quoteMint = reserves.quoteMint;
+        quoteDecimals = reserves.quoteDecimals;
+        
+        console.log(`   ✅ Token Reserve: ${poolTokenAccount.toBase58()} (${tokenReserve.toLocaleString()} tokens)`);
+        console.log(`   ✅ Quote Reserve: ${poolQuoteAccount.toBase58()} (${quoteReserve.toLocaleString()})`);
+      }
+      
+      const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
+      const price = quoteReserve / tokenReserve;
+      
       console.log(`   Token Reserve: ${tokenReserve.toLocaleString()} tokens`);
-      console.log(`   SOL Reserve:   ${solReserve.toFixed(6)} SOL`);
-      console.log(`   Price:         ${price.toFixed(10)} SOL per token`);
+      console.log(`   Quote Reserve: ${quoteReserve.toLocaleString()} ${quoteName}`);
+      console.log(`   Price:         ${price.toFixed(10)} ${quoteName} per token`);
 
       // Store pool data
       const poolData = new PoolData(config.pool, mint, config);
       poolData.poolTokenAccount = poolTokenAccount.toBase58();
-      poolData.poolSolAccount = poolSolAccount.toBase58();
+      poolData.poolQuoteAccount = poolQuoteAccount.toBase58();
       poolData.tokenReserve = tokenReserve;
-      poolData.solReserve = solReserve;
+      poolData.quoteReserve = quoteReserve;
       poolData.price = price;
+      poolData.quoteMint = quoteMint;
+      poolData.quoteName = quoteName;
+      poolData.quoteDecimals = quoteDecimals;
 
       this.pools.set(mint, poolData);
 
-      // Create gRPC subscriptions (account + transaction)
-      const accountFilters = {
-        [`${mint}_token`]: { 
-          account: [poolData.poolTokenAccount], 
-          owner: [], 
-          filters: [] 
-        },
-        [`${mint}_sol`]: { 
-          account: [poolData.poolSolAccount], 
-          owner: [], 
-          filters: [] 
-        }
+      // Add filters to the stream
+      this.accountFilters[`${mint}_token`] = { 
+        account: [poolData.poolTokenAccount], 
+        owner: [], 
+        filters: [] 
+      };
+      
+      this.accountFilters[`${mint}_quote`] = { 
+        account: [poolData.poolQuoteAccount], 
+        owner: [], 
+        filters: [] 
       };
 
-      const transactionFilters = {
-        [`${mint}_txs`]: {
-          accountInclude: [poolData.poolTokenAccount, poolData.poolSolAccount],
-          accountExclude: [],
-          accountRequired: [],
-          vote: false,
-          failed: false,
-          include_meta: true,
-          include_token_balances: true,
-          include_instructions: true,
-          include_inner_instructions: true,
-          include_loaded_addresses: true,
-          include_accounts: true
-        }
+      this.transactionFilters[`${mint}_txs`] = {
+        accountInclude: [poolData.poolTokenAccount, poolData.poolQuoteAccount],
+        accountExclude: [],
+        accountRequired: [],
+        vote: false,
+        failed: false,
+        include_meta: true,
+        include_token_balances: true,
+        include_instructions: true,
+        include_inner_instructions: true,
+        include_loaded_addresses: true,
+        include_accounts: true
       };
 
-      const stream = await this.grpcClient.subscribeOnce(
-        accountFilters,
+      // Recreate the stream with updated filters
+      console.log(`   📡 Recreating stream with new filters for ${config.name}...`);
+      this.globalStats.streamRecreations++;
+      
+      // Cancel existing stream
+      if (this.stream) {
+        try {
+          this.stream.cancel();
+        } catch (e) {
+          // Ignore cancellation errors
+        }
+      }
+      
+      // Create new stream with all accumulated filters
+      this.stream = await this.grpcClient.subscribeOnce(
+        this.accountFilters,
         {}, // slots
-        transactionFilters, // transactions
-        {}, {}, {}, {},
-        1, // CONFIRMED commitment level
+        this.transactionFilters,
+        {}, // blocks
+        {}, // blocksMeta
+        {}, // entry
+        {}, // transactionsStatus
+        1, // CONFIRMED
         []
       );
-
-      const streamId = `stream_${mint}_${Date.now()}`;
-      this.streams.set(streamId, stream);
-
-      // Handle stream data
-      stream.on('data', (msg) => {
+      
+      // Re-attach handlers
+      this.stream.on('data', (msg) => {
         if (msg.account) {
-          this.handleAccountUpdate(mint, msg);
+          this.handleAccountUpdate(msg);
         }
         if (msg.transaction) {
-          this.handleTransaction(mint, msg);
+          this.handleTransaction(msg);
         }
       });
-
-      stream.on('error', (error) => {
-        console.error(`❌ [DexScreenerStyleMonitor] Stream error for ${config.name}:`, error.message);
+      
+      this.stream.on('error', (error) => {
+        console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
+      });
+      
+      this.stream.on('end', () => {
+        console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
       });
 
-      stream.on('end', () => {
-        console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended for ${config.name}`);
-      });
-
-      console.log(`✅ [DexScreenerStyleMonitor] Subscribed to pool for ${config.name}`);
+      console.log(`✅ [DexScreenerStyleMonitor] Pool added to stream for ${config.name}`);
 
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error subscribing to pool:`, error.message);
@@ -381,12 +566,52 @@ export default class DexScreenerStyleMonitor {
    * Handle transaction message from gRPC stream
    * Extracts maker wallet and transaction signature
    */
-  handleTransaction(mint, msg) {
+  handleTransaction(msg) {
     try {
+      this.globalStats.totalTransactions++;
+      
       const txData = msg.transaction;
-      const poolData = this.pools.get(mint);
-
       if (!txData.transaction) return;
+      
+      // Extract accounts involved in this transaction to find which pool it belongs to
+      const innerTransaction = txData.transaction.transaction;
+      const message = innerTransaction ? innerTransaction.message : null;
+      
+      if (!message) return;
+      
+      // Get all account keys from the transaction
+      let accountKeys = [];
+      if (message.staticAccountKeys && message.staticAccountKeys.length > 0) {
+        accountKeys = message.staticAccountKeys.map(key => {
+          try {
+            return new PublicKey(key).toBase58();
+          } catch (e) {
+            return null;
+          }
+        }).filter(k => k !== null);
+      } else if (message.accountKeys && message.accountKeys.length > 0) {
+        accountKeys = message.accountKeys.map(key => {
+          try {
+            return new PublicKey(key).toBase58();
+          } catch (e) {
+            return null;
+          }
+        }).filter(k => k !== null);
+      }
+      
+      // Find which pool this transaction belongs to
+      let mint = null;
+      let poolData = null;
+      
+      for (const [tokenMint, pool] of this.pools.entries()) {
+        if (accountKeys.includes(pool.poolTokenAccount) || accountKeys.includes(pool.poolQuoteAccount)) {
+          mint = tokenMint;
+          poolData = pool;
+          break;
+        }
+      }
+      
+      if (!mint || !poolData) return;
 
       // Extract signature (convert from Buffer to bs58)
       let signature = null;
@@ -395,30 +620,10 @@ export default class DexScreenerStyleMonitor {
         signature = bs58.encode(sigBuffer);
       }
 
-      // Extract maker (first account in transaction)
+      // Extract maker (first account in transaction) - already have accountKeys from above
       let maker = null;
-      const innerTransaction = txData.transaction.transaction;
-      const message = innerTransaction ? innerTransaction.message : null;
-
-      if (message) {
-        // Try staticAccountKeys first (versioned transactions)
-        if (message.staticAccountKeys && message.staticAccountKeys.length > 0) {
-          const firstAccount = message.staticAccountKeys[0];
-          try {
-            maker = new PublicKey(firstAccount).toBase58();
-          } catch (e) {
-            // Ignore decode errors
-          }
-        }
-        // Fallback to accountKeys (legacy transactions)
-        else if (message.accountKeys && message.accountKeys.length > 0) {
-          const firstAccount = message.accountKeys[0];
-          try {
-            maker = new PublicKey(firstAccount).toBase58();
-          } catch (e) {
-            // Ignore decode errors
-          }
-        }
+      if (accountKeys.length > 0) {
+        maker = accountKeys[0]; // First account is the maker
       }
 
       const slot = txData.slot;
@@ -435,6 +640,18 @@ export default class DexScreenerStyleMonitor {
         timestamp: Date.now()
       });
 
+      // Check if there are pending swaps waiting for this transaction
+      if (poolData.pendingSwaps && poolData.pendingSwaps.length > 0) {
+        const swapIndex = poolData.pendingSwaps.findIndex(swap => swap.slot === slot);
+        if (swapIndex !== -1) {
+          const pendingSwap = poolData.pendingSwaps[swapIndex];
+          poolData.pendingSwaps.splice(swapIndex, 1);
+          
+          // Display the swap now with full transaction info
+          this.displaySwap(mint, poolData, pendingSwap, { signature, maker, slot });
+        }
+      }
+
       // Keep only last 100 transactions (cleanup)
       if (poolData.pendingTransactions.length > 100) {
         poolData.pendingTransactions = poolData.pendingTransactions.slice(-100);
@@ -449,19 +666,17 @@ export default class DexScreenerStyleMonitor {
    * Handle account update message from gRPC stream
    * Detects swaps from pool reserve changes
    */
-  handleAccountUpdate(mint, msg) {
+  handleAccountUpdate(msg) {
     try {
+      this.globalStats.totalAccountUpdates++;
+      
       if (!msg.account) return;
 
       const accountUpdate = msg.account;
       const accountData = accountUpdate.account?.data;
       if (!accountData) return;
 
-      const poolData = this.pools.get(mint);
-      const tokenData = this.tokens.get(mint);
-      if (!poolData || !tokenData) return;
-
-      // Decode account key
+      // Decode account key to figure out which pool this belongs to
       const accountKey = accountUpdate.account?.pubkey ? 
         Buffer.from(accountUpdate.account.pubkey).toString('base64') : null;
       let decodedKey = null;
@@ -473,6 +688,22 @@ export default class DexScreenerStyleMonitor {
           return;
         }
       }
+      
+      // Find which pool this account belongs to
+      let mint = null;
+      let poolData = null;
+      let tokenData = null;
+      
+      for (const [tokenMint, pool] of this.pools.entries()) {
+        if (decodedKey === pool.poolTokenAccount || decodedKey === pool.poolQuoteAccount) {
+          mint = tokenMint;
+          poolData = pool;
+          tokenData = this.tokens.get(tokenMint);
+          break;
+        }
+      }
+      
+      if (!mint || !poolData || !tokenData) return;
 
       // Check if it's the token reserve account
       if (decodedKey === poolData.poolTokenAccount) {
@@ -483,19 +714,18 @@ export default class DexScreenerStyleMonitor {
           const delta = newAmount - poolData.tokenReserve;
 
           if (Math.abs(delta) > 0.001) { // Ignore dust
+            // Update global counters
+            this.globalStats.totalSwapsDetected++;
+            
             // CRITICAL: When pool token reserve INCREASES, user SOLD to pool (SELL)
             //           When pool token reserve DECREASES, user BOUGHT from pool (BUY)
             const isBuy = delta < 0; // Token reserve decreased = user bought
-
-            // Calculate prices and market cap
-            const tokenPriceSOL = poolData.price; // SOL per token
-            const tokenPriceUSD = tokenPriceSOL * this.solPriceUSD;
-            const solAmount = Math.abs(delta) * tokenPriceSOL;
-            const solAmountUSD = solAmount * this.solPriceUSD;
-
-            const marketCap = tokenData.metadata && tokenData.metadata.circSupply > 0 
-              ? tokenData.metadata.circSupply * tokenPriceUSD 
-              : 0;
+            
+            if (isBuy) {
+              this.globalStats.totalBuys++;
+            } else {
+              this.globalStats.totalSells++;
+            }
 
             // Try to match with a transaction from the same slot
             let matchedTx = null;
@@ -503,10 +733,10 @@ export default class DexScreenerStyleMonitor {
               // Find transaction with matching slot
               matchedTx = poolData.pendingTransactions.find(tx => tx.slot === accountUpdate.slot);
 
-              // If no exact slot match, take the most recent one (within 2 seconds)
+              // If no exact slot match, take the most recent one (within 5 seconds)
               if (!matchedTx) {
                 const recentTxs = poolData.pendingTransactions.filter(
-                  tx => (Date.now() - tx.timestamp) < 2000
+                  tx => (Date.now() - tx.timestamp) < 5000
                 );
                 if (recentTxs.length > 0) {
                   matchedTx = recentTxs[recentTxs.length - 1];
@@ -514,46 +744,28 @@ export default class DexScreenerStyleMonitor {
               }
             }
 
-            // Create swap record
-            const swap = {
-              timestamp: Date.now(),
-              type: isBuy ? 'buy' : 'sell',
-              amountTokens: Math.abs(delta),
-              amountSOL: solAmount,
-              priceSOL: tokenPriceSOL,
-              priceUSD: tokenPriceUSD,
-              volumeUSD: solAmountUSD,
-              marketCap: marketCap,
-              maker: matchedTx?.maker || 'unknown',
-              signature: matchedTx?.signature || 'unknown',
-              slot: accountUpdate.slot
-            };
-
-            // Add to token data
-            tokenData.addSwap(swap);
-
-            // Write to database (async, non-blocking)
-            this.writeSwapToDatabase(mint, swap).catch(err => {
-              console.error(`❌ [DexScreenerStyleMonitor] Failed to write swap:`, err.message);
-            });
-
-            // Update stats
-            this.stats.totalSwaps++;
-            this.stats.lastSwapTime = Date.now();
-
-            // Log swap (optional - can be disabled in production)
-            if (process.env.LOG_SWAPS === 'true') {
-              console.log(`🔥 [DexScreenerStyleMonitor] ${tokenData.config.name} - ${isBuy ? 'BUY' : 'SELL'}`);
-              console.log(`   Amount: ${Math.abs(delta).toLocaleString()} tokens`);
-              console.log(`   SOL: ${solAmount.toFixed(4)} SOL ($${solAmountUSD.toFixed(2)})`);
-              console.log(`   Price: $${tokenPriceUSD.toFixed(8)} | MCap: $${marketCap > 1000000 ? (marketCap / 1000000).toFixed(2) + 'M' : (marketCap / 1000).toFixed(1) + 'K'}`);
+            // ONLY display swap if we have a matching transaction (buffering)
+            if (!matchedTx) {
+              // Buffer this swap for later display when transaction arrives
+              if (!poolData.pendingSwaps) {
+                poolData.pendingSwaps = [];
+              }
+              poolData.pendingSwaps.push({
+                delta,
+                isBuy,
+                slot: accountUpdate.slot,
+                timestamp: Date.now(),
+                newAmount
+              });
+              
+              // Update pool data silently
+              poolData.tokenReserve = newAmount;
+              poolData.lastUpdate = Date.now();
+              return; // Don't display yet
             }
 
-            // Broadcast swap to WebSocket clients
-            this.broadcastSwap(mint, swap);
-
-            // Broadcast updated metrics to WebSocket clients
-            this.broadcastMetrics(mint);
+            // Display the swap with transaction info
+            this.displaySwap(mint, poolData, { delta, isBuy }, matchedTx);
 
             // Update pool data
             poolData.tokenReserve = newAmount;
@@ -561,16 +773,16 @@ export default class DexScreenerStyleMonitor {
           }
         }
       }
-      // Check if it's the SOL reserve account
-      else if (decodedKey === poolData.poolSolAccount) {
+      // Check if it's the quote token reserve account
+      else if (decodedKey === poolData.poolQuoteAccount) {
         const dataBuffer = Buffer.from(accountData);
-        const newAmount = this.decodeTokenAmount(dataBuffer, 9); // SOL has 9 decimals
+        const newAmount = this.decodeTokenAmount(dataBuffer, poolData.quoteDecimals);
 
-        if (newAmount !== null && poolData.solReserve !== null) {
-          const delta = newAmount - poolData.solReserve;
+        if (newAmount !== null && poolData.quoteReserve !== null) {
+          const delta = newAmount - poolData.quoteReserve;
 
           if (Math.abs(delta) > 0.0001) { // Ignore dust
-            poolData.solReserve = newAmount;
+            poolData.quoteReserve = newAmount;
             poolData.price = newAmount / poolData.tokenReserve;
           }
         }
@@ -578,6 +790,90 @@ export default class DexScreenerStyleMonitor {
 
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling account update:`, error.message);
+    }
+  }
+
+  /**
+   * Display swap with full transaction data
+   * Called when we have both account update and transaction data
+   */
+  displaySwap(mint, poolData, swapData, txData) {
+    try {
+      const { delta, isBuy } = swapData;
+      const tokenData = this.tokens.get(mint);
+      if (!tokenData) return;
+
+      // Calculate prices and market cap
+      const tokenPriceInQuote = poolData.price;
+      const metadata = tokenData.metadata;
+      let tokenPriceUSD;
+      
+      // Use Jupiter price if available (more accurate for complex pools), otherwise calculate from pool
+      if (metadata && metadata.jupiterPrice) {
+        tokenPriceUSD = metadata.jupiterPrice;
+      } else {
+        if (poolData.quoteMint === SOL_MINT) {
+          tokenPriceUSD = tokenPriceInQuote * this.solPriceUSD;
+        } else {
+          // USDC/USDT are already in USD
+          tokenPriceUSD = tokenPriceInQuote;
+        }
+      }
+      
+      const quoteAmount = Math.abs(delta) * tokenPriceInQuote;
+      const quoteAmountUSD = Math.abs(delta) * tokenPriceUSD;
+      const marketCap = metadata && metadata.circSupply > 0 
+        ? metadata.circSupply * tokenPriceUSD 
+        : 0;
+
+      // Create swap record
+      const swap = {
+        timestamp: Date.now(),
+        type: isBuy ? 'buy' : 'sell',
+        amountTokens: Math.abs(delta),
+        amountSOL: poolData.quoteMint === SOL_MINT ? quoteAmount : 0, // For backward compatibility
+        amountQuote: quoteAmount,
+        priceSOL: poolData.quoteMint === SOL_MINT ? tokenPriceInQuote : 0, // For backward compatibility
+        priceQuote: tokenPriceInQuote,
+        priceUSD: tokenPriceUSD,
+        volumeUSD: quoteAmountUSD,
+        marketCap: marketCap,
+        quoteName: poolData.quoteName,
+        maker: txData.maker,
+        signature: txData.signature,
+        slot: txData.slot
+      };
+
+      // Add to token data
+      tokenData.addSwap(swap);
+
+      // Write to database (async, non-blocking)
+      this.writeSwapToDatabase(mint, swap).catch(err => {
+        console.error(`❌ [DexScreenerStyleMonitor] Failed to write swap:`, err.message);
+      });
+
+      // Update stats
+      this.stats.totalSwaps++;
+      this.stats.lastSwapTime = Date.now();
+
+      // Log swap (optional - can be disabled in production)
+      if (process.env.LOG_SWAPS === 'true') {
+        console.log(`🔥 [DexScreenerStyleMonitor] ${tokenData.config.name} - ${isBuy ? 'BUY' : 'SELL'}`);
+        console.log(`   Amount: ${Math.abs(delta).toLocaleString()} tokens`);
+        console.log(`   ${poolData.quoteName}: ${quoteAmount.toFixed(4)} ${poolData.quoteName} ($${quoteAmountUSD.toFixed(2)})`);
+        console.log(`   Price: ${tokenPriceInQuote.toFixed(10)} ${poolData.quoteName} ($${tokenPriceUSD.toFixed(6)}) | MCap: $${marketCap > 1000000 ? (marketCap / 1000000).toFixed(2) + 'M' : (marketCap / 1000).toFixed(1) + 'K'}`);
+        console.log(`   Maker: ${txData.maker?.substring(0, 44)}`);
+        console.log(`   TX: ${txData.signature?.substring(0, 44)}...`);
+      }
+
+      // Broadcast swap to WebSocket clients
+      this.broadcastSwap(mint, swap);
+
+      // Broadcast updated metrics to WebSocket clients
+      this.broadcastMetrics(mint);
+
+    } catch (error) {
+      console.error(`❌ [DexScreenerStyleMonitor] Error displaying swap:`, error.message);
     }
   }
 
@@ -788,11 +1084,20 @@ export default class DexScreenerStyleMonitor {
    * Get service statistics
    */
   getStats() {
+    const uptime = ((Date.now() - this.globalStats.startTime) / 1000).toFixed(1);
+    
     return {
       ...this.stats,
       solPriceUSD: this.solPriceUSD,
       tokensMonitored: this.tokens.size,
-      activeStreams: this.streams.size
+      activeStreams: 1, // Single stream architecture
+      
+      // Global cumulative statistics
+      globalStats: {
+        ...this.globalStats,
+        uptime: parseFloat(uptime),
+        avgSwapsPerSecond: (this.globalStats.totalSwapsDetected / (uptime || 1)).toFixed(2)
+      }
     };
   }
 
@@ -948,15 +1253,15 @@ export default class DexScreenerStyleMonitor {
       clearInterval(this.priceUpdater);
     }
 
-    // Close all gRPC streams
-    for (const stream of this.streams.values()) {
+    // Close the single gRPC stream
+    if (this.stream) {
       try {
-        stream.cancel();
+        this.stream.cancel();
       } catch (e) {
         // Ignore errors
       }
+      this.stream = null;
     }
-    this.streams.clear();
 
     // Close gRPC client
     if (this.grpcClient && typeof this.grpcClient.close === 'function') {
