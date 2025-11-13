@@ -199,31 +199,6 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
-  // ✅ NEW: Broadcast full state update to all connected clients
-  broadcastFullStateUpdate(payload = {}) {
-    const tokens = payload.tokens || [];
-    const message = {
-      type: 'fullStateUpdate',
-      tokens,
-      totals: payload.totals || {},
-      hasTokens: payload.hasTokens ?? tokens.length > 0,
-      tokenCount: payload.tokenCount ?? tokens.length,
-      firstToken: payload.firstToken || tokens[0] || null,
-      meta: payload.meta || {},
-      timestamp: Date.now(),
-    };
-
-    this.clients.forEach((client, clientId) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(message));
-      }
-    });
-
-    console.log(
-      `📡 [BackendWS] Broadcasted fullStateUpdate to ${this.clients.size} clients (tokens: ${message.tokenCount})`
-    );
-  }
-
   // 🚀 NEW: Send recent swaps to a specific client (for late joiners)
   sendRecentSwapsToClient(clientId, tokenAddress, recentSwaps) {
     if (!recentSwaps || recentSwaps.length === 0) {
@@ -247,15 +222,6 @@ class BackendWebSocketServer extends EventEmitter {
     this.broadcastToTokenSubscribers(tokenAddress, {
       type: 'tooltipUpdate',
       data: tooltipData
-    });
-  }
-
-  // ✅ NEW: Broadcast price update for a specific token (real-time)
-  broadcastPriceUpdate(tokenAddress, priceData) {
-    this.broadcastToTokenSubscribers(tokenAddress, {
-      type: 'priceUpdate',
-      tokenAddress,
-      priceData
     });
   }
 

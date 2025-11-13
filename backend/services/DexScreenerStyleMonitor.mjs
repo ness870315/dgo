@@ -820,6 +820,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Broadcast swap to WebSocket clients
+   * Uses 'swapUpdate' type for frontend compatibility
    */
   broadcastSwap(mint, swap) {
     if (!this.webSocketServer) return;
@@ -828,26 +829,37 @@ export default class DexScreenerStyleMonitor {
       const tokenData = this.tokens.get(mint);
       if (!tokenData) return;
 
-      const message = {
-        type: 'swap',
-        data: {
-          tokenAddress: mint,
-          tokenName: tokenData.config.name,
-          timestamp: swap.timestamp,
-          type: swap.type,
-          amountTokens: swap.amountTokens,
-          amountSOL: swap.amountSOL,
-          priceSOL: swap.priceSOL,
-          priceUSD: swap.priceUSD,
-          volumeUSD: swap.volumeUSD,
-          marketCap: swap.marketCap,
-          maker: swap.maker,
-          signature: swap.signature,
-          slot: swap.slot
-        }
+      // Format swap data for frontend compatibility
+      const swapData = {
+        tokenAddress: mint,
+        symbol: tokenData.config.name,
+        type: swap.type,
+        amountTokens: swap.amountTokens,
+        amountSOL: swap.amountSOL,
+        priceSOL: swap.priceSOL,
+        priceUSD: swap.priceUSD,
+        usdAmount: swap.volumeUSD,
+        volumeUSD: swap.volumeUSD,
+        marketCap: swap.marketCap,
+        maker: swap.maker,
+        signature: swap.signature,
+        walletAddress: swap.maker,
+        timestamp: swap.timestamp,
+        slot: swap.slot
       };
 
-      this.webSocketServer.broadcast(JSON.stringify(message));
+      // Use BackendWebSocketServer's broadcastSwapUpdate method
+      if (this.webSocketServer.broadcastSwapUpdate) {
+        this.webSocketServer.broadcastSwapUpdate(mint, swapData);
+      } else {
+        // Fallback to direct broadcast
+        this.webSocketServer.broadcast(JSON.stringify({
+          type: 'swapUpdate',
+          tokenAddress: mint,
+          data: swapData,
+          timestamp: swap.timestamp
+        }));
+      }
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting swap:', error.message);
     }
@@ -855,6 +867,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Broadcast updated metrics to WebSocket clients
+   * Uses 'priceUpdate' type for frontend compatibility
    */
   broadcastMetrics(mint) {
     if (!this.webSocketServer) return;
@@ -866,16 +879,38 @@ export default class DexScreenerStyleMonitor {
       const tokenData = this.tokens.get(mint);
       if (!tokenData) return;
 
-      const message = {
-        type: 'metrics',
-        data: {
-          tokenAddress: mint,
-          tokenName: tokenData.config.name,
-          ...metrics
-        }
+      // Format price data for frontend compatibility
+      const priceData = {
+        priceUsd: metrics.currentPrice,
+        currentPrice: metrics.currentPrice,
+        volume24h: metrics['24h'].volume,
+        volume1h: metrics['1h'].volume,
+        volume5m: metrics['5m'].volume,
+        txns24h: metrics['24h'].txns,
+        txns1h: metrics['1h'].txns,
+        txns5m: metrics['5m'].txns,
+        makers24h: metrics['24h'].makers,
+        makers1h: metrics['1h'].makers,
+        makers5m: metrics['5m'].makers,
+        priceChange24h: metrics['24h'].priceChange,
+        priceChange1h: metrics['1h'].priceChange,
+        priceChange5m: metrics['5m'].priceChange,
+        source: 'dexscreener-monitor',
+        timestamp: Date.now()
       };
 
-      this.webSocketServer.broadcast(JSON.stringify(message));
+      // Use BackendWebSocketServer's broadcastPriceUpdate method
+      if (this.webSocketServer.broadcastPriceUpdate) {
+        this.webSocketServer.broadcastPriceUpdate(mint, priceData);
+      } else {
+        // Fallback to direct broadcast
+        this.webSocketServer.broadcast(JSON.stringify({
+          type: 'priceUpdate',
+          tokenAddress: mint,
+          data: priceData,
+          timestamp: Date.now()
+        }));
+      }
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
     }
