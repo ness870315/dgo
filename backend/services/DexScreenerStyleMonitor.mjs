@@ -101,6 +101,7 @@ export default class DexScreenerStyleMonitor {
     // Global state
     this.solPriceUSD = 0;
     this.priceUpdater = null;
+    this.jupiterBatchCache = {}; // Cache for batch-fetched Jupiter data
     this.isInitialized = false;
     
     // Stats
@@ -160,51 +161,89 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Fetch token metadata from Jupiter API
+   * Batch fetch token data from Jupiter API
+   * Uses /list endpoint with multiple mints (up to 100 per request)
+   */
+  async batchFetchJupiterData(mints) {
+    try {
+      if (!mints || mints.length === 0) return {};
+      
+      // Jupiter API supports up to 100 mints per request
+      const BATCH_SIZE = 100;
+      const results = {};
+      
+      for (let i = 0; i < mints.length; i += BATCH_SIZE) {
+        const batch = mints.slice(i, i + BATCH_SIZE);
+        
+        try {
+          const url = `https://lite-api.jup.ag/tokens/v2/list?mints=${batch.join(',')}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.error(`❌ [DexScreenerStyleMonitor] Jupiter API error: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          
+          if (data && Array.isArray(data)) {
+            for (const token of data) {
+              results[token.address] = {
+                metadata: {
+                  circSupply: token.circSupply || 0,
+                  name: token.name,
+                  symbol: token.symbol
+                },
+                baseline: {
+                  stats5m: token.stats5m || {},
+                  stats1h: token.stats1h || {},
+                  stats6h: token.stats6h || {},
+                  stats24h: token.stats24h || {},
+                  timestamp: Date.now()
+                }
+              };
+            }
+          }
+          
+          // Rate limiting: wait 100ms between batches
+          if (i + BATCH_SIZE < mints.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+        } catch (error) {
+          console.error(`❌ [DexScreenerStyleMonitor] Error fetching Jupiter batch:`, error.message);
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error(`❌ [DexScreenerStyleMonitor] Error in batchFetchJupiterData:`, error.message);
+      return {};
+    }
+  }
+
+  /**
+   * Fetch token metadata from Jupiter API (uses cached batch data)
    */
   async fetchTokenMetadata(mint, name) {
-    try {
-      const response = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`);
-      const data = await response.json();
-      
-      const token = data.find(t => t.id === mint);
-      if (token) {
-        const metadata = {
-          circSupply: token.circSupply || 0,
-          name: token.name || name,
-          symbol: token.symbol || name
-        };
-        console.log(`📊 [DexScreenerStyleMonitor] ${name}: Supply = ${metadata.circSupply.toLocaleString()}`);
-        return metadata;
-      }
-    } catch (error) {
-      console.error(`❌ [DexScreenerStyleMonitor] Error fetching metadata for ${name}:`, error.message);
+    // This method is now just for backwards compatibility
+    // Real fetching happens in batchFetchJupiterData
+    const cached = this.jupiterBatchCache?.[mint];
+    if (cached?.metadata) {
+      console.log(`📊 [DexScreenerStyleMonitor] ${name}: Supply = ${cached.metadata.circSupply.toLocaleString()}`);
+      return cached.metadata;
     }
     return null;
   }
 
   /**
-   * Fetch Jupiter baseline stats for a token
+   * Fetch Jupiter baseline stats for a token (uses cached batch data)
    */
   async fetchJupiterBaseline(mint) {
-    try {
-      const response = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`);
-      const data = await response.json();
-      
-      const token = data.find(t => t.id === mint);
-      if (token) {
-        return {
-          stats5m: token.stats5m || {},
-          stats1h: token.stats1h || {},
-          stats6h: token.stats6h || {},
-          stats24h: token.stats24h || {},
-          timestamp: Date.now()
-        };
-      }
-    } catch (error) {
-      console.error(`❌ [DexScreenerStyleMonitor] Error fetching Jupiter baseline for ${mint}:`, error.message);
-    }
-    return null;
+    // This method is now just for backwards compatibility
+    // Real fetching happens in batchFetchJupiterData
+    const cached = this.jupiterBatchCache?.[mint];
+    return cached?.baseline || null;
   }
 
   /**

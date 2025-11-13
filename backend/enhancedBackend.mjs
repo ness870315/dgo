@@ -18222,6 +18222,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Batch fetch decimals from Jupiter API for all tokens
       await this.enrichTokensWithJupiter(tokens);
       
+      // Batch fetch Jupiter data for all tokens (metadata + baseline stats)
+      const mints = tokens.map(t => t.contractAddress || t.tokenAddress).filter(Boolean);
+      console.log(`🪐 [Backend] Batch fetching Jupiter data for ${mints.length} tokens...`);
+      this.dexScreenerMonitor.jupiterBatchCache = await this.dexScreenerMonitor.batchFetchJupiterData(mints);
+      console.log(`✅ [Backend] Cached Jupiter data for ${Object.keys(this.dexScreenerMonitor.jupiterBatchCache).length} tokens`);
+      
       // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
