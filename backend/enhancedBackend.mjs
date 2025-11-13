@@ -18342,6 +18342,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 token.jupiterData.circSupply = jupToken.circSupply;
                 token.jupiterData.name = jupToken.name;
                 token.jupiterData.symbol = jupToken.symbol;
+                
+                // CRITICAL: Extract pool address from Jupiter firstPool
+                if (jupToken.firstPool && jupToken.firstPool.id) {
+                  token.jupiterData.firstPool = {
+                    id: jupToken.firstPool.id,
+                    type: jupToken.firstPool.type
+                  };
+                  
+                  // Also set poolAddress for easy access
+                  if (!token.poolAddress) {
+                    token.poolAddress = jupToken.firstPool.id;
+                  }
+                }
               }
             }
           }

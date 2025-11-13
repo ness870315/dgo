@@ -266,11 +266,8 @@ export default class DexScreenerStyleMonitor {
    */
   async loadSwapsFromDatabase(mint) {
     try {
-      // Load token database
-      await this.chartDatabase.loadTokenDatabase(mint);
-      
-      // Get swaps from last 24h
-      const tokenDb = this.chartDatabase.tokenDatabases.get(mint);
+      // Get or create token database (auto-loads from file)
+      const tokenDb = this.chartDatabase.getTokenDatabase(mint);
       if (!tokenDb || !tokenDb.swaps) {
         return [];
       }
