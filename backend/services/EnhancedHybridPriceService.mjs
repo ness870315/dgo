@@ -63,10 +63,14 @@ class TokenMetrics {
 
     this.baseline = {
       currentPrice: 0,
+      marketCap: 0,
       '5m': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
       '1h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
       '6h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
-      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 }
+      '24h': { volume: 0, txns: 0, makers: 0, priceChange: 0 },
+      circSupply: null,
+      totalSupply: null,
+      fullyDilutedValuation: 0,
     };
   }
 
@@ -104,6 +108,22 @@ class TokenMetrics {
       if (this.priceHistory.length === 0) {
         this.priceHistory.push({ timestamp: Date.now(), price: baseline.price });
       }
+    }
+
+    if (typeof baseline.circSupply === 'number' && baseline.circSupply > 0) {
+      this.baseline.circSupply = baseline.circSupply;
+    }
+    if (typeof baseline.totalSupply === 'number' && baseline.totalSupply > 0) {
+      this.baseline.totalSupply = baseline.totalSupply;
+    }
+    if (typeof baseline.marketCap === 'number' && baseline.marketCap > 0) {
+      this.baseline.marketCap = baseline.marketCap;
+    }
+    if (
+      typeof baseline.fullyDilutedValuation === 'number' &&
+      baseline.fullyDilutedValuation > 0
+    ) {
+      this.baseline.fullyDilutedValuation = baseline.fullyDilutedValuation;
     }
 
     this.baselineTimestamp = Date.now();
@@ -283,10 +303,39 @@ class TokenMetrics {
     };
 
     const currentPrice = this.metrics.currentPrice || this.baseline.currentPrice || 0;
+    const supplyForMarketCap =
+      Number(this.baseline.circSupply) > 0
+        ? Number(this.baseline.circSupply)
+        : Number(this.baseline.totalSupply) > 0
+        ? Number(this.baseline.totalSupply)
+        : null;
+    const derivedMarketCap =
+      supplyForMarketCap && currentPrice > 0
+        ? currentPrice * supplyForMarketCap
+        : Number(this.baseline.marketCap) > 0
+        ? Number(this.baseline.marketCap)
+        : 0;
+    const supplyForFdv =
+      Number(this.baseline.totalSupply) > 0
+        ? Number(this.baseline.totalSupply)
+        : supplyForMarketCap;
+    const derivedFdv =
+      supplyForFdv && currentPrice > 0
+        ? currentPrice * supplyForFdv
+        : Number(this.baseline.fullyDilutedValuation) > 0
+        ? Number(this.baseline.fullyDilutedValuation)
+        : 0;
     const hasLiveData = this.swaps.length > 0;
 
     return {
       currentPrice,
+      marketCap: derivedMarketCap,
+      circSupply: supplyForMarketCap
+        ? Number(this.baseline.circSupply) || null
+        : null,
+      totalSupply:
+        Number(this.baseline.totalSupply) > 0 ? Number(this.baseline.totalSupply) : null,
+      fullyDilutedValuation: derivedFdv,
       '5m': combineWindow('5m'),
       '1h': combineWindow('1h'),
       '6h': combineWindow('6h'),
@@ -964,25 +1013,44 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     // Add swap to metrics
-    metrics.addSwap(swap);
-    const recordedSwap = this.recordSwap(swap);
+    const metricsSnapshot = metrics.getMetrics();
+    const normalizedSwap = this.normalizeSwapForMetrics(
+      swap.tokenMint,
+      swap,
+      metrics,
+      metricsSnapshot
+    );
+    metrics.addSwap(normalizedSwap);
+    const recordedSwap = this.recordSwap(normalizedSwap);
     
     // Save to ChartDatabase (uses storeSwaps with array)
     await this.chartDatabase.storeSwaps([{
-      tokenAddress: swap.tokenMint,
-      timestamp: swap.timestamp,
-      type: swap.type,
-      price: swap.priceUsd,
-      tokenAmount: swap.tokenAmount,
-      volumeUsd: swap.volumeUsd,
-      signature: swap.signature,
-      source: swap.source || 'grpc-dex'
+      tokenAddress: normalizedSwap.tokenMint,
+      timestamp: normalizedSwap.timestamp,
+      type: normalizedSwap.type,
+      price: normalizedSwap.priceUsd,
+      tokenAmount: normalizedSwap.tokenAmount,
+      volumeUsd: normalizedSwap.volumeUsd,
+      signature: normalizedSwap.signature,
+      source: normalizedSwap.source || 'grpc-dex'
     }]);
     
     // Broadcast price update via WebSocket
     if (this.webSocketServer) {
       const metricsData = metrics.getMetrics();
-      this.broadcastPriceUpdate(swap.tokenMint, {
+      const baseRecord = this.findTokenRecord(swap.tokenMint) || {};
+      const liveMarketCap = this.computeLiveMarketCap(
+        swap.tokenMint,
+        metricsData.currentPrice,
+        baseRecord.marketCap ?? 0
+      );
+      const liveFdv = this.computeFullyDilutedValuation(
+        swap.tokenMint,
+        metricsData.currentPrice,
+        baseRecord.fullyDilutedValuation ?? 0
+      );
+      const supplyInfo = this.resolveTokenSupply(swap.tokenMint);
+      const priceUpdatePayload = {
         price: metricsData.currentPrice,
         priceChange5m: metricsData['5m'].priceChange,
         priceChange1h: metricsData['1h'].priceChange,
@@ -991,7 +1059,30 @@ class EnhancedHybridPriceService extends EventEmitter {
         txns5m: metricsData['5m'].txns,
         makers5m: metricsData['5m'].makers,
         isLive: true
-      });
+      };
+
+      if (Number.isFinite(liveMarketCap) && liveMarketCap > 0) {
+        priceUpdatePayload.marketCap = liveMarketCap;
+      }
+      if (Number.isFinite(liveFdv) && liveFdv > 0) {
+        priceUpdatePayload.fullyDilutedValuation = liveFdv;
+      }
+      if (supplyInfo.circSupply) {
+        priceUpdatePayload.circSupply = supplyInfo.circSupply;
+        priceUpdatePayload.circulatingSupply = supplyInfo.circSupply;
+      }
+      if (supplyInfo.totalSupply) {
+        priceUpdatePayload.totalSupply = supplyInfo.totalSupply;
+        const fdv =
+          Number.isFinite(metricsData.currentPrice) && metricsData.currentPrice > 0
+            ? metricsData.currentPrice * supplyInfo.totalSupply
+            : null;
+        if (Number.isFinite(fdv) && fdv > 0) {
+          priceUpdatePayload.fullyDilutedValuation = fdv;
+        }
+      }
+
+      this.broadcastPriceUpdate(swap.tokenMint, priceUpdatePayload);
     }
 
     if (recordedSwap) {
@@ -1017,7 +1108,15 @@ class EnhancedHybridPriceService extends EventEmitter {
   async processNewTokenSwap(swap) {
     this.stats.newTokenSwaps++;
 
-    const recordedSwap = this.recordSwap(swap);
+    const metricsInstance = this.knownTokens.get(swap.tokenMint) || null;
+    const metricsSnapshot = metricsInstance ? metricsInstance.getMetrics() : null;
+    const normalizedSwap = this.normalizeSwapForMetrics(
+      swap.tokenMint,
+      swap,
+      metricsInstance,
+      metricsSnapshot
+    );
+    const recordedSwap = this.recordSwap(normalizedSwap);
     
     // Track activity for this new token
     let activity = this.newTokenActivity.get(swap.tokenMint);
@@ -1041,12 +1140,15 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Update activity
     activity.swapCount++;
     activity.lastSeen = Date.now();
-    activity.totalVolume += swap.volumeUsd;
-    if (swap.walletAddress) {
-      activity.uniqueTraders.add(swap.walletAddress);
+    activity.totalVolume += normalizedSwap.volumeUsd ?? 0;
+    if (normalizedSwap.walletAddress) {
+      activity.uniqueTraders.add(normalizedSwap.walletAddress);
     }
-    activity.swaps.push(recordedSwap || swap);
-    activity.priceHistory.push({ timestamp: swap.timestamp, price: swap.priceUsd });
+    activity.swaps.push(recordedSwap || normalizedSwap);
+    activity.priceHistory.push({
+      timestamp: normalizedSwap.timestamp,
+      price: normalizedSwap.priceUsd,
+    });
     
     // Keep only last 100 swaps and prices (memory management)
     if (activity.swaps.length > 100) {
@@ -1917,6 +2019,251 @@ class EnhancedHybridPriceService extends EventEmitter {
     return entry;
   }
 
+  resolveTokenSupply(tokenAddress) {
+    const normalized = this.normalizeAddress(tokenAddress);
+    if (!normalized) {
+      return { circSupply: null, totalSupply: null };
+    }
+
+    const record = this.findTokenRecord(normalized) || {};
+    const metadata =
+      this.getMapValueIgnoreCase(this.tokenMetadataCache, normalized) || {};
+    const metrics =
+      this.getMapValueIgnoreCase(this.knownTokens, normalized) || null;
+
+    const pickNumeric = (candidates) => {
+      for (const value of candidates) {
+        const num = Number(value);
+        if (Number.isFinite(num) && num > 0) {
+          return num;
+        }
+      }
+      return null;
+    };
+
+    const circSupply = pickNumeric([
+      record.circSupply,
+      record.circulatingSupply,
+      record.baselineMetrics?.circSupply,
+      record.baselineMetrics?.circulatingSupply,
+      record.jupiterData?.circSupply,
+      record.jupiterData?.circulatingSupply,
+      metadata.circSupply,
+      metadata.circulatingSupply,
+      metadata.totalSupply,
+      metadata.jupiterData?.circSupply,
+      metrics?.baseline?.circSupply,
+      metrics?.baseline?.totalSupply,
+    ]);
+
+    const totalSupply = pickNumeric([
+      record.totalSupply,
+      record.maxSupply,
+      record.baselineMetrics?.totalSupply,
+      record.jupiterData?.totalSupply,
+      metadata.totalSupply,
+      metadata.jupiterData?.totalSupply,
+      metrics?.baseline?.totalSupply,
+    ]);
+
+    return { circSupply, totalSupply };
+  }
+
+  computeLiveMarketCap(tokenAddress, currentPrice, fallbackMarketCap = 0) {
+    const price = Number(currentPrice);
+    const { circSupply, totalSupply } = this.resolveTokenSupply(tokenAddress);
+    const supply = circSupply ?? totalSupply ?? null;
+
+    if (Number.isFinite(price) && price > 0 && supply && supply > 0) {
+      const computed = price * supply;
+      if (Number.isFinite(computed) && computed > 0) {
+        return computed;
+      }
+    }
+
+    const fallback = Number(fallbackMarketCap);
+    if (Number.isFinite(fallback) && fallback > 0) {
+      return fallback;
+    }
+
+    const record = this.findTokenRecord(tokenAddress) || {};
+    const metadata =
+      this.getMapValueIgnoreCase(this.tokenMetadataCache, tokenAddress) || {};
+
+    const candidates = [
+      record.marketCap,
+      record.jupiterData?.mcap,
+      record.jupiterData?.marketCap,
+      metadata.mcap,
+      metadata.marketCap,
+    ];
+
+    for (const value of candidates) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num > 0) {
+        return num;
+      }
+    }
+
+    if (Number.isFinite(price) && price > 0 && supply && supply > 0) {
+      const computed = price * supply;
+      if (Number.isFinite(computed) && computed > 0) {
+        return computed;
+      }
+    }
+
+    return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+  }
+
+  computeFullyDilutedValuation(tokenAddress, currentPrice, fallbackFdv = 0) {
+    const price = Number(currentPrice);
+    const { totalSupply } = this.resolveTokenSupply(tokenAddress);
+    if (Number.isFinite(price) && price > 0 && totalSupply && totalSupply > 0) {
+      const fdv = price * totalSupply;
+      if (Number.isFinite(fdv) && fdv > 0) {
+        return fdv;
+      }
+    }
+    const fallback = Number(fallbackFdv);
+    if (Number.isFinite(fallback) && fallback > 0) {
+      return fallback;
+    }
+    return 0;
+  }
+
+  getReferencePrice(tokenAddress, metrics = null, metricsSnapshot = null) {
+    const candidates = [];
+
+    if (metricsSnapshot) {
+      const metricPrice = Number(metricsSnapshot.currentPrice);
+      if (Number.isFinite(metricPrice) && metricPrice > 0) {
+        candidates.push(metricPrice);
+      }
+    }
+
+    if (metrics?.baseline?.currentPrice) {
+      const baselinePrice = Number(metrics.baseline.currentPrice);
+      if (Number.isFinite(baselinePrice) && baselinePrice > 0) {
+        candidates.push(baselinePrice);
+      }
+    }
+
+    const record = this.findTokenRecord(tokenAddress) || {};
+    const metadata =
+      this.getMapValueIgnoreCase(this.tokenMetadataCache, tokenAddress) || {};
+
+    candidates.push(
+      record.price,
+      record.priceUsd,
+      record.jupiterData?.usdPrice,
+      record.jupiterData?.price,
+      record.baselineMetrics?.price,
+      metadata.usdPrice,
+      metadata.price
+    );
+
+    const supplyInfo = this.resolveTokenSupply(tokenAddress);
+    if (
+      record.marketCap &&
+      supplyInfo.circSupply &&
+      supplyInfo.circSupply > 0
+    ) {
+      candidates.push(record.marketCap / supplyInfo.circSupply);
+    }
+
+    if (
+      metadata.marketCap &&
+      supplyInfo.circSupply &&
+      supplyInfo.circSupply > 0
+    ) {
+      candidates.push(metadata.marketCap / supplyInfo.circSupply);
+    }
+
+    for (const value of candidates) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num > 0) {
+        return num;
+      }
+    }
+
+    return 0;
+  }
+
+  normalizeSwapForMetrics(tokenAddress, swap, metrics = null, metricsSnapshot = null) {
+    const normalized = { ...swap };
+    const tokenAmount = Number(normalized.tokenAmount ?? 0);
+    const counterMint = normalized.counterMint || null;
+    const referencePrice = this.getReferencePrice(
+      tokenAddress,
+      metrics,
+      metricsSnapshot
+    );
+
+    const safeNumber = (value) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    let derivedPrice = safeNumber(normalized.priceUsd || normalized.price);
+
+    if ((!Number.isFinite(derivedPrice) || derivedPrice <= 0) && tokenAmount > 0) {
+      const volUsd = safeNumber(normalized.volumeUsd);
+      if (volUsd > 0) {
+        derivedPrice = volUsd / tokenAmount;
+      }
+    }
+
+    if ((!Number.isFinite(derivedPrice) || derivedPrice <= 0) && tokenAmount > 0) {
+      const baseAmount = safeNumber(
+        normalized.baseAmount ?? normalized.solAmount ?? 0
+      );
+      if (baseAmount > 0 && counterMint === WSOL && this.solPriceUSD > 0) {
+        derivedPrice = (baseAmount * this.solPriceUSD) / tokenAmount;
+      }
+    }
+
+    if ((!Number.isFinite(derivedPrice) || derivedPrice <= 0) && referencePrice > 0) {
+      derivedPrice = referencePrice;
+    }
+
+    const configuredRatio = Number(process.env.PRICE_OUTLIER_RATIO || '5');
+    const maxRatio = Number.isFinite(configuredRatio) && configuredRatio > 1 ? configuredRatio : 5;
+    if (
+      referencePrice > 0 &&
+      Number.isFinite(derivedPrice) &&
+      derivedPrice > 0
+    ) {
+      const ratio = derivedPrice / referencePrice;
+      if (ratio > maxRatio || ratio < 1 / maxRatio) {
+        derivedPrice = referencePrice;
+      }
+    }
+
+    if (!(Number.isFinite(derivedPrice) && derivedPrice > 0)) {
+      derivedPrice = referencePrice;
+    }
+
+    if (Number.isFinite(derivedPrice) && derivedPrice > 0) {
+      normalized.priceUsd = derivedPrice;
+      normalized.price = derivedPrice;
+      if (tokenAmount > 0) {
+        normalized.volumeUsd = derivedPrice * tokenAmount;
+      }
+      if (this.solPriceUSD > 0) {
+        normalized.priceInSol = derivedPrice / this.solPriceUSD;
+        if (
+          (!normalized.solAmount || normalized.solAmount === 0) &&
+          Number.isFinite(normalized.volumeUsd) &&
+          normalized.volumeUsd > 0
+        ) {
+          normalized.solAmount = normalized.volumeUsd / this.solPriceUSD;
+        }
+      }
+    }
+
+    return normalized;
+  }
+
   /**
    * Retrieve map value ignoring case (fallback helper)
    */
@@ -1964,6 +2311,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         marketCap: 0,
         liquidity: 0,
         volume24h: 0,
+        circSupply: null,
+        totalSupply: null,
+        fullyDilutedValuation: 0,
         metricsData5m: emptyWindow(),
         metricsData1h: emptyWindow(),
         metricsData6h: emptyWindow(),
@@ -1991,6 +2341,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         (jupiterData.stats24h?.buyVolume ?? 0) +
           (jupiterData.stats24h?.sellVolume ?? 0)
       ),
+      circSupply: Number(jupiterData.circSupply ?? jupiterData.circulatingSupply ?? 0),
+      totalSupply: Number(jupiterData.totalSupply ?? 0),
+      fullyDilutedValuation: Number(jupiterData.fdv ?? jupiterData.fullyDilutedValuation ?? 0),
       metricsData5m: formatStats(jupiterData.stats5m ?? {}),
       metricsData1h: formatStats(jupiterData.stats1h ?? {}),
       metricsData6h: formatStats(jupiterData.stats6h ?? {}),
@@ -2041,8 +2394,22 @@ class EnhancedHybridPriceService extends EventEmitter {
       baseline.liquidity ??
       (metricsData?.liquidity ?? 0);
 
-    const marketCap =
+    const supplyInfo = this.resolveTokenSupply(normalized);
+    const fallbackMarketCap =
       baseRecord.marketCap ?? baseline.marketCap ?? metricsData?.marketCap ?? 0;
+    const marketCap = this.computeLiveMarketCap(
+      normalized,
+      price,
+      fallbackMarketCap
+    );
+    const fullyDilutedValuation = this.computeFullyDilutedValuation(
+      normalized,
+      price,
+      baseRecord.fullyDilutedValuation ??
+        baseline.fullyDilutedValuation ??
+        metricsData?.fullyDilutedValuation ??
+        0
+    );
 
     const volume24h =
       baseRecord.volume24h ??
@@ -2066,6 +2433,9 @@ class EnhancedHybridPriceService extends EventEmitter {
       marketCap,
       liquidity,
       volume24h,
+      circSupply: supplyInfo.circSupply,
+      totalSupply: supplyInfo.totalSupply,
+      fullyDilutedValuation,
       priceChange5m:
         metrics5m?.priceChange ?? baseline.metricsData5m.priceChange,
       priceChange1h:
@@ -2270,6 +2640,32 @@ class EnhancedHybridPriceService extends EventEmitter {
               baseline.liquidity ?? cacheEntry.liquidity ?? null;
             cacheEntry.volume24h =
               baseline.volume24h ?? cacheEntry.volume24h ?? null;
+            cacheEntry.circSupply =
+              (typeof jupiterData.circSupply === 'number' && jupiterData.circSupply > 0
+                ? jupiterData.circSupply
+                : baseline.circSupply) ??
+              cacheEntry.circSupply ??
+              null;
+            cacheEntry.totalSupply =
+              (typeof jupiterData.totalSupply === 'number' && jupiterData.totalSupply > 0
+                ? jupiterData.totalSupply
+                : baseline.totalSupply) ??
+              cacheEntry.totalSupply ??
+              null;
+            const fdvFromJupiter =
+              typeof jupiterData.fdv === 'number' && jupiterData.fdv > 0
+                ? jupiterData.fdv
+                : null;
+            const supplyForFdv = cacheEntry.totalSupply ?? baseline.totalSupply;
+            const fdvComputed =
+              supplyForFdv && baseline.price
+                ? baseline.price * supplyForFdv
+                : null;
+            cacheEntry.fullyDilutedValuation =
+              fdvFromJupiter ??
+              fdvComputed ??
+              cacheEntry.fullyDilutedValuation ??
+              null;
             cacheEntry.baselineSeededAt = Date.now();
 
             // Expose baseline metrics at top-level for ranking/table consumers
@@ -2299,6 +2695,9 @@ class EnhancedHybridPriceService extends EventEmitter {
               metricsData1h: baseline.metricsData1h,
               metricsData6h: baseline.metricsData6h,
               metricsData24h: baseline.metricsData24h,
+              circSupply: baseline.circSupply,
+              totalSupply: baseline.totalSupply,
+              marketCap: baseline.marketCap,
             };
 
             if (jupiterData.symbol && !cacheEntry.symbol) {
@@ -2327,10 +2726,14 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             metrics.seedBaseline({
               price: baseline.price,
+              marketCap: baseline.marketCap,
               '5m': baseline.metricsData5m,
               '1h': baseline.metricsData1h,
               '6h': baseline.metricsData6h,
               '24h': baseline.metricsData24h,
+              circSupply: baseline.circSupply,
+              totalSupply: baseline.totalSupply,
+              fullyDilutedValuation: baseline.fullyDilutedValuation,
             });
 
             seededCount++;
