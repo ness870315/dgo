@@ -18216,8 +18216,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.dexScreenerMonitor.initialize();
       console.log('✅ DexScreenerStyleMonitor initialized');
       
-      // Load token cache and onboard tokens
+      // Load token cache
       const tokens = await this.loadTokenCache();
+      
+      // Batch fetch decimals from Jupiter API for all tokens
+      await this.enrichTokensWithJupiter(tokens);
+      
+      // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
       
@@ -18279,6 +18284,120 @@ Thanks for using x402 payments on Twitter! 🚀`;
   }
 
   /**
+   * Enrich tokens with Jupiter API data (batch fetch decimals, circSupply, etc.)
+   */
+  async enrichTokensWithJupiter(tokens) {
+    try {
+      console.log(`🪐 [Backend] Enriching ${tokens.length} tokens with Jupiter API...`);
+      
+      // Extract mints
+      const mints = tokens
+        .map(t => t.contractAddress || t.tokenAddress)
+        .filter(Boolean);
+      
+      if (mints.length === 0) {
+        console.log('⚠️ [Backend] No tokens to enrich');
+        return;
+      }
+      
+      // Batch fetch in groups of 100
+      const BATCH_SIZE = 100;
+      let enriched = 0;
+      
+      for (let i = 0; i < mints.length; i += BATCH_SIZE) {
+        const batch = mints.slice(i, i + BATCH_SIZE);
+        
+        try {
+          // Call Jupiter API with batch
+          const url = `https://lite-api.jup.ag/tokens/v2/list?mints=${batch.join(',')}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.error(`❌ [Backend] Jupiter API error: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          
+          // Update tokens with Jupiter data
+          if (data && Array.isArray(data)) {
+            for (const jupToken of data) {
+              const token = tokens.find(t => 
+                (t.contractAddress === jupToken.address) || 
+                (t.tokenAddress === jupToken.address)
+              );
+              
+              if (token) {
+                // Enrich with Jupiter data
+                if (!token.decimals && jupToken.decimals) {
+                  token.decimals = jupToken.decimals;
+                  enriched++;
+                }
+                
+                // Also update jupiterData if missing
+                if (!token.jupiterData) {
+                  token.jupiterData = {};
+                }
+                token.jupiterData.decimals = jupToken.decimals;
+                token.jupiterData.circSupply = jupToken.circSupply;
+                token.jupiterData.name = jupToken.name;
+                token.jupiterData.symbol = jupToken.symbol;
+              }
+            }
+          }
+          
+          console.log(`✅ [Backend] Enriched batch ${i / BATCH_SIZE + 1}/${Math.ceil(mints.length / BATCH_SIZE)}`);
+          
+          // Rate limiting: wait 100ms between batches
+          if (i + BATCH_SIZE < mints.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+        } catch (error) {
+          console.error(`❌ [Backend] Failed to fetch Jupiter batch:`, error.message);
+        }
+      }
+      
+      console.log(`✅ [Backend] Enriched ${enriched} tokens with decimals from Jupiter`);
+      
+      // Save enriched tokens back to cache
+      if (enriched > 0) {
+        await this.saveTokenCache(tokens);
+        console.log(`💾 [Backend] Saved ${enriched} enriched tokens back to cache`);
+      }
+      
+    } catch (error) {
+      console.error('❌ [Backend] Failed to enrich tokens with Jupiter:', error.message);
+    }
+  }
+
+  /**
+   * Save tokens back to cache
+   */
+  async saveTokenCache(tokens) {
+    try {
+      const cachePath = this.persistentCachePath;
+      const backupCachePath = cachePath.replace('.json', '-backup.json');
+      
+      // Create backup of current cache
+      try {
+        const currentCache = await fs.readFile(cachePath, 'utf8');
+        await fs.writeFile(backupCachePath, currentCache, 'utf8');
+      } catch (error) {
+        // Backup failed, but continue with save
+        console.log('⚠️ [Backend] Failed to create cache backup:', error.message);
+      }
+      
+      // Save updated tokens
+      await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
+      console.log(`✅ [Backend] Saved ${tokens.length} tokens to cache`);
+      
+    } catch (error) {
+      console.error('❌ [Backend] Failed to save token cache:', error.message);
+    }
+  }
+
+  /**
    * Load a single token from cache by address
    */
   async loadTokenFromCache(tokenAddress) {
@@ -18323,17 +18442,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
           pool = pool.address || pool.id;
         }
         
-        // Skip if missing required data
-        if (!pool || !token.decimals) {
-          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing ${!pool ? 'pool' : 'decimals'}`);
+        // Skip if missing pool
+        if (!pool) {
+          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing pool`);
           failed++;
           continue;
+        }
+        
+        // Try to get decimals from token data, fallback to 9 (Solana default)
+        let decimals = token.decimals || token.jupiterData?.decimals;
+        
+        if (!decimals) {
+          // Fallback: Most Solana tokens use 9 decimals
+          console.log(`⚠️  [Backend] ${token.symbol} missing decimals, using default: 9`);
+          decimals = 9;
         }
 
         await this.dexScreenerMonitor.onboardToken(mint, {
           name: token.name || token.symbol,
           pool: pool,
-          decimals: token.decimals
+          decimals: decimals
         });
 
         onboarded++;
