@@ -20,9 +20,12 @@
 
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import YellowstoneGrpc from '@triton-one/yellowstone-grpc';
 import bs58 from 'bs58';
 import fetch from 'node-fetch';
+
+// Use CommonJS wrapper for gRPC loading (same as EnhancedHybridPriceService)
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // Configuration
 const RPC_ENDPOINT = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
@@ -119,7 +122,8 @@ export default class DexScreenerStyleMonitor {
 
     console.log('📡 [DexScreenerStyleMonitor] Initializing gRPC client...');
     
-    // Initialize gRPC client
+    // Initialize gRPC client using CommonJS require (same as EnhancedHybridPriceService)
+    const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
     const Client = YellowstoneGrpc.default || YellowstoneGrpc;
     this.grpcClient = new Client(GRPC_ENDPOINT, GRPC_TOKEN);
     
