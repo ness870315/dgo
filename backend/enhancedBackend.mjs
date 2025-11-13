@@ -113,7 +113,12 @@ class EnhancedBackend {
       token?.jupiterData?.audit?.isSus,
       token?.jupiterData?.auditInfo?.isSus,
       token?.jupiterData?.audit?.suspicious,
-      token?.jupiterData?.audit?.is_sus
+      token?.jupiterData?.audit?.is_sus,
+      token?.blockaidRugpull,
+      token?.audit?.blockaidRugpull,
+      token?.jupiterData?.blockaidRugpull,
+      token?.jupiterData?.audit?.blockaidRugpull,
+      token?.jupiterData?.auditInfo?.blockaidRugpull
     ];
 
     return candidates.some(isTrue);
