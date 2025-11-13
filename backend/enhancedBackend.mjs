@@ -18219,14 +18219,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Load token cache
       const tokens = await this.loadTokenCache();
       
-      // Batch fetch decimals from Jupiter API for all tokens
+      // Batch fetch decimals + pools from Jupiter API for all tokens
       await this.enrichTokensWithJupiter(tokens);
-      
-      // Batch fetch Jupiter data for all tokens (metadata + baseline stats)
-      const mints = tokens.map(t => t.contractAddress || t.tokenAddress).filter(Boolean);
-      console.log(`🪐 [Backend] Batch fetching Jupiter data for ${mints.length} tokens...`);
-      this.dexScreenerMonitor.jupiterBatchCache = await this.dexScreenerMonitor.batchFetchJupiterData(mints);
-      console.log(`✅ [Backend] Cached Jupiter data for ${Object.keys(this.dexScreenerMonitor.jupiterBatchCache).length} tokens`);
       
       // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
@@ -18349,16 +18343,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
                 token.jupiterData.name = jupToken.name;
                 token.jupiterData.symbol = jupToken.symbol;
                 
-                // CRITICAL: Extract pool address from Jupiter firstPool
-                if (jupToken.firstPool && jupToken.firstPool.id) {
-                  token.jupiterData.firstPool = {
-                    id: jupToken.firstPool.id,
-                    type: jupToken.firstPool.type
-                  };
+                // CRITICAL: Extract pool address from Jupiter graduatedPool (for Pump.fun tokens)
+                if (jupToken.graduatedPool) {
+                  // graduatedPool can be a string or object
+                  const poolAddress = typeof jupToken.graduatedPool === 'string' 
+                    ? jupToken.graduatedPool 
+                    : jupToken.graduatedPool.address || jupToken.graduatedPool.id;
                   
-                  // Also set poolAddress for easy access
-                  if (!token.poolAddress) {
-                    token.poolAddress = jupToken.firstPool.id;
+                  if (poolAddress && !token.poolAddress) {
+                    token.poolAddress = poolAddress;
+                    token.graduatedPool = poolAddress;
+                    console.log(`🏊 [Backend] ${token.symbol}: pool=${poolAddress.substring(0,8)}...`);
                   }
                 }
               }
