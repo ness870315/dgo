@@ -1,12 +1,13 @@
 import EnhancedHybridPriceService from './EnhancedHybridPriceService.mjs';
+import DexScreenerStyleMonitor from './DexScreenerStyleMonitor.mjs';
+import ChartDatabase from './ChartDatabase.js';
 import fs from 'fs/promises';
 import path from 'path';
 
 class RealTimeTokenMonitor {
-    constructor(webSocketServer = null, hybridPriceService = null) {
+    constructor(webSocketServer = null) {
         this.webSocketServer = webSocketServer;
-        this.hybridPriceService = hybridPriceService || null;
-        this.ownsServiceInstance = !hybridPriceService;
+        this.hybridPriceService = null;
         this.isRunning = false;
         this.monitoringStats = {
             startTime: null,
@@ -27,16 +28,37 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // Initialize Enhanced HybridPriceService if not provided
-            if (!this.hybridPriceService) {
+            // 🚀 FEATURE FLAG: Use new DexScreener-style monitor or old service
+            const USE_DEXSCREENER_MONITOR = process.env.USE_DEXSCREENER_MONITOR === 'true';
+            
+            if (USE_DEXSCREENER_MONITOR) {
+                console.log('🚀 [RealTimeTokenMonitor] Using NEW DexScreenerStyleMonitor');
+                
+                // Initialize ChartDatabase
+                const chartDatabase = new ChartDatabase();
+                await chartDatabase.loadData();
+                chartDatabase.startBatchWriter();
+                
+                // Initialize DexScreener monitor
+                this.hybridPriceService = new DexScreenerStyleMonitor(chartDatabase, this.webSocketServer);
+                await this.hybridPriceService.initialize();
+                
+                // Load token cache and onboard tokens
+                const tokens = await this.loadTokenCache();
+                await this.onboardCachedTokens(tokens);
+                
+            } else {
+                console.log('⚠️  [RealTimeTokenMonitor] Using OLD EnhancedHybridPriceService');
+                
+                // Initialize old service
                 this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
                 
                 // Wait for gRPC client to initialize
                 await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Load token cache
+                await this.loadTokenCache();
             }
-            
-            // Load token cache
-            await this.loadTokenCache();
             
             console.log('✅ [RealTimeTokenMonitor] Initialization complete');
             
@@ -44,6 +66,58 @@ class RealTimeTokenMonitor {
             console.error('❌ [RealTimeTokenMonitor] Failed to initialize:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Onboard cached tokens to DexScreener monitor
+     * (Only used with new monitor)
+     */
+    async onboardCachedTokens(tokens) {
+        if (!this.hybridPriceService.onboardToken) {
+            return; // Old service doesn't have this method
+        }
+
+        console.log(`📋 [RealTimeTokenMonitor] Onboarding ${tokens.length} cached tokens...`);
+        
+        let onboarded = 0;
+        let failed = 0;
+
+        for (const token of tokens) {
+            try {
+                const mint = token.contractAddress || token.tokenAddress;
+                
+                // Try to find pool in priority order
+                let pool = 
+                    token.poolAddress ||                    // 1. Direct poolAddress field
+                    token.jupiterData?.firstPool?.id ||     // 2. Jupiter firstPool
+                    token.graduatedPool;                    // 3. Pump.fun graduated pool
+                
+                // Handle graduatedPool object format
+                if (pool && typeof pool === 'object') {
+                    pool = pool.address || pool.id;
+                }
+                
+                // Skip if missing required data
+                if (!pool || !token.decimals) {
+                    console.log(`⚠️  [RealTimeTokenMonitor] Skipping ${token.symbol}: Missing ${!pool ? 'pool' : 'decimals'}`);
+                    failed++;
+                    continue;
+                }
+
+                await this.hybridPriceService.onboardToken(mint, {
+                    name: token.name || token.symbol,
+                    pool: pool,
+                    decimals: token.decimals
+                });
+
+                onboarded++;
+            } catch (error) {
+                console.error(`❌ [RealTimeTokenMonitor] Failed to onboard ${token.symbol}:`, error.message);
+                failed++;
+            }
+        }
+
+        console.log(`✅ [RealTimeTokenMonitor] Onboarded ${onboarded}/${tokens.length} tokens (${failed} failed)`);
     }
 
     async loadTokenCache() {
@@ -277,12 +351,10 @@ class RealTimeTokenMonitor {
         this.hybridPriceService.poolAddresses.delete(tokenAddress);
         this.hybridPriceService.swapHistory.delete(tokenAddress);
         
-        if (this.ownsServiceInstance) {
-            // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
-            console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to remove token ${tokenAddress.substring(0, 8)}...`);
-            await this.hybridPriceService.stopRealTimeMonitoring();
-            await this.hybridPriceService.startRealTimeMonitoring();
-        }
+        // 🚀 NEW: Restart monitoring with updated token list (single stream approach)
+        console.log(`🔄 [RealTimeTokenMonitor] Restarting monitoring to remove token ${tokenAddress.substring(0, 8)}...`);
+        await this.hybridPriceService.stopRealTimeMonitoring();
+        await this.hybridPriceService.startRealTimeMonitoring();
         
         console.log(`✅ [RealTimeTokenMonitor] Removed token ${tokenAddress.substring(0, 8)}... from monitoring`);
     }
@@ -299,7 +371,7 @@ class RealTimeTokenMonitor {
             
             this.isRunning = false;
             
-            if (this.hybridPriceService && this.ownsServiceInstance) {
+            if (this.hybridPriceService) {
                 await this.hybridPriceService.shutdown();
             }
             
