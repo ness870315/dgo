@@ -163,27 +163,43 @@ class TokenCacheWatcher extends EventEmitter {
 
             console.log(`🚀 [TokenCacheWatcher] Subscribing new token: ${token.symbol} (${contractAddress.substring(0, 8)}...)`);
             
-            // Add token to real-time monitoring
-            if (this.realTimeTokenMonitor) {
-                const success = await this.realTimeTokenMonitor.addToken(token);
+            // Add token to DexScreener monitor
+            if (this.realTimeTokenMonitor && this.realTimeTokenMonitor.onboardToken) {
+                // Get pool address from token data
+                let pool = 
+                    token.poolAddress ||
+                    token.jupiterData?.firstPool?.id ||
+                    token.graduatedPool;
                 
-                if (success) {
-                    console.log(`✅ [TokenCacheWatcher] Successfully subscribed ${token.symbol} to real-time monitoring`);
-                    
-                    // Emit event for logging/monitoring
-                    this.emit('tokenSubscribed', {
-                        symbol: token.symbol,
-                        contractAddress: contractAddress,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    return true;
-                } else {
-                    console.log(`⚠️ [TokenCacheWatcher] Failed to subscribe ${token.symbol} (no pool found)`);
+                // Handle graduatedPool object format
+                if (pool && typeof pool === 'object') {
+                    pool = pool.address || pool.id;
+                }
+                
+                // Skip if missing required data
+                if (!pool || !token.decimals) {
+                    console.log(`⚠️ [TokenCacheWatcher] Token ${token.symbol} missing ${!pool ? 'pool' : 'decimals'}, skipping`);
                     return false;
                 }
+                
+                await this.realTimeTokenMonitor.onboardToken(contractAddress, {
+                    name: token.name || token.symbol,
+                    pool: pool,
+                    decimals: token.decimals
+                });
+                
+                console.log(`✅ [TokenCacheWatcher] Successfully subscribed ${token.symbol} to real-time monitoring`);
+                
+                // Emit event for logging/monitoring
+                this.emit('tokenSubscribed', {
+                    symbol: token.symbol,
+                    contractAddress: contractAddress,
+                    timestamp: new Date().toISOString()
+                });
+                
+                return true;
             } else {
-                console.log(`⚠️ [TokenCacheWatcher] RealTimeTokenMonitor not available`);
+                console.log(`⚠️ [TokenCacheWatcher] DexScreener monitor not available`);
                 return false;
             }
             

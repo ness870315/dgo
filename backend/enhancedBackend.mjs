@@ -18221,9 +18221,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
       
-      // Initialize Token Cache Watcher
-      const cachePath = this.persistentCachePath; // Use persistent cache at /var/data/dgo/cache
-      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this);
+      // ✅ Token Cache Watcher - watches for new tokens added to cache
+      const cachePath = this.persistentCachePath;
+      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.dexScreenerMonitor);
       this.tokenCacheWatcher.on('newTokens', (newTokens) => {
         console.log(`🆕 [Backend] ${newTokens.length} new tokens detected`);
         this.onboardCachedTokens(newTokens).catch(err => {
