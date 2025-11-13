@@ -26,8 +26,11 @@ import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './services/HybridPriceService.js';
-import EnhancedHybridPriceService from './services/EnhancedHybridPriceService.mjs';
-import RealTimeTokenMonitor from './services/RealTimeTokenMonitor.mjs';
+// ❌ DEPRECATED: Replaced by DexScreenerStyleMonitor
+// import EnhancedHybridPriceService from './services/EnhancedHybridPriceService.mjs';
+// import RealTimeTokenMonitor from './services/RealTimeTokenMonitor.mjs';
+import DexScreenerStyleMonitor from './services/DexScreenerStyleMonitor.mjs';
+import ChartDatabase from './services/ChartDatabase.js';
 import TokenCacheWatcher from './services/TokenCacheWatcher.mjs';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
@@ -113,12 +116,7 @@ class EnhancedBackend {
       token?.jupiterData?.audit?.isSus,
       token?.jupiterData?.auditInfo?.isSus,
       token?.jupiterData?.audit?.suspicious,
-      token?.jupiterData?.audit?.is_sus,
-      token?.blockaidRugpull,
-      token?.audit?.blockaidRugpull,
-      token?.jupiterData?.blockaidRugpull,
-      token?.jupiterData?.audit?.blockaidRugpull,
-      token?.jupiterData?.auditInfo?.blockaidRugpull
+      token?.jupiterData?.audit?.is_sus
     ];
 
     return candidates.some(isTrue);
@@ -13159,31 +13157,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 
-    // ✅ DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
+    // ✅ DISABLED: Old services replaced by DexScreenerStyleMonitor
     // this.hybridPriceService = new HybridPriceService();
+    // this.enhancedHybridPriceService = new EnhancedHybridPriceService();
+    // this.realTimeTokenMonitor = new RealTimeTokenMonitor();
     
-    // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
-    this.enhancedHybridPriceService = new EnhancedHybridPriceService();
-    
-    // ?? Connect DEX stream to Token Processor
-    this.enhancedHybridPriceService.on('newTokenDiscovered', async (tokenMint) => {
-      try {
-        console.log(`?? [Backend] New token discovered via DEX stream: ${tokenMint.slice(0,8)}...`);
-        console.log(`?? [Backend] Adding to Token Processor queue for enrichment (Twitter, scoring, etc.)`);
-        
-        // Add to processor queue for full enrichment
-        await this.tokenProcessor.processNewTokensFromDexStream([tokenMint]);
-      } catch (error) {
-        console.error(`? [Backend] Failed to process new token ${tokenMint}:`, error.message);
-      }
-    });
-    
-    // ⚠️ DISABLED: Duplicate DEX stream initialization (was causing HTTP 429)
-    // This old PROBITY test code started a second gRPC stream
-    // DEX stream now starts in initializeWebSocketServer() after WebSocket is ready
-    
-    // Initialize Real-Time Token Monitor
-    this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
+    // 🚀 NEW: DexScreener-Style Monitor (Single Service Architecture)
+    this.dexScreenerMonitor = null; // Will be initialized in initializeWebSocketServer()
+    this.chartDatabase = null; // Will be initialized with monitor
     
     // Initialize Token Cache Watcher
     this.tokenCacheWatcher = null; // Will be initialized after RealTimeTokenMonitor
@@ -13474,16 +13455,16 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // Redirect to the new gRPC endpoint
-        if (!this.enhancedHybridPriceService) {
+        // Get real-time data from DexScreener monitor
+        if (!this.dexScreenerMonitor) {
           return res.status(503).json({
             success: false,
-            error: 'EnhancedHybridPriceService not available'
+            error: 'DexScreener monitor not available'
           });
         }
 
-        // Get real-time data from gRPC system
-        const realTimeData = await this.enhancedHybridPriceService.getRealTimeTokenData(contract);
+        // Get real-time data from DexScreener monitor
+        const realTimeData = this.dexScreenerMonitor.getTokenMetrics(contract);
         
         if (!realTimeData) {
           return res.status(404).json({
@@ -13496,10 +13477,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           price: realTimeData.price,
           liquidity: realTimeData.liquidity,
           source: realTimeData.source,
-          swaps: realTimeData.recentSwaps ? realTimeData.recentSwaps.length : 0
+          swaps: realTimeData.recentSwaps.length
         });
-
-        this.enhancedHybridPriceService.registerConnection(contract, connectionId);
 
         res.json({
           success: true,
@@ -13535,15 +13514,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (!this.enhancedHybridPriceService) {
+        if (!this.dexScreenerMonitor) {
           return res.status(503).json({
             success: false,
-            error: 'EnhancedHybridPriceService not available'
+            error: 'DexScreener monitor not available'
           });
         }
 
-        // Get real-time data from gRPC system
-        const realTimeData = await this.enhancedHybridPriceService.getRealTimeTokenData(contract);
+        // Get real-time data from DexScreener monitor
+        const realTimeData = this.dexScreenerMonitor.getTokenMetrics(contract);
         
         if (!realTimeData) {
           return res.status(404).json({
@@ -13556,10 +13535,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           price: realTimeData.price,
           liquidity: realTimeData.liquidity,
           source: realTimeData.source,
-          swaps: realTimeData.recentSwaps ? realTimeData.recentSwaps.length : 0
+          swaps: realTimeData.recentSwaps.length
         });
-
-        this.enhancedHybridPriceService.registerConnection(contract, connectionId);
 
         res.json({
           success: true,
@@ -13580,31 +13557,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
     this.app.get('/api/hybrid-price/stats', (req, res) => {
       try {
-        if (this.enhancedHybridPriceService) {
-          const stats = this.enhancedHybridPriceService.getRealTimeStats();
-          res.json({
-            success: true,
-            stats,
-          });
-          return;
-        }
-
-        if (this.hybridPriceService) {
-          const stats = this.hybridPriceService.getConnectionStats();
-          res.json({
-            success: true,
-            stats: {
-              ...stats,
-              cacheSize: this.hybridPriceService.priceCache.size,
-              pendingRequests: this.hybridPriceService.pendingRequests.size,
-            },
-          });
-          return;
-        }
-
-        res.status(503).json({
-          success: false,
-          error: 'Hybrid price service not available',
+        const stats = this.hybridPriceService.getConnectionStats();
+        res.json({
+          success: true,
+          stats: {
+            ...stats,
+            cacheSize: this.hybridPriceService.priceCache.size,
+            pendingRequests: this.hybridPriceService.pendingRequests.size
+          }
         });
       } catch (error) {
         console.error('❌ [HybridPrice] Error getting stats:', error.message);
@@ -13616,45 +13576,16 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {
         const { tokenAddress, connectionId } = req.body;
-
-        if (!tokenAddress || !connectionId) {
-          res
-            .status(400)
-            .json({
-              success: false,
-              error: 'Token address and connection ID required',
-            });
-          return;
-        }
-
-        if (this.enhancedHybridPriceService) {
-          this.enhancedHybridPriceService.removeConnection(
-            tokenAddress,
-            connectionId
-          );
-          res.json({ success: true, message: 'Connection removed' });
-          return;
-        }
-
-        if (this.hybridPriceService) {
+        
+        if (tokenAddress && connectionId) {
           this.hybridPriceService.removeConnection(tokenAddress, connectionId);
           res.json({ success: true, message: 'Connection removed' });
-          return;
+        } else {
+          res.status(400).json({ success: false, error: 'Token address and connection ID required' });
         }
-
-        res.status(503).json({
-          success: false,
-          error: 'Hybrid price service not available',
-        });
       } catch (error) {
-        console.error(
-          '❌ [HybridPrice] Error cleaning up connection:',
-          error.message
-        );
-        res.status(500).json({
-          success: false,
-          error: 'Failed to cleanup connection',
-        });
+        console.error('❌ [HybridPrice] Error cleaning up connection:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to cleanup connection' });
       }
     });
 
@@ -13670,9 +13601,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
-          const subscribed = await this.enhancedHybridPriceService.ensureTokenMonitoring(tokenAddress);
+        if (this.dexScreenerMonitor) {
+          // Onboard token to DexScreener monitor
+          const tokenData = await this.loadTokenFromCache(tokenAddress);
+          let subscribed = false;
+          if (tokenData) {
+            await this.onboardCachedTokens([tokenData]);
+            subscribed = this.dexScreenerMonitor.tokens.has(tokenAddress);
+          }
           
           res.json({
             success: true,
@@ -13706,9 +13642,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
-          const unsubscribed = this.enhancedHybridPriceService.unsubscribeFromToken(tokenAddress);
+        if (this.dexScreenerMonitor) {
+          // Note: DexScreener monitor doesn't support unsubscribe yet
+          // Tokens remain monitored once added
+          const unsubscribed = false;
           
           res.json({
             success: true,
@@ -13734,9 +13671,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 🚀 NEW: Hybrid Price Service WebSocket stats endpoint
     this.app.get('/api/hybrid-price/websocket-stats', (req, res) => {
       try {
-        if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
-          const stats = this.enhancedHybridPriceService.getRealTimeStats();
+        if (this.dexScreenerMonitor) {
+          // Get stats from DexScreener monitor
+          const stats = {
+            tokensMonitored: this.dexScreenerMonitor.tokens.size,
+            poolsMonitored: this.dexScreenerMonitor.pools.size,
+            solPrice: this.dexScreenerMonitor.solPriceUSD
+          };
           res.json({
             success: true,
             stats,
@@ -13760,10 +13701,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Meteora SDK status endpoint
     this.app.get('/api/meteora-sdk/status', (req, res) => {
       try {
-        if (this.enhancedHybridPriceService) {
+        if (this.dexScreenerMonitor) {
           const status = {
-            cpAmmInitialized: !!this.enhancedHybridPriceService.cpAmm,
-            meteoraConnectionInitialized: !!this.enhancedHybridPriceService.meteoraConnection,
+            dexScreenerMonitorActive: true,
+            tokensMonitored: this.dexScreenerMonitor.tokens.size,
+            poolsMonitored: this.dexScreenerMonitor.pools.size,
             timestamp: new Date().toISOString()
           };
           res.json({
@@ -14196,9 +14138,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get Moralis service status
     this.app.get('/api/tokens/price-chart/status', async (req, res) => {
       try {
-        if (this.enhancedHybridPriceService) {
-          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
-          const stats = this.enhancedHybridPriceService.getRealTimeStats();
+        if (this.dexScreenerMonitor) {
+          // Get stats from DexScreener monitor
+          const stats = {
+            tokensMonitored: this.dexScreenerMonitor.tokens.size,
+            poolsMonitored: this.dexScreenerMonitor.pools.size,
+            solPrice: this.dexScreenerMonitor.solPriceUSD
+          };
           
           res.json({
             success: true,
@@ -14312,8 +14258,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/grpc/status', async (req, res) => {
       try {
         const grpcStatus = {
-          enhancedHybridPriceService: this.enhancedHybridPriceService ? this.enhancedHybridPriceService.getRealTimeStats() : null,
-          realTimeTokenMonitor: this.realTimeTokenMonitor ? this.realTimeTokenMonitor.getMonitoringStats() : null,
+          dexScreenerMonitor: this.dexScreenerMonitor ? {
+            tokensMonitored: this.dexScreenerMonitor.tokens.size,
+            poolsMonitored: this.dexScreenerMonitor.pools.size,
+            solPrice: this.dexScreenerMonitor.solPriceUSD
+          } : null,
           tokenCacheWatcher: this.tokenCacheWatcher ? 'active' : 'not initialized',
           timestamp: new Date().toISOString()
         };
@@ -14336,8 +14285,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Admin: Get ChartDatabase compression stats
     this.app.get('/api/admin/chart/compression-stats', adminApiAuth, async (req, res) => {
       try {
-        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        const chartDatabase = enhancedService?.chartDatabase;
+        const chartDatabase = this.chartDatabase;
         
         if (!chartDatabase) {
           return res.status(503).json({
@@ -14364,8 +14312,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Admin: Trigger compression migration for all existing files
     this.app.post('/api/admin/chart/migrate-to-compressed', adminApiAuth, async (req, res) => {
       try {
-        const enhancedService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
-        const chartDatabase = enhancedService?.chartDatabase;
+        const chartDatabase = this.chartDatabase;
         
         if (!chartDatabase) {
           return res.status(503).json({
@@ -14395,17 +14342,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Manually trigger gRPC connection
     this.app.post('/api/grpc/connect', async (req, res) => {
       try {
-        if (!this.enhancedHybridPriceService) {
+        if (!this.dexScreenerMonitor) {
           return res.status(500).json({
             success: false,
-            error: 'EnhancedHybridPriceService not initialized'
+            error: 'DexScreener monitor not initialized'
           });
         }
 
-        console.log('🔌 [GRPC-CONNECT] Manually triggering gRPC connection...');
-        await this.enhancedHybridPriceService.initializeGrpcClient();
+        console.log('🔌 [GRPC-CONNECT] DexScreener monitor already connected');
         
-        const stats = this.enhancedHybridPriceService.getRealTimeStats();
+        const stats = {
+          tokensMonitored: this.dexScreenerMonitor.tokens.size,
+          poolsMonitored: this.dexScreenerMonitor.pools.size,
+          solPrice: this.dexScreenerMonitor.solPriceUSD
+        };
         
         res.json({
           success: true,
@@ -14913,10 +14863,22 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
-        // Get pool address for the token
-        // First try from EnhancedHybridPriceService (for gRPC monitored tokens)
-        let poolAddress = this.enhancedHybridPriceService?.poolAddresses.get(token);
-        let useEnhancedHybrid = !!poolAddress;
+        // Get pool address for the token from DexScreener monitor
+        let poolAddress = null;
+        let useEnhancedHybrid = false;
+        
+        if (this.dexScreenerMonitor) {
+          const tokenData = this.dexScreenerMonitor.tokens.get(token);
+          if (tokenData) {
+            // Get pool from first pool in the token's pools
+            const poolKey = Array.from(this.dexScreenerMonitor.pools.keys()).find(key => {
+              const pool = this.dexScreenerMonitor.pools.get(key);
+              return pool.tokenMint === token;
+            });
+            poolAddress = poolKey;
+            useEnhancedHybrid = !!poolAddress;
+          }
+        }
         
         // Fallback to hybridChartService
         if (!poolAddress) {
@@ -14939,9 +14901,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
         let swaps = [];
         
-        if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
+        if (useEnhancedHybrid && this.chartDatabase) {
           // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
-          const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
+          const tokenDb = this.chartDatabase.getTokenDatabase(token);
           
           // The database loads from file automatically when getTokenDatabase is called
           // No need to manually call loadTokenDatabaseFromFile here
@@ -18209,8 +18171,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       // Now reinitialize EnhancedHybridPriceService with WebSocket server
       if (this.enhancedHybridPriceService) {
-        console.log('📡 Reinitializing EnhancedHybridPriceService with WebSocket server...');
-        this.enhancedHybridPriceService.setWebSocketServer(this.backendWebSocketServer);
+        console.log('�"� Reinitializing EnhancedHybridPriceService with WebSocket server...');
+        this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
         
         // Start DEX stream now that WebSocket is available
         console.log('🚀 Starting DEX stream with WebSocket broadcasting enabled...');
@@ -18240,35 +18202,148 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       console.log('📡 WebSocket server already initialized, proceeding with real-time services...');
       
-      // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
-      console.log('🚀 Initializing Enhanced Real-Time Services...');
+      // 🚀 Initialize DexScreener-Style Monitor (Single Service Architecture)
+      console.log('🚀 Initializing DexScreener-Style Monitor...');
       
-      // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(
-        this.backendWebSocketServer,
-        this.enhancedHybridPriceService
-      );
-      await this.realTimeTokenMonitor.initialize();
-      await this.realTimeTokenMonitor.startMonitoring();
+      // Initialize ChartDatabase
+      this.chartDatabase = new ChartDatabase();
+      await this.chartDatabase.loadData();
+      this.chartDatabase.startBatchWriter();
+      console.log('✅ ChartDatabase initialized');
+      
+      // Initialize DexScreener monitor
+      this.dexScreenerMonitor = new DexScreenerStyleMonitor(this.chartDatabase, this.backendWebSocketServer);
+      await this.dexScreenerMonitor.initialize();
+      console.log('✅ DexScreenerStyleMonitor initialized');
+      
+      // Load token cache and onboard tokens
+      const tokens = await this.loadTokenCache();
+      await this.onboardCachedTokens(tokens);
+      console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
       
       // Initialize Token Cache Watcher
       const cachePath = this.persistentCachePath; // Use persistent cache at /var/data/dgo/cache
-      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
+      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this);
       this.tokenCacheWatcher.on('newTokens', (newTokens) => {
-        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
+        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected`);
+        this.onboardCachedTokens(newTokens).catch(err => {
+          console.error('❌ Failed to onboard new tokens:', err.message);
+        });
       });
       this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
         console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
       });
       await this.tokenCacheWatcher.startWatching();
       
-      console.log('✅ Enhanced Real-Time Services initialized successfully');
+      console.log('✅ DexScreener-Style Monitor fully initialized');
       
     } catch (error) {
       console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
       console.error('❌ Error stack:', error.stack);
       console.error('⚠️ Backend will continue without real-time price updates');
     }
+  }
+
+  /**
+   * Load token cache from persistent storage
+   */
+  async loadTokenCache() {
+    try {
+      console.log('📂 [Backend] Loading token cache...');
+      
+      const cachePath = this.persistentCachePath;
+      const backupCachePath = cachePath.replace('.json', '-backup.json');
+      
+      // Try primary cache first
+      let cacheData;
+      try {
+        cacheData = await fs.readFile(cachePath, 'utf8');
+        console.log('✅ [Backend] Loaded primary cache');
+      } catch (error) {
+        console.log('⚠️ [Backend] Primary cache not found, trying backup...');
+        cacheData = await fs.readFile(backupCachePath, 'utf8');
+        console.log('✅ [Backend] Loaded backup cache');
+      }
+      
+      const tokens = JSON.parse(cacheData);
+      const completedTokens = tokens.filter(token => token.stage === 'completed');
+      
+      console.log(`📊 [Backend] Found ${completedTokens.length} completed tokens`);
+      
+      return completedTokens;
+      
+    } catch (error) {
+      console.error('❌ [Backend] Failed to load token cache:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Load a single token from cache by address
+   */
+  async loadTokenFromCache(tokenAddress) {
+    try {
+      const tokens = await this.loadTokenCache();
+      return tokens.find(t => 
+        (t.contractAddress === tokenAddress) || 
+        (t.tokenAddress === tokenAddress)
+      );
+    } catch (error) {
+      console.error('❌ [Backend] Failed to load token from cache:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Onboard cached tokens to DexScreener monitor
+   */
+  async onboardCachedTokens(tokens) {
+    if (!this.dexScreenerMonitor) {
+      console.error('❌ [Backend] DexScreener monitor not initialized');
+      return;
+    }
+
+    console.log(`📋 [Backend] Onboarding ${tokens.length} cached tokens...`);
+    
+    let onboarded = 0;
+    let failed = 0;
+
+    for (const token of tokens) {
+      try {
+        const mint = token.contractAddress || token.tokenAddress;
+        
+        // Try to find pool in priority order
+        let pool = 
+          token.poolAddress ||                    // 1. Direct poolAddress field
+          token.jupiterData?.firstPool?.id ||     // 2. Jupiter firstPool
+          token.graduatedPool;                    // 3. Pump.fun graduated pool
+        
+        // Handle graduatedPool object format
+        if (pool && typeof pool === 'object') {
+          pool = pool.address || pool.id;
+        }
+        
+        // Skip if missing required data
+        if (!pool || !token.decimals) {
+          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing ${!pool ? 'pool' : 'decimals'}`);
+          failed++;
+          continue;
+        }
+
+        await this.dexScreenerMonitor.onboardToken(mint, {
+          name: token.name || token.symbol,
+          pool: pool,
+          decimals: token.decimals
+        });
+
+        onboarded++;
+      } catch (error) {
+        console.error(`❌ [Backend] Failed to onboard ${token.symbol}:`, error.message);
+        failed++;
+      }
+    }
+
+    console.log(`✅ [Backend] Onboarded ${onboarded}/${tokens.length} tokens (${failed} failed)`);
   }
 
   async start() {
