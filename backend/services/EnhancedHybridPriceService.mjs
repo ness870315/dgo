@@ -333,7 +333,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     // Jupiter API rate limiting
     this.jupiterRequestQueue = [];
-    this.jupiterRequestDelay = 1000; // 1 second between requests
+    this.jupiterRequestDelay = Number(process.env.JUPITER_REQUEST_DELAY_MS || '200');
+    if (Number.isNaN(this.jupiterRequestDelay) || this.jupiterRequestDelay < 50) {
+      this.jupiterRequestDelay = 200;
+    }
     this.lastJupiterRequest = 0;
     this.jupiterCache = new Map();
     this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
@@ -1248,6 +1251,71 @@ class EnhancedHybridPriceService extends EventEmitter {
   }
 
   /**
+   * Fetch Jupiter data for up to 100 tokens in a single request
+   */
+  async fetchJupiterDataBatch(addresses) {
+    const results = new Map();
+
+    if (!Array.isArray(addresses) || addresses.length === 0) {
+      return results;
+    }
+
+    const normalizedBatch = Array.from(
+      new Set(
+        addresses
+          .map((addr) => this.normalizeAddress(addr))
+          .filter((addr) => typeof addr === 'string' && addr.length > 0)
+      )
+    ).slice(0, 100);
+
+    if (normalizedBatch.length === 0) {
+      return results;
+    }
+
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastJupiterRequest;
+    if (timeSinceLastRequest < this.jupiterRequestDelay) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.jupiterRequestDelay - timeSinceLastRequest)
+      );
+    }
+
+    try {
+      const response = await axios.get(
+        `${JUPITER_API_BASE}/search?query=${normalizedBatch.join(',')}`,
+        {
+          timeout: 10000,
+        }
+      );
+
+      this.lastJupiterRequest = Date.now();
+
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const timestamp = Date.now();
+        for (const tokenData of response.data) {
+          const key = this.normalizeAddress(
+            tokenData?.id || tokenData?.address || tokenData?.mint
+          );
+          if (!key) continue;
+          results.set(key, tokenData);
+          this.tokenMetadataCache.set(key, tokenData);
+          this.jupiterCache.set(key, {
+            data: tokenData,
+            timestamp,
+          });
+        }
+      }
+    } catch (error) {
+      console.error(
+        '❌ [EnhancedHybridPriceService] Jupiter batch API error:',
+        error.message
+      );
+    }
+
+    return results;
+  }
+
+  /**
    * Update SOL price
    */
   async updateSolPrice() {
@@ -2039,7 +2107,10 @@ class EnhancedHybridPriceService extends EventEmitter {
       let errorCount = 0;
       let metadataUpdated = false;
 
-      for (const address of addresses) {
+      const addressList = Array.from(addresses);
+      const addressesToFetch = [];
+
+      for (const address of addressList) {
         if (!address) continue;
 
         const cacheEntry = this.ensureTokenCacheEntry(address);
@@ -2059,69 +2130,140 @@ class EnhancedHybridPriceService extends EventEmitter {
           continue;
         }
 
-        try {
-          const jupiterData = await this.fetchJupiterData(address);
+        addressesToFetch.push({ address, cacheEntry });
+      }
+
+      const batchSize = 100;
+      const totalBatches =
+        addressesToFetch.length > 0
+          ? Math.ceil(addressesToFetch.length / batchSize)
+          : 0;
+
+      for (let i = 0; i < addressesToFetch.length; i += batchSize) {
+        const batchEntries = addressesToFetch.slice(i, i + batchSize);
+        if (batchEntries.length === 0) continue;
+
+        const batchAddresses = batchEntries.map((entry) => entry.address);
+        const batchIndex = Math.floor(i / batchSize) + 1;
+
+        console.log(
+          `🔄 [EnhancedHybridPriceService] Jupiter batch ${batchIndex}/${totalBatches} (${batchAddresses.length} tokens)`
+        );
+
+        const batchDataMap = await this.fetchJupiterDataBatch(batchAddresses);
+
+        for (const entry of batchEntries) {
+          const { address, cacheEntry } = entry;
+          const normalizedAddress = this.normalizeAddress(address);
+          const jupiterData =
+            batchDataMap.get(normalizedAddress) ||
+            batchDataMap.get(address) ||
+            null;
+
           if (!jupiterData) {
             skippedCount++;
             continue;
           }
 
-          const baseline = this.buildBaselineFromJupiter(jupiterData);
+          try {
+            const baseline = this.buildBaselineFromJupiter(jupiterData);
 
-          cacheEntry.jupiterData = jupiterData;
-          cacheEntry.hasJupiterData = true;
-          cacheEntry.jupiterTimestamp = new Date().toISOString();
-          cacheEntry.price =
-            typeof baseline.price === 'number' && baseline.price > 0
-              ? baseline.price
-              : cacheEntry.price ?? jupiterData.usdPrice ?? null;
-          cacheEntry.priceUsd = cacheEntry.price;
-          cacheEntry.marketCap =
-            baseline.marketCap ?? cacheEntry.marketCap ?? null;
-          cacheEntry.liquidity =
-            baseline.liquidity ?? cacheEntry.liquidity ?? null;
-          cacheEntry.volume24h =
-            baseline.volume24h ?? cacheEntry.volume24h ?? null;
-          cacheEntry.baselineSeededAt = Date.now();
+            cacheEntry.jupiterData = jupiterData;
+            cacheEntry.hasJupiterData = true;
+            cacheEntry.jupiterTimestamp = new Date().toISOString();
+            cacheEntry.price =
+              typeof baseline.price === 'number' && baseline.price > 0
+                ? baseline.price
+                : cacheEntry.price ?? jupiterData.usdPrice ?? null;
+            cacheEntry.priceUsd = cacheEntry.price;
+            cacheEntry.marketCap =
+              baseline.marketCap ?? cacheEntry.marketCap ?? null;
+            cacheEntry.liquidity =
+              baseline.liquidity ?? cacheEntry.liquidity ?? null;
+            cacheEntry.volume24h =
+              baseline.volume24h ?? cacheEntry.volume24h ?? null;
+            cacheEntry.baselineSeededAt = Date.now();
 
-          if (jupiterData.symbol && !cacheEntry.symbol) {
-            cacheEntry.symbol = jupiterData.symbol;
-          }
-          if (jupiterData.name && !cacheEntry.name) {
-            cacheEntry.name = jupiterData.name;
-          }
+            // Expose baseline metrics at top-level for ranking/table consumers
+            cacheEntry.priceChange5m = baseline.metricsData5m.priceChange;
+            cacheEntry.priceChange1h = baseline.metricsData1h.priceChange;
+            cacheEntry.priceChange6h = baseline.metricsData6h.priceChange;
+            cacheEntry.priceChange24h = baseline.metricsData24h.priceChange;
 
-          this.tokenMetadataCache.set(address, jupiterData);
+            cacheEntry.volume5m = baseline.metricsData5m.volume;
+            cacheEntry.volume1h = baseline.metricsData1h.volume;
+            cacheEntry.volume6h = baseline.metricsData6h.volume;
 
-          let metrics =
-            this.getMapValueIgnoreCase(this.knownTokens, address) || null;
-          if (!metrics) {
-            metrics = new TokenMetrics(address);
-            this.knownTokens.set(address, metrics);
-          }
+            cacheEntry.txns5m = baseline.metricsData5m.txns;
+            cacheEntry.txns1h = baseline.metricsData1h.txns;
+            cacheEntry.txns6h = baseline.metricsData6h.txns;
+            cacheEntry.txns24h = baseline.metricsData24h.txns;
 
-          metrics.seedBaseline({
-            price: baseline.price,
-            '5m': baseline.metricsData5m,
-            '1h': baseline.metricsData1h,
-            '6h': baseline.metricsData6h,
-            '24h': baseline.metricsData24h,
-          });
+            cacheEntry.makers5m = baseline.metricsData5m.makers;
+            cacheEntry.makers1h = baseline.metricsData1h.makers;
+            cacheEntry.makers6h = baseline.metricsData6h.makers;
+            cacheEntry.makers24h = baseline.metricsData24h.makers;
 
-          seededCount++;
-          metadataUpdated = true;
+            cacheEntry.baselineMetrics = {
+              price: baseline.price,
+              volume24h: baseline.volume24h,
+              metricsData5m: baseline.metricsData5m,
+              metricsData1h: baseline.metricsData1h,
+              metricsData6h: baseline.metricsData6h,
+              metricsData24h: baseline.metricsData24h,
+            };
 
-          if (seededCount % 50 === 0) {
-            console.log(
-              `📈 [EnhancedHybridPriceService] Jupiter baseline seeded for ${seededCount}/${addresses.size} tokens...`
+            if (jupiterData.symbol && !cacheEntry.symbol) {
+              cacheEntry.symbol = jupiterData.symbol;
+            }
+            if (jupiterData.name && !cacheEntry.name) {
+              cacheEntry.name = jupiterData.name;
+            }
+
+            if (normalizedAddress) {
+              this.tokenMetadataCache.set(normalizedAddress, jupiterData);
+              this.tokenMetadataCache.set(address, jupiterData);
+              this.jupiterCache.set(normalizedAddress, {
+                data: jupiterData,
+                timestamp: Date.now(),
+              });
+            }
+
+            let metrics =
+              this.getMapValueIgnoreCase(this.knownTokens, normalizedAddress) ||
+              null;
+            if (!metrics) {
+              metrics = new TokenMetrics(normalizedAddress);
+              this.knownTokens.set(normalizedAddress, metrics);
+            }
+
+            metrics.seedBaseline({
+              price: baseline.price,
+              '5m': baseline.metricsData5m,
+              '1h': baseline.metricsData1h,
+              '6h': baseline.metricsData6h,
+              '24h': baseline.metricsData24h,
+            });
+
+            seededCount++;
+            metadataUpdated = true;
+
+            if (
+              seededCount % 50 === 0 ||
+              seededCount === addressesToFetch.length ||
+              seededCount === addresses.size
+            ) {
+              console.log(
+                `📈 [EnhancedHybridPriceService] Jupiter baseline seeded for ${seededCount}/${addresses.size} tokens...`
+              );
+            }
+          } catch (error) {
+            errorCount++;
+            console.error(
+              `❌ [EnhancedHybridPriceService] Failed to seed Jupiter baseline for ${normalizedAddress}:`,
+              error.message
             );
           }
-        } catch (error) {
-          errorCount++;
-          console.error(
-            `❌ [EnhancedHybridPriceService] Failed to seed Jupiter baseline for ${address}:`,
-            error.message
-          );
         }
       }
 
