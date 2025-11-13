@@ -243,6 +243,24 @@ class BackendWebSocketServer extends EventEmitter {
     console.log(`📊 [BackendWS] Broadcasted ranking update to ${this.clients.size} clients`);
   }
 
+  // ✅ NEW: Broadcast full state update to all clients (used by EnhancedHybridPriceService)
+  broadcastFullStateUpdate(tokens) {
+    const message = {
+      type: 'fullStateUpdate',
+      tokens: tokens,
+      timestamp: Date.now()
+    };
+
+    // Broadcast to all connected clients
+    this.clients.forEach((client, clientId) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
+      }
+    });
+
+    console.log(`📊 [BackendWS] Broadcasted full state update to ${this.clients.size} clients (${tokens?.length || 0} tokens)`);
+  }
+
   getStats() {
     return {
       totalClients: this.clients.size,
