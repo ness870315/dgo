@@ -10,7 +10,9 @@ import HybridPriceService from '../hybridPriceService.js';
 class FastChartService {
     constructor(hybridChartService = null) {
         this.chartDb = new ChartDatabase();
-        this.hybridService = new HybridPriceService();
+        // DO NOT create HybridPriceService here - it opens gRPC streams!
+        // Use the shared service from HybridChartService instead
+        this.hybridService = null; // Will be set by HybridChartService
         this.hybridChartService = hybridChartService; // Reference to HybridChartService for background worker access
         this.cacheStats = {
             hits: 0,
@@ -20,7 +22,7 @@ class FastChartService {
         
         console.log('⚡ FastChartService initialized');
         console.log('   Data source: Centralized database (instant)');
-        console.log('   Real-time: DEX stream (via EnhancedHybridPriceService)');
+        console.log('   Real-time: Shared service (no duplicate streams)');
         console.log('   Fallback chain: Moralis → DexScreener');
     }
 
@@ -121,6 +123,12 @@ class FastChartService {
      */
     async discoverPoolAddress(tokenAddress) {
         try {
+            // Skip if no hybrid service (avoiding duplicate gRPC streams)
+            if (!this.hybridService) {
+                console.log(`⚠️  No hybrid service available for pool discovery (using shared service)`);
+                return null;
+            }
+            
             // Try to get pair address from existing service
             const pairAddress = await this.hybridService.getPairAddress(tokenAddress);
             
@@ -152,6 +160,12 @@ class FastChartService {
         console.log(`${logPrefix} 🔄 Fallback chain: Moralis → DexScreener`);
 
         try {
+            // Skip if no hybrid service (avoiding duplicate gRPC streams)
+            if (!this.hybridService) {
+                console.log(`${logPrefix} ⚠️  No hybrid service available for fallback (using shared service)`);
+                return { ohlcv: [], source: 'none' };
+            }
+            
             console.log(`${logPrefix} 🔄 Trying Moralis primary fallback...`);
             const fallbackData = await this.hybridService.getHistoricalPrices(correctedAddress, timeframe, limit);
             
@@ -216,6 +230,11 @@ class FastChartService {
             }
             
             // Fallback to Moralis
+            if (!this.hybridService) {
+                console.log(`${logPrefix} ⚠️  No hybrid service available for price fallback`);
+                return null;
+            }
+            
             console.log(`${logPrefix} 🔄 Falling back to Moralis for current price`);
             return await this.hybridService.getCurrentPrice(tokenAddress);
             

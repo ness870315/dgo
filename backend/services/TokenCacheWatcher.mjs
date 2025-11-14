@@ -11,6 +11,7 @@ class TokenCacheWatcher extends EventEmitter {
         this.lastModified = null;
         this.lastTokenCount = 0;
         this.watchTimeout = null;
+        this.initialLoadComplete = false; // Flag to prevent onboarding cached tokens on startup
         
         console.log('🔍 [TokenCacheWatcher] Initialized for:', cachePath);
     }
@@ -53,6 +54,10 @@ class TokenCacheWatcher extends EventEmitter {
             this.lastTokenCount = tokens.length;
             
             console.log(`📊 [TokenCacheWatcher] Initial state: ${tokens.length} tokens, modified: ${new Date(this.lastModified).toISOString()}`);
+            console.log(`   Initial load complete - will only monitor NEW tokens from now on`);
+            
+            // Mark initial load as complete to prevent re-onboarding cached tokens
+            this.initialLoadComplete = true;
             
         } catch (error) {
             console.error('❌ [TokenCacheWatcher] Failed to check initial state:', error.message);
@@ -73,6 +78,12 @@ class TokenCacheWatcher extends EventEmitter {
     async processFileChange() {
         try {
             console.log('📝 [TokenCacheWatcher] File change detected, processing...');
+            
+            // Skip if initial load not complete (prevents onboarding cached tokens on startup)
+            if (!this.initialLoadComplete) {
+                console.log('⚠️  [TokenCacheWatcher] Initial load not complete, skipping file change');
+                return;
+            }
             
             // Get current file stats
             const stats = await fs.promises.stat(this.cachePath);
