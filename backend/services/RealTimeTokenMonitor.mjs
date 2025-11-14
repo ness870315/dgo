@@ -73,11 +73,13 @@ class RealTimeTokenMonitor {
      * (Only used with new monitor)
      */
     async onboardCachedTokens(tokens) {
+        console.log(`\n🔍 [RealTimeTokenMonitor] onboardCachedTokens called with ${tokens.length} tokens`);
+        console.log(`   Service type: ${this.hybridPriceService?.constructor?.name || 'undefined'}`);
+        console.log(`   Has batchOnboardTokens: ${!!this.hybridPriceService?.batchOnboardTokens}`);
+        console.log(`   Has onboardToken: ${!!this.hybridPriceService?.onboardToken}`);
+        
         if (!this.hybridPriceService.batchOnboardTokens) {
             console.log(`⚠️  [RealTimeTokenMonitor] batchOnboardTokens not available, falling back to individual onboarding`);
-            console.log(`   Service type: ${this.hybridPriceService.constructor.name}`);
-            console.log(`   Has onboardToken: ${!!this.hybridPriceService.onboardToken}`);
-            console.log(`   Has batchOnboardTokens: ${!!this.hybridPriceService.batchOnboardTokens}`);
             
             // Fallback to individual onboarding
             for (const token of tokens) {
