@@ -74,7 +74,42 @@ class RealTimeTokenMonitor {
      */
     async onboardCachedTokens(tokens) {
         if (!this.hybridPriceService.batchOnboardTokens) {
-            return; // Old service doesn't have this method
+            console.log(`⚠️  [RealTimeTokenMonitor] batchOnboardTokens not available, falling back to individual onboarding`);
+            console.log(`   Service type: ${this.hybridPriceService.constructor.name}`);
+            console.log(`   Has onboardToken: ${!!this.hybridPriceService.onboardToken}`);
+            console.log(`   Has batchOnboardTokens: ${!!this.hybridPriceService.batchOnboardTokens}`);
+            
+            // Fallback to individual onboarding
+            for (const token of tokens) {
+                try {
+                    const mint = token.contractAddress || token.tokenAddress;
+                    
+                    let pool = token.poolAddress;
+                    if (!pool && token.graduatedPool) {
+                        if (typeof token.graduatedPool === 'object') {
+                            pool = token.graduatedPool.address || token.graduatedPool.id;
+                        } else {
+                            pool = token.graduatedPool;
+                        }
+                    }
+                    if (!pool) {
+                        pool = await this.fetchPoolFromMoralis(mint);
+                    }
+                    
+                    if (!pool || !token.decimals) {
+                        continue;
+                    }
+
+                    await this.hybridPriceService.onboardToken(mint, {
+                        name: token.name || token.symbol,
+                        pool: pool,
+                        decimals: token.decimals
+                    });
+                } catch (error) {
+                    console.error(`❌ Failed to onboard ${token.symbol}:`, error.message);
+                }
+            }
+            return;
         }
 
         console.log(`📋 [RealTimeTokenMonitor] Preparing ${tokens.length} cached tokens for batch onboarding...`);
