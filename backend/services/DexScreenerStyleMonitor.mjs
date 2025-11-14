@@ -155,6 +155,11 @@ export default class DexScreenerStyleMonitor {
       await this.fetchSOLPrice();
     }, SOL_PRICE_UPDATE_INTERVAL_MS);
 
+    // Start full state broadcaster (every 10 seconds for frontend)
+    this.fullStateUpdater = setInterval(() => {
+      this.broadcastFullState();
+    }, 10 * 1000); // 10 seconds
+
     this.isInitialized = true;
     console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
   }
@@ -1804,6 +1809,110 @@ export default class DexScreenerStyleMonitor {
       console.error('   Metrics:', metrics ? 'exists' : 'undefined');
       console.error('   TokenData:', tokenData ? 'exists' : 'undefined');
       console.error('   PoolData:', poolData ? 'exists' : 'undefined');
+    }
+  }
+
+  /**
+   * Broadcast full state of all tokens (for frontend compatibility)
+   * Sends complete snapshot every 10 seconds
+   */
+  broadcastFullState() {
+    if (!this.webSocketServer) {
+      return;
+    }
+
+    try {
+      const allTokens = [];
+      
+      // Collect data for all monitored tokens
+      for (const [mint, tokenData] of this.tokens.entries()) {
+        try {
+          const metrics = this.getTokenMetrics(mint);
+          if (!metrics) continue;
+
+          const poolData = this.pools.get(mint);
+          if (!poolData) continue;
+
+          // Calculate market cap
+          const circSupply = tokenData.metadata?.circSupply || 0;
+          const marketCap = metrics.currentPrice * circSupply;
+
+          // Calculate age
+          const age = tokenData.createdAt 
+            ? Math.floor((Date.now() - tokenData.createdAt) / 1000)
+            : 0;
+
+          // Calculate liquidity (quote reserves × quote price × 2)
+          let liquidity = 0;
+          if (poolData && poolData.quoteReserve) {
+            if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+              // SOL pool
+              liquidity = poolData.quoteReserve * this.solPriceUSD * 2;
+            } else {
+              // USDC/USDT pool (already in USD)
+              liquidity = poolData.quoteReserve * 2;
+            }
+          }
+
+          // Build complete token data object
+          const tokenInfo = {
+            tokenAddress: mint,
+            contractAddress: mint, // For backward compatibility
+            name: tokenData.config?.name || 'Unknown',
+            symbol: tokenData.config?.name || 'Unknown',
+            priceUsd: metrics.currentPrice,
+            currentPrice: metrics.currentPrice,
+            marketCap: marketCap,
+            liquidity: liquidity,
+            age: age,
+            createdAt: tokenData.createdAt || null,
+            
+            // Volume stats
+            volume24h: metrics.volume24h || 0,
+            volume6h: metrics.volume6h || 0,
+            volume1h: metrics.volume1h || 0,
+            volume5m: metrics.volume5m || 0,
+            
+            // Transaction stats
+            txns24h: metrics.txns24h || 0,
+            txns6h: metrics.txns6h || 0,
+            txns1h: metrics.txns1h || 0,
+            txns5m: metrics.txns5m || 0,
+            
+            // Maker stats
+            makers24h: metrics.makers24h || 0,
+            makers6h: metrics.makers6h || 0,
+            makers1h: metrics.makers1h || 0,
+            makers5m: metrics.makers5m || 0,
+            
+            // Price change stats
+            priceChange24h: metrics.priceChange24h || 0,
+            priceChange6h: metrics.priceChange6h || 0,
+            priceChange1h: metrics.priceChange1h || 0,
+            priceChange5m: metrics.priceChange5m || 0,
+            
+            source: 'dexscreener-monitor',
+            lastUpdate: Date.now()
+          };
+
+          allTokens.push(tokenInfo);
+        } catch (error) {
+          console.error(`❌ [DexScreenerStyleMonitor] Error collecting data for ${mint.substring(0, 8)}:`, error.message);
+        }
+      }
+
+      // Broadcast full state
+      if (allTokens.length > 0) {
+        this.webSocketServer.broadcast(JSON.stringify({
+          type: 'fullStateUpdate',
+          tokens: allTokens,
+          timestamp: Date.now()
+        }));
+        
+        console.log(`📡 [DexScreenerStyleMonitor] Broadcasted full state: ${allTokens.length} tokens`);
+      }
+    } catch (error) {
+      console.error('❌ [DexScreenerStyleMonitor] Error broadcasting full state:', error.message);
     }
   }
 
