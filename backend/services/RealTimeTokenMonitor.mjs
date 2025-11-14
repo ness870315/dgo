@@ -426,9 +426,7 @@ class RealTimeTokenMonitor {
 
         // Add to pool addresses if pool exists
         let poolAddress = null;
-        if (tokenData.jupiterData?.firstPool?.id) {
-            poolAddress = tokenData.jupiterData.firstPool.id;
-        } else if (tokenData.graduatedPool) {
+        if (tokenData.graduatedPool) {
             poolAddress = typeof tokenData.graduatedPool === 'string' ? 
                 tokenData.graduatedPool : tokenData.graduatedPool?.address;
         }

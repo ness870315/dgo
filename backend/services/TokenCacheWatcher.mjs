@@ -168,7 +168,6 @@ class TokenCacheWatcher extends EventEmitter {
                 // Get pool address from token data
                 let pool = 
                     token.poolAddress ||
-                    token.jupiterData?.firstPool?.id ||
                     token.graduatedPool;
                 
                 // Handle graduatedPool object format
