@@ -499,11 +499,19 @@ export default class DexScreenerStyleMonitor {
           include_accounts: true
         };
 
-        // Store pool info in token data
+        // Store pool info in token data AND in pools Map
         const tokenData = this.tokens.get(mint);
         if (tokenData) {
           tokenData.poolInfo = poolInfo;
         }
+        
+        // CRITICAL: Add to pools Map so swap detection can find it!
+        this.pools.set(mint, {
+          tokenKey: mint,
+          tokenConfig: config,
+          config: config, // For backward compatibility
+          ...poolInfo
+        });
 
         console.log(`   ✅ ${config.name} filters added`);
         subscribed++;
