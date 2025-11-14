@@ -2,10 +2,10 @@
  * 🎯 DYNAMIC POOL MANAGER POC
  * 
  * Demonstrates dynamic pool subscription:
- * - Phase 1 (T+0s): Start with Popfrog + TRUMP
+ * - Phase 1 (T+0s): Start with Popfrog + TRUMP + USELESS
  * - Phase 2 (T+60s): Add VERDIS + OOB + PROPHEX dynamically
  * - Run for 4 minutes total
- * - Track swaps, buys, sells for all 5 tokens
+ * - Track swaps, buys, sells for all 6 tokens
  * - Print comprehensive stats at each phase and final results
  * - Track global stream statistics (persists across stream recreations)
  * 
@@ -30,7 +30,7 @@ const SOL_PRICE_UPDATE_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 // Tokens to monitor
 const TOKENS = {
-  // Phase 1: Start with these 2 (T+0s)
+  // Phase 1: Start with these 3 (T+0s)
   popfrog: {
     name: 'Popfrog',
     mint: 'DA1qLpgD1M7TNNRPycizyQCoRLCt7GAx1YTeVrfYpump',
@@ -41,6 +41,13 @@ const TOKENS = {
   trump: {
     name: 'TRUMP',
     mint: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN',
+    pool: null, // Will be discovered
+    decimals: null, // Will be discovered
+    phase: 1
+  },
+  useless: {
+    name: 'USELESS',
+    mint: 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk',
     pool: null, // Will be discovered
     decimals: null, // Will be discovered
     phase: 1
@@ -1105,15 +1112,18 @@ async function runTest() {
     const poolManager = new PoolManager(grpcClient);
     await poolManager.initialize();
     
-    // Step 5: PHASE 1 - Add initial 2 tokens (T+0s)
-    console.log('\n⏱️  T+0s: PHASE 1 - Adding initial 2 pools...');
+    // Step 5: PHASE 1 - Add initial 3 tokens (T+0s)
+    console.log('\n⏱️  T+0s: PHASE 1 - Adding initial 3 pools...');
     console.log('   Adding Popfrog pool to stream...');
     await poolManager.addPool('popfrog', TOKENS.popfrog);
     
     console.log('   Adding TRUMP pool to stream...');
     await poolManager.addPool('trump', TOKENS.trump);
     
-    console.log('\n✅ Phase 1 complete: Monitoring 2 pools (Popfrog + TRUMP)');
+    console.log('   Adding USELESS pool to stream...');
+    await poolManager.addPool('useless', TOKENS.useless);
+    
+    console.log('\n✅ Phase 1 complete: Monitoring 3 pools (Popfrog + TRUMP + USELESS)');
     poolManager.printStats('PHASE 1 BASELINE');
     
     // PHASE 2: Add 2 more tokens after 60 seconds
@@ -1135,7 +1145,7 @@ async function runTest() {
       console.log('   Adding PROPHEX pool to stream...');
       await poolManager.addPool('prophex', TOKENS.prophex);
       
-      console.log('\n✅ Phase 2 complete: Now monitoring 5 pools total (Popfrog, TRUMP, VERDIS, OOB, PROPHEX)');
+      console.log('\n✅ Phase 2 complete: Now monitoring 6 pools total (Popfrog, TRUMP, USELESS, VERDIS, OOB, PROPHEX)');
       poolManager.printStats('PHASE 2 RESULTS');
     }, 60 * 1000);
     

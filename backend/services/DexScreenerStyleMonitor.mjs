@@ -1190,28 +1190,28 @@ export default class DexScreenerStyleMonitor {
         createdAt: tokenData.createdAt || null,
         
         // Volume stats
-        volume24h: metrics['24h'].volume,
-        volume6h: metrics['6h'].volume,
-        volume1h: metrics['1h'].volume,
-        volume5m: metrics['5m'].volume,
+        volume24h: metrics.volume24h || 0,
+        volume6h: metrics.volume6h || 0,
+        volume1h: metrics.volume1h || 0,
+        volume5m: metrics.volume5m || 0,
         
         // Transaction stats
-        txns24h: metrics['24h'].txns,
-        txns6h: metrics['6h'].txns,
-        txns1h: metrics['1h'].txns,
-        txns5m: metrics['5m'].txns,
+        txns24h: metrics.txns24h || 0,
+        txns6h: metrics.txns6h || 0,
+        txns1h: metrics.txns1h || 0,
+        txns5m: metrics.txns5m || 0,
         
         // Maker stats
-        makers24h: metrics['24h'].makers,
-        makers6h: metrics['6h'].makers,
-        makers1h: metrics['1h'].makers,
-        makers5m: metrics['5m'].makers,
+        makers24h: metrics.makers24h || 0,
+        makers6h: metrics.makers6h || 0,
+        makers1h: metrics.makers1h || 0,
+        makers5m: metrics.makers5m || 0,
         
         // Price change stats
-        priceChange24h: metrics['24h'].priceChange,
-        priceChange6h: metrics['6h'].priceChange,
-        priceChange1h: metrics['1h'].priceChange,
-        priceChange5m: metrics['5m'].priceChange,
+        priceChange24h: metrics.priceChange24h || 0,
+        priceChange6h: metrics.priceChange6h || 0,
+        priceChange1h: metrics.priceChange1h || 0,
+        priceChange5m: metrics.priceChange5m || 0,
         
         source: 'dexscreener-monitor',
         timestamp: Date.now()
