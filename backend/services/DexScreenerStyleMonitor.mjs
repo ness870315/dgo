@@ -400,20 +400,28 @@ export default class DexScreenerStyleMonitor {
     console.log(`\n✅ Phase 1 complete: ${successful} tokens prepared`);
     console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
-    // Phase 2: Discover all pool reserves in parallel with timeout
+    // Phase 2: Discover all pool reserves with rate limiting (batches of 20)
     const poolDiscoveryPromises = [];
     let discoveryCount = 0;
-    const totalToDiscover = tokensConfig.filter(({ mint, config }) => config.pool && this.tokens.has(mint)).length;
+    const tokensToDiscover = tokensConfig.filter(({ mint, config }) => config.pool && this.tokens.has(mint));
+    const totalToDiscover = tokensToDiscover.length;
+    const BATCH_SIZE = 20; // Process 20 at a time to avoid RPC rate limits
     
-    for (const { mint, config } of tokensConfig) {
-      if (!config.pool || !this.tokens.has(mint)) continue;
-
-      poolDiscoveryPromises.push(
+    console.log(`   Discovering ${totalToDiscover} pools in batches of ${BATCH_SIZE}...`);
+    
+    for (let i = 0; i < tokensToDiscover.length; i += BATCH_SIZE) {
+      const batch = tokensToDiscover.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(tokensToDiscover.length / BATCH_SIZE);
+      
+      console.log(`\n   📦 Batch ${batchNum}/${totalBatches}: Processing ${batch.length} pools...`);
+      
+      const batchPromises = batch.map(({ mint, config }) =>
         Promise.race([
           this.discoverPoolInfo(mint, config)
             .then(poolInfo => {
               discoveryCount++;
-              console.log(`   ✅ [${discoveryCount}/${totalToDiscover}] ${config.name} discovered`);
+              console.log(`      ✅ [${discoveryCount}/${totalToDiscover}] ${config.name} discovered`);
               return { mint, config, poolInfo, success: true };
             }),
           new Promise((_, reject) => 
@@ -421,14 +429,22 @@ export default class DexScreenerStyleMonitor {
           )
         ]).catch(error => {
           discoveryCount++;
-          console.error(`   ❌ [${discoveryCount}/${totalToDiscover}] ${config.name} failed:`, error.message);
+          console.error(`      ❌ [${discoveryCount}/${totalToDiscover}] ${config.name} failed:`, error.message);
           return { mint, config, poolInfo: null, success: false };
         })
       );
+      
+      const batchResults = await Promise.all(batchPromises);
+      poolDiscoveryPromises.push(...batchResults);
+      
+      // Delay between batches to avoid rate limits
+      if (i + BATCH_SIZE < tokensToDiscover.length) {
+        console.log(`      ⏳ Waiting 500ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
-    console.log(`   Discovering ${totalToDiscover} pools in parallel...`);
-    const poolResults = await Promise.all(poolDiscoveryPromises);
+    const poolResults = poolDiscoveryPromises;
     
     const successfulDiscoveries = poolResults.filter(r => r.success).length;
     const failedDiscoveries = poolResults.filter(r => !r.success).length;
@@ -1362,7 +1378,7 @@ export default class DexScreenerStyleMonitor {
       // Use Jupiter baseline if available
       if (tokenData.jupiterBaseline) {
         const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
-        return baseline?.buyVolume + baseline?.sellVolume || 0;
+        return (baseline?.buyVolume || 0) + (baseline?.sellVolume || 0);
       }
       return 0;
     }
@@ -1525,10 +1541,19 @@ export default class DexScreenerStyleMonitor {
       const circSupply = tokenData.metadata?.circSupply || 0;
       const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
       
-      // Calculate liquidity (SOL reserves × SOL price × 2)
-      const liquidity = poolData && poolData.solReserve 
-        ? poolData.solReserve * this.solPriceUSD * 2 
-        : 0;
+      // Calculate liquidity (quote reserves × quote price × 2)
+      // For SOL pools: quoteReserve × SOL price × 2
+      // For USDC/USDT pools: quoteReserve × 2 (already in USD)
+      let liquidity = 0;
+      if (poolData && poolData.quoteReserve) {
+        if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+          // SOL pool
+          liquidity = poolData.quoteReserve * this.solPriceUSD * 2;
+        } else {
+          // USDC/USDT pool (already in USD)
+          liquidity = poolData.quoteReserve * 2;
+        }
+      }
       
       // Calculate age (if createdAt is available)
       const age = tokenData.createdAt 
@@ -1588,6 +1613,10 @@ export default class DexScreenerStyleMonitor {
       }
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
+      console.error('   Token:', mint);
+      console.error('   Metrics:', metrics ? 'exists' : 'undefined');
+      console.error('   TokenData:', tokenData ? 'exists' : 'undefined');
+      console.error('   PoolData:', poolData ? 'exists' : 'undefined');
     }
   }
 
