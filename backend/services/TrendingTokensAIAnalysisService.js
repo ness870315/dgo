@@ -80,11 +80,16 @@ class TrendingTokensAIAnalysisService {
           }
           
           const data = await response.json();
-          const jupiterTokens = data.tokens || [];
+          // Jupiter API returns a direct array, not { tokens: [...] }
+          const jupiterTokens = Array.isArray(data) ? data : [];
           
-          // Map Jupiter data by address
+          console.log(`   📦 Received ${jupiterTokens.length} tokens from Jupiter`);
+          
+          // Map Jupiter data by address (use 'id' field, not 'address')
           jupiterTokens.forEach(jToken => {
-            enrichedTokensMap.set(jToken.address, {
+            if (!jToken.id) return;
+            
+            enrichedTokensMap.set(jToken.id, {
               price: jToken.usdPrice || 0,
               marketCap: jToken.marketCap || 0,
               volume24h: jToken.volume24h || 0,
