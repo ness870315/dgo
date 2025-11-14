@@ -86,14 +86,22 @@ class RealTimeTokenMonitor {
                 const mint = token.contractAddress || token.tokenAddress;
                 
                 // Try to find pool in priority order
-                let pool = 
-                    token.poolAddress ||                    // 1. Direct poolAddress field
-                    token.jupiterData?.firstPool?.id ||     // 2. Jupiter firstPool
-                    token.graduatedPool;                    // 3. Pump.fun graduated pool
+                let pool = token.poolAddress;  // 1. Direct poolAddress field (from cache)
                 
-                // Handle graduatedPool object format
-                if (pool && typeof pool === 'object') {
-                    pool = pool.address || pool.id;
+                // 2. Check graduatedPool (from Jupiter API enrichment)
+                if (!pool && token.graduatedPool) {
+                    // Handle graduatedPool object format
+                    if (typeof token.graduatedPool === 'object') {
+                        pool = token.graduatedPool.address || token.graduatedPool.id;
+                    } else {
+                        pool = token.graduatedPool;
+                    }
+                }
+                
+                // 3. If still no pool, fetch from Moralis
+                if (!pool) {
+                    console.log(`   🔍 No pool in cache for ${token.symbol}, fetching from Moralis...`);
+                    pool = await this.fetchPoolFromMoralis(mint);
                 }
                 
                 // Skip if missing required data
@@ -119,6 +127,68 @@ class RealTimeTokenMonitor {
         // Batch onboard all tokens at once
         const result = await this.hybridPriceService.batchOnboardTokens(tokensConfig);
         console.log(`✅ [RealTimeTokenMonitor] Batch onboarding complete: ${result.successful} successful, ${result.failed} failed`);
+    }
+
+    /**
+     * Fetch pool address from Moralis API
+     */
+    async fetchPoolFromMoralis(mint, retries = 3) {
+        const MORALIS_API_KEY = process.env.MORALIS_API_KEY;
+        
+        if (!MORALIS_API_KEY) {
+            console.error('   ❌ MORALIS_API_KEY not set in environment');
+            return null;
+        }
+
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const url = `https://solana-gateway.moralis.io/token/mainnet/${mint}/pairs`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-API-Key': MORALIS_API_KEY
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.error(`   ❌ Moralis API error: ${response.status}`);
+                    if (attempt < retries) {
+                        console.log(`   🔄 Retrying in 2 seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        continue;
+                    }
+                    return null;
+                }
+            
+                const data = await response.json();
+                
+                // Extract pairAddress from first active pair with highest liquidity
+                if (data && data.pairs && data.pairs.length > 0) {
+                    const sortedPairs = data.pairs
+                        .filter(p => !p.inactivePair) // Only active pairs
+                        .sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0));
+                    
+                    if (sortedPairs.length > 0) {
+                        const bestPair = sortedPairs[0];
+                        console.log(`   ✅ Moralis pool: ${bestPair.pairAddress} (${bestPair.exchangeName}, $${(bestPair.liquidityUsd / 1000000).toFixed(2)}M)`);
+                        return bestPair.pairAddress;
+                    } else {
+                        console.error(`   ❌ No active pairs found in Moralis response`);
+                        return null;
+                    }
+                } else {
+                    console.error(`   ❌ No pairs found in Moralis response`);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`   ❌ Moralis fetch error (attempt ${attempt}/${retries}):`, error.message);
+                if (attempt < retries) {
+                    console.log(`   🔄 Retrying in 2 seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+        
+        return null;
     }
 
     async loadTokenCache() {
