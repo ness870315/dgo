@@ -35,6 +35,17 @@ class TrendingTokensAIAnalysisService {
       const tokens = await response.json();
       console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from cache`);
       
+      // Debug: Check Twitter data in first token
+      if (tokens.length > 0) {
+        const firstToken = tokens[0];
+        console.log(`🔍 [TRENDING AI] First token Twitter data:`, {
+          symbol: firstToken.symbol,
+          twitterData: firstToken.twitterData,
+          mentions: firstToken.mentions,
+          twitterMentions: firstToken.twitterData?.mentions
+        });
+      }
+      
       // Enrich with fresh Jupiter data
       const enrichedTokens = await this.enrichTokensWithJupiterData(tokens);
       console.log(`✅ [TRENDING AI] Enriched ${enrichedTokens.length} tokens with fresh Jupiter data`);
