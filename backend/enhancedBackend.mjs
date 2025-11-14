@@ -18308,8 +18308,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const batch = mints.slice(i, i + BATCH_SIZE);
         
         try {
-          // Call Jupiter API with batch
-          const url = `https://lite-api.jup.ag/tokens/v2/list?mints=${batch.join(',')}`;
+          // Call Jupiter API with batch (use /search endpoint with comma-separated mints)
+          const url = `https://lite-api.jup.ag/tokens/v2/search?query=${batch.join(',')}`;
           const response = await fetch(url);
           
           if (!response.ok) {
@@ -18323,8 +18323,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           if (data && Array.isArray(data)) {
             for (const jupToken of data) {
               const token = tokens.find(t => 
-                (t.contractAddress === jupToken.address) || 
-                (t.tokenAddress === jupToken.address)
+                (t.contractAddress === jupToken.id) || 
+                (t.tokenAddress === jupToken.id)
               );
               
               if (token) {
@@ -18448,19 +18448,24 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Try to find pool in priority order
         let pool = 
           token.poolAddress ||                    // 1. Direct poolAddress field
-          token.jupiterData?.firstPool?.id ||     // 2. Jupiter firstPool
-          token.graduatedPool;                    // 3. Pump.fun graduated pool
+          token.graduatedPool;                    // 2. graduatedPool from Jupiter
         
         // Handle graduatedPool object format
         if (pool && typeof pool === 'object') {
           pool = pool.address || pool.id;
         }
         
-        // Skip if missing pool
-        if (!pool) {
-          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing pool`);
-          failed++;
-          continue;
+        // Note: If no pool, Moralis fallback will be handled by RealTimeTokenMonitor.fetchPoolFromMoralis
+        // during batch onboarding, so we don't skip here
+        
+        // Skip if missing pool AND decimals
+        if (!pool || !token.decimals) {
+          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing ${!pool ? 'pool (will try Moralis)' : 'decimals'}`);
+          if (!token.decimals) {
+            failed++;
+            continue;
+          }
+          // If only pool is missing, continue - Moralis will be tried
         }
         
         // Try to get decimals from token data, fallback to 9 (Solana default)
