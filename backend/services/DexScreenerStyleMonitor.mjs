@@ -1865,7 +1865,7 @@ export default class DexScreenerStyleMonitor {
           if (!metrics) continue;
 
           const poolData = this.pools.get(mint);
-          if (!poolData) continue;
+          // Don't skip if no poolData - we can still use Jupiter price!
 
           // Calculate market cap
           const circSupply = tokenData.metadata?.circSupply || 0;
