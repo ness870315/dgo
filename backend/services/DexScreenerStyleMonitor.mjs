@@ -306,7 +306,203 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Onboard a new token for monitoring
+   * Batch onboard multiple tokens (efficient for startup)
+   * Discovers all pools first, then creates stream once
+   * @param {Array} tokensConfig - Array of { mint, config: { name, pool, decimals } }
+   */
+  async batchOnboardTokens(tokensConfig) {
+    console.log(`\n📦 [DexScreenerStyleMonitor] Batch onboarding ${tokensConfig.length} tokens...`);
+    
+    const discoveredPools = [];
+    let successful = 0;
+    let failed = 0;
+
+    // Phase 1: Discover all pools (no stream creation yet)
+    console.log('🔍 Phase 1: Discovering all pools...');
+    
+    for (const { mint, config } of tokensConfig) {
+      if (this.tokens.has(mint)) {
+        console.log(`   ⚠️  ${config.name} already onboarded, skipping`);
+        continue;
+      }
+
+      try {
+        console.log(`   🔍 Discovering pool for ${config.name}...`);
+        
+        // 1. Create token data structure
+        const tokenData = new TokenData(mint, config);
+        this.tokens.set(mint, tokenData);
+
+        // 2. Fetch token metadata from Jupiter
+        const metadata = await this.fetchTokenMetadata(mint, config.name);
+        tokenData.metadata = metadata;
+
+        // 3. Try to load historical swaps from ChartDatabase
+        const dbSwaps = await this.loadSwapsFromDatabase(mint);
+        
+        if (dbSwaps && dbSwaps.length > 0) {
+          tokenData.swaps = dbSwaps;
+          const oldestSwap = dbSwaps[0].timestamp;
+          const dataAge = Date.now() - oldestSwap;
+          
+          if (dataAge < SWAP_RETENTION_MS) {
+            tokenData.jupiterBaseline = await this.fetchJupiterBaseline(mint);
+          }
+        } else {
+          tokenData.jupiterBaseline = await this.fetchJupiterBaseline(mint);
+        }
+
+        // 4. Discover pool reserves (but don't add to stream yet)
+        const poolInfo = await this.discoverPoolReserves(mint, config);
+        
+        if (poolInfo) {
+          discoveredPools.push({ mint, config, poolInfo });
+          successful++;
+          console.log(`   ✅ ${config.name} pool discovered`);
+        } else {
+          failed++;
+          console.log(`   ❌ ${config.name} pool discovery failed`);
+          this.tokens.delete(mint);
+        }
+
+      } catch (error) {
+        console.error(`   ❌ ${config.name} error:`, error.message);
+        this.tokens.delete(mint);
+        failed++;
+      }
+    }
+
+    console.log(`\n✅ Phase 1 complete: ${successful} pools discovered, ${failed} failed`);
+
+    // Phase 2: Create stream once with all discovered pools
+    if (discoveredPools.length > 0) {
+      console.log(`\n📡 Phase 2: Creating stream with ${discoveredPools.length} pools...`);
+      
+      for (const { mint, config, poolInfo } of discoveredPools) {
+        try {
+          // Store pool data
+          const poolData = new PoolData(poolInfo.poolAddress, mint, config);
+          poolData.poolTokenAccount = poolInfo.poolTokenAccount;
+          poolData.poolQuoteAccount = poolInfo.poolQuoteAccount;
+          poolData.tokenReserve = poolInfo.tokenReserve;
+          poolData.quoteReserve = poolInfo.quoteReserve;
+          poolData.price = poolInfo.price;
+          poolData.quoteMint = poolInfo.quoteMint;
+          poolData.quoteName = poolInfo.quoteName;
+          poolData.quoteDecimals = poolInfo.quoteDecimals;
+          
+          this.pools.set(mint, poolData);
+          
+          // Add to stream filters (will be applied when stream is created/recreated)
+          this.addPoolToStream(mint, poolData);
+          
+        } catch (error) {
+          console.error(`   ❌ Error adding ${config.name} to stream:`, error.message);
+        }
+      }
+
+      // Recreate stream with all filters at once
+      await this.recreateStream();
+      
+      this.stats.tokensMonitored = this.tokens.size;
+      console.log(`\n✅ Batch onboarding complete: ${successful} tokens monitoring\n`);
+    }
+
+    return { successful, failed };
+  }
+
+  /**
+   * Discover pool reserves without adding to stream
+   * Returns pool info or null if discovery fails
+   */
+  async discoverPoolReserves(mint, config) {
+    try {
+      const poolPubkey = new PublicKey(config.pool);
+      
+      // Try standard token accounts first
+      const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(poolPubkey, {
+        programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+      });
+
+      let poolTokenAccount = null;
+      let poolQuoteAccount = null;
+      let tokenReserve = null;
+      let quoteReserve = null;
+      let quoteMint = null;
+      let quoteName = null;
+      let quoteDecimals = 9;
+
+      if (tokenAccounts.value.length > 0) {
+        // Standard AMM pool
+        for (const account of tokenAccounts.value) {
+          const parsedInfo = account.account.data.parsed.info;
+          const accountMint = parsedInfo.mint;
+          const amount = parsedInfo.tokenAmount.uiAmount;
+
+          if (accountMint === mint) {
+            poolTokenAccount = account.pubkey.toString();
+            tokenReserve = amount;
+          } else if (accountMint === SOL_MINT) {
+            poolQuoteAccount = account.pubkey.toString();
+            quoteReserve = amount;
+            quoteMint = SOL_MINT;
+            quoteName = 'SOL';
+            quoteDecimals = 9;
+          } else if (accountMint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') {
+            poolQuoteAccount = account.pubkey.toString();
+            quoteReserve = amount;
+            quoteMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+            quoteName = 'USDC';
+            quoteDecimals = 6;
+          } else if (accountMint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
+            poolQuoteAccount = account.pubkey.toString();
+            quoteReserve = amount;
+            quoteMint = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+            quoteName = 'USDT';
+            quoteDecimals = 6;
+          }
+        }
+      }
+
+      // If no accounts found, try DLMM discovery
+      if (!poolTokenAccount || !poolQuoteAccount) {
+        const dlmmResult = await this.discoverDLMMReserves(config.pool, mint, quoteMint || SOL_MINT);
+        
+        if (dlmmResult) {
+          poolTokenAccount = dlmmResult.tokenAccount;
+          poolQuoteAccount = dlmmResult.quoteAccount;
+          tokenReserve = dlmmResult.tokenReserve;
+          quoteReserve = dlmmResult.quoteReserve;
+          quoteMint = dlmmResult.quoteMint;
+          quoteName = dlmmResult.quoteName;
+          quoteDecimals = dlmmResult.quoteDecimals;
+        } else {
+          return null;
+        }
+      }
+
+      const price = quoteReserve > 0 ? tokenReserve / quoteReserve : 0;
+
+      return {
+        poolAddress: config.pool,
+        poolTokenAccount,
+        poolQuoteAccount,
+        tokenReserve,
+        quoteReserve,
+        price,
+        quoteMint,
+        quoteName,
+        quoteDecimals
+      };
+
+    } catch (error) {
+      console.error(`   ❌ Pool discovery error:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Onboard a single token (for runtime additions)
    */
   async onboardToken(mint, config) {
     if (this.tokens.has(mint)) {

@@ -73,14 +73,13 @@ class RealTimeTokenMonitor {
      * (Only used with new monitor)
      */
     async onboardCachedTokens(tokens) {
-        if (!this.hybridPriceService.onboardToken) {
+        if (!this.hybridPriceService.batchOnboardTokens) {
             return; // Old service doesn't have this method
         }
 
-        console.log(`📋 [RealTimeTokenMonitor] Onboarding ${tokens.length} cached tokens...`);
+        console.log(`📋 [RealTimeTokenMonitor] Preparing ${tokens.length} cached tokens for batch onboarding...`);
         
-        let onboarded = 0;
-        let failed = 0;
+        const tokensConfig = [];
 
         for (const token of tokens) {
             try {
@@ -100,24 +99,26 @@ class RealTimeTokenMonitor {
                 // Skip if missing required data
                 if (!pool || !token.decimals) {
                     console.log(`⚠️  [RealTimeTokenMonitor] Skipping ${token.symbol}: Missing ${!pool ? 'pool' : 'decimals'}`);
-                    failed++;
                     continue;
                 }
 
-                await this.hybridPriceService.onboardToken(mint, {
-                    name: token.name || token.symbol,
-                    pool: pool,
-                    decimals: token.decimals
+                tokensConfig.push({
+                    mint,
+                    config: {
+                        name: token.name || token.symbol,
+                        pool: pool,
+                        decimals: token.decimals
+                    }
                 });
 
-                onboarded++;
             } catch (error) {
-                console.error(`❌ [RealTimeTokenMonitor] Failed to onboard ${token.symbol}:`, error.message);
-                failed++;
+                console.error(`❌ [RealTimeTokenMonitor] Failed to prepare ${token.symbol}:`, error.message);
             }
         }
 
-        console.log(`✅ [RealTimeTokenMonitor] Onboarded ${onboarded}/${tokens.length} tokens (${failed} failed)`);
+        // Batch onboard all tokens at once
+        const result = await this.hybridPriceService.batchOnboardTokens(tokensConfig);
+        console.log(`✅ [RealTimeTokenMonitor] Batch onboarding complete: ${result.successful} successful, ${result.failed} failed`);
     }
 
     async loadTokenCache() {
