@@ -516,6 +516,19 @@ export default class DexScreenerStyleMonitor {
     // Now recreate the stream ONCE with all filters
     if (subscribed > 0) {
       console.log(`\n🔄 Recreating stream with ${subscribed} pools...`);
+      
+      // Log USELESS pool info if it was added
+      const uselessMint = 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
+      const uselessPool = this.pools.get(uselessMint);
+      if (uselessPool) {
+        console.log(`\n✅ USELESS pool added to stream:`);
+        console.log(`   Token Account: ${uselessPool.poolTokenAccount}`);
+        console.log(`   Quote Account: ${uselessPool.poolQuoteAccount}`);
+        console.log(`   Quote Token: ${uselessPool.quoteName}`);
+      } else {
+        console.log(`\n⚠️  USELESS pool NOT found in monitored pools!`);
+      }
+      
       this.accountFilters = newAccountFilters;
       this.transactionFilters = newTransactionFilters;
       await this.recreateStream();
@@ -1095,7 +1108,19 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      if (!mint || !poolData || !tokenData) return;
+      // Log USELESS pool account updates
+      if (mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+        console.log(`🔍 [USELESS] Account update detected for ${decodedKey === poolData.poolTokenAccount ? 'TOKEN' : 'QUOTE'} account`);
+      }
+      
+      if (!mint || !poolData || !tokenData) {
+        // Log if we're getting updates for accounts we don't recognize
+        if (this.globalStats.totalAccountUpdates % 1000 === 0) {
+          console.log(`⚠️  [DexScreenerStyleMonitor] Account update for unknown pool: ${decodedKey?.substring(0, 8)}...`);
+          console.log(`   Monitoring ${this.pools.size} pools`);
+        }
+        return;
+      }
 
       // Check if it's the token reserve account
       if (decodedKey === poolData.poolTokenAccount) {
