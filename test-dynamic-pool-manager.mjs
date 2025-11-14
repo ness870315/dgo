@@ -417,112 +417,151 @@ class PoolManager {
     }
   }
 
+  /**
+   * Discover pool reserves WITHOUT adding to stream
+   * Used for batch onboarding - discover all pools first, then create stream once
+   */
+  async discoverPoolReserves(tokenKey, tokenConfig) {
+    const poolPubkey = new PublicKey(tokenConfig.pool);
+    const tokenMint = new PublicKey(tokenConfig.mint);
+    const solMint = new PublicKey(SOL_MINT);
+    
+    // FIND the actual token accounts owned by the pool (works for ALL DEX types!)
+    const poolAccounts = await connection.getParsedTokenAccountsByOwner(poolPubkey, {
+      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+    });
+    
+    // Find the token account and quote token account (SOL, USDC, or USDT)
+    let poolTokenAccount = null;
+    let poolQuoteAccount = null;
+    let tokenReserve = 0;
+    let quoteReserve = 0;
+    let quoteMint = null;
+    let quoteDecimals = 9; // Default to SOL decimals
+    
+    const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+    
+    for (const account of poolAccounts.value) {
+      const mint = account.account.data.parsed.info.mint;
+      const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
+      const decimals = account.account.data.parsed.info.tokenAmount.decimals;
+      
+      if (mint === tokenConfig.mint) {
+        poolTokenAccount = account.pubkey;
+        tokenReserve = amount;
+      } else if (mint === SOL_MINT || mint === USDC_MINT || mint === USDT_MINT) {
+        poolQuoteAccount = account.pubkey;
+        quoteReserve = amount;
+        quoteMint = mint;
+        quoteDecimals = decimals;
+      }
+    }
+    
+    // If no token accounts found (DLMM pools), try transaction-based discovery
+    if (!poolTokenAccount || !poolQuoteAccount) {
+      const reserves = await this.discoverDLMMReserves(tokenConfig.pool, tokenConfig.mint, solMint.toBase58());
+      if (!reserves) {
+        throw new Error(`Could not discover reserves for pool ${tokenConfig.pool}`);
+      }
+      
+      poolTokenAccount = new PublicKey(reserves.poolTokenAccount);
+      poolQuoteAccount = new PublicKey(reserves.poolQuoteAccount);
+      tokenReserve = reserves.tokenReserve;
+      quoteReserve = reserves.quoteReserve;
+      quoteMint = reserves.quoteMint;
+      quoteDecimals = reserves.quoteDecimals;
+    }
+    
+    const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
+    const price = quoteReserve / tokenReserve;
+    
+    return {
+      poolTokenAccount: poolTokenAccount.toBase58(),
+      poolQuoteAccount: poolQuoteAccount.toBase58(),
+      tokenReserve,
+      quoteReserve,
+      price,
+      quoteMint,
+      quoteName,
+      quoteDecimals,
+      lastUpdate: Date.now()
+    };
+  }
+
+  /**
+   * Add filters for a pool WITHOUT creating stream
+   * Used for batch onboarding - add all filters first, then create stream once
+   */
+  addFiltersForPool(tokenKey, tokenConfig, poolInfo) {
+    // Store pool data
+    const poolData = {
+      tokenKey,
+      tokenConfig,
+      ...poolInfo
+    };
+    
+    this.pools.set(tokenKey, poolData);
+    
+    // Initialize stats
+    this.stats.set(tokenKey, {
+      name: tokenConfig.name,
+      totalSwaps: 0,
+      buys: 0,
+      sells: 0,
+      buyVolume: 0,
+      sellVolume: 0
+    });
+    
+    // Add account filters for this pool
+    this.accountFilters[`${tokenKey}_token`] = {
+      account: [poolInfo.poolTokenAccount],
+      owner: [],
+      filters: []
+    };
+    
+    this.accountFilters[`${tokenKey}_quote`] = {
+      account: [poolInfo.poolQuoteAccount],
+      owner: [],
+      filters: []
+    };
+    
+    // Add transaction filters for this pool
+    this.transactionFilters[`${tokenKey}_txs`] = {
+      accountInclude: [poolInfo.poolTokenAccount, poolInfo.poolQuoteAccount],
+      accountExclude: [],
+      accountRequired: [],
+      vote: false,
+      failed: false,
+      include_meta: true,
+      include_token_balances: true,
+      include_instructions: true,
+      include_inner_instructions: true,
+      include_loaded_addresses: true,
+      include_accounts: true
+    };
+  }
+
+  /**
+   * OLD METHOD: Add pool dynamically (recreates stream)
+   * Used for dynamic additions after initial batch
+   */
   async addPool(tokenKey, tokenConfig) {
     console.log(`\n➕ Adding pool for ${tokenConfig.name}...`);
     
     try {
-      const poolPubkey = new PublicKey(tokenConfig.pool);
-      const tokenMint = new PublicKey(tokenConfig.mint);
-      const solMint = new PublicKey(SOL_MINT);
+      // Discover pool reserves
+      const poolInfo = await this.discoverPoolReserves(tokenKey, tokenConfig);
       
-      // FIND the actual token accounts owned by the pool (works for ALL DEX types!)
-      console.log(`   🔍 Finding token accounts for pool...`);
-      const poolAccounts = await connection.getParsedTokenAccountsByOwner(poolPubkey, {
-        programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
-      });
+      console.log(`   Token Reserve: ${poolInfo.tokenReserve.toLocaleString()} tokens`);
+      console.log(`   Quote Reserve: ${poolInfo.quoteReserve.toLocaleString()} ${poolInfo.quoteName}`);
+      console.log(`   Price:         ${poolInfo.price.toFixed(10)} ${poolInfo.quoteName} per token`);
       
-      // Find the token account and quote token account (SOL, USDC, or USDT)
-      let poolTokenAccount = null;
-      let poolQuoteAccount = null;
-      let tokenReserve = 0;
-      let quoteReserve = 0;
-      let quoteMint = null;
-      let quoteDecimals = 9; // Default to SOL decimals
+      // Add filters
+      this.addFiltersForPool(tokenKey, tokenConfig, poolInfo);
       
-      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-      
-      for (const account of poolAccounts.value) {
-        const mint = account.account.data.parsed.info.mint;
-        const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
-        const decimals = account.account.data.parsed.info.tokenAmount.decimals;
-        
-        if (mint === tokenConfig.mint) {
-          poolTokenAccount = account.pubkey;
-          tokenReserve = amount;
-          console.log(`   ✅ Token Account: ${account.pubkey.toBase58()} (${amount.toLocaleString()} tokens)`);
-        } else if (mint === SOL_MINT || mint === USDC_MINT || mint === USDT_MINT) {
-          poolQuoteAccount = account.pubkey;
-          quoteReserve = amount;
-          quoteMint = mint;
-          quoteDecimals = decimals;
-          const quoteName = mint === SOL_MINT ? 'SOL' : (mint === USDC_MINT ? 'USDC' : 'USDT');
-          console.log(`   ✅ Quote Account (${quoteName}): ${account.pubkey.toBase58()} (${amount.toLocaleString()})`);
-        }
-      }
-      
-      // If no token accounts found (DLMM pools), try transaction-based discovery
-      if (!poolTokenAccount || !poolQuoteAccount) {
-        console.log(`   ⚠️  No token accounts owned by pool (likely DLMM)`);
-        console.log(`   🔍 Trying transaction-based discovery...`);
-        
-        const reserves = await this.discoverDLMMReserves(tokenConfig.pool, tokenConfig.mint, solMint.toBase58());
-        if (!reserves) {
-          throw new Error(`Could not discover reserves for pool ${tokenConfig.pool}`);
-        }
-        
-        poolTokenAccount = new PublicKey(reserves.poolTokenAccount);
-        poolQuoteAccount = new PublicKey(reserves.poolQuoteAccount);
-        tokenReserve = reserves.tokenReserve;
-        quoteReserve = reserves.quoteReserve;
-        quoteMint = reserves.quoteMint;
-        quoteDecimals = reserves.quoteDecimals;
-        
-        console.log(`   ✅ Token Reserve: ${poolTokenAccount.toBase58()} (${tokenReserve.toLocaleString()} tokens)`);
-        console.log(`   ✅ Quote Reserve: ${poolQuoteAccount.toBase58()} (${quoteReserve.toLocaleString()})`);
-      }
-      
-      // Keep the actual quote token amount (no conversion)
-      // The pool holds the actual tokens, not converted values
-      const quoteReserve_actual = quoteReserve;
-      const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
-      
-      // Calculate price in terms of the quote token
-      const price = quoteReserve / tokenReserve;
-      
-      console.log(`   Token Reserve: ${tokenReserve.toLocaleString()} tokens`);
-      console.log(`   Quote Reserve: ${quoteReserve.toLocaleString()} ${quoteName}`);
-      console.log(`   Price:         ${price.toFixed(10)} ${quoteName} per token`);
-      
-      // Store pool data
-      const poolData = {
-        tokenKey,
-        tokenConfig,
-        poolTokenAccount: poolTokenAccount.toBase58(), // Store as string
-        poolQuoteAccount: poolQuoteAccount.toBase58(), // Store as string (renamed from poolSolAccount)
-        tokenReserve,
-        quoteReserve, // Store actual quote token amount (SOL, USDC, or USDT)
-        price, // Price in terms of quote token
-        quoteMint, // Store which quote token we're using
-        quoteName, // Store quote token name for display
-        quoteDecimals, // Store decimals for decoding
-        lastUpdate: Date.now()
-      };
-      
-      this.pools.set(tokenKey, poolData);
-      
-      // Initialize stats
-      this.stats.set(tokenKey, {
-        name: tokenConfig.name,
-        totalSwaps: 0,
-        buys: 0,
-        sells: 0,
-        buyVolume: 0,
-        sellVolume: 0
-      });
-      
-      // Add filters to the EXISTING stream
-      await this.addPoolToStream(tokenKey, poolData);
+      // Recreate stream with new filters
+      await this.addPoolToStream(tokenKey, this.pools.get(tokenKey));
       
       console.log(`✅ ${tokenConfig.name} pool added to stream`);
       
@@ -1108,22 +1147,49 @@ async function runTest() {
     const grpcClient = new Client(GRPC_ENDPOINT, GRPC_TOKEN);
     console.log('✅ gRPC client initialized');
     
-    // Step 4: Create Pool Manager and initialize the SINGLE stream
+    // Step 4: Create Pool Manager
     const poolManager = new PoolManager(grpcClient);
+    
+    // Step 5: TRUE BATCH ONBOARDING - Discover all pools FIRST, then create stream ONCE
+    console.log('\n⏱️  T+0s: BATCH ONBOARDING - Discovering all 3 pools first...');
+    
+    // Phase 1: Discover all pools in parallel (no stream creation yet)
+    console.log('\n🔍 Phase 1: Discovering all pool reserves in parallel...');
+    const phase1Tokens = [
+      { key: 'popfrog', config: TOKENS.popfrog },
+      { key: 'trump', config: TOKENS.trump },
+      { key: 'useless', config: TOKENS.useless }
+    ];
+    
+    const poolDiscoveryPromises = phase1Tokens.map(async ({ key, config }) => {
+      console.log(`   🔍 Discovering ${config.name}...`);
+      try {
+        const poolInfo = await poolManager.discoverPoolReserves(key, config);
+        console.log(`   ✅ ${config.name} discovered: ${poolInfo.tokenReserve.toLocaleString()} tokens, ${poolInfo.quoteReserve.toLocaleString()} ${poolInfo.quoteName}`);
+        return { key, config, poolInfo, success: true };
+      } catch (error) {
+        console.error(`   ❌ ${config.name} discovery failed:`, error.message);
+        return { key, config, poolInfo: null, success: false };
+      }
+    });
+    
+    const discoveredPools = await Promise.all(poolDiscoveryPromises);
+    const successfulPools = discoveredPools.filter(p => p.success);
+    
+    console.log(`\n✅ Phase 1 complete: ${successfulPools.length}/3 pools discovered`);
+    
+    // Phase 2: Build ALL filters at once
+    console.log('\n📡 Phase 2: Building filters for all pools...');
+    for (const { key, config, poolInfo } of successfulPools) {
+      poolManager.addFiltersForPool(key, config, poolInfo);
+      console.log(`   ✅ ${config.name} filters added`);
+    }
+    
+    // Phase 3: Create stream ONCE with all filters
+    console.log(`\n🚀 Phase 3: Creating stream with ALL ${successfulPools.length} pools at once...`);
     await poolManager.initialize();
     
-    // Step 5: PHASE 1 - Add initial 3 tokens (T+0s)
-    console.log('\n⏱️  T+0s: PHASE 1 - Adding initial 3 pools...');
-    console.log('   Adding Popfrog pool to stream...');
-    await poolManager.addPool('popfrog', TOKENS.popfrog);
-    
-    console.log('   Adding TRUMP pool to stream...');
-    await poolManager.addPool('trump', TOKENS.trump);
-    
-    console.log('   Adding USELESS pool to stream...');
-    await poolManager.addPool('useless', TOKENS.useless);
-    
-    console.log('\n✅ Phase 1 complete: Monitoring 3 pools (Popfrog + TRUMP + USELESS)');
+    console.log('\n✅ Batch onboarding complete: Monitoring 3 pools (Popfrog + TRUMP + USELESS)');
     poolManager.printStats('PHASE 1 BASELINE');
     
     // PHASE 2: Add 2 more tokens after 60 seconds
