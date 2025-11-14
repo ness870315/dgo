@@ -1299,6 +1299,12 @@ export default class DexScreenerStyleMonitor {
                 newAmount
               });
               
+              // Log buffering for USELESS
+              if (mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
+                console.log(`🔄 [USELESS] Swap buffered (waiting for TX): ${isBuy ? 'BUY' : 'SELL'} ${Math.abs(delta).toFixed(2)} tokens`);
+                console.log(`   Pending swaps: ${poolData.pendingSwaps.length}, Pending TXs: ${poolData.pendingTransactions?.length || 0}`);
+              }
+              
               // Update pool data silently
               poolData.tokenReserve = newAmount;
               poolData.lastUpdate = Date.now();
