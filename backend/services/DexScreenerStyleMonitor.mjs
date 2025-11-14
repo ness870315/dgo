@@ -307,7 +307,8 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Batch onboard multiple tokens
-   * Note: Currently calls onboardToken sequentially due to stream recreation complexity
+   * Phase 1: Prepare all tokens (metadata, swaps)
+   * Phase 2: Subscribe to all pools at once (no stream recreation per token)
    * @param {Array} tokensConfig - Array of { mint, config: { name, pool, decimals } }
    */
   async batchOnboardTokens(tokensConfig) {
@@ -316,18 +317,82 @@ export default class DexScreenerStyleMonitor {
     let successful = 0;
     let failed = 0;
 
+    console.log('🔍 Phase 1: Preparing tokens (metadata + swaps)...');
+    
     for (const { mint, config } of tokensConfig) {
+      // Skip if missing pool
+      if (!config.pool) {
+        console.log(`   ⚠️  ${config.name}: No pool address, skipping`);
+        failed++;
+        continue;
+      }
+
       try {
-        await this.onboardToken(mint, config);
+        // Skip if already onboarded
+        if (this.tokens.has(mint)) {
+          console.log(`   ⚠️  ${config.name} already onboarded`);
+          continue;
+        }
+
+        // 1. Create token data structure
+        const tokenData = new TokenData(mint, config);
+        this.tokens.set(mint, tokenData);
+
+        // 2. Fetch token metadata from Jupiter (no await - let them run in parallel)
+        this.fetchTokenMetadata(mint, config.name).then(metadata => {
+          tokenData.metadata = metadata;
+        }).catch(err => {
+          console.error(`   ⚠️  ${config.name} metadata error:`, err.message);
+        });
+
+        // 3. Load historical swaps from ChartDatabase (no await - parallel)
+        this.loadSwapsFromDatabase(mint).then(dbSwaps => {
+          if (dbSwaps && dbSwaps.length > 0) {
+            tokenData.swaps = dbSwaps;
+            const oldestSwap = dbSwaps[0].timestamp;
+            const dataAge = Date.now() - oldestSwap;
+            
+            if (dataAge < SWAP_RETENTION_MS) {
+              this.fetchJupiterBaseline(mint).then(baseline => {
+                tokenData.jupiterBaseline = baseline;
+              });
+            }
+          } else {
+            this.fetchJupiterBaseline(mint).then(baseline => {
+              tokenData.jupiterBaseline = baseline;
+            });
+          }
+        });
+
+        console.log(`   ✅ ${config.name} prepared`);
         successful++;
+        
       } catch (error) {
         console.error(`   ❌ ${config.name} error:`, error.message);
+        this.tokens.delete(mint);
         failed++;
       }
     }
 
-    console.log(`\n✅ Batch onboarding complete: ${successful} successful, ${failed} failed\n`);
-    return { successful, failed };
+    console.log(`\n✅ Phase 1 complete: ${successful} tokens prepared`);
+    console.log(`\n📡 Phase 2: Subscribing to ${successful} pools...`);
+
+    // Phase 2: Subscribe to all pools (will recreate stream for each, but at least metadata is loaded)
+    let subscribed = 0;
+    for (const { mint, config } of tokensConfig) {
+      if (!config.pool || !this.tokens.has(mint)) continue;
+
+      try {
+        await this.subscribeToPool(mint, config);
+        subscribed++;
+      } catch (error) {
+        console.error(`   ❌ ${config.name} subscription error:`, error.message);
+      }
+    }
+
+    this.stats.tokensMonitored = this.tokens.size;
+    console.log(`\n✅ Batch onboarding complete: ${subscribed} tokens monitoring\n`);
+    return { successful: subscribed, failed };
   }
 
   /**
