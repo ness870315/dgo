@@ -307,8 +307,13 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Batch onboard multiple tokens
-   * Phase 1: Prepare all tokens (metadata, swaps)
-   * Phase 2: Subscribe to all pools at once (no stream recreation per token)
+   * Phase 1: Prepare all tokens (metadata, swaps) - PARALLEL
+   * Phase 2: Discover all pool reserves - PARALLEL
+   * Phase 3: Create stream ONCE with all filters
+   * 
+   * This is more efficient than calling onboardToken() sequentially, which recreates
+   * the stream N times. Instead, we discover all pools first, then create the stream once.
+   * 
    * @param {Array} tokensConfig - Array of { mint, config: { name, pool, decimals } }
    */
   async batchOnboardTokens(tokensConfig) {
@@ -375,24 +380,161 @@ export default class DexScreenerStyleMonitor {
     }
 
     console.log(`\n✅ Phase 1 complete: ${successful} tokens prepared`);
-    console.log(`\n📡 Phase 2: Subscribing to ${successful} pools...`);
+    console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
-    // Phase 2: Subscribe to all pools (will recreate stream for each, but at least metadata is loaded)
-    let subscribed = 0;
+    // Phase 2: Discover all pool reserves in parallel
+    const poolDiscoveryPromises = [];
     for (const { mint, config } of tokensConfig) {
       if (!config.pool || !this.tokens.has(mint)) continue;
 
+      poolDiscoveryPromises.push(
+        this.discoverPoolInfo(mint, config)
+          .then(poolInfo => ({ mint, config, poolInfo, success: true }))
+          .catch(error => {
+            console.error(`   ❌ ${config.name} pool discovery failed:`, error.message);
+            return { mint, config, poolInfo: null, success: false };
+          })
+      );
+    }
+
+    const poolResults = await Promise.all(poolDiscoveryPromises);
+    
+    // Phase 3: Build filters for all successful pools and create stream ONCE
+    console.log(`\n📡 Phase 3: Creating stream with all ${poolResults.filter(r => r.success).length} pools...`);
+    
+    const newAccountFilters = { ...this.accountFilters };
+    const newTransactionFilters = { ...this.transactionFilters };
+    let subscribed = 0;
+
+    for (const { mint, config, poolInfo, success } of poolResults) {
+      if (!success || !poolInfo) continue;
+
       try {
-        await this.subscribeToPool(mint, config);
+        // Add this pool's filters to the batch
+        const filterKey = mint.substring(0, 8);
+        
+        newAccountFilters[`${filterKey}_token`] = {
+          account: [poolInfo.poolTokenAccount],
+          owner: [],
+          filters: []
+        };
+        
+        newAccountFilters[`${filterKey}_quote`] = {
+          account: [poolInfo.poolQuoteAccount],
+          owner: [],
+          filters: []
+        };
+        
+        newTransactionFilters[`${filterKey}_txs`] = {
+          accountInclude: [poolInfo.poolTokenAccount, poolInfo.poolQuoteAccount],
+          accountExclude: [],
+          accountRequired: [],
+          vote: false,
+          failed: false,
+          include_meta: true,
+          include_token_balances: true,
+          include_instructions: true,
+          include_inner_instructions: true,
+          include_loaded_addresses: true,
+          include_accounts: true
+        };
+
+        // Store pool info in token data
+        const tokenData = this.tokens.get(mint);
+        if (tokenData) {
+          tokenData.poolInfo = poolInfo;
+        }
+
+        console.log(`   ✅ ${config.name} filters added`);
         subscribed++;
+        
       } catch (error) {
-        console.error(`   ❌ ${config.name} subscription error:`, error.message);
+        console.error(`   ❌ ${config.name} filter error:`, error.message);
       }
     }
 
-    this.stats.tokensMonitored = this.tokens.size;
+    // Now recreate the stream ONCE with all filters
+    if (subscribed > 0) {
+      console.log(`\n🔄 Recreating stream with ${subscribed} pools...`);
+      this.accountFilters = newAccountFilters;
+      this.transactionFilters = newTransactionFilters;
+      await this.recreateStream();
+      this.stats.tokensMonitored = this.tokens.size;
+    }
+
     console.log(`\n✅ Batch onboarding complete: ${subscribed} tokens monitoring\n`);
     return { successful: subscribed, failed };
+  }
+
+  /**
+   * Discover pool reserves without adding to stream
+   * Returns pool info or null if discovery fails
+   */
+  async discoverPoolInfo(mint, config) {
+    const poolPubkey = new PublicKey(config.pool);
+    const tokenMint = new PublicKey(mint);
+    
+    // Try to find token accounts owned by the pool
+    const poolAccounts = await this.connection.getParsedTokenAccountsByOwner(poolPubkey, {
+      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+    });
+    
+    let poolTokenAccount = null;
+    let poolQuoteAccount = null;
+    let tokenReserve = 0;
+    let quoteReserve = 0;
+    let quoteMint = null;
+    let quoteDecimals = 9;
+    
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+    const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+    
+    for (const account of poolAccounts.value) {
+      const accountMint = account.account.data.parsed.info.mint;
+      const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
+      const decimals = account.account.data.parsed.info.tokenAmount.decimals;
+      
+      if (accountMint === mint) {
+        poolTokenAccount = account.pubkey.toBase58();
+        tokenReserve = amount;
+      } else if (accountMint === SOL_MINT || accountMint === USDC_MINT || accountMint === USDT_MINT) {
+        poolQuoteAccount = account.pubkey.toBase58();
+        quoteReserve = amount;
+        quoteMint = accountMint;
+        quoteDecimals = decimals;
+      }
+    }
+    
+    // If no token accounts found (DLMM pools), try transaction-based discovery
+    if (!poolTokenAccount || !poolQuoteAccount) {
+      const reserves = await this.discoverDLMMReserves(config.pool, mint, SOL_MINT);
+      if (!reserves) {
+        throw new Error(`Could not discover reserves for pool ${config.pool}`);
+      }
+      
+      poolTokenAccount = reserves.poolTokenAccount;
+      poolQuoteAccount = reserves.poolQuoteAccount;
+      tokenReserve = reserves.tokenReserve;
+      quoteReserve = reserves.quoteReserve;
+      quoteMint = reserves.quoteMint;
+      quoteDecimals = reserves.quoteDecimals;
+    }
+    
+    const price = quoteReserve / tokenReserve;
+    const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
+    
+    return {
+      poolTokenAccount,
+      poolQuoteAccount,
+      tokenReserve,
+      quoteReserve,
+      price,
+      quoteMint,
+      quoteName,
+      quoteDecimals,
+      lastUpdate: Date.now()
+    };
   }
 
   /**
