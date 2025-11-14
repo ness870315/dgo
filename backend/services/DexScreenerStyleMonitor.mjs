@@ -382,25 +382,42 @@ export default class DexScreenerStyleMonitor {
     console.log(`\n✅ Phase 1 complete: ${successful} tokens prepared`);
     console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
-    // Phase 2: Discover all pool reserves in parallel
+    // Phase 2: Discover all pool reserves in parallel with timeout
     const poolDiscoveryPromises = [];
+    let discoveryCount = 0;
+    const totalToDiscover = tokensConfig.filter(({ mint, config }) => config.pool && this.tokens.has(mint)).length;
+    
     for (const { mint, config } of tokensConfig) {
       if (!config.pool || !this.tokens.has(mint)) continue;
 
       poolDiscoveryPromises.push(
-        this.discoverPoolInfo(mint, config)
-          .then(poolInfo => ({ mint, config, poolInfo, success: true }))
-          .catch(error => {
-            console.error(`   ❌ ${config.name} pool discovery failed:`, error.message);
-            return { mint, config, poolInfo: null, success: false };
-          })
+        Promise.race([
+          this.discoverPoolInfo(mint, config)
+            .then(poolInfo => {
+              discoveryCount++;
+              console.log(`   ✅ [${discoveryCount}/${totalToDiscover}] ${config.name} discovered`);
+              return { mint, config, poolInfo, success: true };
+            }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Discovery timeout (30s)')), 30000)
+          )
+        ]).catch(error => {
+          discoveryCount++;
+          console.error(`   ❌ [${discoveryCount}/${totalToDiscover}] ${config.name} failed:`, error.message);
+          return { mint, config, poolInfo: null, success: false };
+        })
       );
     }
 
+    console.log(`   Discovering ${totalToDiscover} pools in parallel...`);
     const poolResults = await Promise.all(poolDiscoveryPromises);
     
+    const successfulDiscoveries = poolResults.filter(r => r.success).length;
+    const failedDiscoveries = poolResults.filter(r => !r.success).length;
+    console.log(`\n✅ Phase 2 complete: ${successfulDiscoveries} pools discovered, ${failedDiscoveries} failed`);
+    
     // Phase 3: Build filters for all successful pools and create stream ONCE
-    console.log(`\n📡 Phase 3: Creating stream with all ${poolResults.filter(r => r.success).length} pools...`);
+    console.log(`\n📡 Phase 3: Creating stream with all ${successfulDiscoveries} pools...`);
     
     const newAccountFilters = { ...this.accountFilters };
     const newTransactionFilters = { ...this.transactionFilters };
