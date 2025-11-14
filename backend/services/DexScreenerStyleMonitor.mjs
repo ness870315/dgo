@@ -273,7 +273,7 @@ export default class DexScreenerStyleMonitor {
       
       try {
         const ids = batch.join(',');
-        const url = `https://api.jup.ag/tokens/v2/search?query=${ids}`;
+        const url = `https://lite-api.jup.ag/tokens/v2/search?query=${ids}`;
         console.log(`   🔍 Fetching batch ${batchNum}/${totalBatches} (${batch.length} tokens)...`);
         
         const response = await fetch(url);
