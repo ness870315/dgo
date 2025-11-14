@@ -33,12 +33,100 @@ class TrendingTokensAIAnalysisService {
       }
 
       const tokens = await response.json();
-      console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens`);
-      return tokens;
+      console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from cache`);
+      
+      // Enrich with fresh Jupiter data
+      const enrichedTokens = await this.enrichTokensWithJupiterData(tokens);
+      console.log(`✅ [TRENDING AI] Enriched ${enrichedTokens.length} tokens with fresh Jupiter data`);
+      
+      return enrichedTokens;
       
     } catch (error) {
       console.error('❌ [TRENDING AI] Error fetching trending tokens:', error.message);
       return [];
+    }
+  }
+
+  /**
+   * Enrich tokens with fresh Jupiter data (price, mcap, volume, holders)
+   */
+  async enrichTokensWithJupiterData(tokens) {
+    try {
+      if (tokens.length === 0) return tokens;
+      
+      // Batch fetch Jupiter data (up to 100 tokens at once)
+      const mints = tokens.map(t => t.contractAddress).filter(Boolean);
+      if (mints.length === 0) return tokens;
+      
+      const batchSize = 100;
+      const enrichedTokensMap = new Map();
+      
+      for (let i = 0; i < mints.length; i += batchSize) {
+        const batch = mints.slice(i, i + batchSize);
+        const ids = batch.join(',');
+        
+        console.log(`🔄 [TRENDING AI] Fetching Jupiter data for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(mints.length/batchSize)} (${batch.length} tokens)...`);
+        
+        try {
+          const url = `https://lite-api.jup.ag/tokens/v2/search?query=${ids}`;
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          if (!response.ok) {
+            console.warn(`⚠️ [TRENDING AI] Jupiter batch ${Math.floor(i/batchSize) + 1} failed: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          const jupiterTokens = data.tokens || [];
+          
+          // Map Jupiter data by address
+          jupiterTokens.forEach(jToken => {
+            enrichedTokensMap.set(jToken.address, {
+              price: jToken.usdPrice || 0,
+              marketCap: jToken.marketCap || 0,
+              volume24h: jToken.volume24h || 0,
+              holders: jToken.holderCount || 0,
+              liquidity: jToken.liquidity || 0
+            });
+          });
+          
+          console.log(`✅ [TRENDING AI] Batch ${Math.floor(i/batchSize) + 1} complete: ${jupiterTokens.length} tokens enriched`);
+          
+        } catch (batchError) {
+          console.error(`❌ [TRENDING AI] Batch ${Math.floor(i/batchSize) + 1} error:`, batchError.message);
+        }
+        
+        // Small delay between batches to avoid rate limits
+        if (i + batchSize < mints.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      // Merge Jupiter data with cached tokens
+      const enrichedTokens = tokens.map(token => {
+        const jupiterData = enrichedTokensMap.get(token.contractAddress);
+        if (jupiterData) {
+          return {
+            ...token,
+            price: jupiterData.price,
+            marketCap: jupiterData.marketCap,
+            volume24h: jupiterData.volume24h,
+            holderCount: jupiterData.holders,
+            liquidity: jupiterData.liquidity
+          };
+        }
+        return token;
+      });
+      
+      console.log(`📊 [TRENDING AI] Enrichment complete: ${enrichedTokensMap.size}/${tokens.length} tokens updated`);
+      return enrichedTokens;
+      
+    } catch (error) {
+      console.error('❌ [TRENDING AI] Error enriching tokens:', error.message);
+      return tokens; // Return original tokens if enrichment fails
     }
   }
 
