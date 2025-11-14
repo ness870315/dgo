@@ -188,6 +188,7 @@ class BackendWebSocketServer extends EventEmitter {
   broadcastPriceUpdate(tokenAddress, priceData) {
     this.broadcastToTokenSubscribers(tokenAddress, {
       type: 'priceUpdate',
+      tokenAddress: tokenAddress,  // Frontend needs this at top level
       data: priceData
     });
   }
@@ -195,6 +196,7 @@ class BackendWebSocketServer extends EventEmitter {
   broadcastSwapUpdate(tokenAddress, swapData) {
     this.broadcastToTokenSubscribers(tokenAddress, {
       type: 'swapUpdate',
+      tokenAddress: tokenAddress,  // Frontend needs this at top level
       data: swapData
     });
   }
@@ -225,6 +227,7 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+
   // ✅ NEW: Broadcast ranking data update to all clients
   broadcastRankingUpdate(rankings) {
     const message = {
@@ -241,24 +244,6 @@ class BackendWebSocketServer extends EventEmitter {
     });
 
     console.log(`📊 [BackendWS] Broadcasted ranking update to ${this.clients.size} clients`);
-  }
-
-  // ✅ NEW: Broadcast full state update to all clients (used by EnhancedHybridPriceService)
-  broadcastFullStateUpdate(tokens) {
-    const message = {
-      type: 'fullStateUpdate',
-      tokens: tokens,
-      timestamp: Date.now()
-    };
-
-    // Broadcast to all connected clients
-    this.clients.forEach((client, clientId) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(message));
-      }
-    });
-
-    console.log(`📊 [BackendWS] Broadcasted full state update to ${this.clients.size} clients (${tokens?.length || 0} tokens)`);
   }
 
   getStats() {
