@@ -1593,10 +1593,45 @@ export default class DexScreenerStyleMonitor {
     if (!jupiterBaseline) return null;
 
     // Map window to Jupiter stats
-    if (windowMs <= 5 * 60 * 1000) return jupiterBaseline.stats5m;
-    if (windowMs <= 60 * 60 * 1000) return jupiterBaseline.stats1h;
-    if (windowMs <= 6 * 60 * 60 * 1000) return jupiterBaseline.stats6h;
-    return jupiterBaseline.stats24h;
+    // Jupiter baseline is stored as flat properties: volume24h, volume6h, volume1h, volume5m
+    if (windowMs <= 5 * 60 * 1000) {
+      return {
+        buyVolume: jupiterBaseline.volume5m / 2, // Split volume 50/50 buy/sell
+        sellVolume: jupiterBaseline.volume5m / 2,
+        numBuys: jupiterBaseline.txnCount5m / 2,
+        numSells: jupiterBaseline.txnCount5m / 2,
+        numTraders: jupiterBaseline.uniqueMakers5m,
+        priceChange: jupiterBaseline.priceChange5m
+      };
+    }
+    if (windowMs <= 60 * 60 * 1000) {
+      return {
+        buyVolume: jupiterBaseline.volume1h / 2,
+        sellVolume: jupiterBaseline.volume1h / 2,
+        numBuys: jupiterBaseline.txnCount1h / 2,
+        numSells: jupiterBaseline.txnCount1h / 2,
+        numTraders: jupiterBaseline.uniqueMakers1h,
+        priceChange: jupiterBaseline.priceChange1h
+      };
+    }
+    if (windowMs <= 6 * 60 * 60 * 1000) {
+      return {
+        buyVolume: jupiterBaseline.volume6h / 2,
+        sellVolume: jupiterBaseline.volume6h / 2,
+        numBuys: jupiterBaseline.txnCount6h / 2,
+        numSells: jupiterBaseline.txnCount6h / 2,
+        numTraders: jupiterBaseline.uniqueMakers6h,
+        priceChange: jupiterBaseline.priceChange6h
+      };
+    }
+    return {
+      buyVolume: jupiterBaseline.volume24h / 2,
+      sellVolume: jupiterBaseline.volume24h / 2,
+      numBuys: jupiterBaseline.txnCount24h / 2,
+      numSells: jupiterBaseline.txnCount24h / 2,
+      numTraders: jupiterBaseline.uniqueMakers24h,
+      priceChange: jupiterBaseline.priceChange24h
+    };
   }
 
   /**
