@@ -22,6 +22,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import bs58 from 'bs58';
 import fetch from 'node-fetch';
+import atomicCacheWriter from '../utils/atomicCacheWriter.js';
 
 // Use CommonJS wrapper for gRPC loading (same as EnhancedHybridPriceService)
 import { createRequire } from 'module';
@@ -320,11 +321,14 @@ export default class DexScreenerStyleMonitor {
               priceChange5m: tokenInfo.stats5m?.priceChange || 0
             };
             
-            // Store Jupiter price in metadata for fallback
+            // Store Jupiter data in metadata for cache updates
             if (!tokenData.metadata) {
               tokenData.metadata = {};
             }
             tokenData.metadata.usdPrice = tokenInfo.usdPrice || 0;
+            tokenData.metadata.marketCap = tokenInfo.marketCap || 0;
+            tokenData.metadata.liquidity = tokenInfo.liquidity || 0;
+            tokenData.metadata.holderCount = tokenInfo.holderCount || 0;
             
             totalFetched++;
           } else {
@@ -354,6 +358,75 @@ export default class DexScreenerStyleMonitor {
     }
     
     console.log(`\n✅ Jupiter seed complete: ${totalFetched} seeded, ${totalFailed} failed`);
+    
+    // Write Jupiter baseline data back to tokens-cache.json
+    if (totalFetched > 0) {
+      await this.updateTokensCacheWithJupiterData();
+    }
+  }
+
+  /**
+   * Update tokens-cache.json with fresh Jupiter baseline data
+   * This ensures the cache has up-to-date price, mcap, volume, holders
+   * Uses atomic write with file locking to prevent race conditions
+   */
+  async updateTokensCacheWithJupiterData() {
+    try {
+      console.log(`   💾 Writing Jupiter baseline data to tokens-cache.json...`);
+      
+      // Build updates map from our in-memory token data
+      const updatesMap = new Map();
+      
+      for (const [mint, tokenData] of this.tokens.entries()) {
+        if (!tokenData.jupiterBaseline && !tokenData.metadata) continue;
+        
+        const updates = {};
+        
+        // Update with fresh Jupiter data
+        if (tokenData.metadata?.usdPrice) {
+          updates.price = tokenData.metadata.usdPrice;
+          updates.currentPrice = tokenData.metadata.usdPrice;
+        }
+        
+        // Update volume from Jupiter baseline
+        if (tokenData.jupiterBaseline?.volume24h) {
+          updates.volume24h = tokenData.jupiterBaseline.volume24h;
+        }
+        
+        // Update other metrics if available from Jupiter
+        if (tokenData.metadata?.marketCap) {
+          updates.marketCap = tokenData.metadata.marketCap;
+        }
+        if (tokenData.metadata?.liquidity) {
+          updates.liquidity = tokenData.metadata.liquidity;
+        }
+        if (tokenData.metadata?.holderCount) {
+          updates.holderCount = tokenData.metadata.holderCount;
+        }
+        
+        // Only add to map if we have updates
+        if (Object.keys(updates).length > 0) {
+          updatesMap.set(mint, updates);
+        }
+      }
+      
+      if (updatesMap.size === 0) {
+        console.log(`   ⚠️ No Jupiter data to write to cache`);
+        return;
+      }
+      
+      // Use atomic writer with file locking
+      const result = await atomicCacheWriter.updateTokens(updatesMap, 'DexScreenerStyleMonitor');
+      
+      if (result.success) {
+        console.log(`   ✅ Successfully updated cache with Jupiter baseline data`);
+      } else {
+        console.error(`   ❌ Failed to update cache: ${result.error}`);
+      }
+      
+    } catch (error) {
+      console.error(`   ❌ Error updating tokens cache:`, error.message);
+    }
   }
 
   /**
