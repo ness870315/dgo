@@ -35,17 +35,6 @@ class TrendingTokensAIAnalysisService {
       const tokens = await response.json();
       console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from cache`);
       
-      // Debug: Check Twitter data in first token
-      if (tokens.length > 0) {
-        const firstToken = tokens[0];
-        console.log(`🔍 [TRENDING AI] First token Twitter data:`, {
-          symbol: firstToken.symbol,
-          twitterData: firstToken.twitterData,
-          mentions: firstToken.mentions,
-          twitterMentions: firstToken.twitterData?.mentions
-        });
-      }
-      
       // Enrich with fresh Jupiter data
       const enrichedTokens = await this.enrichTokensWithJupiterData(tokens);
       console.log(`✅ [TRENDING AI] Enriched ${enrichedTokens.length} tokens with fresh Jupiter data`);
@@ -292,7 +281,8 @@ Example format:
             
             // Social & Community
             holders: token.holderCount || 0,
-            twitterMentions: token.twitterData?.mentions || token.mentions || 0,
+            twitterMentions: token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0,
+            sentimentScore: token.twitterData?.sentimentScore || 0,
             overallScore: token.overallScore || 0,
             
             // AI Analysis
@@ -362,7 +352,8 @@ Example format:
       report += `   💰 Price: ${token.priceFormatted} (${token.priceChange24hFormatted})\n`;
       report += `   📊 Market Cap: ${token.marketCapFormatted} | Volume: ${token.volume24hFormatted}\n`;
       report += `   💧 Liquidity: ${token.liquidityFormatted} | Score: ${token.overallScore}/10\n`;
-      report += `   🐦 Twitter Mentions: ${token.twitterMentions} | Holders: ${token.holders}\n`;
+      report += `   🐦 Twitter: ${token.twitterMentions} mentions | Sentiment: ${token.sentimentScore.toFixed(1)}/10\n`;
+      report += `   👥 Holders: ${token.holders.toLocaleString()}\n`;
       report += `   \n`;
       report += `   📝 ${token.summary}\n`;
       report += `\n`;
