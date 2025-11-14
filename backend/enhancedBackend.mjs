@@ -18436,10 +18436,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
       return;
     }
 
-    console.log(`📋 [Backend] Onboarding ${tokens.length} cached tokens...`);
+    console.log(`📋 [Backend] Preparing ${tokens.length} cached tokens for BATCH onboarding...`);
     
-    let onboarded = 0;
-    let failed = 0;
+    const tokensConfig = [];
 
     for (const token of tokens) {
       try {
@@ -18455,19 +18454,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
           pool = pool.address || pool.id;
         }
         
-        // Note: If no pool, Moralis fallback will be handled by RealTimeTokenMonitor.fetchPoolFromMoralis
-        // during batch onboarding, so we don't skip here
-        
-        // Skip if missing pool AND decimals
-        if (!pool || !token.decimals) {
-          console.log(`⚠️  [Backend] Skipping ${token.symbol}: Missing ${!pool ? 'pool (will try Moralis)' : 'decimals'}`);
-          if (!token.decimals) {
-            failed++;
-            continue;
-          }
-          // If only pool is missing, continue - Moralis will be tried
-        }
-        
         // Try to get decimals from token data, fallback to 9 (Solana default)
         let decimals = token.decimals || token.jupiterData?.decimals;
         
@@ -18477,20 +18463,23 @@ Thanks for using x402 payments on Twitter! 🚀`;
           decimals = 9;
         }
 
-        await this.dexScreenerMonitor.onboardToken(mint, {
-          name: token.name || token.symbol,
-          pool: pool,
-          decimals: decimals
+        tokensConfig.push({
+          mint,
+          config: {
+            name: token.name || token.symbol,
+            pool: pool,
+            decimals: decimals
+          }
         });
 
-        onboarded++;
       } catch (error) {
-        console.error(`❌ [Backend] Failed to onboard ${token.symbol}:`, error.message);
-        failed++;
+        console.error(`❌ [Backend] Failed to prepare ${token.symbol}:`, error.message);
       }
     }
 
-    console.log(`✅ [Backend] Onboarded ${onboarded}/${tokens.length} tokens (${failed} failed)`);
+    // Batch onboard all tokens at once
+    const result = await this.dexScreenerMonitor.batchOnboardTokens(tokensConfig);
+    console.log(`✅ [Backend] Batch onboarding complete: ${result.successful} successful, ${result.failed} failed`);
   }
 
   async start() {
