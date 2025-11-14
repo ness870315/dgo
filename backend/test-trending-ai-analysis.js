@@ -9,7 +9,7 @@
 
 import fetch from 'node-fetch';
 
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE = 'https://api.degen-oracle.com';
 
 async function testTrendingAIAnalysis() {
   console.log('🚀 Testing AI-Powered Trending Tokens Analysis...\n');

@@ -11,9 +11,11 @@ class TrendingTokensAIAnalysisService {
   constructor() {
     this.openaiService = new OpenAIService();
     this.perplexityService = new PerplexitySonarService();
-    this.apiBaseUrl = process.env.API_BASE_URL || 'https://api.degen-oracle.com';
+    // ALWAYS use production API endpoint (we're running on the same server)
+    this.apiBaseUrl = 'https://api.degen-oracle.com';
     
     console.log('🤖 [TRENDING AI] Initialized with OpenAI + Perplexity');
+    console.log(`   API Base: ${this.apiBaseUrl}`);
   }
 
   /**

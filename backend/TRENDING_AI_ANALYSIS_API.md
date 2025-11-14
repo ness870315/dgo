@@ -33,9 +33,6 @@ GET https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=10
 
 # Get top 5 trending tokens (Text Report)
 GET https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=5&format=text
-
-# Local development
-GET http://localhost:3001/api/tokens/trending/ai-analysis?limit=10
 ```
 
 ---
@@ -272,10 +269,9 @@ OPENAI_API_KEY=sk-...
 
 # Perplexity (for news/catalysts)
 PERPLEXITY_API_KEY=pplx-...
-
-# API Base URL
-API_BASE_URL=https://api.degen-oracle.com
 ```
+
+**Note:** The service always uses `https://api.degen-oracle.com` as the API base URL (no environment variable needed).
 
 ---
 
