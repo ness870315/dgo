@@ -188,7 +188,16 @@ export default class DexScreenerStyleMonitor {
     );
     
     // Handle stream data - route to correct pool
+    let messageCount = 0;
     this.stream.on('data', (msg) => {
+      messageCount++;
+      
+      // Log first message to confirm stream is working
+      if (messageCount === 1) {
+        console.log(`✅ [DexScreenerStyleMonitor] First message received from stream!`);
+        console.log(`   Message keys:`, Object.keys(msg));
+      }
+      
       if (msg.account) {
         this.handleAccountUpdate(msg);
       }
@@ -943,6 +952,11 @@ export default class DexScreenerStyleMonitor {
     try {
       this.globalStats.totalTransactions++;
       
+      // Log every 50 transactions to show stream is working
+      if (this.globalStats.totalTransactions % 50 === 0) {
+        console.log(`📊 [DexScreenerStyleMonitor] Received ${this.globalStats.totalTransactions} transactions`);
+      }
+      
       const txData = msg.transaction;
       if (!txData.transaction) return;
       
@@ -1042,6 +1056,11 @@ export default class DexScreenerStyleMonitor {
   handleAccountUpdate(msg) {
     try {
       this.globalStats.totalAccountUpdates++;
+      
+      // Log every 100 account updates to show stream is working
+      if (this.globalStats.totalAccountUpdates % 100 === 0) {
+        console.log(`📊 [DexScreenerStyleMonitor] Received ${this.globalStats.totalAccountUpdates} account updates`);
+      }
       
       if (!msg.account) return;
 
