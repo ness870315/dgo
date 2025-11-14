@@ -144,8 +144,37 @@ export default class DexScreenerStyleMonitor {
     const Client = YellowstoneGrpc.default || YellowstoneGrpc;
     this.grpcClient = new Client(GRPC_ENDPOINT, GRPC_TOKEN);
     
-    // Create ONE stream that will handle ALL pools
-    console.log('📡 [DexScreenerStyleMonitor] Creating single gRPC stream...');
+    console.log('✅ [DexScreenerStyleMonitor] gRPC client initialized');
+    console.log('⏳ [DexScreenerStyleMonitor] Stream will be created after pool discovery...');
+    
+    // Fetch initial SOL price
+    await this.fetchSOLPrice();
+    
+    // Start SOL price updater (every 30 seconds)
+    this.priceUpdater = setInterval(async () => {
+      await this.fetchSOLPrice();
+    }, SOL_PRICE_UPDATE_INTERVAL_MS);
+
+    this.isInitialized = true;
+    console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
+  }
+
+  /**
+   * Create or recreate the gRPC stream with current filters
+   */
+  async recreateStream() {
+    // Cancel existing stream if any
+    if (this.stream) {
+      try {
+        this.stream.cancel();
+        console.log('🔄 [DexScreenerStyleMonitor] Cancelled existing stream');
+      } catch (e) {
+        // Ignore cancellation errors
+      }
+    }
+
+    // Create new stream with current filters
+    console.log('📡 [DexScreenerStyleMonitor] Creating gRPC stream with filters...');
     this.stream = await this.grpcClient.subscribeOnce(
       this.accountFilters,
       {}, // slots
@@ -173,22 +202,11 @@ export default class DexScreenerStyleMonitor {
     });
     
     this.stream.on('end', () => {
-      console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended, reconnecting...`);
-      // TODO: Implement reconnection logic
+      console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
     });
     
-    console.log('✅ [DexScreenerStyleMonitor] Single gRPC stream created');
-    
-    // Fetch initial SOL price
-    await this.fetchSOLPrice();
-    
-    // Start SOL price updater (every 30 seconds)
-    this.priceUpdater = setInterval(async () => {
-      await this.fetchSOLPrice();
-    }, SOL_PRICE_UPDATE_INTERVAL_MS);
-
-    this.isInitialized = true;
-    console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
+    this.stats.streamRecreations++;
+    console.log('✅ [DexScreenerStyleMonitor] Stream created successfully');
   }
 
   /**

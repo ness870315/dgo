@@ -30,6 +30,8 @@ class RealTimeTokenMonitor {
             
             // 🚀 FEATURE FLAG: Use new DexScreener-style monitor or old service
             const USE_DEXSCREENER_MONITOR = process.env.USE_DEXSCREENER_MONITOR === 'true';
+            console.log(`🔍 [RealTimeTokenMonitor] USE_DEXSCREENER_MONITOR env: "${process.env.USE_DEXSCREENER_MONITOR}" (type: ${typeof process.env.USE_DEXSCREENER_MONITOR})`);
+            console.log(`🔍 [RealTimeTokenMonitor] Evaluated to: ${USE_DEXSCREENER_MONITOR}`);
             
             if (USE_DEXSCREENER_MONITOR) {
                 console.log('🚀 [RealTimeTokenMonitor] Using NEW DexScreenerStyleMonitor');
