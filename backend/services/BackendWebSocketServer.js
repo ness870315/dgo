@@ -228,6 +228,21 @@ class BackendWebSocketServer extends EventEmitter {
   }
 
 
+  // ✅ Generic broadcast to all connected clients
+  broadcast(message) {
+    const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+    
+    let sentCount = 0;
+    this.clients.forEach((client, clientId) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageStr);
+        sentCount++;
+      }
+    });
+    
+    return sentCount;
+  }
+
   // ✅ NEW: Broadcast ranking data update to all clients
   broadcastRankingUpdate(rankings) {
     const message = {

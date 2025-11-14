@@ -1818,10 +1818,12 @@ export default class DexScreenerStyleMonitor {
    */
   broadcastFullState() {
     if (!this.webSocketServer) {
+      console.log('⚠️  [DexScreenerStyleMonitor] broadcastFullState called but no WebSocket server');
       return;
     }
 
     try {
+      console.log(`🔄 [DexScreenerStyleMonitor] broadcastFullState running... (${this.tokens.size} tokens monitored)`);
       const allTokens = [];
       
       // Collect data for all monitored tokens
