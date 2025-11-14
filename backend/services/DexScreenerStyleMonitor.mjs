@@ -1229,14 +1229,23 @@ export default class DexScreenerStyleMonitor {
       this.stats.totalSwaps++;
       this.stats.lastSwapTime = Date.now();
 
-      // Log swap (optional - can be disabled in production)
-      if (process.env.LOG_SWAPS === 'true') {
-        console.log(`🔥 [DexScreenerStyleMonitor] ${tokenData.config.name} - ${isBuy ? 'BUY' : 'SELL'}`);
+      // Log swap (ALWAYS log USELESS for debugging)
+      const shouldLog = process.env.LOG_SWAPS === 'true' || mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
+      
+      if (shouldLog) {
+        // Get total stats for this token
+        const tokenSwaps = tokenData.swaps || [];
+        const buys = tokenSwaps.filter(s => s.type === 'buy').length;
+        const sells = tokenSwaps.filter(s => s.type === 'sell').length;
+        
+        console.log(`\n🔥 ${tokenData.config.name} - ${isBuy ? 'BUY' : 'SELL'}`);
         console.log(`   Amount: ${Math.abs(delta).toLocaleString()} tokens`);
         console.log(`   ${poolData.quoteName}: ${quoteAmount.toFixed(4)} ${poolData.quoteName} ($${quoteAmountUSD.toFixed(2)})`);
         console.log(`   Price: ${tokenPriceInQuote.toFixed(10)} ${poolData.quoteName} ($${tokenPriceUSD.toFixed(6)}) | MCap: $${marketCap > 1000000 ? (marketCap / 1000000).toFixed(2) + 'M' : (marketCap / 1000).toFixed(1) + 'K'}`);
-        console.log(`   Maker: ${txData.maker?.substring(0, 44)}`);
-        console.log(`   TX: ${txData.signature?.substring(0, 44)}...`);
+        console.log(`   Stats: ${tokenSwaps.length} swaps (${buys} buys, ${sells} sells)`);
+        console.log(`   ✅ Maker: ${txData.maker}`);
+        console.log(`   ✅ TX: ${txData.signature?.substring(0, 44)}...`);
+        console.log(`   Slot: ${txData.slot}`);
       }
 
       // Broadcast swap to WebSocket clients
@@ -1526,16 +1535,27 @@ export default class DexScreenerStyleMonitor {
    * Uses 'priceUpdate' type for frontend compatibility
    */
   broadcastMetrics(mint) {
-    if (!this.webSocketServer) return;
+    if (!this.webSocketServer) {
+      console.log(`⚠️  [DexScreenerStyleMonitor] No WebSocket server, skipping broadcast for ${mint.substring(0, 8)}...`);
+      return;
+    }
 
     try {
       const metrics = this.getTokenMetrics(mint);
-      if (!metrics) return;
+      if (!metrics) {
+        console.log(`⚠️  [DexScreenerStyleMonitor] No metrics for ${mint.substring(0, 8)}..., skipping broadcast`);
+        return;
+      }
 
       const tokenData = this.tokens.get(mint);
-      if (!tokenData) return;
+      if (!tokenData) {
+        console.log(`⚠️  [DexScreenerStyleMonitor] No token data for ${mint.substring(0, 8)}..., skipping broadcast`);
+        return;
+      }
 
       const poolData = this.pools.get(mint);
+      
+      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
       
       // Calculate market cap
       const circSupply = tokenData.metadata?.circSupply || 0;
@@ -1601,8 +1621,10 @@ export default class DexScreenerStyleMonitor {
 
       // Use BackendWebSocketServer's broadcastPriceUpdate method
       if (this.webSocketServer.broadcastPriceUpdate) {
+        console.log(`   ✅ Using broadcastPriceUpdate method`);
         this.webSocketServer.broadcastPriceUpdate(mint, priceData);
       } else {
+        console.log(`   ✅ Using direct broadcast method`);
         // Fallback to direct broadcast
         this.webSocketServer.broadcast(JSON.stringify({
           type: 'priceUpdate',
@@ -1611,6 +1633,8 @@ export default class DexScreenerStyleMonitor {
           timestamp: Date.now()
         }));
       }
+      
+      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap/1e6).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
       console.error('   Token:', mint);
