@@ -306,10 +306,28 @@ function AppContent() {
       });
     };
     
+    // Listen for individual PRICE updates (instant, per-swap)
+    // ✅ DEXSCREENER APPROACH: Instant updates when swaps happen
+    const handlePriceUpdate = (event) => {
+      const { tokenAddress, priceData } = event;
+      
+      if (!tokenAddress || !priceData) {
+        return;
+      }
+      
+      // Update live data ref immediately (no re-render)
+      liveTokenDataRef.current.set(tokenAddress, priceData);
+      
+      // Optional: Log for debugging
+      // console.log(`⚡ [App] Instant price update for ${tokenAddress.substring(0, 8)}: $${priceData.priceUsd}`);
+    };
+    
     websocketService.on('fullStateUpdate', handleFullStateUpdate);
+    websocketService.on('priceUpdate', handlePriceUpdate);
     
     return () => {
       websocketService.off('fullStateUpdate', handleFullStateUpdate);
+      websocketService.off('priceUpdate', handlePriceUpdate);
     };
   }, []);
   
