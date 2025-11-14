@@ -89,10 +89,15 @@ class TrendingTokensAIAnalysisService {
           jupiterTokens.forEach(jToken => {
             if (!jToken.id) return;
             
+            // Calculate volume from stats24h (buyVolume + sellVolume)
+            const volume24h = jToken.stats24h 
+              ? (jToken.stats24h.buyVolume || 0) + (jToken.stats24h.sellVolume || 0)
+              : 0;
+            
             enrichedTokensMap.set(jToken.id, {
               price: jToken.usdPrice || 0,
-              marketCap: jToken.marketCap || 0,
-              volume24h: jToken.volume24h || 0,
+              marketCap: jToken.mcap || jToken.marketCap || 0,  // Try 'mcap' first, then 'marketCap'
+              volume24h: volume24h,
               holders: jToken.holderCount || 0,
               liquidity: jToken.liquidity || 0
             });
