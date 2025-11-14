@@ -1547,72 +1547,76 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Calculate volume over a time window
+   * ALWAYS uses Jupiter baseline as primary source (we don't have persistent historical data)
    */
   calculateVolume(mint, windowMs) {
     const tokenData = this.tokens.get(mint);
     if (!tokenData) return 0;
 
+    // ALWAYS start with Jupiter baseline (provides data across restarts/outages)
+    let jupiterVolume = 0;
+    if (tokenData.jupiterBaseline) {
+      const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+      jupiterVolume = (baseline?.buyVolume || 0) + (baseline?.sellVolume || 0);
+    }
+
+    // Add our live swaps on top (incremental updates)
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
+    const ourVolume = swaps.reduce((sum, swap) => sum + (swap.volumeUSD || 0), 0);
 
-    if (swaps.length === 0) {
-      // Use Jupiter baseline if available
-      if (tokenData.jupiterBaseline) {
-        const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
-        return (baseline?.buyVolume || 0) + (baseline?.sellVolume || 0);
-      }
-      return 0;
-    }
-
-    return swaps.reduce((sum, swap) => sum + (swap.volumeUSD || 0), 0);
+    // Return Jupiter baseline + our live swaps
+    return jupiterVolume + ourVolume;
   }
 
   /**
    * Calculate transaction count over a time window
+   * ALWAYS uses Jupiter baseline as primary source
    */
   calculateTxnCount(mint, windowMs) {
     const tokenData = this.tokens.get(mint);
     if (!tokenData) return 0;
 
+    // ALWAYS start with Jupiter baseline
+    let jupiterTxns = 0;
+    if (tokenData.jupiterBaseline) {
+      const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+      jupiterTxns = (baseline?.numBuys || 0) + (baseline?.numSells || 0);
+    }
+
+    // Add our live swaps on top
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
 
-    if (swaps.length === 0) {
-      // Use Jupiter baseline if available
-      if (tokenData.jupiterBaseline) {
-        const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
-        return (baseline?.numBuys || 0) + (baseline?.numSells || 0);
-      }
-      return 0;
-    }
-
-    return swaps.length;
+    // Return Jupiter baseline + our live swaps
+    return jupiterTxns + swaps.length;
   }
 
   /**
    * Calculate unique makers over a time window
+   * ALWAYS uses Jupiter baseline as primary source
    */
   calculateUniqueMakers(mint, windowMs) {
     const tokenData = this.tokens.get(mint);
     if (!tokenData) return 0;
 
+    // ALWAYS start with Jupiter baseline
+    let jupiterMakers = 0;
+    if (tokenData.jupiterBaseline) {
+      const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+      jupiterMakers = baseline?.numTraders || 0;
+    }
+
+    // Add our live unique makers on top
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
-
-    if (swaps.length === 0) {
-      // Use Jupiter baseline if available
-      if (tokenData.jupiterBaseline) {
-        const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
-        return baseline?.numTraders || 0;
-      }
-      return 0;
-    }
-
     const uniqueMakers = new Set(swaps.map(s => s.maker).filter(m => m !== 'unknown'));
-    return uniqueMakers.size;
+
+    // Return Jupiter baseline + our live makers
+    return jupiterMakers + uniqueMakers.size;
   }
 
   /**
@@ -1917,6 +1921,10 @@ export default class DexScreenerStyleMonitor {
 
       // Broadcast full state
       if (allTokens.length > 0) {
+        // Log first token for debugging
+        const firstToken = allTokens[0];
+        console.log(`📊 [DexScreenerStyleMonitor] Sample token in fullState: ${firstToken.symbol} - price=$${firstToken.priceUsd}, mcap=$${(firstToken.marketCap/1e6).toFixed(2)}M`);
+        
         this.webSocketServer.broadcast(JSON.stringify({
           type: 'fullStateUpdate',
           tokens: allTokens,
