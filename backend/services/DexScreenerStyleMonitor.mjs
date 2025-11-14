@@ -306,108 +306,27 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Batch onboard multiple tokens (efficient for startup)
-   * Discovers all pools first, then creates stream once
+   * Batch onboard multiple tokens
+   * Note: Currently calls onboardToken sequentially due to stream recreation complexity
    * @param {Array} tokensConfig - Array of { mint, config: { name, pool, decimals } }
    */
   async batchOnboardTokens(tokensConfig) {
     console.log(`\n📦 [DexScreenerStyleMonitor] Batch onboarding ${tokensConfig.length} tokens...`);
     
-    const discoveredPools = [];
     let successful = 0;
     let failed = 0;
 
-    // Phase 1: Discover all pools (no stream creation yet)
-    console.log('🔍 Phase 1: Discovering all pools...');
-    
     for (const { mint, config } of tokensConfig) {
-      if (this.tokens.has(mint)) {
-        console.log(`   ⚠️  ${config.name} already onboarded, skipping`);
-        continue;
-      }
-
       try {
-        console.log(`   🔍 Discovering pool for ${config.name}...`);
-        
-        // 1. Create token data structure
-        const tokenData = new TokenData(mint, config);
-        this.tokens.set(mint, tokenData);
-
-        // 2. Fetch token metadata from Jupiter
-        const metadata = await this.fetchTokenMetadata(mint, config.name);
-        tokenData.metadata = metadata;
-
-        // 3. Try to load historical swaps from ChartDatabase
-        const dbSwaps = await this.loadSwapsFromDatabase(mint);
-        
-        if (dbSwaps && dbSwaps.length > 0) {
-          tokenData.swaps = dbSwaps;
-          const oldestSwap = dbSwaps[0].timestamp;
-          const dataAge = Date.now() - oldestSwap;
-          
-          if (dataAge < SWAP_RETENTION_MS) {
-            tokenData.jupiterBaseline = await this.fetchJupiterBaseline(mint);
-          }
-        } else {
-          tokenData.jupiterBaseline = await this.fetchJupiterBaseline(mint);
-        }
-
-        // 4. Discover pool reserves (but don't add to stream yet)
-        const poolInfo = await this.discoverPoolReserves(mint, config);
-        
-        if (poolInfo) {
-          discoveredPools.push({ mint, config, poolInfo });
-          successful++;
-          console.log(`   ✅ ${config.name} pool discovered`);
-        } else {
-          failed++;
-          console.log(`   ❌ ${config.name} pool discovery failed`);
-          this.tokens.delete(mint);
-        }
-
+        await this.onboardToken(mint, config);
+        successful++;
       } catch (error) {
         console.error(`   ❌ ${config.name} error:`, error.message);
-        this.tokens.delete(mint);
         failed++;
       }
     }
 
-    console.log(`\n✅ Phase 1 complete: ${successful} pools discovered, ${failed} failed`);
-
-    // Phase 2: Create stream once with all discovered pools
-    if (discoveredPools.length > 0) {
-      console.log(`\n📡 Phase 2: Creating stream with ${discoveredPools.length} pools...`);
-      
-      for (const { mint, config, poolInfo } of discoveredPools) {
-        try {
-          // Store pool data
-          const poolData = new PoolData(poolInfo.poolAddress, mint, config);
-          poolData.poolTokenAccount = poolInfo.poolTokenAccount;
-          poolData.poolQuoteAccount = poolInfo.poolQuoteAccount;
-          poolData.tokenReserve = poolInfo.tokenReserve;
-          poolData.quoteReserve = poolInfo.quoteReserve;
-          poolData.price = poolInfo.price;
-          poolData.quoteMint = poolInfo.quoteMint;
-          poolData.quoteName = poolInfo.quoteName;
-          poolData.quoteDecimals = poolInfo.quoteDecimals;
-          
-          this.pools.set(mint, poolData);
-          
-          // Add to stream filters (will be applied when stream is created/recreated)
-          this.addPoolToStream(mint, poolData);
-          
-        } catch (error) {
-          console.error(`   ❌ Error adding ${config.name} to stream:`, error.message);
-        }
-      }
-
-      // Recreate stream with all filters at once
-      await this.recreateStream();
-      
-      this.stats.tokensMonitored = this.tokens.size;
-      console.log(`\n✅ Batch onboarding complete: ${successful} tokens monitoring\n`);
-    }
-
+    console.log(`\n✅ Batch onboarding complete: ${successful} successful, ${failed} failed\n`);
     return { successful, failed };
   }
 
