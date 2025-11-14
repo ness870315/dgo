@@ -1784,6 +1784,7 @@ export default class DexScreenerStyleMonitor {
         tokenAddress: mint, // CRITICAL: Frontend needs this to match tokens
         priceUsd: metrics.currentPrice,
         currentPrice: metrics.currentPrice,
+        price: metrics.currentPrice, // CRITICAL: Frontend reads token.price
         
         // Market data
         marketCap: marketCap,
@@ -1896,6 +1897,7 @@ export default class DexScreenerStyleMonitor {
             symbol: tokenData.config?.name || 'Unknown',
             priceUsd: metrics.currentPrice,
             currentPrice: metrics.currentPrice,
+            price: metrics.currentPrice, // CRITICAL: Frontend reads token.price
             marketCap: marketCap,
             liquidity: liquidity,
             age: age,
