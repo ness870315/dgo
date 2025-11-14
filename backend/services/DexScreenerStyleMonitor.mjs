@@ -319,6 +319,13 @@ export default class DexScreenerStyleMonitor {
               priceChange1h: tokenInfo.stats1h?.priceChange || 0,
               priceChange5m: tokenInfo.stats5m?.priceChange || 0
             };
+            
+            // Store Jupiter price in metadata for fallback
+            if (!tokenData.metadata) {
+              tokenData.metadata = {};
+            }
+            tokenData.metadata.usdPrice = tokenInfo.usdPrice || 0;
+            
             totalFetched++;
           } else {
             totalFailed++;
@@ -1468,7 +1475,7 @@ export default class DexScreenerStyleMonitor {
 
     // Calculate USD price based on quote token
     let currentPriceUSD = 0;
-    if (poolData) {
+    if (poolData && poolData.price > 0) {
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
@@ -1476,6 +1483,9 @@ export default class DexScreenerStyleMonitor {
         // USDC/USDT pool: price is already in USD
         currentPriceUSD = poolData.price;
       }
+    } else if (tokenData.metadata?.usdPrice) {
+      // Fallback to Jupiter price if pool price not available yet
+      currentPriceUSD = tokenData.metadata.usdPrice;
     }
 
     return {
