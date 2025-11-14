@@ -1466,9 +1466,21 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
+    // Calculate USD price based on quote token
+    let currentPriceUSD = 0;
+    if (poolData) {
+      if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+        // SOL pool: price is in SOL, convert to USD
+        currentPriceUSD = poolData.price * this.solPriceUSD;
+      } else {
+        // USDC/USDT pool: price is already in USD
+        currentPriceUSD = poolData.price;
+      }
+    }
+
     return {
       // Current price
-      currentPrice: poolData ? poolData.price * this.solPriceUSD : 0,
+      currentPrice: currentPriceUSD,
       currentPriceSOL: poolData ? poolData.price : 0,
 
       // Price changes
