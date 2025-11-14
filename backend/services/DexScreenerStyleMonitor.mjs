@@ -1937,9 +1937,20 @@ export default class DexScreenerStyleMonitor {
 
       // Broadcast full state
       if (allTokens.length > 0) {
-        // Log first token for debugging
+        // Count how many tokens have prices
+        const tokensWithPrice = allTokens.filter(t => t.priceUsd > 0).length;
+        const tokensWithZeroPrice = allTokens.length - tokensWithPrice;
+        
+        // Log sample tokens for debugging
         const firstToken = allTokens[0];
-        console.log(`📊 [DexScreenerStyleMonitor] Sample token in fullState: ${firstToken.symbol} - price=$${firstToken.priceUsd}, mcap=$${(firstToken.marketCap/1e6).toFixed(2)}M`);
+        const tokenWithPrice = allTokens.find(t => t.priceUsd > 0) || firstToken;
+        
+        console.log(`📊 [DexScreenerStyleMonitor] fullState summary:`);
+        console.log(`   Total tokens: ${allTokens.length}`);
+        console.log(`   With price > 0: ${tokensWithPrice}`);
+        console.log(`   With price = 0: ${tokensWithZeroPrice}`);
+        console.log(`   Sample (first): ${firstToken.symbol} - price=$${firstToken.priceUsd}`);
+        console.log(`   Sample (with price): ${tokenWithPrice.symbol} - price=$${tokenWithPrice.priceUsd}`);
         
         this.webSocketServer.broadcast(JSON.stringify({
           type: 'fullStateUpdate',
