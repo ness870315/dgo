@@ -18468,7 +18468,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           config: {
             name: token.name || token.symbol,
             pool: pool,
-            decimals: decimals
+            decimals: decimals,
+            circSupply: token.jupiterData?.circSupply || 0
           }
         });
 

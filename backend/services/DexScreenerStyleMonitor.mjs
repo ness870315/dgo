@@ -244,10 +244,12 @@ export default class DexScreenerStyleMonitor {
    * This just returns the cached data from token.jupiterData
    */
   async fetchTokenMetadata(mint, name) {
-    // Metadata is already in token cache from batch enrichment
-    // Just return a simple object for now
+    // Get token data which includes circSupply from config
+    const tokenData = this.tokens.get(mint);
+    const circSupply = tokenData?.config?.circSupply || 0;
+    
     return {
-      circSupply: 0,
+      circSupply: circSupply,
       name: name,
       symbol: name
     };
