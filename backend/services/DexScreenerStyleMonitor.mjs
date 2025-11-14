@@ -273,15 +273,21 @@ export default class DexScreenerStyleMonitor {
       
       try {
         const ids = batch.join(',');
-        const response = await fetch(`https://api.jup.ag/tokens/v2/search?query=${ids}`);
+        const url = `https://api.jup.ag/tokens/v2/search?query=${ids}`;
+        console.log(`   🔍 Fetching batch ${batchNum}/${totalBatches} (${batch.length} tokens)...`);
+        
+        const response = await fetch(url);
         
         if (!response.ok) {
+          const errorText = await response.text();
           console.error(`   ❌ Batch ${batchNum}/${totalBatches} failed: ${response.status}`);
+          console.error(`   Error response: ${errorText.substring(0, 200)}`);
           totalFailed += batch.length;
           continue;
         }
         
         const data = await response.json();
+        console.log(`   📦 Received ${data.length} tokens in response`);
         
         // Store seed data for each token
         // Response is an array of token objects
