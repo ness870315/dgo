@@ -273,7 +273,7 @@ export default class DexScreenerStyleMonitor {
       
       try {
         const ids = batch.join(',');
-        const response = await fetch(`https://api.jup.ag/price/v2?ids=${ids}`);
+        const response = await fetch(`https://api.jup.ag/tokens/v2/search?query=${ids}`);
         
         if (!response.ok) {
           console.error(`   ❌ Batch ${batchNum}/${totalBatches} failed: ${response.status}`);
@@ -284,32 +284,40 @@ export default class DexScreenerStyleMonitor {
         const data = await response.json();
         
         // Store seed data for each token
-        for (const mint of batch) {
+        // Response is an array of token objects
+        for (const tokenInfo of data) {
+          const mint = tokenInfo.id;
           const tokenData = this.tokens.get(mint);
           if (!tokenData) continue;
           
-          const jupData = data.data?.[mint];
-          if (jupData) {
+          if (tokenInfo) {
             tokenData.jupiterBaseline = {
-              volume24h: jupData.volume24h || 0,
-              volume6h: jupData.volume6h || 0,
-              volume1h: jupData.volume1h || 0,
-              volume5m: 0,
-              txnCount24h: 0,
-              txnCount6h: 0,
-              txnCount1h: 0,
-              txnCount5m: 0,
-              uniqueMakers24h: 0,
-              uniqueMakers6h: 0,
-              uniqueMakers1h: 0,
-              uniqueMakers5m: 0,
-              priceChange24h: jupData.priceChange24h || 0,
-              priceChange6h: jupData.priceChange6h || 0,
-              priceChange1h: jupData.priceChange1h || 0,
-              priceChange5m: 0
+              // Store nested stats objects directly
+              stats5m: tokenInfo.stats5m || null,
+              stats1h: tokenInfo.stats1h || null,
+              stats6h: tokenInfo.stats6h || null,
+              stats24h: tokenInfo.stats24h || null,
+              
+              // Also store flat for backward compatibility
+              volume24h: (tokenInfo.stats24h?.buyVolume || 0) + (tokenInfo.stats24h?.sellVolume || 0),
+              volume6h: (tokenInfo.stats6h?.buyVolume || 0) + (tokenInfo.stats6h?.sellVolume || 0),
+              volume1h: (tokenInfo.stats1h?.buyVolume || 0) + (tokenInfo.stats1h?.sellVolume || 0),
+              volume5m: (tokenInfo.stats5m?.buyVolume || 0) + (tokenInfo.stats5m?.sellVolume || 0),
+              priceChange24h: tokenInfo.stats24h?.priceChange || 0,
+              priceChange6h: tokenInfo.stats6h?.priceChange || 0,
+              priceChange1h: tokenInfo.stats1h?.priceChange || 0,
+              priceChange5m: tokenInfo.stats5m?.priceChange || 0
             };
             totalFetched++;
           } else {
+            totalFailed++;
+          }
+        }
+        
+        // Count tokens that weren't in the response
+        const returnedMints = new Set(data.map(t => t.id));
+        for (const mint of batch) {
+          if (!returnedMints.has(mint)) {
             totalFailed++;
           }
         }
@@ -336,32 +344,30 @@ export default class DexScreenerStyleMonitor {
    */
   async fetchJupiterBaseline(mint) {
     try {
-      const response = await fetch(`https://api.jup.ag/price/v2?ids=${mint}`);
+      const response = await fetch(`https://api.jup.ag/tokens/v2/search?query=${mint}`);
       if (!response.ok) return null;
       
       const data = await response.json();
-      const tokenData = data.data?.[mint];
+      const tokenInfo = data[0]; // Response is an array
       
-      if (!tokenData) return null;
+      if (!tokenInfo) return null;
       
-      // Return baseline metrics that match our format
+      // Return baseline metrics with nested stats
       return {
-        volume24h: tokenData.volume24h || 0,
-        volume6h: tokenData.volume6h || 0,
-        volume1h: tokenData.volume1h || 0,
-        volume5m: 0, // Jupiter doesn't provide 5m
-        txnCount24h: 0, // Jupiter doesn't provide this
-        txnCount6h: 0,
-        txnCount1h: 0,
-        txnCount5m: 0,
-        uniqueMakers24h: 0, // Jupiter doesn't provide this
-        uniqueMakers6h: 0,
-        uniqueMakers1h: 0,
-        uniqueMakers5m: 0,
-        priceChange24h: tokenData.priceChange24h || 0,
-        priceChange6h: tokenData.priceChange6h || 0,
-        priceChange1h: tokenData.priceChange1h || 0,
-        priceChange5m: 0
+        stats5m: tokenInfo.stats5m || null,
+        stats1h: tokenInfo.stats1h || null,
+        stats6h: tokenInfo.stats6h || null,
+        stats24h: tokenInfo.stats24h || null,
+        
+        // Also store flat for backward compatibility
+        volume24h: (tokenInfo.stats24h?.buyVolume || 0) + (tokenInfo.stats24h?.sellVolume || 0),
+        volume6h: (tokenInfo.stats6h?.buyVolume || 0) + (tokenInfo.stats6h?.sellVolume || 0),
+        volume1h: (tokenInfo.stats1h?.buyVolume || 0) + (tokenInfo.stats1h?.sellVolume || 0),
+        volume5m: (tokenInfo.stats5m?.buyVolume || 0) + (tokenInfo.stats5m?.sellVolume || 0),
+        priceChange24h: tokenInfo.stats24h?.priceChange || 0,
+        priceChange6h: tokenInfo.stats6h?.priceChange || 0,
+        priceChange1h: tokenInfo.stats1h?.priceChange || 0,
+        priceChange5m: tokenInfo.stats5m?.priceChange || 0
       };
     } catch (error) {
       console.error(`   ⚠️  Jupiter baseline error for ${mint}:`, error.message);
@@ -1592,46 +1598,17 @@ export default class DexScreenerStyleMonitor {
   getJupiterBaselineForWindow(jupiterBaseline, windowMs) {
     if (!jupiterBaseline) return null;
 
-    // Map window to Jupiter stats
-    // Jupiter baseline is stored as flat properties: volume24h, volume6h, volume1h, volume5m
+    // Map window to Jupiter stats - now using nested stats objects
     if (windowMs <= 5 * 60 * 1000) {
-      return {
-        buyVolume: jupiterBaseline.volume5m / 2, // Split volume 50/50 buy/sell
-        sellVolume: jupiterBaseline.volume5m / 2,
-        numBuys: jupiterBaseline.txnCount5m / 2,
-        numSells: jupiterBaseline.txnCount5m / 2,
-        numTraders: jupiterBaseline.uniqueMakers5m,
-        priceChange: jupiterBaseline.priceChange5m
-      };
+      return jupiterBaseline.stats5m || null;
     }
     if (windowMs <= 60 * 60 * 1000) {
-      return {
-        buyVolume: jupiterBaseline.volume1h / 2,
-        sellVolume: jupiterBaseline.volume1h / 2,
-        numBuys: jupiterBaseline.txnCount1h / 2,
-        numSells: jupiterBaseline.txnCount1h / 2,
-        numTraders: jupiterBaseline.uniqueMakers1h,
-        priceChange: jupiterBaseline.priceChange1h
-      };
+      return jupiterBaseline.stats1h || null;
     }
     if (windowMs <= 6 * 60 * 60 * 1000) {
-      return {
-        buyVolume: jupiterBaseline.volume6h / 2,
-        sellVolume: jupiterBaseline.volume6h / 2,
-        numBuys: jupiterBaseline.txnCount6h / 2,
-        numSells: jupiterBaseline.txnCount6h / 2,
-        numTraders: jupiterBaseline.uniqueMakers6h,
-        priceChange: jupiterBaseline.priceChange6h
-      };
+      return jupiterBaseline.stats6h || null;
     }
-    return {
-      buyVolume: jupiterBaseline.volume24h / 2,
-      sellVolume: jupiterBaseline.volume24h / 2,
-      numBuys: jupiterBaseline.txnCount24h / 2,
-      numSells: jupiterBaseline.txnCount24h / 2,
-      numTraders: jupiterBaseline.uniqueMakers24h,
-      priceChange: jupiterBaseline.priceChange24h
-    };
+    return jupiterBaseline.stats24h || null;
   }
 
   /**
