@@ -256,13 +256,117 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Fetch Jupiter baseline stats for a token
-   * NOTE: Not needed since we calculate stats from real swaps
+   * Batch fetch Jupiter seed data for multiple tokens (up to 100 at a time)
+   * This provides baseline metrics on every restart
+   */
+  async batchFetchJupiterSeedData(mints) {
+    const BATCH_SIZE = 100;
+    let totalFetched = 0;
+    let totalFailed = 0;
+    
+    console.log(`   Fetching seed data for ${mints.length} tokens in batches of ${BATCH_SIZE}...`);
+    
+    for (let i = 0; i < mints.length; i += BATCH_SIZE) {
+      const batch = mints.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(mints.length / BATCH_SIZE);
+      
+      try {
+        const ids = batch.join(',');
+        const response = await fetch(`https://api.jup.ag/price/v2?ids=${ids}`);
+        
+        if (!response.ok) {
+          console.error(`   ❌ Batch ${batchNum}/${totalBatches} failed: ${response.status}`);
+          totalFailed += batch.length;
+          continue;
+        }
+        
+        const data = await response.json();
+        
+        // Store seed data for each token
+        for (const mint of batch) {
+          const tokenData = this.tokens.get(mint);
+          if (!tokenData) continue;
+          
+          const jupData = data.data?.[mint];
+          if (jupData) {
+            tokenData.jupiterBaseline = {
+              volume24h: jupData.volume24h || 0,
+              volume6h: jupData.volume6h || 0,
+              volume1h: jupData.volume1h || 0,
+              volume5m: 0,
+              txnCount24h: 0,
+              txnCount6h: 0,
+              txnCount1h: 0,
+              txnCount5m: 0,
+              uniqueMakers24h: 0,
+              uniqueMakers6h: 0,
+              uniqueMakers1h: 0,
+              uniqueMakers5m: 0,
+              priceChange24h: jupData.priceChange24h || 0,
+              priceChange6h: jupData.priceChange6h || 0,
+              priceChange1h: jupData.priceChange1h || 0,
+              priceChange5m: 0
+            };
+            totalFetched++;
+          } else {
+            totalFailed++;
+          }
+        }
+        
+        console.log(`   ✅ Batch ${batchNum}/${totalBatches}: ${totalFetched} tokens seeded`);
+        
+        // Small delay between batches
+        if (i + BATCH_SIZE < mints.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+      } catch (error) {
+        console.error(`   ❌ Batch ${batchNum}/${totalBatches} error:`, error.message);
+        totalFailed += batch.length;
+      }
+    }
+    
+    console.log(`\n✅ Jupiter seed complete: ${totalFetched} seeded, ${totalFailed} failed`);
+  }
+
+  /**
+   * Fetch Jupiter baseline stats for a single token
+   * Used for individual token onboarding
    */
   async fetchJupiterBaseline(mint) {
-    // We don't need Jupiter baseline anymore
-    // We calculate all stats from real swaps in ChartDatabase
-    return null;
+    try {
+      const response = await fetch(`https://api.jup.ag/price/v2?ids=${mint}`);
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      const tokenData = data.data?.[mint];
+      
+      if (!tokenData) return null;
+      
+      // Return baseline metrics that match our format
+      return {
+        volume24h: tokenData.volume24h || 0,
+        volume6h: tokenData.volume6h || 0,
+        volume1h: tokenData.volume1h || 0,
+        volume5m: 0, // Jupiter doesn't provide 5m
+        txnCount24h: 0, // Jupiter doesn't provide this
+        txnCount6h: 0,
+        txnCount1h: 0,
+        txnCount5m: 0,
+        uniqueMakers24h: 0, // Jupiter doesn't provide this
+        uniqueMakers6h: 0,
+        uniqueMakers1h: 0,
+        uniqueMakers5m: 0,
+        priceChange24h: tokenData.priceChange24h || 0,
+        priceChange6h: tokenData.priceChange6h || 0,
+        priceChange1h: tokenData.priceChange1h || 0,
+        priceChange5m: 0
+      };
+    } catch (error) {
+      console.error(`   ⚠️  Jupiter baseline error for ${mint}:`, error.message);
+      return null;
+    }
   }
 
   /**
@@ -379,25 +483,6 @@ export default class DexScreenerStyleMonitor {
           console.error(`   ⚠️  ${config.name} metadata error:`, err.message);
         });
 
-        // 3. Load historical swaps from ChartDatabase (no await - parallel)
-        this.loadSwapsFromDatabase(mint).then(dbSwaps => {
-          if (dbSwaps && dbSwaps.length > 0) {
-            tokenData.swaps = dbSwaps;
-            const oldestSwap = dbSwaps[0].timestamp;
-            const dataAge = Date.now() - oldestSwap;
-            
-            if (dataAge < SWAP_RETENTION_MS) {
-              this.fetchJupiterBaseline(mint).then(baseline => {
-                tokenData.jupiterBaseline = baseline;
-              });
-            }
-          } else {
-            this.fetchJupiterBaseline(mint).then(baseline => {
-              tokenData.jupiterBaseline = baseline;
-            });
-          }
-        });
-
         console.log(`   ✅ ${config.name} prepared`);
         successful++;
         
@@ -409,6 +494,11 @@ export default class DexScreenerStyleMonitor {
     }
 
     console.log(`\n✅ Phase 1 complete: ${successful} tokens prepared`);
+    
+    // Phase 1.5: Batch fetch Jupiter seed data for ALL tokens
+    console.log(`\n📊 Phase 1.5: Fetching Jupiter seed data for all tokens...`);
+    await this.batchFetchJupiterSeedData(Array.from(this.tokens.keys()));
+    
     console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
     // Phase 2: Discover all pool reserves with rate limiting (batches of 20)
