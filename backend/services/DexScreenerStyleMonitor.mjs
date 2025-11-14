@@ -1636,6 +1636,7 @@ export default class DexScreenerStyleMonitor {
 
       // Format price data for frontend compatibility
       const priceData = {
+        tokenAddress: mint, // CRITICAL: Frontend needs this to match tokens
         priceUsd: metrics.currentPrice,
         currentPrice: metrics.currentPrice,
         
