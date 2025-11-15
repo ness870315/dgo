@@ -471,10 +471,13 @@ export default class DexScreenerStyleMonitor {
   /**
    * Discover reserve accounts for DLMM pools by analyzing recent transactions
    * Used when getParsedTokenAccountsByOwner returns 0 accounts (DLMM/CLMM pools)
+   * Automatically detects which quote mint (SOL/USDC/USDT) the pool uses
    */
-  async discoverDLMMReserves(poolAddress, tokenMint, quoteMint) {
+  async discoverDLMMReserves(poolAddress, tokenMint) {
     try {
       const poolPubkey = new PublicKey(poolAddress);
+      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
       
       // Get recent transactions
       const signatures = await this.connection.getSignaturesForAddress(poolPubkey, { limit: 10 });
@@ -512,20 +515,31 @@ export default class DexScreenerStyleMonitor {
           });
         });
         
-        // Find the reserve accounts (largest balance for each mint)
+        // Find token reserve (largest balance for token mint)
         const tokenReserve = accountsByMint.get(tokenMint)?.sort((a, b) => b.amount - a.amount)[0];
-        const quoteReserve = accountsByMint.get(quoteMint)?.sort((a, b) => b.amount - a.amount)[0];
+        if (!tokenReserve) continue;
         
-        if (tokenReserve && quoteReserve) {
-          console.log(`   ✅ [DLMM Discovery] Found reserves via transaction analysis`);
-          return {
-            poolTokenAccount: tokenReserve.pubkey,
-            poolQuoteAccount: quoteReserve.pubkey,
-            tokenReserve: tokenReserve.amount,
-            quoteReserve: quoteReserve.amount,
-            quoteMint: quoteMint,
-            quoteDecimals: quoteReserve.decimals
-          };
+        // Try to find quote reserve - check SOL, USDC, USDT in order of likelihood
+        const quoteMintsToTry = [
+          { mint: SOL_MINT, name: 'SOL' },
+          { mint: USDC_MINT, name: 'USDC' },
+          { mint: USDT_MINT, name: 'USDT' }
+        ];
+        
+        for (const { mint: quoteMint, name: quoteName } of quoteMintsToTry) {
+          const quoteReserve = accountsByMint.get(quoteMint)?.sort((a, b) => b.amount - a.amount)[0];
+          
+          if (quoteReserve && quoteReserve.amount > 0.01) { // Must have significant balance
+            console.log(`   ✅ [DLMM Discovery] Found ${quoteName} pair via transaction analysis`);
+            return {
+              poolTokenAccount: tokenReserve.pubkey,
+              poolQuoteAccount: quoteReserve.pubkey,
+              tokenReserve: tokenReserve.amount,
+              quoteReserve: quoteReserve.amount,
+              quoteMint: quoteMint,
+              quoteDecimals: quoteReserve.decimals
+            };
+          }
         }
       }
       
@@ -783,7 +797,7 @@ export default class DexScreenerStyleMonitor {
     
     // If no token accounts found (DLMM pools), try transaction-based discovery
     if (!poolTokenAccount || !poolQuoteAccount) {
-      const reserves = await this.discoverDLMMReserves(config.pool, mint, SOL_MINT);
+      const reserves = await this.discoverDLMMReserves(config.pool, mint);
       if (!reserves) {
         throw new Error(`Could not discover reserves for pool ${config.pool}`);
       }
@@ -867,7 +881,7 @@ export default class DexScreenerStyleMonitor {
 
       // If no accounts found, try DLMM discovery
       if (!poolTokenAccount || !poolQuoteAccount) {
-        const dlmmResult = await this.discoverDLMMReserves(config.pool, mint, quoteMint || SOL_MINT);
+        const dlmmResult = await this.discoverDLMMReserves(config.pool, mint);
         
         if (dlmmResult) {
           poolTokenAccount = dlmmResult.tokenAccount;
@@ -1042,21 +1056,9 @@ export default class DexScreenerStyleMonitor {
       // If no token accounts found (DLMM/CLMM pools), try transaction-based discovery
       if (!poolTokenAccount || !poolQuoteAccount) {
         console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM)`);
-        console.log(`   🔍 Trying transaction-based discovery for SOL, USDC, and USDT pairs...`);
+        console.log(`   🔍 Trying transaction-based discovery (auto-detecting quote mint)...`);
         
-        // Try all possible quote mints (SOL, USDC, USDT)
-        const quoteMintsToTry = [SOL_MINT, USDC_MINT, USDT_MINT];
-        let reserves = null;
-        
-        for (const tryQuoteMint of quoteMintsToTry) {
-          reserves = await this.discoverDLMMReserves(config.pool, mint, tryQuoteMint);
-          if (reserves) {
-            const quoteName = tryQuoteMint === SOL_MINT ? 'SOL' : (tryQuoteMint === USDC_MINT ? 'USDC' : 'USDT');
-            console.log(`   ✅ Found ${quoteName} pair!`);
-            break;
-          }
-        }
-        
+        const reserves = await this.discoverDLMMReserves(config.pool, mint);
         if (!reserves) {
           throw new Error(`Could not discover reserves for pool ${config.pool}`);
         }
