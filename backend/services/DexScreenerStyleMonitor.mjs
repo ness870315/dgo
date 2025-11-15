@@ -1039,25 +1039,15 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // If no token accounts found (DLMM/CLMM pools), try transaction-based discovery
+      // If no token accounts found (DLMM/CLMM pools), DON'T try transaction-based discovery
+      // Instead, rely on Jupiter's aggregated price which handles DLMM correctly
       if (!poolTokenAccount || !poolQuoteAccount) {
-        console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM)`);
-        console.log(`   🔍 Trying transaction-based discovery...`);
+        console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM - Meteora, Orca, etc.)`);
+        console.log(`   ℹ️  Will use Jupiter's aggregated price instead of pool reserves`);
+        console.log(`   ℹ️  DLMM pools require complex math that Jupiter handles correctly`);
         
-        const reserves = await this.discoverDLMMReserves(config.pool, mint, SOL_MINT);
-        if (!reserves) {
-          throw new Error(`Could not discover reserves for pool ${config.pool}`);
-        }
-        
-        poolTokenAccount = new PublicKey(reserves.poolTokenAccount);
-        poolQuoteAccount = new PublicKey(reserves.poolQuoteAccount);
-        tokenReserve = reserves.tokenReserve;
-        quoteReserve = reserves.quoteReserve;
-        quoteMint = reserves.quoteMint;
-        quoteDecimals = reserves.quoteDecimals;
-        
-        console.log(`   ✅ Token Reserve: ${poolTokenAccount.toBase58()} (${tokenReserve.toLocaleString()} tokens)`);
-        console.log(`   ✅ Quote Reserve: ${poolQuoteAccount.toBase58()} (${quoteReserve.toLocaleString()})`);
+        // Don't discover reserves - we'll use Jupiter price from metadata
+        throw new Error(`DLMM pool detected - will use Jupiter price instead of reserves`);
       }
       
       const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
