@@ -18243,6 +18243,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Pass skipCacheSave=true to avoid triggering TokenCacheWatcher during startup
       await this.enrichTokensWithJupiter(tokens, true);
       
+      // Save enriched tokens to cache BEFORE TokenCacheWatcher starts
+      // This ensures graduatedPool addresses are persisted
+      await this.saveTokenCache(tokens);
+      console.log(`💾 [Backend] Saved enriched tokens to cache (graduatedPool addresses updated)`);
+      
       // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
