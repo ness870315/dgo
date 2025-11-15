@@ -1681,10 +1681,17 @@ class EnhancedBackend {
         const trendingTokens = tokens.filter(token => {
           const overallScore = token.overallScore || 0;
           // Viral: >8.5, Trending: >7.8
-          return overallScore > 7.8 && 
-                 !this.isSuspiciousToken(token) && 
-                 !this.isRuggedToken(token) && 
-                 !this.isExcludedMajorOrStable(token);
+          const isHighScore = overallScore > 7.8;
+          const isSuspicious = this.isSuspiciousToken(token);
+          const isRugged = this.isRuggedToken(token);
+          const isExcluded = this.isExcludedMajorOrStable(token);
+          
+          // Log excluded tokens for debugging
+          if (isHighScore && isExcluded) {
+            console.log(`   🚫 Filtered out: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Stablecoin/LST`);
+          }
+          
+          return isHighScore && !isSuspicious && !isRugged && !isExcluded;
         });
 
         // Sort by overall score (highest first)
