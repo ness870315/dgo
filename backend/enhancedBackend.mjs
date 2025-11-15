@@ -18247,19 +18247,22 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
       
-      // ✅ Token Cache Watcher - watches for new tokens added to cache
-      const cachePath = this.persistentCachePath;
-      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.dexScreenerMonitor);
-      this.tokenCacheWatcher.on('newTokens', (newTokens) => {
-        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected`);
-        this.onboardCachedTokens(newTokens).catch(err => {
-          console.error('❌ Failed to onboard new tokens:', err.message);
-        });
-      });
-      this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
-        console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
-      });
-      await this.tokenCacheWatcher.startWatching();
+      // ✅ Token Cache Watcher - TEMPORARILY DISABLED (causing duplicate onboarding issues)
+      // TODO: Re-enable after fixing the logic to properly detect truly new tokens
+      // const cachePath = this.persistentCachePath;
+      // this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.dexScreenerMonitor);
+      // this.tokenCacheWatcher.on('newTokens', (newTokens) => {
+      //   console.log(`🆕 [Backend] ${newTokens.length} new tokens detected`);
+      //   this.onboardCachedTokens(newTokens).catch(err => {
+      //     console.error('❌ Failed to onboard new tokens:', err.message);
+      //   });
+      // });
+      // this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
+      //   console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+      // });
+      // await this.tokenCacheWatcher.startWatching();
+      
+      console.log('⚠️  [Backend] TokenCacheWatcher disabled (will be re-enabled after fixing duplicate detection)');
       
       console.log('✅ DexScreener-Style Monitor fully initialized');
       

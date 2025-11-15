@@ -13,7 +13,14 @@ import path from 'path';
  */
 class AtomicCacheWriter {
   constructor() {
-    this.cachePath = path.join(process.cwd(), 'backend', 'data', 'tokens-cache.json');
+    // Use DATA_DIR env var if available, otherwise detect if we're in backend dir
+    const dataDir = process.env.DATA_DIR 
+      ? path.join(process.env.DATA_DIR, 'cache')
+      : process.cwd().endsWith('backend')
+        ? path.join(process.cwd(), 'data')
+        : path.join(process.cwd(), 'backend', 'data');
+    
+    this.cachePath = path.join(dataDir, 'tokens-cache.json');
     this.lockPath = `${this.cachePath}.lock`;
     this.lockTimeout = 30000; // 30 seconds
     this.maxRetries = 5;
