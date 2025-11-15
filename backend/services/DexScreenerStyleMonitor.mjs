@@ -1573,9 +1573,14 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price based on quote token
+    // Calculate USD price - prioritize Jupiter's aggregated price for accuracy
+    // Jupiter handles complex pool types (DLMM, CLMM) better than our simple reserve math
     let currentPriceUSD = 0;
-    if (poolData && poolData.price > 0) {
+    if (tokenData.metadata?.usdPrice) {
+      // Use Jupiter's aggregated price (most accurate for all pool types)
+      currentPriceUSD = tokenData.metadata.usdPrice;
+    } else if (poolData && poolData.price > 0) {
+      // Fallback to pool-calculated price if Jupiter data not available
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
@@ -1583,9 +1588,6 @@ export default class DexScreenerStyleMonitor {
         // USDC/USDT pool: price is already in USD
         currentPriceUSD = poolData.price;
       }
-    } else if (tokenData.metadata?.usdPrice) {
-      // Fallback to Jupiter price if pool price not available yet
-      currentPriceUSD = tokenData.metadata.usdPrice;
     }
 
     return {
