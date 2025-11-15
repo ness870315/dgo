@@ -329,6 +329,8 @@ export default class DexScreenerStyleMonitor {
             tokenData.metadata.marketCap = tokenInfo.marketCap || 0;
             tokenData.metadata.liquidity = tokenInfo.liquidity || 0;
             tokenData.metadata.holderCount = tokenInfo.holderCount || 0;
+            tokenData.metadata.circSupply = tokenInfo.circSupply || 0;
+            tokenData.metadata.totalSupply = tokenInfo.totalSupply || 0;
             
             totalFetched++;
           } else {

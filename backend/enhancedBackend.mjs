@@ -18504,6 +18504,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
           pool = pool.address || pool.id;
         }
         
+        // Log pool source for debugging
+        const poolSource = token.poolAddress ? 'poolAddress' : 
+                          token.graduatedPool ? 'graduatedPool' : 
+                          token.jupiterData?.graduatedPool ? 'jupiterData.graduatedPool' : 'none';
+        if (pool) {
+          console.log(`   🏊 ${token.symbol}: pool=${pool.substring(0,8)}... (source: ${poolSource})`);
+        }
+        
         // Try to get decimals from token data, fallback to 9 (Solana default)
         let decimals = token.decimals || token.jupiterData?.decimals;
         
