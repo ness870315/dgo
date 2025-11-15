@@ -18245,6 +18245,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       // Save enriched tokens to cache BEFORE TokenCacheWatcher starts
       // This ensures graduatedPool addresses are persisted
+      const tokensWithGraduatedPool = tokens.filter(t => t.graduatedPool).length;
+      console.log(`🔍 [Backend] Tokens with graduatedPool before save: ${tokensWithGraduatedPool}/${tokens.length}`);
+      
+      // Debug: Check Uranus specifically
+      const uranus = tokens.find(t => t.symbol === 'URANUS');
+      if (uranus) {
+        console.log(`🔍 [Backend] URANUS before save: poolAddress=${uranus.poolAddress}, graduatedPool=${uranus.graduatedPool}`);
+      }
+      
       await this.saveTokenCache(tokens);
       console.log(`💾 [Backend] Saved enriched tokens to cache (graduatedPool addresses updated)`);
       
