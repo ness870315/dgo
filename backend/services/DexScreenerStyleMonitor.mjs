@@ -1042,9 +1042,21 @@ export default class DexScreenerStyleMonitor {
       // If no token accounts found (DLMM/CLMM pools), try transaction-based discovery
       if (!poolTokenAccount || !poolQuoteAccount) {
         console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM)`);
-        console.log(`   🔍 Trying transaction-based discovery...`);
+        console.log(`   🔍 Trying transaction-based discovery for SOL, USDC, and USDT pairs...`);
         
-        const reserves = await this.discoverDLMMReserves(config.pool, mint, SOL_MINT);
+        // Try all possible quote mints (SOL, USDC, USDT)
+        const quoteMintsToTry = [SOL_MINT, USDC_MINT, USDT_MINT];
+        let reserves = null;
+        
+        for (const tryQuoteMint of quoteMintsToTry) {
+          reserves = await this.discoverDLMMReserves(config.pool, mint, tryQuoteMint);
+          if (reserves) {
+            const quoteName = tryQuoteMint === SOL_MINT ? 'SOL' : (tryQuoteMint === USDC_MINT ? 'USDC' : 'USDT');
+            console.log(`   ✅ Found ${quoteName} pair!`);
+            break;
+          }
+        }
+        
         if (!reserves) {
           throw new Error(`Could not discover reserves for pool ${config.pool}`);
         }
