@@ -1378,10 +1378,11 @@ export default class DexScreenerStyleMonitor {
                 console.log(`   Pending swaps: ${poolData.pendingSwaps.length}, Pending TXs: ${poolData.pendingTransactions?.length || 0}`);
               }
               
-              // Update pool data silently
-              poolData.tokenReserve = newAmount;
-              poolData.lastUpdate = Date.now();
-              return; // Don't display yet
+            // Update pool data silently
+            poolData.tokenReserve = newAmount;
+            poolData.price = poolData.quoteReserve / newAmount; // Recalculate price!
+            poolData.lastUpdate = Date.now();
+            return; // Don't display yet
             }
 
             // Display the swap with transaction info
@@ -1847,6 +1848,241 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
+      // Calculate age (if createdAt is available)
+      const age = tokenData.createdAt 
+        ? Math.floor((Date.now() - tokenData.createdAt) / 1000)
+        : 0;
+
+      // Format price data for frontend compatibility
+      const priceData = {
+        tokenAddress: mint, // CRITICAL: Frontend needs this to match tokens
+        priceUsd: metrics.currentPrice,
+        currentPrice: metrics.currentPrice,
+        price: metrics.currentPrice, // CRITICAL: Frontend reads token.price
+        
+        // Market data
+        marketCap: marketCap,
+        liquidity: liquidity,
+        age: age,
+        createdAt: tokenData.createdAt || null,
+        
+        // Volume stats
+        volume24h: metrics.volume24h || 0,
+        volume6h: metrics.volume6h || 0,
+        volume1h: metrics.volume1h || 0,
+        volume5m: metrics.volume5m || 0,
+        
+        // Transaction stats
+        txns24h: metrics.txns24h || 0,
+        txns6h: metrics.txns6h || 0,
+        txns1h: metrics.txns1h || 0,
+        txns5m: metrics.txns5m || 0,
+        
+        // Maker stats
+        makers24h: metrics.makers24h || 0,
+        makers6h: metrics.makers6h || 0,
+        makers1h: metrics.makers1h || 0,
+        makers5m: metrics.makers5m || 0,
+        
+        // Price change stats
+        priceChange24h: metrics.priceChange24h || 0,
+        priceChange6h: metrics.priceChange6h || 0,
+        priceChange1h: metrics.priceChange1h || 0,
+        priceChange5m: metrics.priceChange5m || 0,
+        
+        source: 'dexscreener-monitor',
+        timestamp: Date.now()
+      };
+
+      // Use BackendWebSocketServer's broadcastPriceUpdate method
+      if (this.webSocketServer.broadcastPriceUpdate) {
+        console.log(`   ✅ Using broadcastPriceUpdate method`);
+        this.webSocketServer.broadcastPriceUpdate(mint, priceData);
+      } else {
+        console.log(`   ✅ Using direct broadcast method`);
+        // Fallback to direct broadcast
+        this.webSocketServer.broadcast(JSON.stringify({
+          type: 'priceUpdate',
+          tokenAddress: mint,
+          data: priceData,
+          timestamp: Date.now()
+        }));
+      }
+      
+      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap/1e6).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+    } catch (error) {
+      console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
+      console.error('   Token:', mint);
+      console.error('   Metrics:', metrics ? 'exists' : 'undefined');
+      console.error('   TokenData:', tokenData ? 'exists' : 'undefined');
+      console.error('   PoolData:', poolData ? 'exists' : 'undefined');
+    }
+  }
+
+  /**
+   * Broadcast full state of all tokens (for frontend compatibility)
+   * Sends complete snapshot every 10 seconds
+   */
+  broadcastFullState() {
+    if (!this.webSocketServer) {
+      console.log('⚠️  [DexScreenerStyleMonitor] broadcastFullState called but no WebSocket server');
+      return;
+    }
+
+    try {
+      console.log(`🔄 [DexScreenerStyleMonitor] broadcastFullState running... (${this.tokens.size} tokens monitored)`);
+      const allTokens = [];
+      
+      // Collect data for all monitored tokens
+      for (const [mint, tokenData] of this.tokens.entries()) {
+        try {
+          const metrics = this.getTokenMetrics(mint);
+          if (!metrics) continue;
+
+          const poolData = this.pools.get(mint);
+          // Don't skip if no poolData - we can still use Jupiter price!
+
+          // Calculate market cap
+          const circSupply = tokenData.metadata?.circSupply || 0;
+          const marketCap = metrics.currentPrice * circSupply;
+
+          // Calculate age
+          const age = tokenData.createdAt 
+            ? Math.floor((Date.now() - tokenData.createdAt) / 1000)
+            : 0;
+
+          // Calculate liquidity (quote reserves × quote price × 2)
+          let liquidity = 0;
+          if (poolData && poolData.quoteReserve) {
+            if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+              // SOL pool
+              liquidity = poolData.quoteReserve * this.solPriceUSD * 2;
+            } else {
+              // USDC/USDT pool (already in USD)
+              liquidity = poolData.quoteReserve * 2;
+            }
+          }
+
+          // Build complete token data object
+          const tokenInfo = {
+            tokenAddress: mint,
+            contractAddress: mint, // For backward compatibility
+            name: tokenData.config?.name || 'Unknown',
+            symbol: tokenData.config?.name || 'Unknown',
+            priceUsd: metrics.currentPrice,
+            currentPrice: metrics.currentPrice,
+            price: metrics.currentPrice, // CRITICAL: Frontend reads token.price
+            marketCap: marketCap,
+            liquidity: liquidity,
+            age: age,
+            createdAt: tokenData.createdAt || null,
+            
+            // Volume stats
+            volume24h: metrics.volume24h || 0,
+            volume6h: metrics.volume6h || 0,
+            volume1h: metrics.volume1h || 0,
+            volume5m: metrics.volume5m || 0,
+            
+            // Transaction stats
+            txns24h: metrics.txns24h || 0,
+            txns6h: metrics.txns6h || 0,
+            txns1h: metrics.txns1h || 0,
+            txns5m: metrics.txns5m || 0,
+            
+            // Maker stats
+            makers24h: metrics.makers24h || 0,
+            makers6h: metrics.makers6h || 0,
+            makers1h: metrics.makers1h || 0,
+            makers5m: metrics.makers5m || 0,
+            
+            // Price change stats
+            priceChange24h: metrics.priceChange24h || 0,
+            priceChange6h: metrics.priceChange6h || 0,
+            priceChange1h: metrics.priceChange1h || 0,
+            priceChange5m: metrics.priceChange5m || 0,
+            
+            source: 'dexscreener-monitor',
+            lastUpdate: Date.now()
+          };
+
+          allTokens.push(tokenInfo);
+        } catch (error) {
+          console.error(`❌ [DexScreenerStyleMonitor] Error collecting data for ${mint.substring(0, 8)}:`, error.message);
+        }
+      }
+
+      // Broadcast full state
+      if (allTokens.length > 0) {
+        // Count how many tokens have prices
+        const tokensWithPrice = allTokens.filter(t => t.priceUsd > 0).length;
+        const tokensWithZeroPrice = allTokens.length - tokensWithPrice;
+        
+        // Log sample tokens for debugging
+        const firstToken = allTokens[0];
+        const tokenWithPrice = allTokens.find(t => t.priceUsd > 0) || firstToken;
+        
+        console.log(`📊 [DexScreenerStyleMonitor] fullState summary:`);
+        console.log(`   Total tokens: ${allTokens.length}`);
+        console.log(`   With price > 0: ${tokensWithPrice}`);
+        console.log(`   With price = 0: ${tokensWithZeroPrice}`);
+        console.log(`   Sample (first): ${firstToken.symbol} - price=$${firstToken.priceUsd}`);
+        console.log(`   Sample (with price): ${tokenWithPrice.symbol} - price=$${tokenWithPrice.priceUsd}`);
+        
+        this.webSocketServer.broadcast(JSON.stringify({
+          type: 'fullStateUpdate',
+          tokens: allTokens,
+          timestamp: Date.now()
+        }));
+        
+        console.log(`📡 [DexScreenerStyleMonitor] Broadcasted full state: ${allTokens.length} tokens`);
+      }
+    } catch (error) {
+      console.error('❌ [DexScreenerStyleMonitor] Error broadcasting full state:', error.message);
+    }
+  }
+
+  /**
+   * Set WebSocket server (for late binding)
+   */
+  setWebSocketServer(webSocketServer) {
+    this.webSocketServer = webSocketServer;
+    console.log('✅ [DexScreenerStyleMonitor] WebSocket server connected');
+  }
+
+  /**
+   * Shutdown the service
+   */
+  async shutdown() {
+    console.log('🛑 [DexScreenerStyleMonitor] Shutting down...');
+
+    // Stop SOL price updater
+    if (this.priceUpdater) {
+      clearInterval(this.priceUpdater);
+    }
+
+    // Close the single gRPC stream
+    if (this.stream) {
+      try {
+        this.stream.cancel();
+      } catch (e) {
+        // Ignore errors
+      }
+      this.stream = null;
+    }
+
+    // Close gRPC client
+    if (this.grpcClient && typeof this.grpcClient.close === 'function') {
+      try {
+        this.grpcClient.close();
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+
+    console.log('✅ [DexScreenerStyleMonitor] Shutdown complete');
+  }
+}
+
       // Calculate age (if createdAt is available)
       const age = tokenData.createdAt 
         ? Math.floor((Date.now() - tokenData.createdAt) / 1000)
