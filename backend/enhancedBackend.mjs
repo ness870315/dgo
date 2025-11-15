@@ -18496,7 +18496,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Try to find pool in priority order
         let pool = 
           token.poolAddress ||                    // 1. Direct poolAddress field
-          token.graduatedPool;                    // 2. graduatedPool from Jupiter
+          token.graduatedPool ||                  // 2. graduatedPool from Jupiter (top level)
+          token.jupiterData?.graduatedPool;       // 3. graduatedPool from Jupiter (inside jupiterData)
         
         // Handle graduatedPool object format
         if (pool && typeof pool === 'object') {
