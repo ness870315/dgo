@@ -1024,6 +1024,7 @@ export default class DexScreenerStyleMonitor {
     }
     
     // Pick the quote account with the highest liquidity (in USD terms)
+    let standardDiscoveryResult = null;
     if (quoteAccounts.length > 0) {
       const bestQuote = quoteAccounts.reduce((best, current) => {
         const currentLiquidityUSD = current.mint === SOL_MINT 
@@ -1039,21 +1040,56 @@ export default class DexScreenerStyleMonitor {
       quoteReserve = bestQuote.amount;
       quoteMint = bestQuote.mint;
       quoteDecimals = bestQuote.decimals;
+      
+      standardDiscoveryResult = {
+        poolTokenAccount,
+        poolQuoteAccount,
+        tokenReserve,
+        quoteReserve,
+        quoteMint,
+        quoteDecimals
+      };
     }
     
-    // If no token accounts found (DLMM pools), try transaction-based discovery
-    if (!poolTokenAccount || !poolQuoteAccount) {
+    // For Meteora DLMM pools, always validate with DLMM discovery
+    // Standard discovery may find incorrect accounts (bins instead of actual reserves)
+    // Check pool owner to detect Meteora pools
+    let isMeteoraPool = false;
+    try {
+      const poolInfo = await this.connection.getAccountInfo(poolPubkey);
+      if (poolInfo && poolInfo.owner) {
+        const ownerStr = poolInfo.owner.toBase58();
+        // Meteora DLMM program IDs
+        if (ownerStr === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG' || // Meteora DLMM
+            ownerStr === 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo') { // Meteora Dynamic AMM v2
+          isMeteoraPool = true;
+        }
+      }
+    } catch (error) {
+      // If we can't check, proceed with standard discovery
+    }
+    
+    // If no token accounts found (DLMM pools), or if it's a Meteora pool, try transaction-based discovery
+    if (!poolTokenAccount || !poolQuoteAccount || isMeteoraPool) {
       const reserves = await this.discoverDLMMReserves(config.pool, mint);
-      if (!reserves) {
+      if (reserves) {
+        // Use DLMM discovery result (more accurate for Meteora pools)
+        poolTokenAccount = reserves.poolTokenAccount;
+        poolQuoteAccount = reserves.poolQuoteAccount;
+        tokenReserve = reserves.tokenReserve;
+        quoteReserve = reserves.quoteReserve;
+        quoteMint = reserves.quoteMint;
+        quoteDecimals = reserves.quoteDecimals;
+        
+        if (isMeteoraPool && standardDiscoveryResult) {
+          const tokenName = config.name || mint.substring(0, 8);
+          console.log(`   ✅ [${tokenName}] Using DLMM discovery for Meteora pool (standard discovery found ${standardDiscoveryResult.quoteMint === SOL_MINT ? 'SOL' : 'USDC'}, DLMM found ${quoteMint === SOL_MINT ? 'SOL' : 'USDC'})`);
+        }
+      } else if (!poolTokenAccount || !poolQuoteAccount) {
+        // If DLMM discovery also failed and we have no accounts, throw error
         throw new Error(`Could not discover reserves for pool ${config.pool}`);
       }
-      
-      poolTokenAccount = reserves.poolTokenAccount;
-      poolQuoteAccount = reserves.poolQuoteAccount;
-      tokenReserve = reserves.tokenReserve;
-      quoteReserve = reserves.quoteReserve;
-      quoteMint = reserves.quoteMint;
-      quoteDecimals = reserves.quoteDecimals;
+      // If DLMM discovery failed but standard discovery succeeded, use standard discovery result
     }
     
     const price = quoteReserve / tokenReserve;
