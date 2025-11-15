@@ -621,7 +621,10 @@ export default class DexScreenerStyleMonitor {
           this.discoverPoolInfo(mint, config)
             .then(poolInfo => {
               discoveryCount++;
+              const price = poolInfo.price;
+              const quoteName = poolInfo.quoteName || 'SOL';
               console.log(`      ✅ [${discoveryCount}/${totalToDiscover}] ${config.name} discovered`);
+              console.log(`         Token: ${poolInfo.tokenReserve.toLocaleString()} | Quote: ${poolInfo.quoteReserve.toLocaleString()} ${quoteName} | Price: ${price.toFixed(10)} ${quoteName}`);
               return { mint, config, poolInfo, success: true };
             }),
           new Promise((_, reject) => 
