@@ -18240,7 +18240,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const tokens = await this.loadTokenCache();
       
       // Batch fetch decimals + pools from Jupiter API for all tokens
-      await this.enrichTokensWithJupiter(tokens);
+      // Pass skipCacheSave=true to avoid triggering TokenCacheWatcher during startup
+      await this.enrichTokensWithJupiter(tokens, true);
       
       // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
@@ -18305,8 +18306,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   /**
    * Enrich tokens with Jupiter API data (batch fetch decimals, circSupply, etc.)
+   * @param {Array} tokens - Array of tokens to enrich
+   * @param {Boolean} skipCacheSave - If true, don't save to cache (used during startup to avoid triggering TokenCacheWatcher)
    */
-  async enrichTokensWithJupiter(tokens) {
+  async enrichTokensWithJupiter(tokens, skipCacheSave = false) {
     try {
       console.log(`🪐 [Backend] Enriching ${tokens.length} tokens with Jupiter API...`);
       
@@ -18348,10 +18351,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
               );
               
               if (token) {
+                let tokenUpdated = false;
+                
                 // Enrich with Jupiter data
                 if (!token.decimals && jupToken.decimals) {
                   token.decimals = jupToken.decimals;
-                  enriched++;
+                  tokenUpdated = true;
                 }
                 
                 // Also update jupiterData if missing
@@ -18373,8 +18378,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
                   if (poolAddress && !token.poolAddress) {
                     token.poolAddress = poolAddress;
                     token.graduatedPool = poolAddress;
+                    tokenUpdated = true;
                     console.log(`🏊 [Backend] ${token.symbol}: pool=${poolAddress.substring(0,8)}...`);
                   }
+                }
+                
+                if (tokenUpdated) {
+                  enriched++;
                 }
               }
             }
@@ -18394,10 +18404,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       console.log(`✅ [Backend] Enriched ${enriched} tokens with decimals from Jupiter`);
       
-      // Save enriched tokens back to cache
-      if (enriched > 0) {
+      // Save enriched tokens back to cache (unless skipCacheSave is true)
+      if (enriched > 0 && !skipCacheSave) {
         await this.saveTokenCache(tokens);
         console.log(`💾 [Backend] Saved ${enriched} enriched tokens back to cache`);
+      } else if (enriched > 0 && skipCacheSave) {
+        console.log(`⏭️  [Backend] Skipping cache save during startup (${enriched} tokens enriched)`);
       }
       
     } catch (error) {
