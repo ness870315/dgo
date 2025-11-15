@@ -32,6 +32,7 @@ const require = createRequire(import.meta.url);
 const RPC_ENDPOINT = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const MORALIS_API_KEY = process.env.MORALIS_API_KEY || '';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const SOL_PRICE_UPDATE_INTERVAL_MS = 30 * 1000; // 30 seconds
 const SWAP_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -368,6 +369,143 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
+   * Fetch pool address from Moralis API (fallback when Jupiter has no graduatedPool)
+   * Returns the pool address with highest liquidity
+   */
+  async fetchPoolFromMoralis(mint, tokenName, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const url = `https://solana-gateway.moralis.io/token/mainnet/${mint}/pairs`;
+        const response = await fetch(url, {
+          headers: {
+            'X-API-Key': MORALIS_API_KEY
+          }
+        });
+        
+        if (!response.ok) {
+          console.error(`   ❌ Moralis API error: ${response.status}`);
+          if (attempt < retries) {
+            console.log(`   ⏳ Retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          return null;
+        }
+        
+        const data = await response.json();
+        
+        // Extract pairAddress from first pair
+        // Moralis returns: { pairs: [...], pageSize, page, cursor }
+        if (data && data.pairs && data.pairs.length > 0) {
+          // Sort ALL pairs by liquidity (highest first) and take the first ACTIVE one
+          const sortedPairs = data.pairs
+            .filter(p => !p.inactivePair) // Only active pairs
+            .sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0));
+          
+          if (sortedPairs.length > 0) {
+            const bestPair = sortedPairs[0];
+            console.log(`   ✅ [Moralis] Found pool for ${tokenName}: ${bestPair.pairAddress}`);
+            console.log(`      Exchange: ${bestPair.exchangeName}`);
+            console.log(`      Pair: ${bestPair.pairLabel}`);
+            console.log(`      Liquidity: $${(bestPair.liquidityUsd / 1000000).toFixed(2)}M`);
+            return bestPair.pairAddress;
+          } else {
+            console.log(`   ⚠️  No active pairs found in Moralis response`);
+            return null;
+          }
+        } else {
+          console.log(`   ⚠️  No pairs found in Moralis response`);
+          if (attempt < retries) {
+            console.log(`   ⏳ Retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          return null;
+        }
+      } catch (error) {
+        console.error(`   ❌ [Moralis] Error fetching pool for ${tokenName}:`, error.message);
+        if (attempt < retries) {
+          console.log(`   ⏳ Retrying in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Batch fetch pools from Moralis for multiple tokens in parallel
+   * Returns a Map: mint -> { poolAddress, liquidity, exchange }
+   */
+  async batchFetchPoolsFromMoralis(mints) {
+    console.log(`   🔍 Fetching pools from Moralis for ${mints.length} tokens in parallel...`);
+    
+    const promises = mints.map(async (mint) => {
+      try {
+        const tokenData = this.tokens.get(mint);
+        if (!tokenData) return { mint, pool: null };
+        
+        const url = `https://solana-gateway.moralis.io/token/mainnet/${mint}/pairs`;
+        const response = await fetch(url, {
+          headers: {
+            'X-API-Key': MORALIS_API_KEY
+          }
+        });
+        
+        if (!response.ok) {
+          return { mint, pool: null, error: `HTTP ${response.status}` };
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.pairs && data.pairs.length > 0) {
+          const sortedPairs = data.pairs
+            .filter(p => !p.inactivePair)
+            .sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0));
+          
+          if (sortedPairs.length > 0) {
+            const bestPair = sortedPairs[0];
+            return {
+              mint,
+              pool: bestPair.pairAddress,
+              liquidity: bestPair.liquidityUsd || 0,
+              exchange: bestPair.exchangeName || 'Unknown'
+            };
+          }
+        }
+        
+        return { mint, pool: null };
+      } catch (error) {
+        return { mint, pool: null, error: error.message };
+      }
+    });
+    
+    const results = await Promise.all(promises);
+    const poolsMap = new Map();
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const result of results) {
+      if (result.pool) {
+        poolsMap.set(result.mint, {
+          poolAddress: result.pool,
+          liquidity: result.liquidity,
+          exchange: result.exchange
+        });
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+    
+    console.log(`   ✅ [Moralis] Found pools for ${successCount}/${mints.length} tokens`);
+    
+    return poolsMap;
+  }
+
+  /**
    * Update tokens-cache.json with fresh Jupiter baseline data
    * This ensures the cache has up-to-date price, mcap, volume, holders
    * Uses atomic write with file locking to prevent race conditions
@@ -472,6 +610,7 @@ export default class DexScreenerStyleMonitor {
    * Discover reserve accounts for DLMM pools by analyzing recent transactions
    * Used when getParsedTokenAccountsByOwner returns 0 accounts (DLMM/CLMM pools)
    * Automatically detects which quote mint (SOL/USDC/USDT) the pool uses
+   * Uses frequency-based filtering to identify actual pool reserves
    */
   async discoverDLMMReserves(poolAddress, tokenMint) {
     try {
@@ -486,7 +625,9 @@ export default class DexScreenerStyleMonitor {
         return null;
       }
       
-      // Try each transaction until we find one with token balances
+      // Collect accounts across ALL transactions to track frequency
+      const accountFrequency = new Map(); // pubkey -> { count, amount, decimals, mint }
+      
       for (let i = 0; i < signatures.length; i++) {
         const tx = await this.connection.getParsedTransaction(signatures[i].signature, {
           maxSupportedTransactionVersion: 0
@@ -496,54 +637,108 @@ export default class DexScreenerStyleMonitor {
           continue;
         }
         
-        // Group token accounts by mint
-        const accountsByMint = new Map();
-        
+        // Process each account in this transaction
         tx.meta.postTokenBalances.forEach(balance => {
           const accountIndex = balance.accountIndex;
           const account = tx.transaction.message.accountKeys[accountIndex];
           const pubkey = typeof account === 'object' && account.pubkey ? account.pubkey.toBase58() : account.toBase58();
           
-          if (!accountsByMint.has(balance.mint)) {
-            accountsByMint.set(balance.mint, []);
+          if (!accountFrequency.has(pubkey)) {
+            accountFrequency.set(pubkey, {
+              pubkey,
+              count: 0,
+              amount: balance.uiTokenAmount.uiAmount,
+              decimals: balance.uiTokenAmount.decimals,
+              mint: balance.mint
+            });
           }
           
-          accountsByMint.get(balance.mint).push({
-            pubkey,
-            amount: balance.uiTokenAmount.uiAmount,
-            decimals: balance.uiTokenAmount.decimals
-          });
+          // Increment frequency counter
+          const accData = accountFrequency.get(pubkey);
+          accData.count++;
+          // Update amount to the maximum seen (pool reserves should be stable or increasing)
+          if (balance.uiTokenAmount.uiAmount > accData.amount) {
+            accData.amount = balance.uiTokenAmount.uiAmount;
+          }
         });
+      }
+      
+      // Filter to accounts appearing in at least 2 transactions (more likely to be pool reserves)
+      const frequentAccounts = Array.from(accountFrequency.values()).filter(acc => acc.count >= 2);
+      
+      if (frequentAccounts.length === 0) {
+        return null;
+      }
+      
+      // Group frequent accounts by mint
+      const accountsByMint = new Map();
+      frequentAccounts.forEach(acc => {
+        if (!accountsByMint.has(acc.mint)) {
+          accountsByMint.set(acc.mint, []);
+        }
+        accountsByMint.get(acc.mint).push(acc);
+      });
+      
+      // Find token reserve (sort by frequency first, then by amount)
+      const tokenReserves = accountsByMint.get(tokenMint)?.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count; // Prioritize frequency
+        return b.amount - a.amount; // Then by amount
+      });
+      const tokenReserve = tokenReserves?.[0];
+      
+      if (!tokenReserve) {
+        return null;
+      }
+      
+      // Find quote reserve - compare all quote mints in USD terms, pick highest liquidity
+      const quoteMintsToTry = [
+        { mint: SOL_MINT, name: 'SOL' },
+        { mint: USDC_MINT, name: 'USDC' },
+        { mint: USDT_MINT, name: 'USDT' }
+      ];
+      
+      let bestQuote = null;
+      let bestLiquidityUSD = 0;
+      
+      for (const { mint: quoteMint, name: quoteName } of quoteMintsToTry) {
+        const quoteReserves = accountsByMint.get(quoteMint)?.sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count; // Prioritize frequency
+          return b.amount - a.amount; // Then by amount
+        });
+        const quoteReserve = quoteReserves?.[0];
         
-        // Find token reserve (largest balance for token mint)
-        const tokenReserve = accountsByMint.get(tokenMint)?.sort((a, b) => b.amount - a.amount)[0];
-        if (!tokenReserve) continue;
-        
-        // Try to find quote reserve - check SOL, USDC, USDT in order of likelihood
-        const quoteMintsToTry = [
-          { mint: SOL_MINT, name: 'SOL' },
-          { mint: USDC_MINT, name: 'USDC' },
-          { mint: USDT_MINT, name: 'USDT' }
-        ];
-        
-        for (const { mint: quoteMint, name: quoteName } of quoteMintsToTry) {
-          const quoteReserve = accountsByMint.get(quoteMint)?.sort((a, b) => b.amount - a.amount)[0];
+        if (quoteReserve && quoteReserve.amount > 0.01 && quoteReserve.count >= 2) {
+          // Calculate liquidity in USD terms
+          const liquidityUSD = quoteMint === SOL_MINT 
+            ? quoteReserve.amount * this.solPriceUSD 
+            : quoteReserve.amount; // USDC/USDT already in USD
           
-          if (quoteReserve && quoteReserve.amount > 0.01) { // Must have significant balance
-            console.log(`   ✅ [DLMM Discovery] Found ${quoteName} pair via transaction analysis`);
-            return {
-              poolTokenAccount: tokenReserve.pubkey,
-              poolQuoteAccount: quoteReserve.pubkey,
-              tokenReserve: tokenReserve.amount,
-              quoteReserve: quoteReserve.amount,
-              quoteMint: quoteMint,
-              quoteDecimals: quoteReserve.decimals
+          // Pick the quote mint with highest liquidity
+          if (!bestQuote || liquidityUSD > bestLiquidityUSD) {
+            bestQuote = {
+              quoteMint,
+              quoteName,
+              quoteReserve
             };
+            bestLiquidityUSD = liquidityUSD;
           }
         }
       }
       
-      return null;
+      if (!bestQuote) {
+        return null;
+      }
+      
+      console.log(`   ✅ [DLMM Discovery] Found ${bestQuote.quoteName} pair (${bestQuote.quoteReserve.count}/${signatures.length} txs, $${(bestLiquidityUSD/1000).toFixed(1)}K liquidity)`);
+      
+      return {
+        poolTokenAccount: tokenReserve.pubkey,
+        poolQuoteAccount: bestQuote.quoteReserve.pubkey,
+        tokenReserve: tokenReserve.amount,
+        quoteReserve: bestQuote.quoteReserve.amount,
+        quoteMint: bestQuote.quoteMint,
+        quoteDecimals: bestQuote.quoteReserve.decimals
+      };
       
     } catch (error) {
       console.error(`   ❌ [DLMM Discovery] Error:`, error.message);
@@ -611,6 +806,33 @@ export default class DexScreenerStyleMonitor {
     // Phase 1.5: Batch fetch Jupiter seed data for ALL tokens
     console.log(`\n📊 Phase 1.5: Fetching Jupiter seed data for all tokens...`);
     await this.batchFetchJupiterSeedData(Array.from(this.tokens.keys()));
+    
+    // Phase 1.6: Batch fetch Moralis pools (prioritize highest liquidity pools)
+    console.log(`\n🏊 Phase 1.6: Fetching Moralis pools (prioritizing highest liquidity)...`);
+    if (MORALIS_API_KEY) {
+      const moralisPools = await this.batchFetchPoolsFromMoralis(Array.from(this.tokens.keys()));
+      
+      // Override config.pool with Moralis pools (if found)
+      let moraliPoolCount = 0;
+      for (const { mint, config } of tokensConfig) {
+        if (!this.tokens.has(mint)) continue;
+        
+        const moralisPool = moralisPools.get(mint);
+        if (moralisPool && moralisPool.poolAddress) {
+          const oldPool = config.pool;
+          config.pool = moralisPool.poolAddress;
+          const liquidity = (moralisPool.liquidity / 1000000).toFixed(2);
+          console.log(`   ✅ [Moralis] Using ${config.name} pool: ${moralisPool.poolAddress.substring(0, 8)}... (${liquidity}M liquidity, ${moralisPool.exchange})`);
+          if (oldPool && oldPool !== config.pool) {
+            console.log(`      Replaced Jupiter pool: ${oldPool.substring(0, 8)}...`);
+          }
+          moraliPoolCount++;
+        }
+      }
+      console.log(`   ✅ [Moralis] Using Moralis pools for ${moraliPoolCount}/${tokensConfig.length} tokens`);
+    } else {
+      console.log(`   ⚠️  MORALIS_API_KEY not set, skipping Moralis pool discovery`);
+    }
     
     console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
@@ -779,6 +1001,9 @@ export default class DexScreenerStyleMonitor {
     const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
     const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
     
+    // Collect all potential quote accounts
+    const quoteAccounts = [];
+    
     for (const account of poolAccounts.value) {
       const accountMint = account.account.data.parsed.info.mint;
       const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
@@ -788,11 +1013,32 @@ export default class DexScreenerStyleMonitor {
         poolTokenAccount = account.pubkey.toBase58();
         tokenReserve = amount;
       } else if (accountMint === SOL_MINT || accountMint === USDC_MINT || accountMint === USDT_MINT) {
-        poolQuoteAccount = account.pubkey.toBase58();
-        quoteReserve = amount;
-        quoteMint = accountMint;
-        quoteDecimals = decimals;
+        // Collect all potential quote accounts
+        quoteAccounts.push({
+          pubkey: account.pubkey.toBase58(),
+          mint: accountMint,
+          amount,
+          decimals
+        });
       }
+    }
+    
+    // Pick the quote account with the highest liquidity (in USD terms)
+    if (quoteAccounts.length > 0) {
+      const bestQuote = quoteAccounts.reduce((best, current) => {
+        const currentLiquidityUSD = current.mint === SOL_MINT 
+          ? current.amount * this.solPriceUSD 
+          : current.amount; // USDC/USDT already in USD
+        const bestLiquidityUSD = best.mint === SOL_MINT 
+          ? best.amount * this.solPriceUSD 
+          : best.amount;
+        return currentLiquidityUSD > bestLiquidityUSD ? current : best;
+      });
+      
+      poolQuoteAccount = bestQuote.pubkey;
+      quoteReserve = bestQuote.amount;
+      quoteMint = bestQuote.mint;
+      quoteDecimals = bestQuote.decimals;
     }
     
     // If no token accounts found (DLMM pools), try transaction-based discovery
@@ -847,35 +1093,52 @@ export default class DexScreenerStyleMonitor {
       let quoteName = null;
       let quoteDecimals = 9;
 
+      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+      
       if (tokenAccounts.value.length > 0) {
+        // Collect all potential quote accounts
+        const quoteAccounts = [];
+        
         // Standard AMM pool
         for (const account of tokenAccounts.value) {
           const parsedInfo = account.account.data.parsed.info;
           const accountMint = parsedInfo.mint;
           const amount = parsedInfo.tokenAmount.uiAmount;
+          const decimals = parsedInfo.tokenAmount.decimals;
 
           if (accountMint === mint) {
             poolTokenAccount = account.pubkey.toString();
             tokenReserve = amount;
-          } else if (accountMint === SOL_MINT) {
-            poolQuoteAccount = account.pubkey.toString();
-            quoteReserve = amount;
-            quoteMint = SOL_MINT;
-            quoteName = 'SOL';
-            quoteDecimals = 9;
-          } else if (accountMint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') {
-            poolQuoteAccount = account.pubkey.toString();
-            quoteReserve = amount;
-            quoteMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-            quoteName = 'USDC';
-            quoteDecimals = 6;
-          } else if (accountMint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
-            poolQuoteAccount = account.pubkey.toString();
-            quoteReserve = amount;
-            quoteMint = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-            quoteName = 'USDT';
-            quoteDecimals = 6;
+          } else if (accountMint === SOL_MINT || accountMint === USDC_MINT || accountMint === USDT_MINT) {
+            // Collect all potential quote accounts
+            quoteAccounts.push({
+              pubkey: account.pubkey.toString(),
+              mint: accountMint,
+              amount,
+              decimals,
+              name: accountMint === SOL_MINT ? 'SOL' : (accountMint === USDC_MINT ? 'USDC' : 'USDT')
+            });
           }
+        }
+        
+        // Pick the quote account with the highest liquidity (in USD terms)
+        if (quoteAccounts.length > 0) {
+          const bestQuote = quoteAccounts.reduce((best, current) => {
+            const currentLiquidityUSD = current.mint === SOL_MINT 
+              ? current.amount * this.solPriceUSD 
+              : current.amount; // USDC/USDT already in USD
+            const bestLiquidityUSD = best.mint === SOL_MINT 
+              ? best.amount * this.solPriceUSD 
+              : best.amount;
+            return currentLiquidityUSD > bestLiquidityUSD ? current : best;
+          });
+          
+          poolQuoteAccount = bestQuote.pubkey;
+          quoteReserve = bestQuote.amount;
+          quoteMint = bestQuote.mint;
+          quoteName = bestQuote.name;
+          quoteDecimals = bestQuote.decimals;
         }
       }
 
@@ -1454,20 +1717,17 @@ export default class DexScreenerStyleMonitor {
       if (!tokenData) return;
 
       // Calculate prices and market cap
+      // ALWAYS use real-time pool-calculated price (updated on every swap)
       const tokenPriceInQuote = poolData.price;
       const metadata = tokenData.metadata;
       let tokenPriceUSD;
       
-      // Use Jupiter price if available (more accurate for complex pools), otherwise calculate from pool
-      if (metadata && metadata.jupiterPrice) {
-        tokenPriceUSD = metadata.jupiterPrice;
+      // ALWAYS use real-time pool price
+      if (poolData.quoteMint === SOL_MINT) {
+        tokenPriceUSD = tokenPriceInQuote * this.solPriceUSD;
       } else {
-        if (poolData.quoteMint === SOL_MINT) {
-          tokenPriceUSD = tokenPriceInQuote * this.solPriceUSD;
-        } else {
-          // USDC/USDT are already in USD
-          tokenPriceUSD = tokenPriceInQuote;
-        }
+        // USDC/USDT are already in USD
+        tokenPriceUSD = tokenPriceInQuote;
       }
       
       const quoteAmount = Math.abs(delta) * tokenPriceInQuote;
@@ -1584,17 +1844,14 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price - prioritize Jupiter's aggregated price for accuracy
-    // Jupiter handles complex pool types (DLMM, CLMM) better than our simple reserve math
+    // Calculate USD price - ALWAYS use real-time pool price (updated on every swap)
+    // Use Jupiter price only for validation (log if > 5% difference)
+    // Fallback to Jupiter price only if pool data not available
     let currentPriceUSD = 0;
     let priceSource = 'none';
     
-    if (tokenData.metadata?.usdPrice) {
-      // Use Jupiter's aggregated price (most accurate for all pool types)
-      currentPriceUSD = tokenData.metadata.usdPrice;
-      priceSource = 'jupiter';
-    } else if (poolData && poolData.price > 0) {
-      // Fallback to pool-calculated price if Jupiter data not available
+    if (poolData && poolData.price > 0) {
+      // ALWAYS use real-time pool-calculated price (updated on every swap)
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
@@ -1604,6 +1861,20 @@ export default class DexScreenerStyleMonitor {
         currentPriceUSD = poolData.price;
         priceSource = 'pool-stable';
       }
+      
+      // Validate against Jupiter price (log if > 5% difference)
+      if (tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+        const jupiterPrice = tokenData.metadata.usdPrice;
+        const diffPercent = Math.abs(currentPriceUSD - jupiterPrice) / jupiterPrice * 100;
+        if (diffPercent > 5) {
+          const tokenName = tokenData.config?.name || mint.substring(0, 8);
+          console.log(`   ⚠️  [${tokenName}] Price discrepancy: Pool $${currentPriceUSD.toFixed(6)} vs Jupiter $${jupiterPrice.toFixed(6)} (${diffPercent.toFixed(1)}%)`);
+        }
+      }
+    } else if (tokenData.metadata?.usdPrice) {
+      // Fallback to Jupiter price only if pool data not available
+      currentPriceUSD = tokenData.metadata.usdPrice;
+      priceSource = 'jupiter-fallback';
     }
     
     // Log price source for Lumen and Meteora
@@ -1611,7 +1882,7 @@ export default class DexScreenerStyleMonitor {
         mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
       const tokenName = tokenData.config?.name || mint.substring(0, 8);
       console.log(`   💰 [${tokenName}] Price: $${currentPriceUSD.toFixed(6)} (source: ${priceSource})`);
-      if (priceSource === 'jupiter') {
+      if (priceSource === 'jupiter-fallback') {
         console.log(`      Jupiter usdPrice: $${tokenData.metadata.usdPrice.toFixed(6)}`);
       } else if (priceSource.startsWith('pool')) {
         console.log(`      Pool price: ${poolData.price.toFixed(10)} ${poolData.quoteName || 'unknown'}`);
@@ -1648,9 +1919,9 @@ export default class DexScreenerStyleMonitor {
       makers6h: this.calculateUniqueMakers(mint, 6 * 60 * 60 * 1000),
       makers24h: this.calculateUniqueMakers(mint, 24 * 60 * 60 * 1000),
 
-      // Market cap
-      marketCap: tokenData.metadata && tokenData.metadata.circSupply > 0 && poolData
-        ? tokenData.metadata.circSupply * poolData.price * this.solPriceUSD
+      // Market cap - use currentPriceUSD (already in USD, works for all pool types)
+      marketCap: tokenData.metadata && tokenData.metadata.circSupply > 0 && currentPriceUSD > 0
+        ? tokenData.metadata.circSupply * currentPriceUSD
         : 0,
 
       // Metadata
