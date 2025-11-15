@@ -1587,17 +1587,35 @@ export default class DexScreenerStyleMonitor {
     // Calculate USD price - prioritize Jupiter's aggregated price for accuracy
     // Jupiter handles complex pool types (DLMM, CLMM) better than our simple reserve math
     let currentPriceUSD = 0;
+    let priceSource = 'none';
+    
     if (tokenData.metadata?.usdPrice) {
       // Use Jupiter's aggregated price (most accurate for all pool types)
       currentPriceUSD = tokenData.metadata.usdPrice;
+      priceSource = 'jupiter';
     } else if (poolData && poolData.price > 0) {
       // Fallback to pool-calculated price if Jupiter data not available
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
+        priceSource = 'pool-sol';
       } else {
         // USDC/USDT pool: price is already in USD
         currentPriceUSD = poolData.price;
+        priceSource = 'pool-stable';
+      }
+    }
+    
+    // Log price source for Lumen and Meteora
+    if (mint === 'BkpaxHhE6snExazrPkVAjxDyZa8Nq3oDEzm5GQm2pump' || 
+        mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
+      const tokenName = tokenData.config?.name || mint.substring(0, 8);
+      console.log(`   💰 [${tokenName}] Price: $${currentPriceUSD.toFixed(6)} (source: ${priceSource})`);
+      if (priceSource === 'jupiter') {
+        console.log(`      Jupiter usdPrice: $${tokenData.metadata.usdPrice.toFixed(6)}`);
+      } else if (priceSource.startsWith('pool')) {
+        console.log(`      Pool price: ${poolData.price.toFixed(10)} ${poolData.quoteName || 'unknown'}`);
+        console.log(`      SOL price: $${this.solPriceUSD.toFixed(2)}`);
       }
     }
 
@@ -1861,10 +1879,12 @@ export default class DexScreenerStyleMonitor {
 
       const poolData = this.pools.get(mint);
       
-      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-      
       // Calculate market cap
       const circSupply = tokenData.metadata?.circSupply || 0;
+      
+      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
+      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      
       const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
       
       // Calculate liquidity (quote reserves × quote price × 2)
