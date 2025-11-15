@@ -1329,6 +1329,10 @@ export default class DexScreenerStyleMonitor {
         console.log(`🔍 [USELESS] Account update detected for ${decodedKey === poolData.poolTokenAccount ? 'TOKEN' : 'QUOTE'} account`);
       }
       
+      if (mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
+        console.log(`🔍 [METEORA] Account update detected for ${decodedKey === poolData.poolTokenAccount ? 'TOKEN' : 'QUOTE'} account`);
+      }
+      
       if (!mint || !poolData || !tokenData) {
         // Log if we're getting updates for accounts we don't recognize
         if (this.globalStats.totalAccountUpdates % 1000 === 0) {
@@ -1391,9 +1395,14 @@ export default class DexScreenerStyleMonitor {
                 newAmount
               });
               
-              // Log buffering for USELESS
+              // Log buffering for USELESS and METEORA
               if (mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk') {
                 console.log(`🔄 [USELESS] Swap buffered (waiting for TX): ${isBuy ? 'BUY' : 'SELL'} ${Math.abs(delta).toFixed(2)} tokens`);
+                console.log(`   Pending swaps: ${poolData.pendingSwaps.length}, Pending TXs: ${poolData.pendingTransactions?.length || 0}`);
+              }
+              
+              if (mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
+                console.log(`🔄 [METEORA] Swap buffered (waiting for TX): ${isBuy ? 'BUY' : 'SELL'} ${Math.abs(delta).toFixed(2)} tokens`);
                 console.log(`   Pending swaps: ${poolData.pendingSwaps.length}, Pending TXs: ${poolData.pendingTransactions?.length || 0}`);
               }
               
@@ -1497,8 +1506,10 @@ export default class DexScreenerStyleMonitor {
       this.stats.totalSwaps++;
       this.stats.lastSwapTime = Date.now();
 
-      // Log swap (ALWAYS log USELESS for debugging)
-      const shouldLog = process.env.LOG_SWAPS === 'true' || mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
+      // Log swap (ALWAYS log USELESS and METEORA for debugging)
+      const shouldLog = process.env.LOG_SWAPS === 'true' || 
+                        mint === 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk' ||
+                        mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL';
       
       if (shouldLog) {
         // Get total stats for this token
