@@ -690,7 +690,7 @@ export default class DexScreenerStyleMonitor {
         return null;
       }
       
-      // Find quote reserve - compare all quote mints in USD terms, pick highest liquidity
+      // Find quote reserve - prioritize frequency (most transactions = pool reserve), then liquidity
       const quoteMintsToTry = [
         { mint: SOL_MINT, name: 'SOL' },
         { mint: USDC_MINT, name: 'USDC' },
@@ -698,6 +698,7 @@ export default class DexScreenerStyleMonitor {
       ];
       
       let bestQuote = null;
+      let bestFrequency = 0;
       let bestLiquidityUSD = 0;
       
       for (const { mint: quoteMint, name: quoteName } of quoteMintsToTry) {
@@ -713,13 +714,19 @@ export default class DexScreenerStyleMonitor {
             ? quoteReserve.amount * this.solPriceUSD 
             : quoteReserve.amount; // USDC/USDT already in USD
           
-          // Pick the quote mint with highest liquidity
-          if (!bestQuote || liquidityUSD > bestLiquidityUSD) {
+          // PRIORITIZE FREQUENCY first (more transactions = more likely to be pool reserve)
+          // Only use liquidity as tiebreaker if frequencies are equal or very close (±1)
+          const frequencyDiff = Math.abs(quoteReserve.count - bestFrequency);
+          
+          if (!bestQuote || 
+              quoteReserve.count > bestFrequency || // Higher frequency wins
+              (frequencyDiff <= 1 && liquidityUSD > bestLiquidityUSD)) { // Tiebreaker: liquidity if frequencies are close
             bestQuote = {
               quoteMint,
               quoteName,
               quoteReserve
             };
+            bestFrequency = quoteReserve.count;
             bestLiquidityUSD = liquidityUSD;
           }
         }
@@ -729,7 +736,7 @@ export default class DexScreenerStyleMonitor {
         return null;
       }
       
-      console.log(`   ✅ [DLMM Discovery] Found ${bestQuote.quoteName} pair (${bestQuote.quoteReserve.count}/${signatures.length} txs, $${(bestLiquidityUSD/1000).toFixed(1)}K liquidity)`);
+      console.log(`   ✅ [DLMM Discovery] Found ${bestQuote.quoteName} pair (${bestQuote.quoteReserve.count}/${signatures.length} txs, ${bestQuote.quoteReserve.amount.toLocaleString()} ${bestQuote.quoteName}, $${(bestLiquidityUSD/1000).toFixed(1)}K liquidity)`);
       
       return {
         poolTokenAccount: tokenReserve.pubkey,
