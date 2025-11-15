@@ -27,7 +27,7 @@ export const LST_TOKENS = new Set([
   'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1',   // bSOL (BlazeStake)
   'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', // jitoSOL
   'he1iusmfkpAdwvxLNGV8Y1iSbj4rUy6yMhEA3fotn9A',  // hSOL (Helius)
-  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // Bonk (actually bonkSOL)
+  // 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // Bonk (actually bonkSOL) - REMOVED: This is BONK meme coin, not an LST!
   'BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85',  // BNSOL (Binance Staked SOL)
   'vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7', // vSOL (Socean)
   'st8QujHLPsX3d6HG9uQg9kJ91jFxUgruwsb1hyYXSNd',  // stSOL (Lido)
@@ -62,14 +62,17 @@ export const BANNED_SYMBOLS = new Set([
 ]);
 
 // Banned name fragments (case-insensitive)
+// NOTE: Be specific to avoid false positives (e.g., "STABLE" would match "Stable Genius")
 export const BANNED_NAME_FRAGMENTS = [
-  'STABLE',
-  'STABLECOIN', 
+  'STABLECOIN',
+  'USD STABLE',
+  'STABLE USD',
   'WRAPPED ETH', 
   'WRAPPED BTC',
   'LIQUID STAKING',
   'STAKED SOL',
-  'STAKED SOLANA'
+  'STAKED SOLANA',
+  'MARINADE STAKED'
 ];
 
 /**
