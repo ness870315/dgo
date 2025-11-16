@@ -28,6 +28,10 @@ import atomicCacheWriter from '../utils/atomicCacheWriter.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+// Load CP-AMM SDK for Meteora Constant Product AMM pools
+const cpAmmModule = require('@meteora-ag/cp-amm-sdk');
+const { CpAmm, getPriceFromSqrtPrice } = cpAmmModule;
+
 // Configuration
 const RPC_ENDPOINT = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const GRPC_ENDPOINT = 'http://grpc.constant-k.com';
@@ -1058,17 +1062,21 @@ export default class DexScreenerStyleMonitor {
       };
     }
     
-    // For Meteora DLMM pools, always validate with DLMM discovery
-    // Standard discovery may find incorrect accounts (bins instead of actual reserves)
     // Check pool owner to detect Meteora pools
     let isMeteoraPool = false;
+    let isMeteoraCPAMM = false;
+    
     try {
       const poolInfo = await this.connection.getAccountInfo(poolPubkey);
       if (poolInfo && poolInfo.owner) {
         const ownerStr = poolInfo.owner.toBase58();
-        // Meteora DLMM program IDs
-        if (ownerStr === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG' || // Meteora DLMM
-            ownerStr === 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo') { // Meteora Dynamic AMM v2
+        
+        // Meteora Constant Product AMM (DAMM v2): cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG
+        // Meteora DLMM: LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo
+        if (ownerStr === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
+          isMeteoraPool = true;
+          isMeteoraCPAMM = true;
+        } else if (ownerStr === 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo') {
           isMeteoraPool = true;
         }
       }
@@ -1076,17 +1084,97 @@ export default class DexScreenerStyleMonitor {
       // If we can't check, proceed with standard discovery
     }
     
+    // For Meteora CP-AMM pools, use the SDK to get accurate price from sqrtPrice
+    if (isMeteoraCPAMM) {
+      try {
+        const tokenName = config.name || mint.substring(0, 8);
+        console.log(`   💰 [${tokenName}] Using CP-AMM SDK for Meteora Constant Product AMM...`);
+        
+        const cpAmm = new CpAmm(this.connection);
+        const poolState = await cpAmm.fetchPoolState(poolPubkey);
+        
+        // Get vault addresses from pool state
+        poolTokenAccount = poolState.tokenAVault.toBase58();
+        poolQuoteAccount = poolState.tokenBVault.toBase58();
+        quoteMint = poolState.tokenBMint.toBase58();
+        
+        // Read current vault balances
+        const vaultABalance = await this.connection.getTokenAccountBalance(poolState.tokenAVault);
+        const vaultBBalance = await this.connection.getTokenAccountBalance(poolState.tokenBVault);
+        
+        tokenReserve = vaultABalance.value.uiAmount || 0;
+        quoteReserve = vaultBBalance.value.uiAmount || 0;
+        quoteDecimals = vaultBBalance.value.decimals;
+        
+        // Calculate price using SDK (from sqrtPrice)
+        const tokenDecimals = vaultABalance.value.decimals;
+        const priceFromSDK = getPriceFromSqrtPrice(poolState.sqrtPrice, tokenDecimals, quoteDecimals);
+        const sdkPrice = parseFloat(priceFromSDK.toString());
+        
+        const quoteName = quoteMint === SOL_MINT ? 'SOL' : 
+                         quoteMint === USDC_MINT ? 'USDC' : 
+                         quoteMint === USDT_MINT ? 'USDT' : 'UNKNOWN';
+        
+        console.log(`   ✅ [${tokenName}] CP-AMM SDK price: $${sdkPrice.toFixed(6)} (sqrtPrice: ${poolState.sqrtPrice.toString().substring(0, 16)}...)`);
+        console.log(`      Vault reserves: ${tokenReserve.toLocaleString()} ${tokenName} / ${quoteReserve.toLocaleString()} ${quoteName}`);
+        
+        // Return pool data with SDK price
+        return {
+          poolTokenAccount,
+          poolQuoteAccount,
+          tokenReserve,
+          quoteReserve,
+          price: sdkPrice, // Use SDK price instead of naive calculation
+          quoteMint,
+          quoteName,
+          quoteDecimals,
+          isMeteoraCPAMM: true,
+          sqrtPrice: poolState.sqrtPrice.toString(), // Store for potential future updates
+          lastUpdate: Date.now()
+        };
+      } catch (error) {
+        console.error(`   ❌ CP-AMM SDK error: ${error.message}`);
+        // Fall through to standard/DLMM discovery
+      }
+    }
+    
     // If no token accounts found (DLMM pools), or if it's a Meteora pool, try transaction-based discovery
     if (!poolTokenAccount || !poolQuoteAccount || isMeteoraPool) {
       const reserves = await this.discoverDLMMReserves(config.pool, mint);
       if (reserves) {
-        // Use DLMM discovery result (more accurate for Meteora pools)
+        // Use DLMM discovery to find the correct accounts
         poolTokenAccount = reserves.poolTokenAccount;
         poolQuoteAccount = reserves.poolQuoteAccount;
-        tokenReserve = reserves.tokenReserve;
-        quoteReserve = reserves.quoteReserve;
         quoteMint = reserves.quoteMint;
         quoteDecimals = reserves.quoteDecimals;
+        
+        // CRITICAL: Read CURRENT reserves from the discovered accounts, not historical maximums
+        try {
+          const tokenAccountInfo = await this.connection.getParsedAccountInfo(new PublicKey(poolTokenAccount));
+          const quoteAccountInfo = await this.connection.getParsedAccountInfo(new PublicKey(poolQuoteAccount));
+          
+          if (tokenAccountInfo?.value?.data?.parsed?.info?.tokenAmount) {
+            tokenReserve = tokenAccountInfo.value.data.parsed.info.tokenAmount.uiAmount || 0;
+          }
+          
+          if (quoteAccountInfo?.value?.data?.parsed?.info?.tokenAmount) {
+            quoteReserve = quoteAccountInfo.value.data.parsed.info.tokenAmount.uiAmount || 0;
+          }
+          
+          if (tokenReserve === 0 || quoteReserve === 0) {
+            // Fallback to DLMM discovery reserves if we can't read current reserves
+            console.log(`   ⚠️  Could not read current reserves, using DLMM discovery reserves`);
+            tokenReserve = reserves.tokenReserve;
+            quoteReserve = reserves.quoteReserve;
+          } else {
+            console.log(`   ✅ Read current reserves: ${tokenReserve.toLocaleString()} tokens, ${quoteReserve.toLocaleString()} ${quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT')}`);
+          }
+        } catch (error) {
+          console.error(`   ⚠️  Error reading current reserves: ${error.message}, using DLMM discovery reserves`);
+          // Fallback to DLMM discovery reserves
+          tokenReserve = reserves.tokenReserve;
+          quoteReserve = reserves.quoteReserve;
+        }
         
         if (isMeteoraPool && standardDiscoveryResult) {
           const tokenName = config.name || mint.substring(0, 8);
@@ -1905,15 +1993,11 @@ export default class DexScreenerStyleMonitor {
         priceSource = 'pool-stable';
       }
       
-      // Validate against Jupiter price (log if > 5% difference)
-      if (tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
-        const jupiterPrice = tokenData.metadata.usdPrice;
-        const diffPercent = Math.abs(currentPriceUSD - jupiterPrice) / jupiterPrice * 100;
-        if (diffPercent > 5) {
-          const tokenName = tokenData.config?.name || mint.substring(0, 8);
-          console.log(`   ⚠️  [${tokenName}] Price discrepancy: Pool $${currentPriceUSD.toFixed(6)} vs Jupiter $${jupiterPrice.toFixed(6)} (${diffPercent.toFixed(1)}%)`);
-        }
-      }
+      // NOTE: We don't compare with Jupiter price here because:
+      // - Our price is LIVE (updates with every swap)
+      // - Jupiter price is STATIC (baseline from startup)
+      // - Discrepancies are EXPECTED as the market moves
+      // - Jupiter is only used for initial validation, not live comparison
     } else if (tokenData.metadata?.usdPrice) {
       // Fallback to Jupiter price only if pool data not available
       currentPriceUSD = tokenData.metadata.usdPrice;
