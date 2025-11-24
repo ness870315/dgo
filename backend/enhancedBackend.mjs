@@ -18309,11 +18309,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
       
       const tokens = JSON.parse(cacheData);
-      const completedTokens = tokens.filter(token => token.stage === 'completed');
       
-      console.log(`📊 [Backend] Found ${completedTokens.length} completed tokens`);
+      // Filter tokens that have a pool address (for monitoring)
+      // Prioritize tokens with stage === 'completed', but also include tokens with pool addresses
+      const tokensWithPools = tokens.filter(token => {
+        const hasPool = token.poolAddress || token.graduatedPool || token.jupiterData?.graduatedPool;
+        return hasPool || token.stage === 'completed';
+      });
       
-      return completedTokens;
+      const completedCount = tokens.filter(t => t.stage === 'completed').length;
+      console.log(`📊 [Backend] Found ${tokens.length} total tokens, ${completedCount} completed, ${tokensWithPools.length} with pools`);
+      
+      return tokensWithPools;
       
     } catch (error) {
       console.error('❌ [Backend] Failed to load token cache:', error.message);
