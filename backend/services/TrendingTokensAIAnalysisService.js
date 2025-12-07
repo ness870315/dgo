@@ -1,4 +1,4 @@
-import OpenAIService from '../openaiService.js';
+import GrokService from './GrokService.js';
 import PerplexitySonarService from './PerplexitySonarService.js';
 import fetch from 'node-fetch';
 
@@ -6,15 +6,16 @@ import fetch from 'node-fetch';
  * Trending Tokens AI Analysis Service
  * Combines trending token data with LLM analysis and real-time news discovery
  * Provides human-readable summaries with price, metrics, and catalysts
+ * Uses Grok (grok-4-1-fast-reasoning) for AI summaries and Perplexity for news/catalysts
  */
 class TrendingTokensAIAnalysisService {
   constructor() {
-    this.openaiService = new OpenAIService();
+    this.grokService = new GrokService();
     this.perplexityService = new PerplexitySonarService();
     // ALWAYS use production API endpoint (we're running on the same server)
     this.apiBaseUrl = 'https://api.degen-oracle.com';
     
-    console.log('🤖 [TRENDING AI] Initialized with OpenAI + Perplexity');
+    console.log('🤖 [TRENDING AI] Initialized with Grok (grok-4-1-fast-reasoning) + Perplexity');
     console.log(`   API Base: ${this.apiBaseUrl}`);
   }
 
@@ -94,10 +95,14 @@ class TrendingTokensAIAnalysisService {
               ? (jToken.stats24h.buyVolume || 0) + (jToken.stats24h.sellVolume || 0)
               : 0;
             
+            // Extract price change from Jupiter stats24h
+            const priceChange24h = jToken.stats24h?.priceChange || 0;
+            
             enrichedTokensMap.set(jToken.id, {
               price: jToken.usdPrice || 0,
               marketCap: jToken.mcap || jToken.marketCap || 0,  // Try 'mcap' first, then 'marketCap'
               volume24h: volume24h,
+              priceChange24h: priceChange24h,  // CRITICAL: Extract from stats24h.priceChange
               holders: jToken.holderCount || 0,
               liquidity: jToken.liquidity || 0
             });
@@ -124,11 +129,16 @@ class TrendingTokensAIAnalysisService {
             price: jupiterData.price,
             marketCap: jupiterData.marketCap,
             volume24h: jupiterData.volume24h,
+            priceChange24h: jupiterData.priceChange24h || token.priceChange24h || 0,  // Use Jupiter data, fallback to cached
             holderCount: jupiterData.holders,
             liquidity: jupiterData.liquidity
           };
         }
-        return token;
+        // Preserve existing priceChange24h if Jupiter enrichment failed
+        return {
+          ...token,
+          priceChange24h: token.priceChange24h || token.stats24h?.priceChange || token.jupiterData?.stats24h?.priceChange || 0
+        };
       });
       
       console.log(`📊 [TRENDING AI] Enrichment complete: ${enrichedTokensMap.size}/${tokens.length} tokens updated`);
@@ -177,10 +187,22 @@ class TrendingTokensAIAnalysisService {
    */
   async generateTokenSummary(token, perplexityData) {
     try {
-      // Build context from token metrics
-      const priceChange = token.priceChange24h || 0;
-      const priceDirection = priceChange > 0 ? 'up' : 'down';
+      // Build context from token metrics - check multiple sources for priceChange24h
+      const priceChange = token.priceChange24h 
+        || token.stats24h?.priceChange 
+        || token.jupiterData?.stats24h?.priceChange 
+        || 0;
+      const priceDirection = priceChange > 0 ? 'up' : priceChange < 0 ? 'down' : 'flat';
       const priceChangeAbs = Math.abs(priceChange);
+      
+      // Debug log to verify price change data
+      console.log(`📊 [TRENDING AI] ${token.symbol} priceChange24h: ${priceChange}% (from token.priceChange24h=${token.priceChange24h}, stats24h=${token.stats24h?.priceChange}, jupiterData=${token.jupiterData?.stats24h?.priceChange})`);
+      
+      // Only mention price change if it's significant (>= 1% or <= -1%)
+      const hasSignificantPriceChange = priceChangeAbs >= 1;
+      const priceChangeText = hasSignificantPriceChange 
+        ? `${priceChangeAbs.toFixed(1)}% ${priceDirection === 'up' ? 'up' : priceDirection === 'down' ? 'down' : 'flat'}`
+        : 'flat/sideways';
       
       const prompt = `You are a crypto analyst writing a brief, engaging summary for ${token.symbol} (${token.name}).
 
@@ -191,7 +213,7 @@ class TrendingTokensAIAnalysisService {
 - 24h Price Change: ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%
 - Liquidity: $${this.formatNumber(token.liquidity || 0)}
 - Holders: ${token.holderCount || 'N/A'}
-- Twitter Mentions: ${token.twitterData?.mentions || token.mentions || 0}
+- Twitter Mentions: ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0}
 - Overall Score: ${token.overallScore || 'N/A'}/10
 
 **Recent News & Catalysts:**
@@ -199,19 +221,30 @@ ${perplexityData?.news || 'No recent news found.'}
 
 **Task:**
 Write a 2-3 sentence summary explaining WHY ${token.symbol} is trending. Focus on:
-1. The main catalyst (whale activity, news, partnerships, etc.)
-2. Price action context (${priceChangeAbs.toFixed(0)}% ${priceDirection})
+1. The main catalyst (whale activity, news, partnerships, listings, technical breakouts, etc.)
+2. Price action context${hasSignificantPriceChange ? ` (${priceChangeText})` : ' (currently trading sideways but still generating interest)'}
 3. Social/community activity if relevant
 
-Use crypto slang naturally (moon, pump, ape, degen, etc.). Be factual but engaging. NO markdown formatting.
+**IMPORTANT RULES:**
+${hasSignificantPriceChange 
+  ? `- Mention the ${priceChangeAbs.toFixed(1)}% ${priceDirection} movement naturally in the summary`
+  : `- DO NOT mention "0%" or "flat" price movement. Instead focus on volume, trading activity, community engagement, or other catalysts.`
+}
+- Use crypto slang naturally (moon, pump, ape, degen, etc.)
+- Be factual but engaging
+- NO markdown formatting
+- If price change is < 1%, focus on volume, whale activity, or social metrics instead
 
-Example format:
-"${token.symbol} has pumped ${priceChangeAbs.toFixed(0)}% in 24h following [catalyst]. Whales have been accumulating with $X volume, while Twitter mentions spiked to X. [Additional context about fundamentals or news]."`;
+Example format (for tokens with significant price change):
+"${token.symbol} has pumped ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% in 24h following [catalyst]. Whales have been accumulating with $${this.formatNumber(token.volume24h || 0)} volume, while Twitter mentions hit ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0}. [Additional context about fundamentals or news]."
 
-      console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol}...`);
+Example format (for tokens with flat/sideways price):
+"${token.symbol} is generating buzz with $${this.formatNumber(token.volume24h || 0)} in 24h volume despite sideways price action. [Mention whale activity, community engagement, or news]. Twitter mentions at ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} show growing community interest."`;
+
+      console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol} using Grok...`);
       
-      const summary = await this.openaiService.generateCompletion(prompt, {
-        model: 'gpt-4o-mini',
+      const summary = await this.grokService.generateCompletion(prompt, {
+        model: 'grok-4-1-fast-reasoning',
         temperature: 0.7,
         maxTokens: 200,
         useCache: false // Always fresh for trending analysis
@@ -283,7 +316,7 @@ Example format:
             holders: token.holderCount || 0,
             twitterMentions: token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0,
             sentimentScore: token.twitterData?.sentimentScore || 0,
-            overallScore: token.overallScore || 0,
+            overallScore: token.overallScore || 0
             
             // AI Analysis
             summary: summary,
