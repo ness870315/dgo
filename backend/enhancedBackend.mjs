@@ -1807,7 +1807,12 @@ class EnhancedBackend {
         
       } catch (error) {
         console.error('❌ [TRENDING AI API] Error:', error.message);
-        res.status(500).json({ error: 'Failed to generate AI analysis' });
+        console.error('❌ [TRENDING AI API] Error stack:', error.stack);
+        res.status(500).json({ 
+          error: 'Failed to generate AI analysis',
+          message: error.message,
+          details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
       }
     });
 

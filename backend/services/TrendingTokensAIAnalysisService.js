@@ -10,13 +10,19 @@ import fetch from 'node-fetch';
  */
 class TrendingTokensAIAnalysisService {
   constructor() {
-    this.grokService = new GrokService();
-    this.perplexityService = new PerplexitySonarService();
-    // ALWAYS use production API endpoint (we're running on the same server)
-    this.apiBaseUrl = 'https://api.degen-oracle.com';
-    
-    console.log('🤖 [TRENDING AI] Initialized with Grok (grok-4-1-fast-reasoning) + Perplexity');
-    console.log(`   API Base: ${this.apiBaseUrl}`);
+    try {
+      this.grokService = new GrokService();
+      this.perplexityService = new PerplexitySonarService();
+      // ALWAYS use production API endpoint (we're running on the same server)
+      this.apiBaseUrl = 'https://api.degen-oracle.com';
+      
+      console.log('🤖 [TRENDING AI] Initialized with Grok (grok-4-1-fast-reasoning) + Perplexity');
+      console.log(`   API Base: ${this.apiBaseUrl}`);
+      console.log(`   Grok API Key: ${process.env.GROK_API ? 'SET' : 'MISSING ⚠️'}`);
+    } catch (error) {
+      console.error('❌ [TRENDING AI] Initialization error:', error.message);
+      throw error;
+    }
   }
 
   /**
@@ -289,8 +295,15 @@ Example format (for tokens with flat/sideways price):
           // Get Perplexity news/catalysts
           const perplexityData = await this.analyzeTokenWithPerplexity(token);
           
-          // Generate AI summary
-          const summary = await this.generateTokenSummary(token, perplexityData);
+          // Generate AI summary (using Grok)
+          let summary;
+          try {
+            summary = await this.generateTokenSummary(token, perplexityData);
+          } catch (grokError) {
+            console.error(`❌ [TRENDING AI] Grok error for ${token.symbol}:`, grokError.message);
+            // Return fallback summary if Grok fails
+            summary = `${token.symbol} is trending with ${token.priceChange24h >= 0 ? '+' : ''}${(token.priceChange24h || 0).toFixed(2)}% price change in 24h.`;
+          }
           
           return {
             rank: index + 1,

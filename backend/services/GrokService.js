@@ -39,10 +39,13 @@ class GrokService {
     try {
       const apiKey = process.env.GROK_API;
       if (!apiKey) {
-        throw new Error('GROK_API environment variable is required');
+        console.error('❌ [GROK] GROK_API environment variable is not set');
+        console.error('   Available env vars with "GROK":', Object.keys(process.env).filter(key => key.includes('GROK') || key.includes('GROK')));
+        throw new Error('GROK_API environment variable is required. Please set it in your environment variables.');
       }
 
       this.apiKey = apiKey;
+      console.log(`✅ [GROK] API key loaded (length: ${apiKey.length} chars)`);
 
       // Ensure cache directory exists
       await fs.mkdir(this.cacheDir, { recursive: true });
@@ -227,8 +230,22 @@ class GrokService {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Grok API error: ${response.status} ${response.statusText} - ${errorText}`);
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.error(`❌ [GROK] API Error Response (${response.status}):`, errorText);
+        } catch (e) {
+          errorText = `Could not read error response: ${e.message}`;
+        }
+        
+        // Provide more specific error messages
+        if (response.status === 401) {
+          throw new Error(`Grok API authentication failed. Please check your GROK_API environment variable. Status: ${response.status}`);
+        } else if (response.status === 429) {
+          throw new Error(`Grok API rate limit exceeded. Please wait before retrying. Status: ${response.status}`);
+        } else {
+          throw new Error(`Grok API error (${response.status} ${response.statusText}): ${errorText.substring(0, 200)}`);
+        }
       }
 
       const data = await response.json();
