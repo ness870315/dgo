@@ -157,6 +157,42 @@ class TrendingTokensAIAnalysisService {
   }
 
   /**
+   * Fetch Moralis holder insights (whale/retail flows, holder distribution)
+   */
+  async fetchHolderInsights(token) {
+    try {
+      if (!token.contractAddress) {
+        console.warn(`⚠️ [TRENDING AI] No contract address for ${token.symbol}`);
+        return null;
+      }
+
+      console.log(`👥 [TRENDING AI] Fetching holder insights for ${token.symbol}...`);
+      
+      const response = await fetch(`${this.apiBaseUrl}/api/tokens/${token.contractAddress}/holders/insights`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        console.warn(`⚠️ [TRENDING AI] Holder insights failed for ${token.symbol}: ${response.status}`);
+        return null;
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        console.log(`✅ [TRENDING AI] Holder insights loaded for ${token.symbol}`);
+        return result.data;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ [TRENDING AI] Error fetching holder insights for ${token.symbol}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
    * Analyze a single token with Perplexity (news, catalysts, context)
    */
   async analyzeTokenWithPerplexity(token) {
@@ -189,9 +225,9 @@ class TrendingTokensAIAnalysisService {
   }
 
   /**
-   * Generate human-readable summary for a single token using OpenAI
+   * Generate human-readable summary for a single token using Grok
    */
-  async generateTokenSummary(token, perplexityData) {
+  async generateTokenSummary(token, perplexityData, holderInsights) {
     try {
       // Build context from token metrics - check multiple sources for priceChange24h
       const priceChange = token.priceChange24h 
@@ -216,6 +252,20 @@ class TrendingTokensAIAnalysisService {
       const holderGrowth = token.holderCount || 0;
       const volumeToLiquidityRatio = token.liquidity > 0 ? ((token.volume24h || 0) / token.liquidity).toFixed(2) : 'N/A';
       
+      // Extract holder insights data
+      const holderStats = holderInsights?.holderStats || {};
+      const holderFlowData = holderInsights?.holderFlowData || {};
+      const segmentFlow = holderFlowData?.segmentFlow || {};
+      const whaleFlow = segmentFlow?.whales || { in: 0, out: 0, net: 0 };
+      const retailFlow = {
+        in: (segmentFlow?.crabs?.in || 0) + (segmentFlow?.shrimps?.in || 0),
+        out: (segmentFlow?.crabs?.out || 0) + (segmentFlow?.shrimps?.out || 0),
+        net: (segmentFlow?.crabs?.net || 0) + (segmentFlow?.shrimps?.net || 0)
+      };
+      const whales = holderStats?.holderDistribution?.whales || 0;
+      const top10Pct = holderStats?.holderSupply?.top10?.supplyPercent || 0;
+      const holderChange24h = holderStats?.holderChange?.['24h']?.change || 0;
+      
       const prompt = `You are an expert crypto analyst writing a comprehensive, value-driven summary for ${token.symbol} (${token.name}).
 
 **Token Metrics:**
@@ -225,9 +275,17 @@ class TrendingTokensAIAnalysisService {
 - 24h Price Change: ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%
 - Liquidity: $${this.formatNumber(token.liquidity || 0)}
 - Volume/Liquidity Ratio: ${volumeToLiquidityRatio}x ${hasLowLiquidity ? '(⚠️ Low liquidity - high volatility risk)' : ''}
-- Holders: ${holderGrowth.toLocaleString()}
-- Twitter Mentions: ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0}
+- Total Holders: ${holderGrowth.toLocaleString()}
 - Overall Score: ${token.overallScore || 'N/A'}/10
+
+**🐋 ON-CHAIN HOLDER INSIGHTS (from Moralis):**
+${holderInsights 
+  ? `- Whales: ${whales}
+- Top 10 Control: ${top10Pct.toFixed(1)}% of supply
+- Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
+- 🐋 Whale Flow: ${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net} (in: ${whaleFlow.in}, out: ${whaleFlow.out})
+- 🦐 Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`
+  : '⚠️ Holder insights not available for this token.'}
 
 **🔍 REAL-TIME NEWS & CATALYSTS (from Perplexity search):**
 ${perplexityData?.news ? `\n${perplexityData.news}\n\n**Key Sources:**\n${(perplexityData.citations || []).slice(0, 3).map((c, i) => `${i + 1}. ${c}`).join('\n') || 'No citations available'}` : '⚠️ No recent news or catalysts found in search results.'}
@@ -235,33 +293,46 @@ ${perplexityData?.news ? `\n${perplexityData.news}\n\n**Key Sources:**\n${(perpl
 **📊 ANALYSIS REQUIREMENTS:**
 Write a 3-4 sentence comprehensive summary that provides REAL VALUE. Structure it as:
 
-1. **LEAD WITH THE CATALYST** (MOST IMPORTANT): Start with the specific news, event, listing, partnership, or whale activity from the Perplexity data. If no news found, mention what's driving the momentum (technical breakout, community hype, etc.)
+1. **LEAD WITH THE CATALYST** (MOST IMPORTANT): Start with the specific news, event, listing, partnership, or whale activity from the Perplexity data. If no news found, lead with on-chain holder flow analysis (whale/retail activity).
 
-2. **Price Action & Volume Context**: Include the ${hasSignificantPriceChange ? `${priceChangeAbs.toFixed(1)}% ${priceDirection}` : 'price movement'} and volume dynamics. Highlight if volume is unusually high relative to market cap or if liquidity is thin (risk indicator).
+2. **🐋 ON-CHAIN HOLDER FLOW ANALYSIS** (CRITICAL): Build your opinion around the Moralis holder insights:
+   - If whales are flowing IN (positive net): "Smart money accumulating" or "Whales loading up" - this is BULLISH
+   - If whales are flowing OUT (negative net): "Whale outflow detected" or "Smart money exiting" - this is BEARISH
+   - If retail is flowing IN: "Retail FOMO building" or "Apes piling in"
+   - If retail is flowing OUT: "Retail selling pressure" or "Paper hands folding"
+   - Combine whale + retail flows to tell the story (e.g., "Whales accumulating while retail exits" = smart money buying the dip)
 
-3. **On-Chain & Social Signals**: Mention holder count trends, Twitter activity, and any notable on-chain patterns if relevant.
+3. **Price Action & Volume Context**: Include the ${hasSignificantPriceChange ? `${priceChangeAbs.toFixed(1)}% ${priceDirection}` : 'price movement'} and volume dynamics. Connect price action to holder flows when possible.
 
-4. **Risk/Outlook**: Briefly mention any red flags (low liquidity, overbought conditions) or bullish signals (growing holders, strong fundamentals).
+4. **Risk/Outlook**: Mention concentration risk (top 10% control), liquidity concerns, or bullish signals based on holder distribution health.
 
 **CRITICAL INSTRUCTIONS:**
 ${perplexityData?.news 
   ? `- **PRIORITIZE THE PERPLEXITY NEWS DATA** - This is real-time information. Extract specific details like exchange listings, partnerships, whale transactions, or major announcements mentioned in the news.
 - If the news mentions specific events, numbers, or dates, include them in your summary.
 - Don't just say "no news" - if Perplexity found something, it's important and should be the focus.`
-  : `- Since no recent news was found, focus on technical analysis, volume patterns, and community activity.
-- Mention if this appears to be pure speculation/meme momentum vs. fundamental-driven.`
+  : `- Since no recent news was found, LEAD WITH ON-CHAIN HOLDER FLOW ANALYSIS instead.
+- Build your narrative around whale/retail flows - this is the most valuable insight.`
 }
+- **🐋 ALWAYS ANALYZE HOLDER FLOWS** - This is the core of your analysis. Use phrases like:
+  * Whale net positive: "Smart money accumulating 🐋", "Whales loading up 💰", "Institutional interest building"
+  * Whale net negative: "Whale outflow detected 🐋📉", "Smart money exiting 🚨", "Distribution phase"
+  * Retail net positive: "Retail FOMO building 🦐", "Apes piling in 📈", "Community expansion"
+  * Retail net negative: "Retail selling pressure 🦐📉", "Paper hands folding", "Retail exodus"
+  * Both positive: "Whale and retail alignment 🔥", "Community grinding together 💎"
+  * Divergence: "Whales buying the dip while retail exits" or "Retail FOMO while whales distribute"
+- **NEVER mention Twitter mentions or social media activity** - focus on on-chain data only
 - Use crypto slang naturally but remain factual
 - NO markdown formatting
 - Be specific with numbers and data points
 - If liquidity is very low relative to volume, mention the volatility risk
-- If holders are growing rapidly, mention community expansion
+- If top 10% control >30%, mention concentration risk
 
-**Example (with news):**
-"${token.symbol} surged ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% after [SPECIFIC EVENT FROM PERPLEXITY - e.g., 'BitMart exchange listing' or 'partnership with X protocol']. The announcement triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume, with ${holderGrowth.toLocaleString()} holders piling in. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity pool suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'} Twitter buzz hit ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} mentions as degens ape into the narrative."
+**Example (with news + whale flow):**
+"${token.symbol} surged ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% after [SPECIFIC EVENT FROM PERPLEXITY - e.g., 'BitMart exchange listing']. ${whaleFlow.net > 0 ? 'Smart money is accumulating with +' + whaleFlow.net + ' whale net flow 🐋' : whaleFlow.net < 0 ? 'Whale outflow detected (' + whaleFlow.net + ') as smart money takes profits 🐋📉' : 'Whale activity is neutral'}, while ${retailFlow.net > 0 ? 'retail FOMO is building with +' + retailFlow.net + ' net flow 🦐' : retailFlow.net < 0 ? 'retail is selling (' + retailFlow.net + ' net) 🦐📉' : 'retail flow is balanced'}. The announcement triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'}"
 
-**Example (no news, technical/meme momentum):**
-"${token.symbol} is riding pure meme momentum with ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume, despite no major news or catalysts. ${hasLowLiquidity ? '⚠️ Dangerously low $' + this.formatNumber(token.liquidity || 0) + ' liquidity relative to volume creates rug risk.' : ''} ${holderGrowth.toLocaleString()} holders and ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} Twitter mentions show retail FOMO building, but this looks like speculative pump without fundamentals."`;
+**Example (no news, holder flow-driven):**
+"${token.symbol} is ${whaleFlow.net > 0 && retailFlow.net > 0 ? 'seeing strong on-chain accumulation with whales (+' + whaleFlow.net + ') and retail (+' + retailFlow.net + ') both flowing in 🔥' : whaleFlow.net > 0 ? 'attracting smart money with +' + whaleFlow.net + ' whale net flow 🐋 while retail is ' + (retailFlow.net < 0 ? 'exiting (' + retailFlow.net + ')' : 'neutral') : 'experiencing ' + (whaleFlow.net < 0 ? 'whale distribution (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity')}, driving ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume. ${top10Pct > 30 ? '⚠️ High concentration risk with top 10% controlling ' + top10Pct.toFixed(1) + '% of supply.' : 'Holder distribution looks healthy with ' + top10Pct.toFixed(1) + '% top 10 control.'} ${hasLowLiquidity ? 'Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity creates volatility risk.' : ''}"`;
 
       console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol} using Grok...`);
       
@@ -308,13 +379,16 @@ ${perplexityData?.news
           // Add delay to avoid rate limits (stagger requests)
           await new Promise(resolve => setTimeout(resolve, index * 1000));
           
-          // Get Perplexity news/catalysts
-          const perplexityData = await this.analyzeTokenWithPerplexity(token);
+          // Get Perplexity news/catalysts and holder insights in parallel
+          const [perplexityData, holderInsights] = await Promise.all([
+            this.analyzeTokenWithPerplexity(token),
+            this.fetchHolderInsights(token)
+          ]);
           
           // Generate AI summary (using Grok)
           let summary;
           try {
-            summary = await this.generateTokenSummary(token, perplexityData);
+            summary = await this.generateTokenSummary(token, perplexityData, holderInsights);
           } catch (grokError) {
             console.error(`❌ [TRENDING AI] Grok error for ${token.symbol}:`, grokError.message);
             // Return fallback summary if Grok fails
