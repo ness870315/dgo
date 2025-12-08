@@ -167,7 +167,7 @@ class TrendingTokensAIAnalysisService {
       
       const perplexityResponse = await this.perplexityService.searchCrypto(query, {
         searchRecencyFilter: 'day', // Last 24 hours
-        maxTokens: 400 // Keep it concise
+        maxTokens: 800 // Increased for more detailed news and catalysts
       });
 
       if (!perplexityResponse || !perplexityResponse.content) {
@@ -210,7 +210,13 @@ class TrendingTokensAIAnalysisService {
         ? `${priceChangeAbs.toFixed(1)}% ${priceDirection === 'up' ? 'up' : priceDirection === 'down' ? 'down' : 'flat'}`
         : 'flat/sideways';
       
-      const prompt = `You are a crypto analyst writing a brief, engaging summary for ${token.symbol} (${token.name}).
+      // Build additional context from available data
+      const hasHighVolume = (token.volume24h || 0) > (token.marketCap || token.mcap || 0) * 0.1; // Volume > 10% of mcap
+      const hasLowLiquidity = (token.liquidity || 0) < (token.marketCap || token.mcap || 0) * 0.1; // Liquidity < 10% of mcap
+      const holderGrowth = token.holderCount || 0;
+      const volumeToLiquidityRatio = token.liquidity > 0 ? ((token.volume24h || 0) / token.liquidity).toFixed(2) : 'N/A';
+      
+      const prompt = `You are an expert crypto analyst writing a comprehensive, value-driven summary for ${token.symbol} (${token.name}).
 
 **Token Metrics:**
 - Price: $${token.price?.toFixed(6) || '0'}
@@ -218,41 +224,51 @@ class TrendingTokensAIAnalysisService {
 - 24h Volume: $${this.formatNumber(token.volume24h || 0)}
 - 24h Price Change: ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%
 - Liquidity: $${this.formatNumber(token.liquidity || 0)}
-- Holders: ${token.holderCount || 'N/A'}
+- Volume/Liquidity Ratio: ${volumeToLiquidityRatio}x ${hasLowLiquidity ? '(⚠️ Low liquidity - high volatility risk)' : ''}
+- Holders: ${holderGrowth.toLocaleString()}
 - Twitter Mentions: ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0}
 - Overall Score: ${token.overallScore || 'N/A'}/10
 
-**Recent News & Catalysts:**
-${perplexityData?.news || 'No recent news found.'}
+**🔍 REAL-TIME NEWS & CATALYSTS (from Perplexity search):**
+${perplexityData?.news ? `\n${perplexityData.news}\n\n**Key Sources:**\n${(perplexityData.citations || []).slice(0, 3).map((c, i) => `${i + 1}. ${c}`).join('\n') || 'No citations available'}` : '⚠️ No recent news or catalysts found in search results.'}
 
-**Task:**
-Write a 2-3 sentence summary explaining WHY ${token.symbol} is trending. Focus on:
-1. The main catalyst (whale activity, news, partnerships, listings, technical breakouts, etc.)
-2. Price action context${hasSignificantPriceChange ? ` (${priceChangeText})` : ' (currently trading sideways but still generating interest)'}
-3. Social/community activity if relevant
+**📊 ANALYSIS REQUIREMENTS:**
+Write a 3-4 sentence comprehensive summary that provides REAL VALUE. Structure it as:
 
-**IMPORTANT RULES:**
-${hasSignificantPriceChange 
-  ? `- Mention the ${priceChangeAbs.toFixed(1)}% ${priceDirection} movement naturally in the summary`
-  : `- DO NOT mention "0%" or "flat" price movement. Instead focus on volume, trading activity, community engagement, or other catalysts.`
+1. **LEAD WITH THE CATALYST** (MOST IMPORTANT): Start with the specific news, event, listing, partnership, or whale activity from the Perplexity data. If no news found, mention what's driving the momentum (technical breakout, community hype, etc.)
+
+2. **Price Action & Volume Context**: Include the ${hasSignificantPriceChange ? `${priceChangeAbs.toFixed(1)}% ${priceDirection}` : 'price movement'} and volume dynamics. Highlight if volume is unusually high relative to market cap or if liquidity is thin (risk indicator).
+
+3. **On-Chain & Social Signals**: Mention holder count trends, Twitter activity, and any notable on-chain patterns if relevant.
+
+4. **Risk/Outlook**: Briefly mention any red flags (low liquidity, overbought conditions) or bullish signals (growing holders, strong fundamentals).
+
+**CRITICAL INSTRUCTIONS:**
+${perplexityData?.news 
+  ? `- **PRIORITIZE THE PERPLEXITY NEWS DATA** - This is real-time information. Extract specific details like exchange listings, partnerships, whale transactions, or major announcements mentioned in the news.
+- If the news mentions specific events, numbers, or dates, include them in your summary.
+- Don't just say "no news" - if Perplexity found something, it's important and should be the focus.`
+  : `- Since no recent news was found, focus on technical analysis, volume patterns, and community activity.
+- Mention if this appears to be pure speculation/meme momentum vs. fundamental-driven.`
 }
-- Use crypto slang naturally (moon, pump, ape, degen, etc.)
-- Be factual but engaging
+- Use crypto slang naturally but remain factual
 - NO markdown formatting
-- If price change is < 1%, focus on volume, whale activity, or social metrics instead
+- Be specific with numbers and data points
+- If liquidity is very low relative to volume, mention the volatility risk
+- If holders are growing rapidly, mention community expansion
 
-Example format (for tokens with significant price change):
-"${token.symbol} has pumped ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% in 24h following [catalyst]. Whales have been accumulating with $${this.formatNumber(token.volume24h || 0)} volume, while Twitter mentions hit ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0}. [Additional context about fundamentals or news]."
+**Example (with news):**
+"${token.symbol} surged ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% after [SPECIFIC EVENT FROM PERPLEXITY - e.g., 'BitMart exchange listing' or 'partnership with X protocol']. The announcement triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume, with ${holderGrowth.toLocaleString()} holders piling in. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity pool suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'} Twitter buzz hit ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} mentions as degens ape into the narrative."
 
-Example format (for tokens with flat/sideways price):
-"${token.symbol} is generating buzz with $${this.formatNumber(token.volume24h || 0)} in 24h volume despite sideways price action. [Mention whale activity, community engagement, or news]. Twitter mentions at ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} show growing community interest."`;
+**Example (no news, technical/meme momentum):**
+"${token.symbol} is riding pure meme momentum with ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume, despite no major news or catalysts. ${hasLowLiquidity ? '⚠️ Dangerously low $' + this.formatNumber(token.liquidity || 0) + ' liquidity relative to volume creates rug risk.' : ''} ${holderGrowth.toLocaleString()} holders and ${token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0} Twitter mentions show retail FOMO building, but this looks like speculative pump without fundamentals."`;
 
       console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol} using Grok...`);
       
       const summary = await this.grokService.generateCompletion(prompt, {
         model: 'grok-4-1-fast-reasoning',
         temperature: 0.7,
-        maxTokens: 200,
+        maxTokens: 350, // Increased for more detailed, value-driven summaries
         useCache: false // Always fresh for trending analysis
       });
 
