@@ -329,7 +329,7 @@ Example format (for tokens with flat/sideways price):
             holders: token.holderCount || 0,
             twitterMentions: token.twitterData?.displayMentions || token.twitterData?.mentions || token.mentions || 0,
             sentimentScore: token.twitterData?.sentimentScore || 0,
-            overallScore: token.overallScore || 0
+            overallScore: token.overallScore || 0,
             
             // AI Analysis
             summary: summary,
