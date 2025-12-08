@@ -12,7 +12,8 @@
     "build": "echo 'Backend build completed'",
     "start": "node enhancedBackend.mjs",
     "dev": "node --watch simple-server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm install --include=optional sharp || echo 'Warning: Sharp optional install failed, will use fallback'"
   },
   "keywords": [
     "solana",

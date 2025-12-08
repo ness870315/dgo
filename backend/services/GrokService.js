@@ -20,8 +20,10 @@ class GrokService {
       maxTokensPerMinute: 40000
     };
     this.cache = new Map();
-    this.cacheDir = path.join(process.cwd(), 'data', 'ai_cache');
-    this.metricsFile = path.join(process.cwd(), 'data', 'grok_metrics.json');
+    // Use DATA_DIR if available, otherwise use process.cwd()/data
+    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+    this.cacheDir = path.join(dataDir, 'ai_cache');
+    this.metricsFile = path.join(dataDir, 'grok_metrics.json');
     this.metrics = {
       totalRequests: 0,
       totalTokensUsed: 0,

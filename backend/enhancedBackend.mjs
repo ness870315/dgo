@@ -1311,8 +1311,12 @@ class EnhancedBackend {
         const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, symbol);
         
         if (!imageDataURL) {
-          console.error(`[🛡️ Enhanced Backend] ❌ Failed to generate image for ${fuelType}/${symbol}`);
-          res.status(500).json({ error: 'Failed to generate fuel image' });
+          console.warn(`[🛡️ Enhanced Backend] ⚠️ Failed to generate image for ${fuelType}/${symbol} - Sharp module may not be available`);
+          // Return a simple error response instead of crashing
+          res.status(503).json({ 
+            error: 'Image generation temporarily unavailable',
+            message: 'Sharp module not available on this platform'
+          });
           return;
         }
         

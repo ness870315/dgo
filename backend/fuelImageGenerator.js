@@ -1,13 +1,42 @@
-import sharp from 'sharp';
+// Optional sharp import - lazy load to handle gracefully if not available
+let sharp = null;
+let sharpLoadAttempted = false;
 
 class FuelImageGenerator {
   constructor() {
-    // No initialization needed for Sharp
+    this.sharpAvailable = false;
+  }
+
+  // Lazy load sharp module
+  async loadSharp() {
+    if (sharpLoadAttempted) {
+      return sharp !== null;
+    }
+    
+    sharpLoadAttempted = true;
+    try {
+      const sharpModule = await import('sharp');
+      sharp = sharpModule.default;
+      this.sharpAvailable = true;
+      return true;
+    } catch (error) {
+      console.warn('⚠️ [FUEL IMAGE] Sharp module not available, image generation will be disabled:', error.message);
+      sharp = null;
+      this.sharpAvailable = false;
+      return false;
+    }
   }
 
   // Create a simple fuel image using SVG and Sharp
   async generateFuelImage(fuelType, tokenSymbol) {
     try {
+      // Lazy load sharp if not already loaded
+      const sharpLoaded = await this.loadSharp();
+      if (!sharpLoaded || !sharp) {
+        console.error('❌ [FUEL IMAGE] Sharp module not available');
+        return null;
+      }
+
       // Create SVG content - X requires 1200x630 for link previews
       const svg = `
         <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
