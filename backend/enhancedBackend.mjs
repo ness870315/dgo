@@ -1824,8 +1824,44 @@ class EnhancedBackend {
           
           try {
             const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
-            const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
-            return res.status(response402.status).json(response402.body);
+            
+            // Build x402scan-compliant response format
+            const x402Response = {
+              x402Version: 1,
+              accepts: [
+                {
+                  scheme: "exact",
+                  network: "solana",
+                  maxAmountRequired: priceInUSDC.toString(),
+                  resource: resourceUrl,
+                  description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
+                  mimeType: format === 'text' ? 'text/plain' : 'application/json',
+                  payTo: paymentRequirements.payTo || this.x402PaymentHandler.treasuryAddress,
+                  maxTimeoutSeconds: 300,
+                  asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                  outputSchema: {
+                    input: {
+                      type: "http",
+                      method: "GET",
+                      queryParams: {
+                        format: {
+                          type: "string",
+                          required: false,
+                          description: "Response format: 'json' or 'text'",
+                          enum: ["json", "text"]
+                        }
+                      }
+                    },
+                    output: {
+                      type: "object",
+                      description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
+                    }
+                  }
+                }
+              ]
+            };
+            
+            return res.status(402).json(x402Response);
           } catch (paymentError) {
             console.error('❌ [TRENDING AI API] Payment requirements error:', paymentError.message);
             return res.status(500).json({ 
