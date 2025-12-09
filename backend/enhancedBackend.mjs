@@ -1777,11 +1777,12 @@ class EnhancedBackend {
     // ✨ NEW: AI-Powered Trending Tokens Analysis (x402 Paid Endpoint for Agents)
     this.app.get('/api/tokens/trending/ai-analysis', async (req, res) => {
       try {
-        const limit = Math.min(parseInt(req.query.limit) || 10, 20); // Max 20 tokens
-        const format = req.query.format || 'json'; // 'json' or 'text'
+        // Always return exactly 10 tokens - ignore any limit parameter to prevent manipulation
+        const limit = 10;
+        const format = req.query.format || 'json'; // 'json' or 'text' (format can still be customized)
         const xPaymentHeader = this.x402PaymentHandler?.extractPayment(req.headers);
         
-        console.log(`🤖 [TRENDING AI API] Request: limit=${limit}, format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
+        console.log(`🤖 [TRENDING AI API] Request: limit=${limit} (fixed), format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
         
         // Pricing: $0.50 per request (500,000 USDC micro-units)
         const pricePerRequest = 0.50;
@@ -1809,8 +1810,8 @@ class EnhancedBackend {
             },
             network: 'solana',
             config: {
-              resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=${limit}&format=${format}`,
-              description: `AI-Powered Trending Tokens Analysis (${limit} tokens) - Agent API`,
+              resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`,
+              description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
               maxTimeoutSeconds: 300,
               mimeType: format === 'text' ? 'text/plain' : 'application/json'
             }
@@ -1842,8 +1843,8 @@ class EnhancedBackend {
           },
           network: 'solana',
           config: {
-            resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=${limit}&format=${format}`,
-            description: `AI-Powered Trending Tokens Analysis (${limit} tokens) - Agent API`,
+            resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`,
+            description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
             maxTimeoutSeconds: 300,
             mimeType: format === 'text' ? 'text/plain' : 'application/json'
           }
