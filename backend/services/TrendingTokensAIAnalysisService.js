@@ -197,9 +197,15 @@ class TrendingTokensAIAnalysisService {
    */
   async analyzeTokenWithPerplexity(token) {
     try {
-      const query = `What are the latest news, developments, and price catalysts for ${token.symbol} (${token.name}) cryptocurrency in the last 24-48 hours? Include whale activity, partnerships, listings, or major events. Be concise and factual.`;
+      // Build comprehensive query with name, ticker, and contract address
+      const tokenName = token.name || token.symbol;
+      const tokenSymbol = token.symbol || 'UNKNOWN';
+      const contractAddress = token.contractAddress || '';
+      const contractShort = contractAddress ? `${contractAddress.substring(0, 8)}...${contractAddress.slice(-8)}` : '';
       
-      console.log(`🔍 [TRENDING AI] Perplexity search for ${token.symbol}...`);
+      const query = `What are the latest news, developments, and price catalysts for ${tokenName} (ticker: $${tokenSymbol}, symbol: ${tokenSymbol})${contractAddress ? ` on Solana blockchain, contract address: ${contractAddress}` : ' on Solana'} in the last 24-48 hours? Include whale activity, partnerships, exchange listings, major announcements, or significant events. Be specific and factual.`;
+      
+      console.log(`🔍 [TRENDING AI] Perplexity search for ${tokenName} ($${tokenSymbol})${contractShort ? ` [${contractShort}]` : ''}...`);
       
       const perplexityResponse = await this.perplexityService.searchCrypto(query, {
         searchRecencyFilter: 'day', // Last 24 hours
@@ -255,6 +261,7 @@ class TrendingTokensAIAnalysisService {
       // Extract holder insights data
       const holderStats = holderInsights?.holderStats || {};
       const holderFlowData = holderInsights?.holderFlowData || {};
+      const topHolders = holderInsights?.topHolders || {};
       const segmentFlow = holderFlowData?.segmentFlow || {};
       const whaleFlow = segmentFlow?.whales || { in: 0, out: 0, net: 0 };
       const retailFlow = {
@@ -263,8 +270,59 @@ class TrendingTokensAIAnalysisService {
         net: (segmentFlow?.crabs?.net || 0) + (segmentFlow?.shrimps?.net || 0)
       };
       const whales = holderStats?.holderDistribution?.whales || 0;
-      const top10Pct = holderStats?.holderSupply?.top10?.supplyPercent || 0;
+      
+      // Calculate top 10% control - try multiple sources
+      let top10Pct = 0;
+      
+      // Try holderSupply first (from Moralis API)
+      if (holderStats?.holderSupply?.top10?.supplyPercent) {
+        top10Pct = parseFloat(holderStats.holderSupply.top10.supplyPercent);
+        console.log(`📊 [TRENDING AI] Got top10Pct from holderSupply: ${top10Pct.toFixed(1)}%`);
+      }
+      
+      // If holderSupply is missing or 0, calculate from topHolders
+      if (top10Pct === 0 && topHolders?.holders && topHolders.holders.length > 0) {
+        // Sum percentages of top 10 holders
+        const top10Holders = topHolders.holders.slice(0, 10);
+        top10Pct = top10Holders.reduce((sum, holder) => {
+          // Try multiple possible field names
+          const pct = parseFloat(
+            holder.percentage || 
+            holder.percentageRelativeToTotalSupply || 
+            holder.percentageFormatted?.replace('%', '') ||
+            0
+          );
+          return sum + (isNaN(pct) ? 0 : pct);
+        }, 0);
+        console.log(`📊 [TRENDING AI] Calculated top10Pct from topHolders: ${top10Pct.toFixed(1)}% (from ${top10Holders.length} holders)`);
+      }
+      
+      // Fallback: try supplyConcentration if available
+      if (top10Pct === 0 && holderStats?.supplyConcentration?.top10) {
+        top10Pct = parseFloat(holderStats.supplyConcentration.top10);
+        console.log(`📊 [TRENDING AI] Got top10Pct from supplyConcentration: ${top10Pct.toFixed(1)}%`);
+      }
+      
+      // If still 0, log warning
+      if (top10Pct === 0) {
+        console.warn(`⚠️ [TRENDING AI] Could not determine top10Pct for ${token.symbol} - holderStats:`, {
+          hasHolderSupply: !!holderStats?.holderSupply,
+          hasTopHolders: !!topHolders?.holders,
+          topHoldersCount: topHolders?.holders?.length || 0,
+          hasSupplyConcentration: !!holderStats?.supplyConcentration
+        });
+      }
+      
       const holderChange24h = holderStats?.holderChange?.['24h']?.change || 0;
+      
+      // Debug log holder insights
+      console.log(`📊 [TRENDING AI] ${token.symbol} holder insights:`, {
+        top10Pct: top10Pct.toFixed(1) + '%',
+        whales,
+        whaleFlow: `${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net}`,
+        retailFlow: `${retailFlow.net > 0 ? '+' : ''}${retailFlow.net}`,
+        holderChange24h
+      });
       
       const prompt = `You are an expert crypto analyst writing a comprehensive, value-driven summary for ${token.symbol} (${token.name}).
 
@@ -281,7 +339,7 @@ class TrendingTokensAIAnalysisService {
 **🐋 ON-CHAIN HOLDER INSIGHTS (from Moralis):**
 ${holderInsights 
   ? `- Whales: ${whales}
-- Top 10 Control: ${top10Pct.toFixed(1)}% of supply
+${top10Pct > 0 ? `- Top 10 Control: ${top10Pct.toFixed(1)}% of supply` : '- Top 10 Control: Data not available'}
 - Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
 - 🐋 Whale Flow: ${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net} (in: ${whaleFlow.in}, out: ${whaleFlow.out})
 - 🦐 Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`
@@ -304,7 +362,7 @@ Write a 3-4 sentence comprehensive summary that provides REAL VALUE. Structure i
 
 3. **Price Action & Volume Context**: Include the ${hasSignificantPriceChange ? `${priceChangeAbs.toFixed(1)}% ${priceDirection}` : 'price movement'} and volume dynamics. Connect price action to holder flows when possible.
 
-4. **Risk/Outlook**: Mention concentration risk (top 10% control), liquidity concerns, or bullish signals based on holder distribution health.
+4. **Risk/Outlook**: ${top10Pct > 0 ? `Mention concentration risk if top 10% control >30% (currently ${top10Pct.toFixed(1)}%),` : 'If holder distribution data is available,'} liquidity concerns, or bullish signals based on holder distribution health.
 
 **CRITICAL INSTRUCTIONS:**
 ${perplexityData?.news 
@@ -326,13 +384,13 @@ ${perplexityData?.news
 - NO markdown formatting
 - Be specific with numbers and data points
 - If liquidity is very low relative to volume, mention the volatility risk
-- If top 10% control >30%, mention concentration risk
+- ${top10Pct > 0 ? `If top 10% control >30% (currently ${top10Pct.toFixed(1)}%), mention concentration risk` : 'If concentration data is available and >30%, mention concentration risk'}
 
 **Example (with news + whale flow):**
 "${token.symbol} surged ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) : 'X'}% after [SPECIFIC EVENT FROM PERPLEXITY - e.g., 'BitMart exchange listing']. ${whaleFlow.net > 0 ? 'Smart money is accumulating with +' + whaleFlow.net + ' whale net flow 🐋' : whaleFlow.net < 0 ? 'Whale outflow detected (' + whaleFlow.net + ') as smart money takes profits 🐋📉' : 'Whale activity is neutral'}, while ${retailFlow.net > 0 ? 'retail FOMO is building with +' + retailFlow.net + ' net flow 🦐' : retailFlow.net < 0 ? 'retail is selling (' + retailFlow.net + ' net) 🦐📉' : 'retail flow is balanced'}. The announcement triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'}"
 
 **Example (no news, holder flow-driven):**
-"${token.symbol} is ${whaleFlow.net > 0 && retailFlow.net > 0 ? 'seeing strong on-chain accumulation with whales (+' + whaleFlow.net + ') and retail (+' + retailFlow.net + ') both flowing in 🔥' : whaleFlow.net > 0 ? 'attracting smart money with +' + whaleFlow.net + ' whale net flow 🐋 while retail is ' + (retailFlow.net < 0 ? 'exiting (' + retailFlow.net + ')' : 'neutral') : 'experiencing ' + (whaleFlow.net < 0 ? 'whale distribution (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity')}, driving ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume. ${top10Pct > 30 ? '⚠️ High concentration risk with top 10% controlling ' + top10Pct.toFixed(1) + '% of supply.' : 'Holder distribution looks healthy with ' + top10Pct.toFixed(1) + '% top 10 control.'} ${hasLowLiquidity ? 'Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity creates volatility risk.' : ''}"`;
+"${token.symbol} is ${whaleFlow.net > 0 && retailFlow.net > 0 ? 'seeing strong on-chain accumulation with whales (+' + whaleFlow.net + ') and retail (+' + retailFlow.net + ') both flowing in 🔥' : whaleFlow.net > 0 ? 'attracting smart money with +' + whaleFlow.net + ' whale net flow 🐋 while retail is ' + (retailFlow.net < 0 ? 'exiting (' + retailFlow.net + ')' : 'neutral') : 'experiencing ' + (whaleFlow.net < 0 ? 'whale distribution (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity')}, driving ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume. ${top10Pct > 0 ? (top10Pct > 30 ? '⚠️ High concentration risk with top 10% controlling ' + top10Pct.toFixed(1) + '% of supply.' : 'Holder distribution looks healthy with ' + top10Pct.toFixed(1) + '% top 10 control.') : ''} ${hasLowLiquidity ? 'Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity creates volatility risk.' : ''}"`;
 
       console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol} using Grok...`);
       
@@ -385,6 +443,49 @@ ${perplexityData?.news
             this.fetchHolderInsights(token)
           ]);
           
+          // Extract holder insights data for return object
+          let top10Pct = 0;
+          let whaleFlow = { net: 0, in: 0, out: 0 };
+          let retailFlow = { net: 0, in: 0, out: 0 };
+          let whales = 0;
+          let holderChange24h = 0;
+          
+          if (holderInsights) {
+            const holderStats = holderInsights?.holderStats || {};
+            const holderFlowData = holderInsights?.holderFlowData || {};
+            const topHolders = holderInsights?.topHolders || {};
+            const segmentFlow = holderFlowData?.segmentFlow || {};
+            whaleFlow = segmentFlow?.whales || { in: 0, out: 0, net: 0 };
+            retailFlow = {
+              in: (segmentFlow?.crabs?.in || 0) + (segmentFlow?.shrimps?.in || 0),
+              out: (segmentFlow?.crabs?.out || 0) + (segmentFlow?.shrimps?.out || 0),
+              net: (segmentFlow?.crabs?.net || 0) + (segmentFlow?.shrimps?.net || 0)
+            };
+            whales = holderStats?.holderDistribution?.whales || 0;
+            holderChange24h = holderStats?.holderChange?.['24h']?.change || 0;
+            
+            // Calculate top10Pct - try multiple sources
+            if (holderStats?.holderSupply?.top10?.supplyPercent) {
+              top10Pct = parseFloat(holderStats.holderSupply.top10.supplyPercent);
+            } else if (topHolders?.holders && topHolders.holders.length > 0) {
+              const top10Holders = topHolders.holders.slice(0, 10);
+              top10Pct = top10Holders.reduce((sum, holder) => {
+                const pct = parseFloat(holder.percentage || holder.percentageRelativeToTotalSupply || holder.percentageFormatted?.replace('%', '') || 0);
+                return sum + (isNaN(pct) ? 0 : pct);
+              }, 0);
+            } else if (holderStats?.supplyConcentration?.top10) {
+              top10Pct = parseFloat(holderStats.supplyConcentration.top10);
+            }
+            
+            console.log(`📊 [TRENDING AI] ${token.symbol} extracted holder insights:`, {
+              top10Pct: top10Pct > 0 ? top10Pct.toFixed(1) + '%' : 'N/A',
+              whales,
+              whaleFlow: `${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net}`,
+              retailFlow: `${retailFlow.net > 0 ? '+' : ''}${retailFlow.net}`,
+              holderChange24h
+            });
+          }
+          
           // Generate AI summary (using Grok)
           let summary;
           try {
@@ -425,6 +526,15 @@ ${perplexityData?.news
             summary: summary,
             news: perplexityData?.news || null,
             citations: perplexityData?.citations || [],
+            
+            // Holder Insights (for reference)
+            holderInsights: holderInsights ? {
+              top10Control: top10Pct > 0 ? top10Pct : null,
+              whaleFlow: whaleFlow.net,
+              retailFlow: retailFlow.net,
+              whales: whales,
+              holderChange24h: holderChange24h
+            } : null,
             
             // Metadata
             timestamp: new Date().toISOString()
@@ -485,10 +595,12 @@ ${perplexityData?.news
 
     analysisResult.tokens.forEach(token => {
       report += `${token.rank}. ${token.symbol} (${token.name})\n`;
+      if (token.contractAddress) {
+        report += `   📍 CA: ${token.contractAddress}\n`;
+      }
       report += `   💰 Price: ${token.priceFormatted} (${token.priceChange24hFormatted})\n`;
       report += `   📊 Market Cap: ${token.marketCapFormatted} | Volume: ${token.volume24hFormatted}\n`;
       report += `   💧 Liquidity: ${token.liquidityFormatted} | Score: ${token.overallScore}/10\n`;
-      report += `   🐦 Twitter: ${token.twitterMentions} mentions | Sentiment: ${token.sentimentScore.toFixed(1)}/10\n`;
       report += `   👥 Holders: ${token.holders.toLocaleString()}\n`;
       report += `   \n`;
       report += `   📝 ${token.summary}\n`;
