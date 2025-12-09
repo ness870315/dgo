@@ -1774,14 +1774,107 @@ class EnhancedBackend {
       }
     });
 
-    // ✨ NEW: AI-Powered Trending Tokens Analysis
+    // ✨ NEW: AI-Powered Trending Tokens Analysis (x402 Paid Endpoint for Agents)
     this.app.get('/api/tokens/trending/ai-analysis', async (req, res) => {
       try {
         const limit = Math.min(parseInt(req.query.limit) || 10, 20); // Max 20 tokens
         const format = req.query.format || 'json'; // 'json' or 'text'
+        const xPaymentHeader = this.x402PaymentHandler?.extractPayment(req.headers);
         
-        console.log(`🤖 [TRENDING AI API] Request: limit=${limit}, format=${format}`);
+        console.log(`🤖 [TRENDING AI API] Request: limit=${limit}, format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
         
+        // Pricing: $0.50 per request (500,000 USDC micro-units)
+        const pricePerRequest = 0.50;
+        const priceInUSDC = BigInt(Math.round(pricePerRequest * 1e6)); // 500,000 micro-USDC
+        
+        // If no X-PAYMENT header, return 402 Payment Required
+        if (!xPaymentHeader) {
+          console.log(`💰 [TRENDING AI API] Returning 402 Payment Required: $${pricePerRequest} USDC`);
+          
+          if (!this.x402PaymentHandler) {
+            return res.status(500).json({ 
+              error: 'payment_handler_not_initialized',
+              message: 'Payment handler not available' 
+            });
+          }
+          
+          // Create payment requirements
+          const routeConfig = {
+            price: {
+              amount: priceInUSDC.toString(),
+              asset: {
+                address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                decimals: 6
+              }
+            },
+            network: 'solana',
+            config: {
+              resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=${limit}&format=${format}`,
+              description: `AI-Powered Trending Tokens Analysis (${limit} tokens) - Agent API`,
+              maxTimeoutSeconds: 300,
+              mimeType: format === 'text' ? 'text/plain' : 'application/json'
+            }
+          };
+          
+          try {
+            const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+            const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
+            return res.status(response402.status).json(response402.body);
+          } catch (paymentError) {
+            console.error('❌ [TRENDING AI API] Payment requirements error:', paymentError.message);
+            return res.status(500).json({ 
+              error: 'payment_setup_failed',
+              message: paymentError.message 
+            });
+          }
+        }
+        
+        // Verify payment
+        console.log(`🔍 [TRENDING AI API] Verifying x402 payment...`);
+        
+        const routeConfig = {
+          price: {
+            amount: priceInUSDC.toString(),
+            asset: {
+              address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+              decimals: 6
+            }
+          },
+          network: 'solana',
+          config: {
+            resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?limit=${limit}&format=${format}`,
+            description: `AI-Powered Trending Tokens Analysis (${limit} tokens) - Agent API`,
+            maxTimeoutSeconds: 300,
+            mimeType: format === 'text' ? 'text/plain' : 'application/json'
+          }
+        };
+        
+        const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+        const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
+        
+        if (verifyResult !== true) {
+          console.log(`❌ [TRENDING AI API] Payment verification failed`);
+          return res.status(402).json({ 
+            error: 'payment_verification_failed',
+            message: 'Payment verification failed. Please retry with valid payment.' 
+          });
+        }
+        
+        // Settle payment
+        console.log(`💰 [TRENDING AI API] Settling payment...`);
+        const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
+        
+        if (settleResult !== true) {
+          console.log(`❌ [TRENDING AI API] Payment settlement failed`);
+          return res.status(500).json({ 
+            error: 'payment_settlement_failed',
+            message: 'Payment settlement failed' 
+          });
+        }
+        
+        console.log(`✅ [TRENDING AI API] Payment successful, generating analysis...`);
+        
+        // Payment successful - generate and return analysis
         // Lazy-load the service (only when needed)
         if (!this.trendingAIService) {
           const TrendingTokensAIAnalysisService = (await import('./services/TrendingTokensAIAnalysisService.js')).default;
@@ -1807,7 +1900,7 @@ class EnhancedBackend {
           res.json(analysisResult);
         }
         
-        console.log(`✅ [TRENDING AI API] Analysis complete: ${analysisResult.count} tokens`);
+        console.log(`✅ [TRENDING AI API] Analysis complete: ${analysisResult.count} tokens (paid via x402)`);
         
       } catch (error) {
         console.error('❌ [TRENDING AI API] Error:', error.message);
