@@ -1800,6 +1800,11 @@ class EnhancedBackend {
           }
           
           // Create payment requirements
+          // Build resource URL to match the actual request URL (preserve format if provided)
+          const resourceUrl = format && format !== 'json' 
+            ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
+            : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
+          
           const routeConfig = {
             price: {
               amount: priceInUSDC.toString(),
@@ -1810,7 +1815,7 @@ class EnhancedBackend {
             },
             network: 'solana',
             config: {
-              resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`,
+              resource: resourceUrl,
               description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
               maxTimeoutSeconds: 300,
               mimeType: format === 'text' ? 'text/plain' : 'application/json'
@@ -1833,6 +1838,11 @@ class EnhancedBackend {
         // Verify payment
         console.log(`🔍 [TRENDING AI API] Verifying x402 payment...`);
         
+        // Build resource URL to match the actual request URL (preserve format if provided)
+        const resourceUrl = format && format !== 'json' 
+          ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
+          : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
+        
         const routeConfig = {
           price: {
             amount: priceInUSDC.toString(),
@@ -1843,7 +1853,7 @@ class EnhancedBackend {
           },
           network: 'solana',
           config: {
-            resource: `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`,
+            resource: resourceUrl,
             description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
             maxTimeoutSeconds: 300,
             mimeType: format === 'text' ? 'text/plain' : 'application/json'
