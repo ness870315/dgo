@@ -1779,15 +1779,20 @@ class EnhancedBackend {
       console.log(`\n🔍 [TRENDING AI API] ===== NEW REQUEST =====`);
       console.log(`   URL: ${req.url}`);
       console.log(`   Method: ${req.method}`);
-      console.log(`   Headers:`, JSON.stringify(req.headers, null, 2));
+      console.log(`   Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+      console.log(`   Query string: ${req.url.split('?')[1] || '(none)'}`);
+      console.log(`   Accept header: ${req.headers.accept || '(none)'}`);
+      console.log(`   Content-Type header: ${req.headers['content-type'] || '(none)'}`);
+      console.log(`   All headers:`, JSON.stringify(req.headers, null, 2));
       
       try {
         // Always return exactly 10 tokens - ignore any limit parameter to prevent manipulation
         const limit = 10;
         const format = req.query.format || 'json'; // 'json' or 'text' (format can still be customized)
         
-        console.log(`   Query params:`, req.query);
-        console.log(`   Format: ${format}, Limit: ${limit}`);
+        console.log(`   Query params:`, JSON.stringify(req.query, null, 2));
+        console.log(`   Parsed format: ${format}`);
+        console.log(`   Limit: ${limit}`);
         
         // Check if x402PaymentHandler is initialized
         if (!this.x402PaymentHandler) {
@@ -1875,9 +1880,33 @@ class EnhancedBackend {
             };
             
             console.log(`   ✅ Built 402 response, sending...`);
-            console.log(`   Response preview:`, JSON.stringify(x402Response, null, 2).substring(0, 500));
             
-            return res.status(402).json(x402Response);
+            // Convert BigInt to string before JSON serialization
+            const responseToSend = JSON.parse(JSON.stringify(x402Response, (key, value) => {
+              if (typeof value === 'bigint') {
+                return value.toString();
+              }
+              return value;
+            }));
+            
+            console.log(`   Response size: ${JSON.stringify(responseToSend).length} bytes`);
+            console.log(`   Response preview:`, JSON.stringify(responseToSend, null, 2).substring(0, 500));
+            
+            try {
+              // Explicitly set Content-Type to application/json
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              console.log(`   ✅ Set Content-Type: application/json; charset=utf-8`);
+              console.log(`   ✅ Sending 402 response with status 402...`);
+              
+              const result = res.status(402).json(responseToSend);
+              console.log(`   ✅ Response sent successfully`);
+              return result;
+            } catch (sendError) {
+              console.error(`   ❌ Error sending 402 response:`, sendError.message);
+              console.error(`   Error name: ${sendError.name}`);
+              console.error(`   Stack:`, sendError.stack);
+              throw sendError;
+            }
           } catch (responseError) {
             console.error(`   ❌ Error building 402 response:`, responseError.message);
             console.error(`   Stack:`, responseError.stack);
