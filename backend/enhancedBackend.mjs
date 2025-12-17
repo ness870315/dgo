@@ -1823,7 +1823,8 @@ class EnhancedBackend {
           };
           
           try {
-            const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+            // Get merchant USDC ATA (precomputed)
+            const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
             
             // Build x402scan-compliant response format
             const x402Response = {
@@ -1836,7 +1837,7 @@ class EnhancedBackend {
                   resource: resourceUrl,
                   description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
                   mimeType: format === 'text' ? 'text/plain' : 'application/json',
-                  payTo: paymentRequirements.payTo || this.x402PaymentHandler.treasuryAddress,
+                  payTo: merchantUSDCATA,
                   maxTimeoutSeconds: 300,
                   asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
                   outputSchema: {
@@ -1864,6 +1865,7 @@ class EnhancedBackend {
             return res.status(402).json(x402Response);
           } catch (paymentError) {
             console.error('❌ [TRENDING AI API] Payment requirements error:', paymentError.message);
+            console.error('❌ [TRENDING AI API] Payment error stack:', paymentError.stack);
             return res.status(500).json({ 
               error: 'payment_setup_failed',
               message: paymentError.message 
