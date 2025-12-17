@@ -1980,6 +1980,9 @@ class EnhancedBackend {
         
         console.log(`   Resource URL for verification: ${resourceUrl}`);
         
+        // Get merchant USDC ATA (must match the 402 response)
+        const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
+        
         const routeConfig = {
           price: {
             amount: priceInUSDC.toString(),
@@ -2003,6 +2006,11 @@ class EnhancedBackend {
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log(`   ✅ Payment requirements created`);
           console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
+          
+          // CRITICAL: Override payTo to match the 402 response (must be USDC ATA, not wallet)
+          console.log(`   Original payTo: ${paymentRequirements.payTo}`);
+          paymentRequirements.payTo = merchantUSDCATA;
+          console.log(`   ✅ Overridden payTo to match 402 response: ${merchantUSDCATA}`);
           
           // Ensure feePayer is in extra field (required for verification)
           if (!paymentRequirements.extra) {
