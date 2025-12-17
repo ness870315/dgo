@@ -1862,6 +1862,36 @@ class EnhancedBackend {
             const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
             console.log(`   Merchant ATA: ${merchantUSDCATA}`);
             
+            // Create payment requirements to get facilitator fee payer
+            const routeConfig = {
+              price: {
+                amount: priceInUSDC.toString(),
+                asset: {
+                  address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                  decimals: 6
+                }
+              },
+              network: 'solana',
+              config: {
+                resource: resourceUrl,
+                description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
+                maxTimeoutSeconds: 300,
+                mimeType: format === 'text' ? 'text/plain' : 'application/json'
+              }
+            };
+            
+            let facilitatorFeePayer = null;
+            try {
+              const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+              // Extract feePayer from paymentRequirements.extra if available
+              facilitatorFeePayer = paymentRequirements?.extra?.feePayer || 
+                                   paymentRequirements?.feePayer ||
+                                   null;
+              console.log(`   Facilitator fee payer from SDK: ${facilitatorFeePayer || 'NOT FOUND'}`);
+            } catch (reqError) {
+              console.warn(`   ⚠️ Could not get payment requirements for feePayer: ${reqError.message}`);
+            }
+            
             // Build x402scan-compliant response format
             const x402Response = {
               x402Version: 1,
@@ -1876,6 +1906,11 @@ class EnhancedBackend {
                   payTo: merchantUSDCATA,
                   maxTimeoutSeconds: 300,
                   asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                  ...(facilitatorFeePayer && {
+                    extra: {
+                      feePayer: facilitatorFeePayer
+                    }
+                  }),
                   outputSchema: {
                     input: {
                       type: "http",
