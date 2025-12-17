@@ -1970,11 +1970,15 @@ class EnhancedBackend {
         
         // Verify payment
         console.log(`🔍 [TRENDING AI API] Verifying x402 payment...`);
+        console.log(`   X-PAYMENT header length: ${xPaymentHeader?.length || 0} chars`);
+        console.log(`   X-PAYMENT header preview: ${xPaymentHeader?.substring(0, 100) || 'N/A'}...`);
         
         // Build resource URL to match the actual request URL (preserve format if provided)
         const resourceUrl = format && format !== 'json' 
           ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
           : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
+        
+        console.log(`   Resource URL for verification: ${resourceUrl}`);
         
         const routeConfig = {
           price: {
@@ -1993,16 +1997,48 @@ class EnhancedBackend {
           }
         };
         
-        const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
-        const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
+        let paymentRequirements;
+        try {
+          console.log(`   Creating payment requirements for verification...`);
+          paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+          console.log(`   ✅ Payment requirements created`);
+          console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
+        } catch (reqError) {
+          console.error(`   ❌ Error creating payment requirements:`, reqError.message);
+          console.error(`   Stack:`, reqError.stack);
+          return res.status(500).json({ 
+            error: 'payment_requirements_failed',
+            message: reqError.message 
+          });
+        }
+        
+        let verifyResult;
+        try {
+          console.log(`   Calling verifyPayment...`);
+          verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
+          console.log(`   Verify result type: ${typeof verifyResult}`);
+          console.log(`   Verify result:`, verifyResult);
+        } catch (verifyError) {
+          console.error(`   ❌ Error during verifyPayment:`, verifyError.message);
+          console.error(`   Error name: ${verifyError.name}`);
+          console.error(`   Stack:`, verifyError.stack);
+          return res.status(402).json({ 
+            error: 'payment_verification_error',
+            message: verifyError.message 
+          });
+        }
         
         if (verifyResult !== true) {
           console.log(`❌ [TRENDING AI API] Payment verification failed`);
+          console.log(`   Verify result:`, JSON.stringify(verifyResult, null, 2));
           return res.status(402).json({ 
             error: 'payment_verification_failed',
-            message: 'Payment verification failed. Please retry with valid payment.' 
+            message: 'Payment verification failed. Please retry with valid payment.',
+            details: typeof verifyResult === 'object' ? verifyResult : { result: verifyResult }
           });
         }
+        
+        console.log(`✅ [TRENDING AI API] Payment verification successful`);
         
         // Settle payment
         console.log(`💰 [TRENDING AI API] Settling payment...`);
