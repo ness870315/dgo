@@ -1858,11 +1858,7 @@ class EnhancedBackend {
             
             console.log(`   Resource URL: ${resourceUrl}`);
             
-            // Get merchant USDC ATA (precomputed)
-            const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
-            console.log(`   Merchant ATA: ${merchantUSDCATA}`);
-            
-            // Create payment requirements to get facilitator fee payer
+            // Create payment requirements using PayAI SDK (same pattern as fuel endpoint)
             const routeConfig = {
               price: {
                 amount: priceInUSDC.toString(),
@@ -1880,87 +1876,12 @@ class EnhancedBackend {
               }
             };
             
-            let facilitatorFeePayer = null;
-            try {
-              const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
-              // Extract feePayer from paymentRequirements.extra if available
-              facilitatorFeePayer = paymentRequirements?.extra?.feePayer || 
-                                   paymentRequirements?.feePayer ||
-                                   null;
-              console.log(`   Facilitator fee payer from SDK: ${facilitatorFeePayer || 'NOT FOUND'}`);
-            } catch (reqError) {
-              console.warn(`   ⚠️ Could not get payment requirements for feePayer: ${reqError.message}`);
-            }
+            const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+            const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
             
-            // Build x402scan-compliant response format
-            const x402Response = {
-              x402Version: 1,
-              accepts: [
-                {
-                  scheme: "exact",
-                  network: "solana",
-                  maxAmountRequired: priceInUSDC.toString(),
-                  resource: resourceUrl,
-                  description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
-                  mimeType: format === 'text' ? 'text/plain' : 'application/json',
-                  payTo: merchantUSDCATA,
-                  maxTimeoutSeconds: 300,
-                  asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                  ...(facilitatorFeePayer && {
-                    extra: {
-                      feePayer: facilitatorFeePayer
-                    }
-                  }),
-                  outputSchema: {
-                    input: {
-                      type: "http",
-                      method: "GET",
-                      queryParams: {
-                        format: {
-                          type: "string",
-                          required: false,
-                          description: "Response format: 'json' or 'text'",
-                          enum: ["json", "text"]
-                        }
-                      }
-                    },
-                    output: {
-                      type: "object",
-                      description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
-                    }
-                  }
-                }
-              ]
-            };
+            console.log(`   ✅ Built 402 response using SDK, sending...`);
             
-            console.log(`   ✅ Built 402 response, sending...`);
-            
-            // Convert BigInt to string before JSON serialization
-            const responseToSend = JSON.parse(JSON.stringify(x402Response, (key, value) => {
-              if (typeof value === 'bigint') {
-                return value.toString();
-              }
-              return value;
-            }));
-            
-            console.log(`   Response size: ${JSON.stringify(responseToSend).length} bytes`);
-            console.log(`   Response preview:`, JSON.stringify(responseToSend, null, 2).substring(0, 500));
-            
-            try {
-              // Explicitly set Content-Type to application/json
-              res.setHeader('Content-Type', 'application/json; charset=utf-8');
-              console.log(`   ✅ Set Content-Type: application/json; charset=utf-8`);
-              console.log(`   ✅ Sending 402 response with status 402...`);
-              
-              const result = res.status(402).json(responseToSend);
-              console.log(`   ✅ Response sent successfully`);
-              return result;
-            } catch (sendError) {
-              console.error(`   ❌ Error sending 402 response:`, sendError.message);
-              console.error(`   Error name: ${sendError.name}`);
-              console.error(`   Stack:`, sendError.stack);
-              throw sendError;
-            }
+            return res.status(response402.status).json(response402.body);
           } catch (responseError) {
             console.error(`   ❌ Error building 402 response:`, responseError.message);
             console.error(`   Stack:`, responseError.stack);
@@ -1980,9 +1901,7 @@ class EnhancedBackend {
         
         console.log(`   Resource URL for verification: ${resourceUrl}`);
         
-        // Get merchant USDC ATA (must match the 402 response)
-        const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
-        
+        // Recreate payment requirements for verification (same routeConfig as 402 response)
         const routeConfig = {
           price: {
             amount: priceInUSDC.toString(),
@@ -2005,39 +1924,6 @@ class EnhancedBackend {
           console.log(`   Creating payment requirements for verification...`);
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log(`   ✅ Payment requirements created`);
-          console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
-          console.log(`   Original payTo from SDK: ${paymentRequirements.payTo}`);
-          
-          // CRITICAL: Override payTo to match the 402 response (must be USDC ATA, not wallet)
-          // The SDK returns the wallet address, but we declared the ATA in the 402 response
-          const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
-          console.log(`   Expected payTo (from 402 response): ${merchantUSDCATA}`);
-          if (paymentRequirements.payTo !== merchantUSDCATA) {
-            console.log(`   ⚠️ payTo mismatch! SDK returned wallet, but 402 response declared ATA. Fixing...`);
-            paymentRequirements.payTo = merchantUSDCATA;
-            console.log(`   ✅ Overridden payTo to match 402 response: ${merchantUSDCATA}`);
-          } else {
-            console.log(`   ✅ payTo already matches 402 response`);
-          }
-          
-          // Ensure feePayer is in extra field (required for verification)
-          if (!paymentRequirements.extra) {
-            paymentRequirements.extra = {};
-          }
-          if (!paymentRequirements.extra.feePayer) {
-            // Get feePayer from paymentRequirements if available
-            const feePayer = paymentRequirements.feePayer || 
-                           paymentRequirements.extra?.feePayer ||
-                           null;
-            if (feePayer) {
-              paymentRequirements.extra.feePayer = feePayer;
-              console.log(`   ✅ Added feePayer to extra: ${feePayer}`);
-            } else {
-              console.warn(`   ⚠️ feePayer not found in payment requirements`);
-            }
-          }
-          
-          console.log(`   Payment requirements (full):`, JSON.stringify(paymentRequirements, null, 2));
         } catch (reqError) {
           console.error(`   ❌ Error creating payment requirements:`, reqError.message);
           console.error(`   Stack:`, reqError.stack);
@@ -2047,27 +1933,14 @@ class EnhancedBackend {
           });
         }
         
+        // Verify payment using PayAI SDK (same pattern as fuel endpoint)
         let verifyResult;
         try {
           console.log(`   Calling verifyPayment...`);
-          console.log(`   X-PAYMENT header (first 200 chars): ${xPaymentHeader?.substring(0, 200)}`);
-          console.log(`   Payment requirements amount: ${paymentRequirements?.price?.amount || 'N/A'}`);
-          console.log(`   Payment requirements payTo: ${paymentRequirements?.payTo || 'N/A'}`);
-          
           verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
-          console.log(`   Verify result type: ${typeof verifyResult}`);
-          console.log(`   Verify result value:`, verifyResult);
-          console.log(`   Verify result === true: ${verifyResult === true}`);
-          console.log(`   Verify result === false: ${verifyResult === false}`);
-          
-          // If verifyResult is an object, log its properties
-          if (typeof verifyResult === 'object' && verifyResult !== null) {
-            console.log(`   Verify result properties:`, Object.keys(verifyResult));
-            console.log(`   Verify result (full):`, JSON.stringify(verifyResult, null, 2));
-          }
+          console.log(`   Verify result: ${verifyResult}`);
         } catch (verifyError) {
           console.error(`   ❌ Error during verifyPayment:`, verifyError.message);
-          console.error(`   Error name: ${verifyError.name}`);
           console.error(`   Stack:`, verifyError.stack);
           return res.status(402).json({ 
             error: 'payment_verification_error',
@@ -2075,29 +1948,23 @@ class EnhancedBackend {
           });
         }
         
+        // SDK returns boolean: true = valid, false = invalid
         if (verifyResult !== true) {
           console.log(`❌ [TRENDING AI API] Payment verification failed`);
-          console.log(`   Verify result type: ${typeof verifyResult}`);
-          console.log(`   Verify result:`, JSON.stringify(verifyResult, null, 2));
-          
-          // Check if it's a validation error object
-          if (typeof verifyResult === 'object' && verifyResult !== null) {
-            console.log(`   Verification error details:`, verifyResult);
-          }
-          
           return res.status(402).json({ 
             error: 'payment_verification_failed',
             message: 'Payment verification failed. Please retry with valid payment.',
-            details: typeof verifyResult === 'object' ? verifyResult : { result: verifyResult }
+            details: { isValid: verifyResult }
           });
         }
         
         console.log(`✅ [TRENDING AI API] Payment verification successful`);
         
-        // Settle payment
+        // Settle payment using PayAI SDK (same pattern as fuel endpoint)
         console.log(`💰 [TRENDING AI API] Settling payment...`);
         const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
         
+        // SDK returns boolean: true = settled, false = failed
         if (settleResult !== true) {
           console.log(`❌ [TRENDING AI API] Payment settlement failed`);
           return res.status(500).json({ 
@@ -2106,7 +1973,7 @@ class EnhancedBackend {
           });
         }
         
-        console.log(`✅ [TRENDING AI API] Payment successful, generating analysis...`);
+        console.log(`✅ [TRENDING AI API] Payment settled successfully!`);
         
         // Payment successful - generate and return analysis
         // Lazy-load the service (only when needed)
