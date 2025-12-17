@@ -2003,6 +2003,24 @@ class EnhancedBackend {
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log(`   ✅ Payment requirements created`);
           console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
+          
+          // Ensure feePayer is in extra field (required for verification)
+          if (!paymentRequirements.extra) {
+            paymentRequirements.extra = {};
+          }
+          if (!paymentRequirements.extra.feePayer) {
+            // Get feePayer from paymentRequirements if available
+            const feePayer = paymentRequirements.feePayer || 
+                           paymentRequirements.extra?.feePayer ||
+                           null;
+            if (feePayer) {
+              paymentRequirements.extra.feePayer = feePayer;
+              console.log(`   ✅ Added feePayer to extra: ${feePayer}`);
+            } else {
+              console.warn(`   ⚠️ feePayer not found in payment requirements`);
+            }
+          }
+          
           console.log(`   Payment requirements (full):`, JSON.stringify(paymentRequirements, null, 2));
         } catch (reqError) {
           console.error(`   ❌ Error creating payment requirements:`, reqError.message);
