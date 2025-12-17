@@ -1776,10 +1776,18 @@ class EnhancedBackend {
 
     // ✨ NEW: AI-Powered Trending Tokens Analysis (x402 Paid Endpoint for Agents)
     this.app.get('/api/tokens/trending/ai-analysis', async (req, res) => {
+      console.log(`\n🔍 [TRENDING AI API] ===== NEW REQUEST =====`);
+      console.log(`   URL: ${req.url}`);
+      console.log(`   Method: ${req.method}`);
+      console.log(`   Headers:`, JSON.stringify(req.headers, null, 2));
+      
       try {
         // Always return exactly 10 tokens - ignore any limit parameter to prevent manipulation
         const limit = 10;
         const format = req.query.format || 'json'; // 'json' or 'text' (format can still be customized)
+        
+        console.log(`   Query params:`, req.query);
+        console.log(`   Format: ${format}, Limit: ${limit}`);
         
         // Check if x402PaymentHandler is initialized
         if (!this.x402PaymentHandler) {
@@ -1790,63 +1798,91 @@ class EnhancedBackend {
           });
         }
         
-        const xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
+        console.log(`   ✅ x402PaymentHandler is initialized`);
+        
+        let xPaymentHeader;
+        try {
+          xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
+          console.log(`   X-PAYMENT header: ${xPaymentHeader ? 'PRESENT' : 'NOT PRESENT'}`);
+        } catch (extractError) {
+          console.error(`   ❌ Error extracting payment header:`, extractError.message);
+          xPaymentHeader = null;
+        }
         
         console.log(`🤖 [TRENDING AI API] Request: limit=${limit} (fixed), format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
         
         // Pricing: $0.50 per request (500,000 USDC micro-units)
         const pricePerRequest = 0.50;
-        const priceInUSDC = BigInt(Math.round(pricePerRequest * 1e6)); // 500,000 micro-USDC
+        let priceInUSDC;
+        try {
+          priceInUSDC = BigInt(Math.round(pricePerRequest * 1e6)); // 500,000 micro-USDC
+          console.log(`   Price: $${pricePerRequest} = ${priceInUSDC.toString()} micro-USDC`);
+        } catch (priceError) {
+          console.error(`   ❌ Error calculating price:`, priceError.message);
+          throw priceError;
+        }
         
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
           console.log(`💰 [TRENDING AI API] Returning 402 Payment Required: $${pricePerRequest} USDC`);
           
-          // Build resource URL to match the actual request URL (preserve format if provided)
-          const resourceUrl = format && format !== 'json' 
-            ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
-            : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
-          
-          // Get merchant USDC ATA (precomputed)
-          const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
-          
-          // Build x402scan-compliant response format
-          const x402Response = {
-            x402Version: 1,
-            accepts: [
-              {
-                scheme: "exact",
-                network: "solana",
-                maxAmountRequired: priceInUSDC.toString(),
-                resource: resourceUrl,
-                description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
-                mimeType: format === 'text' ? 'text/plain' : 'application/json',
-                payTo: merchantUSDCATA,
-                maxTimeoutSeconds: 300,
-                asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                outputSchema: {
-                  input: {
-                    type: "http",
-                    method: "GET",
-                    queryParams: {
-                      format: {
-                        type: "string",
-                        required: false,
-                        description: "Response format: 'json' or 'text'",
-                        enum: ["json", "text"]
+          try {
+            // Build resource URL to match the actual request URL (preserve format if provided)
+            const resourceUrl = format && format !== 'json' 
+              ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
+              : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
+            
+            console.log(`   Resource URL: ${resourceUrl}`);
+            
+            // Get merchant USDC ATA (precomputed)
+            const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
+            console.log(`   Merchant ATA: ${merchantUSDCATA}`);
+            
+            // Build x402scan-compliant response format
+            const x402Response = {
+              x402Version: 1,
+              accepts: [
+                {
+                  scheme: "exact",
+                  network: "solana",
+                  maxAmountRequired: priceInUSDC.toString(),
+                  resource: resourceUrl,
+                  description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
+                  mimeType: format === 'text' ? 'text/plain' : 'application/json',
+                  payTo: merchantUSDCATA,
+                  maxTimeoutSeconds: 300,
+                  asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                  outputSchema: {
+                    input: {
+                      type: "http",
+                      method: "GET",
+                      queryParams: {
+                        format: {
+                          type: "string",
+                          required: false,
+                          description: "Response format: 'json' or 'text'",
+                          enum: ["json", "text"]
+                        }
                       }
+                    },
+                    output: {
+                      type: "object",
+                      description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
                     }
-                  },
-                  output: {
-                    type: "object",
-                    description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
                   }
                 }
-              }
-            ]
-          };
-          
-          return res.status(402).json(x402Response);
+              ]
+            };
+            
+            console.log(`   ✅ Built 402 response, sending...`);
+            console.log(`   Response preview:`, JSON.stringify(x402Response, null, 2).substring(0, 500));
+            
+            return res.status(402).json(x402Response);
+          } catch (responseError) {
+            console.error(`   ❌ Error building 402 response:`, responseError.message);
+            console.error(`   Stack:`, responseError.stack);
+            throw responseError;
+          }
         }
         
         // Verify payment
@@ -1928,8 +1964,16 @@ class EnhancedBackend {
         console.log(`✅ [TRENDING AI API] Analysis complete: ${analysisResult.count} tokens (paid via x402)`);
         
       } catch (error) {
-        console.error('❌ [TRENDING AI API] Error:', error.message);
-        console.error('❌ [TRENDING AI API] Error stack:', error.stack);
+        console.error('\n❌ [TRENDING AI API] ===== ERROR =====');
+        console.error(`   Error message: ${error.message}`);
+        console.error(`   Error name: ${error.name}`);
+        console.error(`   Error stack:`, error.stack);
+        console.error(`   Request URL: ${req.url}`);
+        console.error(`   Request method: ${req.method}`);
+        console.error(`   Request headers:`, JSON.stringify(req.headers, null, 2));
+        console.error('❌ [TRENDING AI API] ====================\n');
+        
+        // Return proper error response
         res.status(500).json({ 
           error: 'Failed to generate AI analysis',
           message: error.message,
