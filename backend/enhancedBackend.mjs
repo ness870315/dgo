@@ -2003,6 +2003,7 @@ class EnhancedBackend {
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log(`   ✅ Payment requirements created`);
           console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
+          console.log(`   Payment requirements (full):`, JSON.stringify(paymentRequirements, null, 2));
         } catch (reqError) {
           console.error(`   ❌ Error creating payment requirements:`, reqError.message);
           console.error(`   Stack:`, reqError.stack);
@@ -2015,9 +2016,21 @@ class EnhancedBackend {
         let verifyResult;
         try {
           console.log(`   Calling verifyPayment...`);
+          console.log(`   X-PAYMENT header (first 200 chars): ${xPaymentHeader?.substring(0, 200)}`);
+          console.log(`   Payment requirements amount: ${paymentRequirements?.price?.amount || 'N/A'}`);
+          console.log(`   Payment requirements payTo: ${paymentRequirements?.payTo || 'N/A'}`);
+          
           verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
           console.log(`   Verify result type: ${typeof verifyResult}`);
-          console.log(`   Verify result:`, verifyResult);
+          console.log(`   Verify result value:`, verifyResult);
+          console.log(`   Verify result === true: ${verifyResult === true}`);
+          console.log(`   Verify result === false: ${verifyResult === false}`);
+          
+          // If verifyResult is an object, log its properties
+          if (typeof verifyResult === 'object' && verifyResult !== null) {
+            console.log(`   Verify result properties:`, Object.keys(verifyResult));
+            console.log(`   Verify result (full):`, JSON.stringify(verifyResult, null, 2));
+          }
         } catch (verifyError) {
           console.error(`   ❌ Error during verifyPayment:`, verifyError.message);
           console.error(`   Error name: ${verifyError.name}`);
@@ -2030,7 +2043,14 @@ class EnhancedBackend {
         
         if (verifyResult !== true) {
           console.log(`❌ [TRENDING AI API] Payment verification failed`);
+          console.log(`   Verify result type: ${typeof verifyResult}`);
           console.log(`   Verify result:`, JSON.stringify(verifyResult, null, 2));
+          
+          // Check if it's a validation error object
+          if (typeof verifyResult === 'object' && verifyResult !== null) {
+            console.log(`   Verification error details:`, verifyResult);
+          }
+          
           return res.status(402).json({ 
             error: 'payment_verification_failed',
             message: 'Payment verification failed. Please retry with valid payment.',
