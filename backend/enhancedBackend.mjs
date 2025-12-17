@@ -2006,11 +2006,19 @@ class EnhancedBackend {
           paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log(`   ✅ Payment requirements created`);
           console.log(`   Payment requirements keys:`, Object.keys(paymentRequirements || {}));
+          console.log(`   Original payTo from SDK: ${paymentRequirements.payTo}`);
           
           // CRITICAL: Override payTo to match the 402 response (must be USDC ATA, not wallet)
-          console.log(`   Original payTo: ${paymentRequirements.payTo}`);
-          paymentRequirements.payTo = merchantUSDCATA;
-          console.log(`   ✅ Overridden payTo to match 402 response: ${merchantUSDCATA}`);
+          // The SDK returns the wallet address, but we declared the ATA in the 402 response
+          const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
+          console.log(`   Expected payTo (from 402 response): ${merchantUSDCATA}`);
+          if (paymentRequirements.payTo !== merchantUSDCATA) {
+            console.log(`   ⚠️ payTo mismatch! SDK returned wallet, but 402 response declared ATA. Fixing...`);
+            paymentRequirements.payTo = merchantUSDCATA;
+            console.log(`   ✅ Overridden payTo to match 402 response: ${merchantUSDCATA}`);
+          } else {
+            console.log(`   ✅ payTo already matches 402 response`);
+          }
           
           // Ensure feePayer is in extra field (required for verification)
           if (!paymentRequirements.extra) {
