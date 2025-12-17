@@ -421,11 +421,25 @@ class EnhancedBackend {
   }
 
   setupMiddleware() {
+    // Log ALL incoming requests before CORS
+    this.app.use((req, res, next) => {
+      console.log(`\n🌐 [MIDDLEWARE] Incoming request: ${req.method} ${req.path}`);
+      console.log(`   Origin: ${req.headers.origin || '(no origin)'}`);
+      console.log(`   User-Agent: ${req.headers['user-agent'] || '(no user-agent)'}`);
+      console.log(`   Referer: ${req.headers.referer || '(no referer)'}`);
+      next();
+    });
+    
     // CORS configuration for production
     const corsOptions = {
       origin: function (origin, callback) {
+        console.log(`🔍 [CORS] Checking origin: ${origin || '(no origin)'}`);
+        
         // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+        if (!origin) {
+          console.log(`✅ [CORS] Allowing request with no origin`);
+          return callback(null, true);
+        }
         
         const allowedOrigins = [
           'https://dgo-20l.pages.dev',
@@ -441,9 +455,14 @@ class EnhancedBackend {
         // Allow any Cloudflare Pages subdomain for dgo-20l.pages.dev
         const cloudflarePattern = /^https:\/\/[a-f0-9]+\.dgo-20l\.pages\.dev$/;
         
-        if (allowedOrigins.includes(origin) || cloudflarePattern.test(origin)) {
+        // Allow x402scan domains
+        const x402scanPattern = /^https?:\/\/(.*\.)?x402scan\.(com|net|org|io)$/;
+        
+        if (allowedOrigins.includes(origin) || cloudflarePattern.test(origin) || x402scanPattern.test(origin)) {
+          console.log(`✅ [CORS] Allowing origin: ${origin}`);
           callback(null, true);
         } else {
+          console.error(`🚫 [CORS] BLOCKED origin: ${origin}`);
           logger.warn(`🚫 CORS blocked origin: ${origin}`);
           callback(new Error('Not allowed by CORS'));
         }
