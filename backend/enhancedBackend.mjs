@@ -1780,7 +1780,17 @@ class EnhancedBackend {
         // Always return exactly 10 tokens - ignore any limit parameter to prevent manipulation
         const limit = 10;
         const format = req.query.format || 'json'; // 'json' or 'text' (format can still be customized)
-        const xPaymentHeader = this.x402PaymentHandler?.extractPayment(req.headers);
+        
+        // Check if x402PaymentHandler is initialized
+        if (!this.x402PaymentHandler) {
+          console.error('❌ [TRENDING AI API] x402PaymentHandler not initialized');
+          return res.status(500).json({ 
+            error: 'payment_handler_not_initialized',
+            message: 'Payment handler not available' 
+          });
+        }
+        
+        const xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
         
         console.log(`🤖 [TRENDING AI API] Request: limit=${limit} (fixed), format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
         
@@ -1792,85 +1802,51 @@ class EnhancedBackend {
         if (!xPaymentHeader) {
           console.log(`💰 [TRENDING AI API] Returning 402 Payment Required: $${pricePerRequest} USDC`);
           
-          if (!this.x402PaymentHandler) {
-            return res.status(500).json({ 
-              error: 'payment_handler_not_initialized',
-              message: 'Payment handler not available' 
-            });
-          }
-          
-          // Create payment requirements
           // Build resource URL to match the actual request URL (preserve format if provided)
           const resourceUrl = format && format !== 'json' 
             ? `https://api.degen-oracle.com/api/tokens/trending/ai-analysis?format=${format}`
             : `https://api.degen-oracle.com/api/tokens/trending/ai-analysis`;
           
-          const routeConfig = {
-            price: {
-              amount: priceInUSDC.toString(),
-              asset: {
-                address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                decimals: 6
-              }
-            },
-            network: 'solana',
-            config: {
-              resource: resourceUrl,
-              description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
-              maxTimeoutSeconds: 300,
-              mimeType: format === 'text' ? 'text/plain' : 'application/json'
-            }
-          };
+          // Get merchant USDC ATA (precomputed)
+          const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
           
-          try {
-            // Get merchant USDC ATA (precomputed)
-            const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
-            
-            // Build x402scan-compliant response format
-            const x402Response = {
-              x402Version: 1,
-              accepts: [
-                {
-                  scheme: "exact",
-                  network: "solana",
-                  maxAmountRequired: priceInUSDC.toString(),
-                  resource: resourceUrl,
-                  description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
-                  mimeType: format === 'text' ? 'text/plain' : 'application/json',
-                  payTo: merchantUSDCATA,
-                  maxTimeoutSeconds: 300,
-                  asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                  outputSchema: {
-                    input: {
-                      type: "http",
-                      method: "GET",
-                      queryParams: {
-                        format: {
-                          type: "string",
-                          required: false,
-                          description: "Response format: 'json' or 'text'",
-                          enum: ["json", "text"]
-                        }
+          // Build x402scan-compliant response format
+          const x402Response = {
+            x402Version: 1,
+            accepts: [
+              {
+                scheme: "exact",
+                network: "solana",
+                maxAmountRequired: priceInUSDC.toString(),
+                resource: resourceUrl,
+                description: `AI-Powered Trending Tokens Analysis (10 tokens) - Agent API`,
+                mimeType: format === 'text' ? 'text/plain' : 'application/json',
+                payTo: merchantUSDCATA,
+                maxTimeoutSeconds: 300,
+                asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                outputSchema: {
+                  input: {
+                    type: "http",
+                    method: "GET",
+                    queryParams: {
+                      format: {
+                        type: "string",
+                        required: false,
+                        description: "Response format: 'json' or 'text'",
+                        enum: ["json", "text"]
                       }
-                    },
-                    output: {
-                      type: "object",
-                      description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
                     }
+                  },
+                  output: {
+                    type: "object",
+                    description: "AI-powered trending tokens analysis with summaries, metrics, and insights"
                   }
                 }
-              ]
-            };
-            
-            return res.status(402).json(x402Response);
-          } catch (paymentError) {
-            console.error('❌ [TRENDING AI API] Payment requirements error:', paymentError.message);
-            console.error('❌ [TRENDING AI API] Payment error stack:', paymentError.stack);
-            return res.status(500).json({ 
-              error: 'payment_setup_failed',
-              message: paymentError.message 
-            });
-          }
+              }
+            ]
+          };
+          
+          return res.status(402).json(x402Response);
         }
         
         // Verify payment
