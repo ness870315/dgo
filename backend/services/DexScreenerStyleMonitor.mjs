@@ -1629,6 +1629,18 @@ export default class DexScreenerStyleMonitor {
       const txAccounts = this.extractTransactionAccounts(txData);
       if (!txAccounts || txAccounts.length === 0) return;
       
+      // DEBUG: Log first few transactions to see what accounts are extracted
+      if (this.globalStats.totalTransactions <= 3) {
+        console.log(`🔍 [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} extracted ${txAccounts.length} accounts`);
+        console.log(`   First 5 accounts:`, txAccounts.slice(0, 5).map(a => a.substring(0, 8) + '...'));
+        console.log(`   Monitoring ${this.pools.size} pools`);
+        const samplePools = Array.from(this.pools.entries()).slice(0, 3).map(([m, p]) => {
+          const td = this.tokens.get(m);
+          return `${td?.config?.name || m.substring(0, 8)}: ${p.poolAddress.substring(0, 8)}...`;
+        });
+        console.log(`   Sample pools:`, samplePools);
+      }
+      
       // Check which pools are involved in this transaction
       const involvedPools = new Map();
       for (const [mint, poolData] of this.pools.entries()) {
@@ -1641,7 +1653,18 @@ export default class DexScreenerStyleMonitor {
       }
       
       // If no pools involved, skip this transaction
-      if (involvedPools.size === 0) return;
+      if (involvedPools.size === 0) {
+        // DEBUG: Log why transactions aren't matching (first few only)
+        if (this.globalStats.totalTransactions <= 5) {
+          const samplePoolAddr = Array.from(this.pools.values())[0]?.poolAddress;
+          const hasMatch = samplePoolAddr && txAccounts.includes(samplePoolAddr);
+          console.log(`⚠️  [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} has ${txAccounts.length} accounts but no pool match`);
+          if (samplePoolAddr) {
+            console.log(`   Sample pool: ${samplePoolAddr.substring(0, 8)}... | Match: ${hasMatch}`);
+          }
+        }
+        return;
+      }
       
       // Track transactions involving pools but not decoding to swaps
       if (!this.globalStats.txWithPools) this.globalStats.txWithPools = 0;
@@ -1734,40 +1757,103 @@ export default class DexScreenerStyleMonitor {
   extractTransactionAccounts(txData) {
     try {
       const accounts = [];
-      const transaction = txData.transaction;
-      if (!transaction) return accounts;
       
-      // Try to get accounts from message.accountKeys
-      if (transaction.message?.accountKeys) {
-        for (const key of transaction.message.accountKeys) {
-          const pubkey = key.pubkey || key;
-          if (pubkey && typeof pubkey === 'string') {
+      // Helper function to convert account key to base58 string
+      const toBase58 = (key) => {
+        try {
+          if (typeof key === 'string') {
+            // Already a string - validate it's base58
+            if (key.length >= 32 && key.length <= 44) {
+              return key;
+            }
+          } else if (Buffer.isBuffer(key)) {
+            // Convert Buffer to base58
+            return bs58.encode(key);
+          } else if (key?.data) {
+            // Uint8Array or similar
+            return bs58.encode(Buffer.from(key.data));
+          } else if (key?.pubkey) {
+            // Object with pubkey field
+            if (typeof key.pubkey === 'string') {
+              return key.pubkey;
+            } else {
+              return bs58.encode(Buffer.from(key.pubkey));
+            }
+          } else if (key instanceof Uint8Array) {
+            return bs58.encode(Buffer.from(key));
+          }
+        } catch (e) {
+          // If conversion fails, try PublicKey
+          try {
+            return new PublicKey(key).toBase58();
+          } catch (e2) {
+            return null;
+          }
+        }
+        return null;
+      };
+      
+      // gRPC transaction structure: msg.transaction.transaction.message (nested)
+      const innerTransaction = txData.transaction?.transaction;
+      const message = innerTransaction?.message || txData.transaction?.message;
+      
+      if (!message) {
+        // DEBUG: Log structure issue (first few only)
+        if (this.globalStats.totalTransactions <= 3) {
+          console.log(`⚠️  [DexScreenerStyleMonitor] No message found in transaction structure`);
+          console.log(`   txData keys:`, Object.keys(txData));
+          console.log(`   txData.transaction keys:`, txData.transaction ? Object.keys(txData.transaction) : 'null');
+          if (txData.transaction?.transaction) {
+            console.log(`   txData.transaction.transaction keys:`, Object.keys(txData.transaction.transaction));
+          }
+        }
+        return accounts;
+      }
+      
+      // Try staticAccountKeys first (versioned transactions - v0)
+      if (message.staticAccountKeys && message.staticAccountKeys.length > 0) {
+        for (const key of message.staticAccountKeys) {
+          const pubkey = toBase58(key);
+          if (pubkey && pubkey.length >= 32) {
             accounts.push(pubkey);
           }
         }
       }
       
-      // Also check staticAccountKeys for v0 transactions
-      if (transaction.message?.staticAccountKeys) {
-        for (const key of transaction.message.staticAccountKeys) {
-          const pubkey = key.pubkey || key;
-          if (pubkey && typeof pubkey === 'string') {
+      // Fallback to accountKeys (legacy transactions)
+      if (accounts.length === 0 && message.accountKeys && message.accountKeys.length > 0) {
+        for (const key of message.accountKeys) {
+          const pubkey = toBase58(key);
+          if (pubkey && pubkey.length >= 32) {
             accounts.push(pubkey);
           }
         }
       }
       
       // Check loadedAddresses for v0 transactions with address lookup tables
-      if (transaction.message?.loadedAddresses?.writable) {
-        accounts.push(...transaction.message.loadedAddresses.writable);
+      if (message.loadedAddresses?.writable) {
+        for (const addr of message.loadedAddresses.writable) {
+          const pubkey = toBase58(addr);
+          if (pubkey && pubkey.length >= 32) {
+            accounts.push(pubkey);
+          }
+        }
       }
-      if (transaction.message?.loadedAddresses?.readonly) {
-        accounts.push(...transaction.message.loadedAddresses.readonly);
+      if (message.loadedAddresses?.readonly) {
+        for (const addr of message.loadedAddresses.readonly) {
+          const pubkey = toBase58(addr);
+          if (pubkey && pubkey.length >= 32) {
+            accounts.push(pubkey);
+          }
+        }
       }
       
       return accounts;
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error extracting transaction accounts:`, error.message);
+      if (error.stack) {
+        console.error(`   Stack:`, error.stack.split('\n').slice(0, 3).join('\n'));
+      }
       return [];
     }
   }
