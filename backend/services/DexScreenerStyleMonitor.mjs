@@ -1402,7 +1402,9 @@ export default class DexScreenerStyleMonitor {
         }
       }
 
-      const price = quoteReserve > 0 ? tokenReserve / quoteReserve : 0;
+      // CRITICAL: Price = quote per token (e.g., SOL per token)
+      // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+      const price = tokenReserve > 0 ? quoteReserve / tokenReserve : 0;
 
       return {
         poolAddress: config.pool,
@@ -1646,28 +1648,9 @@ export default class DexScreenerStyleMonitor {
         return;
       }
       
-      // DEBUG: Log first few transactions to see what accounts are extracted
-      if (this.globalStats.totalTransactions <= 5) {
-        console.log(`🔍 [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} extracted ${txAccounts.length} accounts`);
-        console.log(`   First 5 accounts:`, txAccounts.slice(0, 5).map(a => a.substring(0, 12) + '...'));
-        console.log(`   Monitoring ${this.pools.size} pools`);
-        const samplePools = Array.from(this.pools.entries()).slice(0, 5).map(([m, p]) => {
-          const td = this.tokens.get(m);
-          return `${td?.config?.name || m.substring(0, 8)}: ${p.poolAddress.substring(0, 12)}...`;
-        });
-        console.log(`   Sample pools (first 5):`, samplePools);
-        
-        // Check if any pool addresses match
-        const poolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
-        const matches = txAccounts.filter(acc => poolAddresses.includes(acc));
-        console.log(`   Pool matches found: ${matches.length}`);
-        if (matches.length > 0) {
-          console.log(`   Matched pools:`, matches.map(addr => {
-            const [mint, poolData] = Array.from(this.pools.entries()).find(([m, p]) => p.poolAddress === addr) || [];
-            const td = this.tokens.get(mint);
-            return `${td?.config?.name || mint.substring(0, 8)}: ${addr.substring(0, 12)}...`;
-          }));
-        }
+      // DEBUG: Log first transaction only to verify account extraction is working
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DexScreenerStyleMonitor] First transaction extracted ${txAccounts.length} accounts, monitoring ${this.pools.size} pools`);
       }
       
       // Check which pools are involved in this transaction
@@ -1769,18 +1752,6 @@ export default class DexScreenerStyleMonitor {
         }
         
         // Try to decode swap using processTxForSwap
-        // DEBUG: Log transaction structure for first few swaps (to verify meta is present)
-        if (this.globalStats.txWithPools <= 3) {
-          console.log(`   🔍 Decoding swap for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-          console.log(`      tx structure:`, {
-            hasTransaction: !!tx.transaction,
-            hasMeta: !!tx.meta,
-            hasPreTokenBalances: !!(tx.meta?.preTokenBalances?.length),
-            hasPostTokenBalances: !!(tx.meta?.postTokenBalances?.length),
-            preCount: tx.meta?.preTokenBalances?.length || 0,
-            postCount: tx.meta?.postTokenBalances?.length || 0
-          });
-        }
         
         const swap = processTxForSwap(
           tx,
@@ -2025,7 +1996,9 @@ export default class DexScreenerStyleMonitor {
     // Update pool data
     poolData.tokenReserve = reserves.tokenReserve;
     poolData.quoteReserve = reserves.quoteReserve;
-    poolData.price = reserves.quoteReserve > 0 ? reserves.tokenReserve / reserves.quoteReserve : 0;
+    // CRITICAL: Price = quote per token (e.g., SOL per token)
+    // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+    poolData.price = reserves.tokenReserve > 0 ? reserves.quoteReserve / reserves.tokenReserve : 0;
     poolData.quoteMint = reserves.quoteMint;
     poolData.lastUpdate = Date.now();
     
@@ -2103,7 +2076,7 @@ export default class DexScreenerStyleMonitor {
       console.log(`   Liquidity:   $${liquidity > 0 ? liquidity.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
       console.log(`   Signature:   ${swap.signature || 'N/A'}`);
       console.log(`   Slot:        ${swap.slot || 'N/A'}`);
-      
+
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error displaying swap:`, error.message);
     }
@@ -2458,7 +2431,7 @@ export default class DexScreenerStyleMonitor {
       // Fallback: calculate SOL price from Jupiter USD price
       currentPriceSOL = tokenData.metadata.usdPrice / this.solPriceUSD;
     }
-    
+
     return {
       // Current price (always preserve Jupiter baseline if pool price is 0)
       currentPrice: currentPriceUSD,
@@ -2761,8 +2734,8 @@ export default class DexScreenerStyleMonitor {
       
       // Only log first few broadcasts to avoid spam
       if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 10 === 0) {
-        console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-        console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
+      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
       }
       
       const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
