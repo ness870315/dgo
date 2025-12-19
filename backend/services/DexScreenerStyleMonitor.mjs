@@ -3,17 +3,20 @@
  * 
  * Pool-centric real-time swap detection with DexScreener-level accuracy
  * 
- * Architecture:
- * - Single gRPC stream with account + transaction subscriptions per pool
+ * Architecture (PHASE 3: Transaction-Level Decoding):
+ * - Single gRPC stream with transaction subscriptions (filtered by pool addresses)
+ * - Transaction-level decoding using processTxForSwap (no account monitoring)
+ * - Real-time reserve tracking from swap deltas
+ * - Dynamic liquidity calculation from reserves
  * - In-memory swap storage (last 24h) with database persistence
  * - Jupiter API for SOL price updates and token metadata
- * - On-the-fly price/MCap calculations from pool reserves
- * - Hybrid baseline: Jupiter stats for cold start, our swaps for runtime
+ * - Pool discovery: Moralis → Jupiter → DexScreener
  * 
  * Key Features:
- * - 100% accurate swap detection (pool reserve changes)
+ * - 100% accurate swap detection (transaction-level decoding)
+ * - Works for all pool types (CPMM, DLMM, CLMM, Whirlpool)
  * - Full transaction details (maker wallet, signature, slot)
- * - Real-time USD pricing and market cap
+ * - Real-time USD pricing, market cap, and liquidity
  * - Survives restarts (loads from ChartDatabase)
  * - Self-healing (phases out Jupiter baseline over 24h)
  */
@@ -23,6 +26,7 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import bs58 from 'bs58';
 import fetch from 'node-fetch';
 import atomicCacheWriter from '../utils/atomicCacheWriter.js';
+import { processTxForSwap } from './SwapDetectionHelpers.mjs';
 
 // Use CommonJS wrapper for gRPC loading (same as EnhancedHybridPriceService)
 import { createRequire } from 'module';
@@ -34,9 +38,11 @@ const { CpAmm, getPriceFromSqrtPrice } = cpAmmModule;
 
 // Configuration
 const RPC_ENDPOINT = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const GRPC_ENDPOINT = 'http://grpc.constant-k.com';
-const GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const GRPC_ENDPOINT = process.env.KGRPC_ENDPOINT || 'https://kaldera-indianapolis.constant-k.com';
+const GRPC_TOKEN = process.env.KGRPC_API || '';
 const MORALIS_API_KEY = process.env.MORALIS_API_KEY || '';
+const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const SOL_PRICE_UPDATE_INTERVAL_MS = 30 * 1000; // 30 seconds
 const SWAP_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -107,8 +113,11 @@ export default class DexScreenerStyleMonitor {
     this.tokens = new Map(); // mint -> TokenData
     this.pools = new Map(); // mint -> PoolData
     this.stream = null; // SINGLE gRPC stream for ALL pools
-    this.accountFilters = {}; // Accumulated account filters
-    this.transactionFilters = {}; // Accumulated transaction filters
+    this.transactionFilters = {}; // Accumulated transaction filters (PHASE 3: transaction-level only)
+    
+    // PHASE 3: Reserve tracking for liquidity calculation
+    // Map: poolAddress -> { tokenReserve, quoteReserve, quoteMint, quoteDecimals, initialLiquidity }
+    this.poolReserves = new Map();
     
     // Global state
     this.solPriceUSD = 0;
@@ -171,7 +180,7 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Create or recreate the gRPC stream with current filters
+   * PHASE 3: Create or recreate the gRPC stream with transaction filters only
    */
   async recreateStream() {
     // Cancel existing stream if any
@@ -184,12 +193,29 @@ export default class DexScreenerStyleMonitor {
       }
     }
 
-    // Create new stream with current filters
-    console.log('📡 [DexScreenerStyleMonitor] Creating gRPC stream with filters...');
+    // PHASE 3: Combine all pool addresses into a single transaction filter
+    const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
+    if (allPoolAddresses.length === 0) {
+      console.log('⚠️  [DexScreenerStyleMonitor] No pools to monitor, skipping stream creation');
+      return;
+    }
+    
+    const combinedTransactionFilter = {
+      client: {
+        accountInclude: allPoolAddresses, // Single filter with all pool addresses
+        accountExclude: [],
+        accountRequired: [],
+        vote: false,
+        failed: false
+      }
+    };
+
+    // Create new stream with transaction filters only
+    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools...`);
     this.stream = await this.grpcClient.subscribeOnce(
-      this.accountFilters,
+      {}, // accounts (no longer used)
       {}, // slots
-      this.transactionFilters,
+      combinedTransactionFilter, // transactions (single filter for all pools)
       {}, // blocks
       {}, // blocksMeta
       {}, // entry
@@ -198,7 +224,7 @@ export default class DexScreenerStyleMonitor {
       []
     );
     
-    // Handle stream data - route to correct pool
+    // PHASE 3: Only handle transactions (no account updates)
     let messageCount = 0;
     this.stream.on('data', (msg) => {
       messageCount++;
@@ -209,9 +235,6 @@ export default class DexScreenerStyleMonitor {
         console.log(`   Message keys:`, Object.keys(msg));
       }
       
-      if (msg.account) {
-        this.handleAccountUpdate(msg);
-      }
       if (msg.transaction) {
         this.handleTransaction(msg);
       }
@@ -225,7 +248,7 @@ export default class DexScreenerStyleMonitor {
       console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
     });
     
-    this.stats.streamRecreations++;
+    this.globalStats.streamRecreations++;
     console.log('✅ [DexScreenerStyleMonitor] Stream created successfully');
   }
 
@@ -234,7 +257,15 @@ export default class DexScreenerStyleMonitor {
    */
   async fetchSOLPrice() {
     try {
-      const response = await fetch('https://lite-api.jup.ag/tokens/v2/search?query=SOL');
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
+      const response = await fetch(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=SOL`, {
+        method: 'GET',
+        headers: headers
+      });
       const data = await response.json();
       
       const solToken = data.find(t => t.id === SOL_MINT);
@@ -277,6 +308,11 @@ export default class DexScreenerStyleMonitor {
     
     console.log(`   Fetching seed data for ${mints.length} tokens in batches of ${BATCH_SIZE}...`);
     
+    const headers = {};
+    if (JUPITER_API_KEY) {
+      headers['x-api-key'] = JUPITER_API_KEY;
+    }
+    
     for (let i = 0; i < mints.length; i += BATCH_SIZE) {
       const batch = mints.slice(i, i + BATCH_SIZE);
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
@@ -284,10 +320,13 @@ export default class DexScreenerStyleMonitor {
       
       try {
         const ids = batch.join(',');
-        const url = `https://lite-api.jup.ag/tokens/v2/search?query=${ids}`;
+        const url = `${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${ids}`;
         console.log(`   🔍 Fetching batch ${batchNum}/${totalBatches} (${batch.length} tokens)...`);
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headers
+        });
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -440,6 +479,139 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
+   * Discover pools in priority order: Moralis → Jupiter → DexScreener
+   * Updates config.pool and stores Moralis liquidity as baseline
+   */
+  async discoverPoolsInPriorityOrder(tokensConfig) {
+    console.log(`   🔍 Discovering pools for ${tokensConfig.length} tokens...`);
+    
+    let moralisCount = 0;
+    let jupiterCount = 0;
+    let dexScreenerCount = 0;
+    let failedCount = 0;
+    
+    // Step 1: Try Moralis API first (main source)
+    if (MORALIS_API_KEY) {
+      const moralisPools = await this.batchFetchPoolsFromMoralis(Array.from(this.tokens.keys()));
+      
+      for (const { mint, config } of tokensConfig) {
+        if (!this.tokens.has(mint)) continue;
+        
+        const moralisPool = moralisPools.get(mint);
+        if (moralisPool && moralisPool.poolAddress) {
+          const oldPool = config.pool;
+          config.pool = moralisPool.poolAddress;
+          
+          // Store Moralis liquidity as baseline for liquidity calculation
+          const tokenData = this.tokens.get(mint);
+          if (tokenData) {
+            tokenData.moralisLiquidity = moralisPool.liquidity;
+          }
+          
+          const liquidity = (moralisPool.liquidity / 1000000).toFixed(2);
+          console.log(`   ✅ [Moralis] ${config.name}: ${moralisPool.poolAddress.substring(0, 8)}... (${liquidity}M liquidity, ${moralisPool.exchange})`);
+          if (oldPool && oldPool !== config.pool) {
+            console.log(`      Replaced pool: ${oldPool.substring(0, 8)}...`);
+          }
+          moralisCount++;
+        }
+      }
+    } else {
+      console.log(`   ⚠️  MORALIS_API_KEY not set, skipping Moralis pool discovery`);
+    }
+    
+    // Step 2: Try Jupiter API for tokens without pools
+    const tokensWithoutPools = tokensConfig.filter(({ mint, config }) => {
+      if (!this.tokens.has(mint)) return false;
+      if (config.pool) return false; // Already has pool from Moralis
+      return true;
+    });
+    
+    if (tokensWithoutPools.length > 0) {
+      console.log(`   🔍 Trying Jupiter API for ${tokensWithoutPools.length} tokens without pools...`);
+      
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
+      for (const { mint, config } of tokensWithoutPools) {
+        try {
+          const response = await fetch(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${mint}`, {
+            method: 'GET',
+            headers: headers
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data) && data.length > 0) {
+              const token = data[0];
+              if (token.graduatedPool) {
+                config.pool = typeof token.graduatedPool === 'string' 
+                  ? token.graduatedPool 
+                  : token.graduatedPool.address || token.graduatedPool.id;
+                
+                // Store Jupiter liquidity as baseline (if available)
+                const tokenData = this.tokens.get(mint);
+                if (tokenData && token.liquidity) {
+                  tokenData.jupiterLiquidity = token.liquidity;
+                }
+                
+                console.log(`   ✅ [Jupiter] ${config.name}: ${config.pool.substring(0, 8)}...`);
+                jupiterCount++;
+              }
+            }
+          }
+        } catch (error) {
+          console.log(`   ⚠️  [Jupiter] Error for ${config.name}: ${error.message}`);
+        }
+      }
+    }
+    
+    // Step 3: Try DexScreener as final fallback
+    const tokensStillWithoutPools = tokensConfig.filter(({ mint, config }) => {
+      if (!this.tokens.has(mint)) return false;
+      if (config.pool) return false;
+      return true;
+    });
+    
+    if (tokensStillWithoutPools.length > 0) {
+      console.log(`   🔍 Trying DexScreener API for ${tokensStillWithoutPools.length} tokens...`);
+      
+      for (const { mint, config } of tokensStillWithoutPools) {
+        try {
+          const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.pairs && data.pairs.length > 0) {
+              const pair = data.pairs[0];
+              config.pool = pair.pairAddress;
+              console.log(`   ✅ [DexScreener] ${config.name}: ${config.pool.substring(0, 8)}...`);
+              dexScreenerCount++;
+            }
+          }
+        } catch (error) {
+          console.log(`   ⚠️  [DexScreener] Error for ${config.name}: ${error.message}`);
+        }
+      }
+    }
+    
+    // Count tokens that still don't have pools
+    failedCount = tokensConfig.filter(({ mint, config }) => {
+      if (!this.tokens.has(mint)) return false;
+      return !config.pool;
+    }).length;
+    
+    console.log(`\n   ✅ Pool Discovery Summary:`);
+    console.log(`      Moralis: ${moralisCount}`);
+    console.log(`      Jupiter: ${jupiterCount}`);
+    console.log(`      DexScreener: ${dexScreenerCount}`);
+    if (failedCount > 0) {
+      console.log(`      ❌ Failed: ${failedCount}`);
+    }
+  }
+
+  /**
    * Batch fetch pools from Moralis for multiple tokens in parallel
    * Returns a Map: mint -> { poolAddress, liquidity, exchange }
    */
@@ -579,7 +751,15 @@ export default class DexScreenerStyleMonitor {
    */
   async fetchJupiterBaseline(mint) {
     try {
-      const response = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`);
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
+      const response = await fetch(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${mint}`, {
+        method: 'GET',
+        headers: headers
+      });
       if (!response.ok) return null;
       
       const data = await response.json();
@@ -818,32 +998,9 @@ export default class DexScreenerStyleMonitor {
     console.log(`\n📊 Phase 1.5: Fetching Jupiter seed data for all tokens...`);
     await this.batchFetchJupiterSeedData(Array.from(this.tokens.keys()));
     
-    // Phase 1.6: Batch fetch Moralis pools (prioritize highest liquidity pools)
-    console.log(`\n🏊 Phase 1.6: Fetching Moralis pools (prioritizing highest liquidity)...`);
-    if (MORALIS_API_KEY) {
-      const moralisPools = await this.batchFetchPoolsFromMoralis(Array.from(this.tokens.keys()));
-      
-      // Override config.pool with Moralis pools (if found)
-      let moraliPoolCount = 0;
-      for (const { mint, config } of tokensConfig) {
-        if (!this.tokens.has(mint)) continue;
-        
-        const moralisPool = moralisPools.get(mint);
-        if (moralisPool && moralisPool.poolAddress) {
-          const oldPool = config.pool;
-          config.pool = moralisPool.poolAddress;
-          const liquidity = (moralisPool.liquidity / 1000000).toFixed(2);
-          console.log(`   ✅ [Moralis] Using ${config.name} pool: ${moralisPool.poolAddress.substring(0, 8)}... (${liquidity}M liquidity, ${moralisPool.exchange})`);
-          if (oldPool && oldPool !== config.pool) {
-            console.log(`      Replaced Jupiter pool: ${oldPool.substring(0, 8)}...`);
-          }
-          moraliPoolCount++;
-        }
-      }
-      console.log(`   ✅ [Moralis] Using Moralis pools for ${moraliPoolCount}/${tokensConfig.length} tokens`);
-    } else {
-      console.log(`   ⚠️  MORALIS_API_KEY not set, skipping Moralis pool discovery`);
-    }
+    // Phase 1.6: Discover pools in priority order (Moralis → Jupiter → DexScreener)
+    console.log(`\n🏊 Phase 1.6: Discovering pools (Moralis → Jupiter → DexScreener)...`);
+    await this.discoverPoolsInPriorityOrder(tokensConfig);
     
     console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
 
@@ -1488,31 +1645,16 @@ export default class DexScreenerStyleMonitor {
 
       this.pools.set(mint, poolData);
 
-      // Add filters to the stream
-      this.accountFilters[`${mint}_token`] = { 
-        account: [poolData.poolTokenAccount], 
-        owner: [], 
-        filters: [] 
-      };
-      
-      this.accountFilters[`${mint}_quote`] = { 
-        account: [poolData.poolQuoteAccount], 
-        owner: [], 
-        filters: [] 
-      };
-
+      // PHASE 3: Transaction-level decoding - filter by pool address only
+      // This is more efficient than account-based monitoring (one filter per pool vs two accounts)
       this.transactionFilters[`${mint}_txs`] = {
-        accountInclude: [poolData.poolTokenAccount, poolData.poolQuoteAccount],
+        client: {
+          accountInclude: [poolData.poolAddress], // Filter transactions involving pool address
         accountExclude: [],
         accountRequired: [],
         vote: false,
-        failed: false,
-        include_meta: true,
-        include_token_balances: true,
-        include_instructions: true,
-        include_inner_instructions: true,
-        include_loaded_addresses: true,
-        include_accounts: true
+          failed: false
+        }
       };
 
       // Recreate the stream with updated filters
@@ -1528,11 +1670,24 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Create new stream with all accumulated filters
+      // PHASE 3: Create stream with transaction filters only (no account filters)
+      // Combine all pool addresses into a single transaction filter for efficiency
+      const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
+      const combinedTransactionFilter = {
+        client: {
+          accountInclude: allPoolAddresses, // Single filter with all pool addresses
+          accountExclude: [],
+          accountRequired: [],
+          vote: false,
+          failed: false
+        }
+      };
+      
+      // Create new stream with combined transaction filter
       this.stream = await this.grpcClient.subscribeOnce(
-        this.accountFilters,
+        {}, // accounts (no longer used)
         {}, // slots
-        this.transactionFilters,
+        combinedTransactionFilter, // transactions (single filter for all pools)
         {}, // blocks
         {}, // blocksMeta
         {}, // entry
@@ -1541,11 +1696,8 @@ export default class DexScreenerStyleMonitor {
         []
       );
       
-      // Re-attach handlers
+      // PHASE 3: Only handle transactions (no account updates)
       this.stream.on('data', (msg) => {
-        if (msg.account) {
-          this.handleAccountUpdate(msg);
-        }
         if (msg.transaction) {
           this.handleTransaction(msg);
         }
@@ -1568,10 +1720,10 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Handle transaction message from gRPC stream
-   * Extracts maker wallet and transaction signature
+   * PHASE 3: Handle transaction message from gRPC stream
+   * Uses transaction-level decoding with processTxForSwap
    */
-  handleTransaction(msg) {
+  async handleTransaction(msg) {
     try {
       this.globalStats.totalTransactions++;
       
@@ -1581,94 +1733,225 @@ export default class DexScreenerStyleMonitor {
       }
       
       const txData = msg.transaction;
-      if (!txData.transaction) return;
+      if (!txData || !txData.transaction) return;
       
-      // Extract accounts involved in this transaction to find which pool it belongs to
-      const innerTransaction = txData.transaction.transaction;
-      const message = innerTransaction ? innerTransaction.message : null;
-      
-      if (!message) return;
-      
-      // Get all account keys from the transaction
-      let accountKeys = [];
-      if (message.staticAccountKeys && message.staticAccountKeys.length > 0) {
-        accountKeys = message.staticAccountKeys.map(key => {
-          try {
-            return new PublicKey(key).toBase58();
-          } catch (e) {
-            return null;
-          }
-        }).filter(k => k !== null);
-      } else if (message.accountKeys && message.accountKeys.length > 0) {
-        accountKeys = message.accountKeys.map(key => {
-          try {
-            return new PublicKey(key).toBase58();
-          } catch (e) {
-            return null;
-          }
-        }).filter(k => k !== null);
-      }
-      
-      // Find which pool this transaction belongs to
-      let mint = null;
-      let poolData = null;
-      
-      for (const [tokenMint, pool] of this.pools.entries()) {
-        if (accountKeys.includes(pool.poolTokenAccount) || accountKeys.includes(pool.poolQuoteAccount)) {
-          mint = tokenMint;
-          poolData = pool;
-          break;
+      // Try to decode swap for each monitored token
+      for (const [mint, poolData] of this.pools.entries()) {
+        const tokenData = this.tokens.get(mint);
+        if (!tokenData) continue;
+        
+        // Build transaction object for processTxForSwap
+        const tx = {
+          transaction: txData.transaction,
+          signature: txData.transaction?.signatures?.[0] || txData.transaction?.signature,
+          slot: txData.slot,
+          blockTime: txData.blockTime
+        };
+        
+        // Get token price cache (for USD calculations)
+        const tokenPriceCache = new Map();
+        if (tokenData.metadata?.usdPrice) {
+          tokenPriceCache.set(mint, tokenData.metadata.usdPrice);
         }
-      }
-      
-      if (!mint || !poolData) return;
-
-      // Extract signature (convert from Buffer to bs58)
-      let signature = null;
-      if (txData.transaction.signature) {
-        const sigBuffer = Buffer.from(txData.transaction.signature);
-        signature = bs58.encode(sigBuffer);
-      }
-
-      // Extract maker (first account in transaction) - already have accountKeys from above
-      let maker = null;
-      if (accountKeys.length > 0) {
-        maker = accountKeys[0]; // First account is the maker
-      }
-
-      const slot = txData.slot;
-
-      // Store transaction data for matching with account updates
-      if (!poolData.pendingTransactions) {
-        poolData.pendingTransactions = [];
-      }
-
-      poolData.pendingTransactions.push({
-        signature,
-        maker,
-        slot,
-        timestamp: Date.now()
-      });
-
-      // Check if there are pending swaps waiting for this transaction
-      if (poolData.pendingSwaps && poolData.pendingSwaps.length > 0) {
-        const swapIndex = poolData.pendingSwaps.findIndex(swap => swap.slot === slot);
-        if (swapIndex !== -1) {
-          const pendingSwap = poolData.pendingSwaps[swapIndex];
-          poolData.pendingSwaps.splice(swapIndex, 1);
+        
+        // Try to decode swap using processTxForSwap
+        const swap = processTxForSwap(
+          tx,
+          mint,
+          this.solPriceUSD,
+          tokenPriceCache,
+          poolData.price ? poolData.price * this.solPriceUSD : null, // midPriceUsd
+          null, // raydiumDecoder (can be added later if needed)
+          poolData.poolAddress // knownPoolAddress
+        );
+        
+        if (swap) {
+          // Update global counters
+          this.globalStats.totalSwapsDetected++;
+          if (swap.type === 'BUY') {
+            this.globalStats.totalBuys++;
+          } else {
+            this.globalStats.totalSells++;
+          }
           
-          // Display the swap now with full transaction info
-          this.displaySwap(mint, poolData, pendingSwap, { signature, maker, slot });
+          // Update reserves from swap deltas
+          this.updateReservesFromSwap(poolData, swap);
+          
+          // Display the swap (async - saves to database)
+          await this.displaySwapFromTransaction(mint, poolData, swap, txData);
         }
       }
-
-      // Keep only last 100 transactions (cleanup)
-      if (poolData.pendingTransactions.length > 100) {
-        poolData.pendingTransactions = poolData.pendingTransactions.slice(-100);
-      }
-
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling transaction:`, error.message);
+    }
+  }
+  
+  /**
+   * PHASE 3: Update pool reserves from swap deltas
+   * Tracks reserves dynamically instead of reading from account updates
+   */
+  updateReservesFromSwap(poolData, swap) {
+    // Get or initialize reserves tracking
+    let reserves = this.poolReserves.get(poolData.poolAddress);
+    
+    // Initialize reserves if first swap (use Moralis/Jupiter liquidity as baseline)
+    if (!reserves || !reserves.initialized) {
+      const tokenData = this.tokens.get(poolData.tokenMint);
+      let initialLiquidity = 0;
+      
+      // Priority 1: Use Moralis liquidity if available
+      if (tokenData?.moralisLiquidity) {
+        initialLiquidity = tokenData.moralisLiquidity;
+      }
+      // Priority 2: Use Jupiter liquidity
+      else if (tokenData?.jupiterLiquidity) {
+        initialLiquidity = tokenData.jupiterLiquidity;
+      }
+      // Priority 3: Use metadata liquidity
+      else if (tokenData?.metadata?.liquidity) {
+        initialLiquidity = tokenData.metadata.liquidity;
+      }
+      
+      // Calculate initial reserves from liquidity baseline
+      if (initialLiquidity > 0) {
+        const quoteMint = swap.counterMint || poolData.quoteMint || SOL_MINT;
+        let initialQuoteReserve = 0;
+        
+        if (quoteMint === SOL_MINT) {
+          initialQuoteReserve = initialLiquidity / (this.solPriceUSD * 2);
+        } else if (quoteMint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' || 
+                   quoteMint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
+          initialQuoteReserve = initialLiquidity / 2;
+        }
+        
+        const initialTokenReserve = swap.priceUsd > 0 && swap.price > 0 
+          ? initialQuoteReserve / swap.price 
+          : poolData.tokenReserve || 0;
+        
+        reserves = {
+          tokenReserve: initialTokenReserve,
+          quoteReserve: initialQuoteReserve,
+          quoteMint: quoteMint,
+          quoteDecimals: quoteMint === SOL_MINT ? 9 : 6,
+          initialLiquidity: initialLiquidity,
+          initialized: true
+        };
+      } else {
+        // Fallback: use current pool data
+        reserves = {
+          tokenReserve: poolData.tokenReserve || 0,
+          quoteReserve: poolData.quoteReserve || 0,
+          quoteMint: poolData.quoteMint || SOL_MINT,
+          quoteDecimals: poolData.quoteDecimals || 9,
+          initialLiquidity: 0,
+          initialized: true
+        };
+      }
+      
+      this.poolReserves.set(poolData.poolAddress, reserves);
+    }
+    
+    // Update reserves based on swap deltas
+    if (swap.type === 'BUY') {
+      // BUY: user sends quote (SOL/USDC), receives tokens
+      // Pool: quoteReserve increases, tokenReserve decreases
+      reserves.quoteReserve += swap.baseAmount || 0;
+      reserves.tokenReserve -= swap.tokenAmount || 0;
+    } else if (swap.type === 'SELL') {
+      // SELL: user sends tokens, receives quote (SOL/USDC)
+      // Pool: tokenReserve increases, quoteReserve decreases
+      reserves.tokenReserve += swap.tokenAmount || 0;
+      reserves.quoteReserve -= swap.baseAmount || 0;
+    }
+    
+    // Ensure reserves don't go negative
+    reserves.tokenReserve = Math.max(0, reserves.tokenReserve);
+    reserves.quoteReserve = Math.max(0, reserves.quoteReserve);
+    
+    // Update pool data
+    poolData.tokenReserve = reserves.tokenReserve;
+    poolData.quoteReserve = reserves.quoteReserve;
+    poolData.price = reserves.quoteReserve > 0 ? reserves.tokenReserve / reserves.quoteReserve : 0;
+    poolData.quoteMint = reserves.quoteMint;
+    poolData.lastUpdate = Date.now();
+    
+    this.poolReserves.set(poolData.poolAddress, reserves);
+  }
+  
+  /**
+   * PHASE 3: Display swap from transaction-level decoding
+   */
+  async displaySwapFromTransaction(mint, poolData, swap, txData) {
+    try {
+      const tokenData = this.tokens.get(mint);
+      if (!tokenData) return;
+      
+      // Get reserves for liquidity calculation
+      const reserves = this.poolReserves.get(poolData.poolAddress);
+      
+      // Calculate liquidity from current reserves
+      let liquidity = 0;
+      if (reserves && reserves.quoteReserve > 0) {
+        if (reserves.quoteMint === SOL_MINT) {
+          liquidity = reserves.quoteReserve * this.solPriceUSD * 2;
+        } else if (reserves.quoteMint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' || 
+                   reserves.quoteMint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
+          liquidity = reserves.quoteReserve * 2;
+        }
+      }
+      
+      // Calculate market cap
+      const metadata = tokenData.metadata;
+      const supply = metadata?.circSupply || metadata?.totalSupply || 0;
+      const marketCap = supply > 0 && swap.priceUsd > 0 ? supply * swap.priceUsd : 0;
+      
+      // Create swap record (must match format expected by calculations)
+      const swapRecord = {
+        timestamp: swap.timestamp || Date.now(),
+        type: swap.type, // 'BUY' or 'SELL'
+        tokenAmount: swap.tokenAmount || 0,
+        baseAmount: swap.baseAmount || 0, // SOL/USDC amount
+        price: swap.price || 0, // Price in quote token (SOL/USDC)
+        priceUSD: swap.priceUsd || 0, // Price in USD
+        volumeUSD: swap.volumeUsd || 0, // Volume in USD (used by calculateVolume)
+        maker: swap.maker || 'Unknown', // Wallet address (used by calculateUniqueMakers)
+        signature: swap.signature || 'Unknown',
+        slot: swap.slot || (txData.slot ? Number(txData.slot) : 0),
+        marketCap: marketCap, // Market cap at time of swap
+        liquidity: liquidity // Liquidity at time of swap
+      };
+      
+      // Add to token's swap history
+      tokenData.swaps.push(swapRecord);
+      
+      // Keep only last 24h of swaps
+      const cutoff = Date.now() - SWAP_RETENTION_MS;
+      tokenData.swaps = tokenData.swaps.filter(s => s.timestamp >= cutoff);
+      
+      // Save to database (persistent storage)
+      await this.saveSwapToDatabase(mint, swapRecord);
+      
+      // Broadcast to WebSocket clients (real-time updates for frontend)
+      if (this.webSocketServer) {
+        this.broadcastSwap(mint, swapRecord);
+        // Also broadcast updated metrics (volume, TX count, makers, etc.)
+        this.broadcastMetrics(mint);
+      }
+      
+      // Log swap
+      const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
+      console.log(`\n📊 Swap - ${tokenData.config.name} (${swapType})`);
+      console.log(`   Amount:      ${swap.tokenAmount.toLocaleString()} tokens`);
+      console.log(`   SOL Amount:  ${swap.baseAmount.toFixed(6)} SOL`);
+      console.log(`   Price:       $${swap.priceUsd.toFixed(4)}`);
+      console.log(`   Volume USD:  $${swap.volumeUsd.toFixed(2)}`);
+      console.log(`   Market Cap:  $${marketCap > 0 ? marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
+      console.log(`   Liquidity:   $${liquidity > 0 ? liquidity.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
+      console.log(`   Signature:   ${swap.signature || 'N/A'}`);
+      console.log(`   Slot:        ${swap.slot || 'N/A'}`);
+      
+    } catch (error) {
+      console.error(`❌ [DexScreenerStyleMonitor] Error displaying swap:`, error.message);
     }
   }
 
@@ -2058,6 +2341,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Calculate price change percentage over a time window
+   * PHASE 3: Uses accurate swap prices instead of pool-calculated prices
    */
   calculatePriceChange(mint, windowMs) {
     const tokenData = this.tokens.get(mint);
@@ -2077,15 +2361,18 @@ export default class DexScreenerStyleMonitor {
       return 0;
     }
 
+    // PHASE 3: Use accurate price from first swap in window (from transaction decoding)
     const oldPrice = swaps[0].priceUSD;
-    const currentPrice = poolData.price * this.solPriceUSD;
+    // PHASE 3: Use current price from most recent swap (more accurate than pool calculation)
+    const currentPrice = swaps.length > 0 ? swaps[swaps.length - 1].priceUSD : (poolData.price * this.solPriceUSD);
 
-    if (oldPrice === 0) return 0;
+    if (oldPrice === 0 || currentPrice === 0) return 0;
     return ((currentPrice - oldPrice) / oldPrice) * 100;
   }
 
   /**
    * Calculate volume over a time window
+   * PHASE 3: Uses accurate volume from transaction-level decoded swaps
    * ALWAYS uses Jupiter baseline as primary source (we don't have persistent historical data)
    */
   calculateVolume(mint, windowMs) {
@@ -2099,10 +2386,11 @@ export default class DexScreenerStyleMonitor {
       jupiterVolume = (baseline?.buyVolume || 0) + (baseline?.sellVolume || 0);
     }
 
-    // Add our live swaps on top (incremental updates)
+    // PHASE 3: Add our live swaps on top (incremental updates from accurate transaction decoding)
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
+    // Use volumeUSD from swap record (accurate from transaction decoding)
     const ourVolume = swaps.reduce((sum, swap) => sum + (swap.volumeUSD || 0), 0);
 
     // Return Jupiter baseline + our live swaps
@@ -2111,6 +2399,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Calculate transaction count over a time window
+   * PHASE 3: Uses accurate swap count from transaction-level decoding
    * ALWAYS uses Jupiter baseline as primary source
    */
   calculateTxnCount(mint, windowMs) {
@@ -2124,7 +2413,7 @@ export default class DexScreenerStyleMonitor {
       jupiterTxns = (baseline?.numBuys || 0) + (baseline?.numSells || 0);
     }
 
-    // Add our live swaps on top
+    // PHASE 3: Add our live swaps on top (accurate count from transaction decoding)
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
@@ -2135,6 +2424,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Calculate unique makers over a time window
+   * PHASE 3: Uses accurate maker addresses from transaction-level decoding
    * ALWAYS uses Jupiter baseline as primary source
    */
   calculateUniqueMakers(mint, windowMs) {
@@ -2148,11 +2438,12 @@ export default class DexScreenerStyleMonitor {
       jupiterMakers = baseline?.numTraders || 0;
     }
 
-    // Add our live unique makers on top
+    // PHASE 3: Add our live unique makers on top (accurate from transaction decoding)
     const now = Date.now();
     const cutoff = now - windowMs;
     const swaps = tokenData.getSwapsSince(cutoff);
-    const uniqueMakers = new Set(swaps.map(s => s.maker).filter(m => m !== 'unknown'));
+    // Filter out 'Unknown' and empty strings, use accurate maker from swap record
+    const uniqueMakers = new Set(swaps.map(s => s.maker).filter(m => m && m !== 'Unknown' && m !== 'unknown'));
 
     // Return Jupiter baseline + our live makers
     return jupiterMakers + uniqueMakers.size;
@@ -2206,6 +2497,34 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
+   * Save swap to ChartDatabase
+   */
+  async saveSwapToDatabase(mint, swap) {
+    try {
+      const tokenDb = this.chartDatabase.getTokenDatabase(mint);
+      if (!tokenDb) return;
+      
+      // Convert swap record to database format
+      const dbSwap = {
+        timestamp: swap.timestamp,
+        type: swap.type,
+        tokenAmount: swap.tokenAmount,
+        baseAmount: swap.baseAmount,
+        price: swap.price,
+        volumeUsd: swap.volumeUSD,
+        maker: swap.maker,
+        signature: swap.signature,
+        slot: swap.slot
+      };
+      
+      // Add to database
+      tokenDb.addSwap(dbSwap);
+    } catch (error) {
+      console.error(`❌ [DexScreenerStyleMonitor] Error saving swap to database:`, error.message);
+    }
+  }
+
+  /**
    * Broadcast swap to WebSocket clients
    * Uses 'swapUpdate' type for frontend compatibility
    */
@@ -2221,18 +2540,19 @@ export default class DexScreenerStyleMonitor {
         tokenAddress: mint,
         symbol: tokenData.config.name,
         type: swap.type,
-        amountTokens: swap.amountTokens,
-        amountSOL: swap.amountSOL,
-        priceSOL: swap.priceSOL,
-        priceUSD: swap.priceUSD,
-        usdAmount: swap.volumeUSD,
-        volumeUSD: swap.volumeUSD,
-        marketCap: swap.marketCap,
-        maker: swap.maker,
-        signature: swap.signature,
-        walletAddress: swap.maker,
-        timestamp: swap.timestamp,
-        slot: swap.slot
+        amountTokens: swap.tokenAmount || swap.amountTokens || 0,
+        amountSOL: swap.baseAmount || swap.amountSOL || 0,
+        priceSOL: swap.price || swap.priceSOL || 0,
+        priceUSD: swap.priceUSD || swap.priceUSD || 0,
+        usdAmount: swap.volumeUSD || swap.volumeUsd || 0,
+        volumeUSD: swap.volumeUSD || swap.volumeUsd || 0,
+        marketCap: swap.marketCap || 0,
+        liquidity: swap.liquidity || 0,
+        maker: swap.maker || 'Unknown',
+        signature: swap.signature || 'Unknown',
+        walletAddress: swap.maker || 'Unknown',
+        timestamp: swap.timestamp || Date.now(),
+        slot: swap.slot || 0
       };
 
       // Use BackendWebSocketServer's broadcastSwapUpdate method
