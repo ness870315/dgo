@@ -239,6 +239,11 @@ export default class DexScreenerStyleMonitor {
 
     // Create new stream with transaction filters only
     console.log(`📡 [DexScreenerStyleMonitor] Subscribing to transactions involving ${allPoolAddresses.length} pool addresses...`);
+    console.log(`   Filter structure:`, {
+      accountInclude: allPoolAddresses.length,
+      sampleAddresses: allPoolAddresses.slice(0, 3).map(a => a.substring(0, 12) + '...')
+    });
+    
     this.stream = await this.grpcClient.subscribeOnce(
       {}, // accounts (no longer used)
       {}, // slots
@@ -1627,40 +1632,100 @@ export default class DexScreenerStyleMonitor {
       
       // Extract transaction accounts to check if this transaction involves any of our pools
       const txAccounts = this.extractTransactionAccounts(txData);
-      if (!txAccounts || txAccounts.length === 0) return;
+      if (!txAccounts || txAccounts.length === 0) {
+        // DEBUG: Log why no accounts extracted (first few only)
+        if (this.globalStats.totalTransactions <= 3) {
+          console.log(`⚠️  [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} - No accounts extracted`);
+          console.log(`   txData structure:`, {
+            hasTransaction: !!txData.transaction,
+            hasNestedTransaction: !!txData.transaction?.transaction,
+            hasMessage: !!txData.transaction?.message,
+            hasNestedMessage: !!txData.transaction?.transaction?.message
+          });
+        }
+        return;
+      }
       
       // DEBUG: Log first few transactions to see what accounts are extracted
-      if (this.globalStats.totalTransactions <= 3) {
+      if (this.globalStats.totalTransactions <= 5) {
         console.log(`🔍 [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} extracted ${txAccounts.length} accounts`);
-        console.log(`   First 5 accounts:`, txAccounts.slice(0, 5).map(a => a.substring(0, 8) + '...'));
+        console.log(`   First 5 accounts:`, txAccounts.slice(0, 5).map(a => a.substring(0, 12) + '...'));
         console.log(`   Monitoring ${this.pools.size} pools`);
-        const samplePools = Array.from(this.pools.entries()).slice(0, 3).map(([m, p]) => {
+        const samplePools = Array.from(this.pools.entries()).slice(0, 5).map(([m, p]) => {
           const td = this.tokens.get(m);
-          return `${td?.config?.name || m.substring(0, 8)}: ${p.poolAddress.substring(0, 8)}...`;
+          return `${td?.config?.name || m.substring(0, 8)}: ${p.poolAddress.substring(0, 12)}...`;
         });
-        console.log(`   Sample pools:`, samplePools);
+        console.log(`   Sample pools (first 5):`, samplePools);
+        
+        // Check if any pool addresses match
+        const poolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
+        const matches = txAccounts.filter(acc => poolAddresses.includes(acc));
+        console.log(`   Pool matches found: ${matches.length}`);
+        if (matches.length > 0) {
+          console.log(`   Matched pools:`, matches.map(addr => {
+            const [mint, poolData] = Array.from(this.pools.entries()).find(([m, p]) => p.poolAddress === addr) || [];
+            const td = this.tokens.get(mint);
+            return `${td?.config?.name || mint.substring(0, 8)}: ${addr.substring(0, 12)}...`;
+          }));
+        }
       }
       
       // Check which pools are involved in this transaction
+      // Try multiple methods to find pool addresses:
+      // 1. Direct account key match (primary)
+      // 2. Check in transaction metadata (pre/post token balances)
+      // 3. Check in inner instructions
       const involvedPools = new Map();
+      const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress).filter(Boolean);
+      
       for (const [mint, poolData] of this.pools.entries()) {
         if (!poolData.poolAddress) continue;
         
-        // Check if pool address is in transaction accounts
+        // Method 1: Check if pool address is in transaction accounts (primary method)
         if (txAccounts.includes(poolData.poolAddress)) {
           involvedPools.set(mint, poolData);
+          continue;
+        }
+        
+        // Method 2: Check transaction metadata for pool-related accounts
+        const tx = txData.transaction?.transaction || txData.transaction;
+        if (tx?.meta) {
+          // Check pre/post token balances for pool token accounts
+          const allTokenBalances = [
+            ...(tx.meta.preTokenBalances || []),
+            ...(tx.meta.postTokenBalances || [])
+          ];
+          
+          for (const balance of allTokenBalances) {
+            // The owner field might be the pool address for some pool types
+            if (balance.owner === poolData.poolAddress) {
+              involvedPools.set(mint, poolData);
+              break;
+            }
+          }
+        }
+        
+        // Method 3: Check inner instructions (for wrapped transactions)
+        if (!involvedPools.has(mint) && tx?.meta?.innerInstructions) {
+          for (const innerIx of tx.meta.innerInstructions) {
+            // Inner instructions might reference pool addresses
+            // This is a fallback - processTxForSwap should handle this
+          }
         }
       }
       
       // If no pools involved, skip this transaction
       if (involvedPools.size === 0) {
-        // DEBUG: Log why transactions aren't matching (first few only)
-        if (this.globalStats.totalTransactions <= 5) {
+        // DEBUG: Log why transactions aren't matching (periodically)
+        if (this.globalStats.totalTransactions <= 10 || this.globalStats.totalTransactions % 1000 === 0) {
           const samplePoolAddr = Array.from(this.pools.values())[0]?.poolAddress;
-          const hasMatch = samplePoolAddr && txAccounts.includes(samplePoolAddr);
+          const sampleTxAccount = txAccounts[0];
           console.log(`⚠️  [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} has ${txAccounts.length} accounts but no pool match`);
-          if (samplePoolAddr) {
-            console.log(`   Sample pool: ${samplePoolAddr.substring(0, 8)}... | Match: ${hasMatch}`);
+          if (samplePoolAddr && sampleTxAccount) {
+            console.log(`   Sample pool: ${samplePoolAddr.substring(0, 12)}...`);
+            console.log(`   Sample tx account: ${sampleTxAccount.substring(0, 12)}...`);
+            console.log(`   Match: ${sampleTxAccount === samplePoolAddr}`);
+            console.log(`   Includes check: ${txAccounts.includes(samplePoolAddr)}`);
           }
         }
         return;
