@@ -1316,7 +1316,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                     <div className="bg-dark-bg p-3 rounded-lg">
                       <p className="text-xs text-gray-400">Price (USD)</p>
                       <p className="text-lg font-semibold text-white">
-                        ${tokenData.price ? tokenData.price.toFixed(8) : 'N/A'}
+                        {(() => {
+                          const price = tokenData.price;
+                          if (!price || isNaN(price)) return 'N/A';
+                          if (price < 0.0001) return `$${price.toExponential(2)}`;
+                          if (price < 1) return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals
+                          return `$${price.toFixed(2)}`;
+                        })()}
                       </p>
                     </div>
                     <div className="bg-dark-bg p-3 rounded-lg">

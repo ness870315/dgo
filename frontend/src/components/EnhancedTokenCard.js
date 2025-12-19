@@ -5,6 +5,13 @@ const EnhancedTokenCard = ({ token, onTokenSelect }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Helper functions for formatting
+  const formatPrice = (price) => {
+    if (!price || isNaN(price)) return '$0.00';
+    if (price < 0.0001) return `$${price.toExponential(2)}`;
+    if (price < 1) return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
+    return `$${price.toFixed(2)}`;
+  };
+
   const formatNumber = (num) => {
     if (!num || isNaN(num)) return '0';
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
@@ -77,7 +84,7 @@ const EnhancedTokenCard = ({ token, onTokenSelect }) => {
 
         <div className="text-right">
           <div className="text-white font-bold text-xl">
-            {formatNumber(token.currentPrice || token.price || 0)}
+            {formatPrice(token.currentPrice || token.price || 0)}
           </div>
           <div className={`text-sm font-medium ${getPriceChangeColor(token.priceChange24h)}`}>
             {formatPercentage(token.priceChange24h)}

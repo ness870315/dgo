@@ -231,7 +231,14 @@ const TradingViewWidget = ({ token, onClose }) => {
           
           <div className="flex items-center space-x-2">
             <span className="text-white text-2xl font-bold">
-              ${currentPrice?.toFixed(displayMode === 'mcap' ? 0 : 8) || '--'}
+              {(() => {
+                if (!currentPrice) return '--';
+                if (displayMode === 'mcap') return `$${currentPrice.toFixed(0)}`;
+                // Match DexScreener: 4 decimals for prices < 1
+                if (currentPrice < 0.0001) return `$${currentPrice.toExponential(2)}`;
+                if (currentPrice < 1) return `$${currentPrice.toFixed(4)}`;
+                return `$${currentPrice.toFixed(2)}`;
+              })()}
             </span>
             {priceChange && (
               <span className={`text-sm font-medium ${
