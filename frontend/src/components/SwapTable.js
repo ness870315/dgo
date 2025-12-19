@@ -128,9 +128,12 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
       filtered = filtered.filter(swap => swap.type === filters.type);
     }
 
-    // USD amount filter
+    // USD amount filter (only filter if we have valid USD values)
     if (filters.usdMin > 0) {
-      filtered = filtered.filter(swap => swap.volumeUsd >= filters.usdMin);
+      filtered = filtered.filter(swap => {
+        const volumeUsd = swap.volumeUsd || 0;
+        return volumeUsd >= filters.usdMin;
+      });
     }
 
     // Maker filter
