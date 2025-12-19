@@ -3033,8 +3033,14 @@ export default class DexScreenerStyleMonitor {
       let marketCap = 0;
       if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
         // Use Jupiter baseline and adjust for price changes
+        // CRITICAL: Use higher precision to avoid rounding errors
         const priceRatio = metrics.currentPrice / tokenData.lastBaselinePrice;
         marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+        
+        // Log for debugging (first few broadcasts only)
+        if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 50 === 0) {
+          console.log(`   💰 [Market Cap] Baseline: $${(tokenData.jupiterBaselineMarketCap / 1e6).toFixed(2)}M, Price ratio: ${priceRatio.toFixed(6)}, Mcap: $${(marketCap / 1e6).toFixed(2)}M`);
+        }
       } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
         // Fallback: Use Jupiter's pre-calculated market cap if available
         marketCap = tokenData.metadata.marketCap;
