@@ -76,7 +76,7 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
     const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price);
     if (!numPrice || numPrice === 0 || isNaN(numPrice)) return '$0.00';
     if (numPrice < 0.0001) return `$${numPrice.toExponential(2)}`;
-    if (numPrice < 1) return `$${numPrice.toFixed(6)}`;
+    if (numPrice < 1) return `$${numPrice.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
     return `$${numPrice.toFixed(2)}`;
   };
 

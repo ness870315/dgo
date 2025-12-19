@@ -405,9 +405,9 @@ const BubbleMap = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect,
           const numPrice = Number(price);
           if (isNaN(numPrice)) return '$0';
           
-          if (numPrice >= 1) return `$${numPrice.toFixed(4)}`;
-          if (numPrice >= 0.01) return `$${numPrice.toFixed(6)}`;
-          return `$${numPrice.toExponential(2)}`;
+          if (numPrice < 0.0001) return `$${numPrice.toExponential(2)}`;
+          if (numPrice < 1) return `$${numPrice.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
+          return `$${numPrice.toFixed(2)}`;
         };
         
         // Get hype level and color based on score using centralized utility

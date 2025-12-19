@@ -476,8 +476,8 @@ const PriceChartModal = ({ token, onClose }) => {
 
   const formatPrice = (price) => {
     if (price === null || price === undefined) return 'N/A';
-    if (price < 0.01) return `$${price.toFixed(6)}`;
-    if (price < 1) return `$${price.toFixed(4)}`;
+    if (price < 0.0001) return `$${price.toExponential(2)}`;
+    if (price < 1) return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
     if (price < 100) return `$${price.toFixed(2)}`;
     return `$${price.toFixed(2)}`;
   };
