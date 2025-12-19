@@ -52,6 +52,8 @@ const PriceChartModal = ({ token, onClose }) => {
   const [chartData, setChartData] = useState(null);
   const [timeframe, setTimeframe] = useState('5MIN');
   const [volume, setVolume] = useState(0);
+  const [liveMarketCap, setLiveMarketCap] = useState(null);
+  const [liveLiquidity, setLiveLiquidity] = useState(null);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   const [realTimeData, setRealTimeData] = useState(null);
   
@@ -89,13 +91,31 @@ const PriceChartModal = ({ token, onClose }) => {
   const handlePriceUpdate = (priceData) => {
     console.log(`📡 [PRICE-MODAL] 🚀 Real-time price update received:`, priceData);
     
-    // Extract price from the correct data structure
-    const price = priceData.price || priceData.priceUsd || priceData.data?.price || priceData.data?.priceUsd || priceData.currentPrice;
+    // Extract data from DexScreenerStyleMonitor broadcastMetrics structure
+    // Structure: { tokenAddress, priceUsd, currentPrice, price, marketCap, liquidity, volume24h, volume6h, volume1h, volume5m, ... }
+    const data = priceData.data || priceData;
+    
+    // Extract price (priority: priceUsd > currentPrice > price)
+    const price = data.priceUsd || data.currentPrice || data.price || priceData.price || priceData.priceUsd;
     
     if (!price) {
       console.warn(`📡 [PRICE-MODAL] ⚠️ No price found in data:`, priceData);
       return;
     }
+    
+    // Extract live market cap and liquidity from DexScreenerStyleMonitor
+    if (data.marketCap !== undefined && data.marketCap !== null) {
+      setLiveMarketCap(data.marketCap);
+      console.log(`📡 [PRICE-MODAL] 💰 Live market cap: $${(data.marketCap / 1e6).toFixed(2)}M`);
+    }
+    
+    if (data.liquidity !== undefined && data.liquidity !== null) {
+      setLiveLiquidity(data.liquidity);
+      console.log(`📡 [PRICE-MODAL] 💧 Live liquidity: $${(data.liquidity / 1e6).toFixed(2)}M`);
+    }
+    
+    // Update volume based on current timeframe
+    updateVolumeFromLiveData(data);
     
     // Calculate price change using the ref (previous price)
     if (previousPriceRef.current !== null && previousPriceRef.current !== price) {
@@ -109,6 +129,42 @@ const PriceChartModal = ({ token, onClose }) => {
     previousPriceRef.current = price;
     
     console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${price}`);
+  };
+  
+  // Store latest live data for volume updates when timeframe changes
+  const latestLiveDataRef = useRef(null);
+  
+  // Update volume from live data based on timeframe
+  const updateVolumeFromLiveData = (liveData) => {
+    if (!liveData) return;
+    
+    // Store latest live data for timeframe changes
+    latestLiveDataRef.current = liveData;
+    
+    let volumeValue = 0;
+    switch (timeframe) {
+      case '1MIN':
+      case '5MIN':
+        volumeValue = liveData.volume5m || 0;
+        break;
+      case '15MIN':
+      case '1H':
+        volumeValue = liveData.volume1h || 0;
+        break;
+      case '4H':
+      case '6H':
+        volumeValue = liveData.volume6h || 0;
+        break;
+      case '1D':
+      default:
+        volumeValue = liveData.volume24h || 0;
+        break;
+    }
+    
+    if (volumeValue > 0) {
+      setVolume(volumeValue);
+      console.log(`📡 [PRICE-MODAL] 📊 Live volume (${timeframe}): $${(volumeValue / 1e6).toFixed(2)}M`);
+    }
   };
 
   // Subscribe to WebSocket on mount, unsubscribe on unmount
@@ -154,6 +210,17 @@ const PriceChartModal = ({ token, onClose }) => {
       updateVolumeForTimeframe();
     }
   }, [timeframe, tokenAnalytics]);
+  
+  // Update volume when timeframe changes (if we have live data)
+  useEffect(() => {
+    // If we have live data, use it for volume calculation
+    if (latestLiveDataRef.current) {
+      updateVolumeFromLiveData(latestLiveDataRef.current);
+    } else if (tokenAnalytics) {
+      // Fallback to static analytics if no live data yet
+      updateVolumeForTimeframe();
+    }
+  }, [timeframe]);
 
   // WebSocket event listeners for real-time updates
   useEffect(() => {
@@ -223,9 +290,10 @@ const PriceChartModal = ({ token, onClose }) => {
     };
 
     const handleWebSocketPriceUpdate = (data) => {
-      if (data.tokenAddress === token?.contractAddress) {
+      if (data.tokenAddress === token?.contractAddress || data.data?.tokenAddress === token?.contractAddress) {
         console.log('📈 [PriceChartModal] Real-time price update received:', data);
-        handlePriceUpdate(data.priceData || data); // Extract priceData from WebSocket event
+        // DexScreenerStyleMonitor sends: { type: 'priceUpdate', tokenAddress, data: { priceUsd, marketCap, liquidity, volume24h, ... } }
+        handlePriceUpdate(data.data || data.priceData || data); // Extract priceData from WebSocket event
       }
     };
 
@@ -480,8 +548,20 @@ const PriceChartModal = ({ token, onClose }) => {
               </div>
               
               <div className="text-xs sm:text-sm text-gray-400 space-y-1">
-                <div>Market Cap: {formatNumber(token.jupiterData?.mcap || token.marketCap || 0)}</div>
-                <div>Volume ({timeframe}): {formatNumber(volume)}</div>
+                <div>
+                  Market Cap: {formatNumber(liveMarketCap || token.jupiterData?.mcap || token.marketCap || 0)}
+                  {liveMarketCap && <span className="text-green-400 ml-1">📡</span>}
+                </div>
+                <div>
+                  Volume ({timeframe}): {formatNumber(volume)}
+                  {volume > 0 && <span className="text-green-400 ml-1">📡</span>}
+                </div>
+                {liveLiquidity && (
+                  <div>
+                    Liquidity: {formatNumber(liveLiquidity)}
+                    <span className="text-green-400 ml-1">📡</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
