@@ -792,11 +792,12 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * Discover reserve accounts for DLMM pools by analyzing recent transactions
-   * Used when getParsedTokenAccountsByOwner returns 0 accounts (DLMM/CLMM pools)
-   * Automatically detects which quote mint (SOL/USDC/USDT) the pool uses
-   * Uses frequency-based filtering to identify actual pool reserves
+   * DEPRECATED: PHASE 3 - No longer used with transaction-level decoding
+   * Quote mint is now determined from swap.counterMint on first swap
+   * Kept for backward compatibility but should not be called
    */
   async discoverDLMMReserves(poolAddress, tokenMint) {
+    console.warn(`⚠️  [DEPRECATED] discoverDLMMReserves called - should not be used with transaction-level decoding`);
     try {
       const poolPubkey = new PublicKey(poolAddress);
       const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
@@ -1002,154 +1003,66 @@ export default class DexScreenerStyleMonitor {
     console.log(`\n🏊 Phase 1.6: Discovering pools (Moralis → Jupiter → DexScreener)...`);
     await this.discoverPoolsInPriorityOrder(tokensConfig);
     
-    console.log(`\n🔍 Phase 2: Discovering all pool reserves...`);
+    console.log(`\n📡 Phase 2: Initializing pools (no reserve reading - will initialize from liquidity baseline on first swap)...`);
 
-    // Phase 2: Discover all pool reserves with rate limiting (batches of 20)
-    const poolDiscoveryPromises = [];
-    let discoveryCount = 0;
-    const tokensToDiscover = tokensConfig.filter(({ mint, config }) => config.pool && this.tokens.has(mint));
-    const totalToDiscover = tokensToDiscover.length;
-    const BATCH_SIZE = 20; // Process 20 at a time to avoid RPC rate limits
+    // PHASE 3: No need to read reserves - we'll initialize from liquidity baseline on first swap
+    // Just create PoolData with pool address and initialize from liquidity when first swap arrives
+    console.log(`\n📡 Phase 2: Initializing pools (no reserve reading needed with transaction-level decoding)...`);
     
-    console.log(`   Discovering ${totalToDiscover} pools in batches of ${BATCH_SIZE}...`);
+    const tokensToInitialize = tokensConfig.filter(({ mint, config }) => config.pool && this.tokens.has(mint));
+    let initialized = 0;
     
-    for (let i = 0; i < tokensToDiscover.length; i += BATCH_SIZE) {
-      const batch = tokensToDiscover.slice(i, i + BATCH_SIZE);
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(tokensToDiscover.length / BATCH_SIZE);
-      
-      console.log(`\n   📦 Batch ${batchNum}/${totalBatches}: Processing ${batch.length} pools...`);
-      
-      const batchPromises = batch.map(({ mint, config }) =>
-        Promise.race([
-          this.discoverPoolInfo(mint, config)
-            .then(poolInfo => {
-              discoveryCount++;
-              const price = poolInfo.price;
-              const quoteName = poolInfo.quoteName || 'SOL';
-              console.log(`      ✅ [${discoveryCount}/${totalToDiscover}] ${config.name} discovered`);
-              console.log(`         Token: ${poolInfo.tokenReserve.toLocaleString()} | Quote: ${poolInfo.quoteReserve.toLocaleString()} ${quoteName} | Price: ${price.toFixed(10)} ${quoteName}`);
-              return { mint, config, poolInfo, success: true };
-            }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Discovery timeout (30s)')), 30000)
-          )
-        ]).catch(error => {
-          discoveryCount++;
-          console.error(`      ❌ [${discoveryCount}/${totalToDiscover}] ${config.name} failed:`, error.message);
-          return { mint, config, poolInfo: null, success: false };
-        })
-      );
-      
-      const batchResults = await Promise.all(batchPromises);
-      poolDiscoveryPromises.push(...batchResults);
-      
-      // Delay between batches to avoid rate limits
-      if (i + BATCH_SIZE < tokensToDiscover.length) {
-        console.log(`      ⏳ Waiting 500ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-
-    const poolResults = poolDiscoveryPromises;
-    
-    const successfulDiscoveries = poolResults.filter(r => r.success).length;
-    const failedDiscoveries = poolResults.filter(r => !r.success).length;
-    console.log(`\n✅ Phase 2 complete: ${successfulDiscoveries} pools discovered, ${failedDiscoveries} failed`);
-    
-    // Phase 3: Build filters for all successful pools and create stream ONCE
-    console.log(`\n📡 Phase 3: Creating stream with all ${successfulDiscoveries} pools...`);
-    
-    const newAccountFilters = { ...this.accountFilters };
-    const newTransactionFilters = { ...this.transactionFilters };
-    let subscribed = 0;
-
-    for (const { mint, config, poolInfo, success } of poolResults) {
-      if (!success || !poolInfo) continue;
-
+    for (const { mint, config } of tokensToInitialize) {
       try {
-        // Add this pool's filters to the batch
-        const filterKey = mint.substring(0, 8);
+        // PHASE 3: Create minimal PoolData - reserves will be initialized from liquidity baseline on first swap
+        const poolData = new PoolData(config.pool, mint, config);
+        poolData.poolAddress = config.pool; // Ensure poolAddress is set
         
-        newAccountFilters[`${filterKey}_token`] = {
-          account: [poolInfo.poolTokenAccount],
-          owner: [],
-          filters: []
-        };
-        
-        newAccountFilters[`${filterKey}_quote`] = {
-          account: [poolInfo.poolQuoteAccount],
-          owner: [],
-          filters: []
-        };
-        
-        newTransactionFilters[`${filterKey}_txs`] = {
-          accountInclude: [poolInfo.poolTokenAccount, poolInfo.poolQuoteAccount],
-          accountExclude: [],
-          accountRequired: [],
-          vote: false,
-          failed: false,
-          include_meta: true,
-          include_token_balances: true,
-          include_instructions: true,
-          include_inner_instructions: true,
-          include_loaded_addresses: true,
-          include_accounts: true
-        };
-
-        // Store pool info in token data AND in pools Map
+        // Get initial liquidity from tokenData (set during pool discovery)
         const tokenData = this.tokens.get(mint);
         if (tokenData) {
-          tokenData.poolInfo = poolInfo;
+          // Store liquidity for baseline (from Moralis/Jupiter)
+          if (tokenData.moralisLiquidity) {
+            poolData.initialLiquidity = tokenData.moralisLiquidity;
+          } else if (tokenData.jupiterLiquidity) {
+            poolData.initialLiquidity = tokenData.jupiterLiquidity;
+          } else if (tokenData.metadata?.liquidity) {
+            poolData.initialLiquidity = tokenData.metadata.liquidity;
+          }
         }
         
-        // CRITICAL: Add to pools Map so swap detection can find it!
-        this.pools.set(mint, {
-          tokenKey: mint,
-          tokenConfig: config,
-          config: config, // For backward compatibility
-          ...poolInfo
-        });
-
-        console.log(`   ✅ ${config.name} filters added`);
-        subscribed++;
+        // Add to pools Map
+        this.pools.set(mint, poolData);
+        
+        initialized++;
+        console.log(`   ✅ [${initialized}/${tokensToInitialize.length}] ${config.name} initialized (pool: ${config.pool.substring(0, 8)}...)`);
         
       } catch (error) {
-        console.error(`   ❌ ${config.name} filter error:`, error.message);
+        console.error(`   ❌ ${config.name} initialization error:`, error.message);
       }
     }
-
-    // Now recreate the stream ONCE with all filters
-    if (subscribed > 0) {
-      console.log(`\n🔄 Recreating stream with ${subscribed} pools...`);
-      
-      // Log USELESS pool info if it was added
-      const uselessMint = 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk';
-      const uselessPool = this.pools.get(uselessMint);
-      if (uselessPool) {
-        console.log(`\n✅ USELESS pool added to stream:`);
-        console.log(`   Token Account: ${uselessPool.poolTokenAccount}`);
-        console.log(`   Quote Account: ${uselessPool.poolQuoteAccount}`);
-        console.log(`   Quote Token: ${uselessPool.quoteName}`);
-      } else {
-        console.log(`\n⚠️  USELESS pool NOT found in monitored pools!`);
-      }
-      
-      this.accountFilters = newAccountFilters;
-      this.transactionFilters = newTransactionFilters;
+    
+    console.log(`\n✅ Phase 2 complete: ${initialized} pools initialized`);
+    
+    // Phase 3: Create stream with all pool addresses
+    if (initialized > 0) {
+      console.log(`\n📡 Phase 3: Creating stream with ${initialized} pools...`);
       await this.recreateStream();
       this.stats.tokensMonitored = this.tokens.size;
     }
 
-    console.log(`\n✅ Batch onboarding complete: ${subscribed} tokens monitoring\n`);
-    return { successful: subscribed, failed };
+    console.log(`\n✅ Batch onboarding complete: ${initialized} tokens monitoring\n`);
+    return { successful: initialized, failed: tokensToInitialize.length - initialized };
   }
 
   /**
-   * Discover pool reserves without adding to stream
-   * Returns pool info or null if discovery fails
+   * DEPRECATED: Discover pool reserves without adding to stream
+   * PHASE 3: No longer used with transaction-level decoding
+   * Reserves are now initialized from liquidity baseline on first swap
+   * Kept for backward compatibility but should not be called
    */
   async discoverPoolInfo(mint, config) {
+    console.warn(`⚠️  [DEPRECATED] discoverPoolInfo called - should not be used with transaction-level decoding`);
     const poolPubkey = new PublicKey(config.pool);
     const tokenMint = new PublicKey(mint);
     
@@ -1556,92 +1469,29 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Subscribe to pool for real-time swap detection
-   * Supports ALL DEX types: Standard AMM, DLMM, CLMM, Whirlpool
+   * PHASE 3: Subscribe to pool for real-time swap detection
+   * No longer reads reserves - initializes from liquidity baseline on first swap
    */
   async subscribeToPool(mint, config) {
     console.log(`📡 [DexScreenerStyleMonitor] Subscribing to pool for ${config.name}...`);
 
     try {
-      const poolPubkey = new PublicKey(config.pool);
-      const tokenMint = new PublicKey(mint);
-      const solMint = new PublicKey(SOL_MINT);
-      
-      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-
-      console.log(`   🔍 Finding token accounts for pool...`);
-      
-      // Try to find token accounts owned by the pool (Standard AMM)
-      const poolAccounts = await this.connection.getParsedTokenAccountsByOwner(poolPubkey, {
-        programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
-      });
-      
-      let poolTokenAccount = null;
-      let poolQuoteAccount = null;
-      let tokenReserve = 0;
-      let quoteReserve = 0;
-      let quoteMint = null;
-      let quoteDecimals = 9;
-      
-      // Find token and quote accounts from pool-owned accounts
-      for (const account of poolAccounts.value) {
-        const accountMint = account.account.data.parsed.info.mint;
-        const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
-        const decimals = account.account.data.parsed.info.tokenAmount.decimals;
-        
-        if (accountMint === mint) {
-          poolTokenAccount = account.pubkey;
-          tokenReserve = amount;
-          console.log(`   ✅ Token Account: ${account.pubkey.toBase58()} (${amount.toLocaleString()} tokens)`);
-        } else if (accountMint === SOL_MINT || accountMint === USDC_MINT || accountMint === USDT_MINT) {
-          poolQuoteAccount = account.pubkey;
-          quoteReserve = amount;
-          quoteMint = accountMint;
-          quoteDecimals = decimals;
-          const quoteName = accountMint === SOL_MINT ? 'SOL' : (accountMint === USDC_MINT ? 'USDC' : 'USDT');
-          console.log(`   ✅ Quote Account (${quoteName}): ${account.pubkey.toBase58()} (${amount.toLocaleString()})`);
-        }
-      }
-      
-      // If no token accounts found (DLMM/CLMM pools), try transaction-based discovery
-      if (!poolTokenAccount || !poolQuoteAccount) {
-        console.log(`   ⚠️  No token accounts owned by pool (likely DLMM/CLMM)`);
-        console.log(`   🔍 Trying transaction-based discovery (auto-detecting quote mint)...`);
-        
-        const reserves = await this.discoverDLMMReserves(config.pool, mint);
-        if (!reserves) {
-          throw new Error(`Could not discover reserves for pool ${config.pool}`);
-        }
-        
-        poolTokenAccount = new PublicKey(reserves.poolTokenAccount);
-        poolQuoteAccount = new PublicKey(reserves.poolQuoteAccount);
-        tokenReserve = reserves.tokenReserve;
-        quoteReserve = reserves.quoteReserve;
-        quoteMint = reserves.quoteMint;
-        quoteDecimals = reserves.quoteDecimals;
-        
-        console.log(`   ✅ Token Reserve: ${poolTokenAccount.toBase58()} (${tokenReserve.toLocaleString()} tokens)`);
-        console.log(`   ✅ Quote Reserve: ${poolQuoteAccount.toBase58()} (${quoteReserve.toLocaleString()})`);
-      }
-      
-      const quoteName = quoteMint === SOL_MINT ? 'SOL' : (quoteMint === USDC_MINT ? 'USDC' : 'USDT');
-      const price = quoteReserve / tokenReserve;
-      
-      console.log(`   Token Reserve: ${tokenReserve.toLocaleString()} tokens`);
-      console.log(`   Quote Reserve: ${quoteReserve.toLocaleString()} ${quoteName}`);
-      console.log(`   Price:         ${price.toFixed(10)} ${quoteName} per token`);
-
-      // Store pool data
+      // PHASE 3: Create minimal PoolData - reserves will be initialized from liquidity baseline on first swap
       const poolData = new PoolData(config.pool, mint, config);
-      poolData.poolTokenAccount = poolTokenAccount.toBase58();
-      poolData.poolQuoteAccount = poolQuoteAccount.toBase58();
-      poolData.tokenReserve = tokenReserve;
-      poolData.quoteReserve = quoteReserve;
-      poolData.price = price;
-      poolData.quoteMint = quoteMint;
-      poolData.quoteName = quoteName;
-      poolData.quoteDecimals = quoteDecimals;
+      poolData.poolAddress = config.pool; // Ensure poolAddress is set
+      
+      // Get initial liquidity from tokenData (set during pool discovery)
+      const tokenData = this.tokens.get(mint);
+      if (tokenData) {
+        // Store liquidity for baseline (from Moralis/Jupiter)
+        if (tokenData.moralisLiquidity) {
+          poolData.initialLiquidity = tokenData.moralisLiquidity;
+        } else if (tokenData.jupiterLiquidity) {
+          poolData.initialLiquidity = tokenData.jupiterLiquidity;
+        } else if (tokenData.metadata?.liquidity) {
+          poolData.initialLiquidity = tokenData.metadata.liquidity;
+        }
+      }
 
       this.pools.set(mint, poolData);
 
