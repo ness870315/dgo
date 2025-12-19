@@ -40,3 +40,5 @@ console.log('   • No Hidden Key Holder Flag');
 console.log('   • Organic Score > 0');
 console.log('\n🔗 Verify on: https://solscan.io/token/[ADDRESS]\n');
 
+
+

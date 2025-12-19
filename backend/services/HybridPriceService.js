@@ -198,7 +198,8 @@ class HybridPriceService extends EventEmitter {
 
     async fetchPoolDataByDEX(tokenAddress, tokenInfo) {
         // graduatedPool can be a string (pool address) or object with address property
-        const poolAddress = (typeof tokenInfo.graduatedPool === 'string' ? tokenInfo.graduatedPool : tokenInfo.graduatedPool?.address);
+        const poolAddress = (typeof tokenInfo.graduatedPool === 'string' ? tokenInfo.graduatedPool : tokenInfo.graduatedPool?.address) 
+                         || tokenInfo.firstPool?.id;
         
         if (!poolAddress) {
             console.log(`⚠️ [Pool] No pool address found, using DexScreener fallback`);

@@ -190,3 +190,5 @@ cat data/charts/[TOKEN_ADDRESS].json | jq '.swaps | length'
 4. Check frontend receives real-time updates
 5. Confirm discovered tokens show swap activity
 
+
+

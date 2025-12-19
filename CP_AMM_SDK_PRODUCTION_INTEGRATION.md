@@ -173,3 +173,4 @@ When swaps occur, price will update in real-time using the CP-AMM SDK calculatio
 - ✅ Real-time price updates with swaps
 - ✅ Market cap calculations use live price, not Jupiter
 
+

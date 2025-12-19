@@ -360,3 +360,5 @@ $0.00125
 
 **Result**: Users see live, real-time price updates in the TokenDetail modal, updated instantly when swaps occur! 🚀
 
+
+

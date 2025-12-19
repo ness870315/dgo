@@ -1,6 +1,4 @@
-import EnhancedHybridPriceService from './EnhancedHybridPriceService.mjs';
-import DexScreenerStyleMonitor from './DexScreenerStyleMonitor.mjs';
-import ChartDatabase from './ChartDatabase.js';
+@import EnhancedHybridPriceService from './EnhancedHybridPriceService.mjs';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -28,39 +26,14 @@ class RealTimeTokenMonitor {
         try {
             console.log('🚀 [RealTimeTokenMonitor] Initializing...');
             
-            // 🚀 FEATURE FLAG: Use new DexScreener-style monitor or old service
-            const USE_DEXSCREENER_MONITOR = process.env.USE_DEXSCREENER_MONITOR === 'true';
-            console.log(`🔍 [RealTimeTokenMonitor] USE_DEXSCREENER_MONITOR env: "${process.env.USE_DEXSCREENER_MONITOR}" (type: ${typeof process.env.USE_DEXSCREENER_MONITOR})`);
-            console.log(`🔍 [RealTimeTokenMonitor] Evaluated to: ${USE_DEXSCREENER_MONITOR}`);
+            // Initialize Enhanced HybridPriceService
+            this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
             
-            if (USE_DEXSCREENER_MONITOR) {
-                console.log('🚀 [RealTimeTokenMonitor] Using NEW DexScreenerStyleMonitor');
-                
-                // Initialize ChartDatabase
-                const chartDatabase = new ChartDatabase();
-                await chartDatabase.loadData();
-                chartDatabase.startBatchWriter();
-                
-                // Initialize DexScreener monitor
-                this.hybridPriceService = new DexScreenerStyleMonitor(chartDatabase, this.webSocketServer);
-                await this.hybridPriceService.initialize();
-                
-                // Load token cache and onboard tokens
-                const tokens = await this.loadTokenCache();
-                await this.onboardCachedTokens(tokens);
-                
-            } else {
-                console.log('⚠️  [RealTimeTokenMonitor] Using OLD EnhancedHybridPriceService');
-                
-                // Initialize old service
-                this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
-                
-                // Wait for gRPC client to initialize
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Load token cache
-                await this.loadTokenCache();
-            }
+            // Wait for gRPC client to initialize
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Load token cache
+            await this.loadTokenCache();
             
             console.log('✅ [RealTimeTokenMonitor] Initialization complete');
             
@@ -68,166 +41,6 @@ class RealTimeTokenMonitor {
             console.error('❌ [RealTimeTokenMonitor] Failed to initialize:', error.message);
             throw error;
         }
-    }
-
-    /**
-     * Onboard cached tokens to DexScreener monitor
-     * (Only used with new monitor)
-     */
-    async onboardCachedTokens(tokens) {
-        console.log(`\n🔍 [RealTimeTokenMonitor] onboardCachedTokens called with ${tokens.length} tokens`);
-        console.log(`   Service type: ${this.hybridPriceService?.constructor?.name || 'undefined'}`);
-        console.log(`   Has batchOnboardTokens: ${!!this.hybridPriceService?.batchOnboardTokens}`);
-        console.log(`   Has onboardToken: ${!!this.hybridPriceService?.onboardToken}`);
-        
-        if (!this.hybridPriceService.batchOnboardTokens) {
-            console.log(`⚠️  [RealTimeTokenMonitor] batchOnboardTokens not available, falling back to individual onboarding`);
-            
-            // Fallback to individual onboarding
-            for (const token of tokens) {
-                try {
-                    const mint = token.contractAddress || token.tokenAddress;
-                    
-                    let pool = token.poolAddress;
-                    if (!pool && token.graduatedPool) {
-                        if (typeof token.graduatedPool === 'object') {
-                            pool = token.graduatedPool.address || token.graduatedPool.id;
-                        } else {
-                            pool = token.graduatedPool;
-                        }
-                    }
-                    if (!pool) {
-                        pool = await this.fetchPoolFromMoralis(mint);
-                    }
-                    
-                    if (!pool || !token.decimals) {
-                        continue;
-                    }
-
-                    await this.hybridPriceService.onboardToken(mint, {
-                        name: token.name || token.symbol,
-                        pool: pool,
-                        decimals: token.decimals
-                    });
-                } catch (error) {
-                    console.error(`❌ Failed to onboard ${token.symbol}:`, error.message);
-                }
-            }
-            return;
-        }
-
-        console.log(`📋 [RealTimeTokenMonitor] Preparing ${tokens.length} cached tokens for batch onboarding...`);
-        
-        const tokensConfig = [];
-
-        for (const token of tokens) {
-            try {
-                const mint = token.contractAddress || token.tokenAddress;
-                
-                // Try to find pool in priority order
-                let pool = token.poolAddress;  // 1. Direct poolAddress field (from cache)
-                
-                // 2. Check graduatedPool (from Jupiter API enrichment)
-                if (!pool && token.graduatedPool) {
-                    // Handle graduatedPool object format
-                    if (typeof token.graduatedPool === 'object') {
-                        pool = token.graduatedPool.address || token.graduatedPool.id;
-                    } else {
-                        pool = token.graduatedPool;
-                    }
-                }
-                
-                // 3. If still no pool, fetch from Moralis
-                if (!pool) {
-                    console.log(`   🔍 No pool in cache for ${token.symbol}, fetching from Moralis...`);
-                    pool = await this.fetchPoolFromMoralis(mint);
-                }
-                
-                // Skip if missing required data
-                if (!pool || !token.decimals) {
-                    console.log(`⚠️  [RealTimeTokenMonitor] Skipping ${token.symbol}: Missing ${!pool ? 'pool' : 'decimals'}`);
-                    continue;
-                }
-
-                tokensConfig.push({
-                    mint,
-                    config: {
-                        name: token.name || token.symbol,
-                        pool: pool,
-                        decimals: token.decimals
-                    }
-                });
-
-            } catch (error) {
-                console.error(`❌ [RealTimeTokenMonitor] Failed to prepare ${token.symbol}:`, error.message);
-            }
-        }
-
-        // Batch onboard all tokens at once
-        const result = await this.hybridPriceService.batchOnboardTokens(tokensConfig);
-        console.log(`✅ [RealTimeTokenMonitor] Batch onboarding complete: ${result.successful} successful, ${result.failed} failed`);
-    }
-
-    /**
-     * Fetch pool address from Moralis API
-     */
-    async fetchPoolFromMoralis(mint, retries = 3) {
-        const MORALIS_API_KEY = process.env.MORALIS_API_KEY;
-        
-        if (!MORALIS_API_KEY) {
-            console.error('   ❌ MORALIS_API_KEY not set in environment');
-            return null;
-        }
-
-        for (let attempt = 1; attempt <= retries; attempt++) {
-            try {
-                const url = `https://solana-gateway.moralis.io/token/mainnet/${mint}/pairs`;
-                const response = await fetch(url, {
-                    headers: {
-                        'X-API-Key': MORALIS_API_KEY
-                    }
-                });
-                
-                if (!response.ok) {
-                    console.error(`   ❌ Moralis API error: ${response.status}`);
-                    if (attempt < retries) {
-                        console.log(`   🔄 Retrying in 2 seconds...`);
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        continue;
-                    }
-                    return null;
-                }
-            
-                const data = await response.json();
-                
-                // Extract pairAddress from first active pair with highest liquidity
-                if (data && data.pairs && data.pairs.length > 0) {
-                    const sortedPairs = data.pairs
-                        .filter(p => !p.inactivePair) // Only active pairs
-                        .sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0));
-                    
-                    if (sortedPairs.length > 0) {
-                        const bestPair = sortedPairs[0];
-                        console.log(`   ✅ Moralis pool: ${bestPair.pairAddress} (${bestPair.exchangeName}, $${(bestPair.liquidityUsd / 1000000).toFixed(2)}M)`);
-                        return bestPair.pairAddress;
-                    } else {
-                        console.error(`   ❌ No active pairs found in Moralis response`);
-                        return null;
-                    }
-                } else {
-                    console.error(`   ❌ No pairs found in Moralis response`);
-                    return null;
-                }
-            } catch (error) {
-                console.error(`   ❌ Moralis fetch error (attempt ${attempt}/${retries}):`, error.message);
-                if (attempt < retries) {
-                    console.log(`   🔄 Retrying in 2 seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-            }
-        }
-        
-        return null;
     }
 
     async loadTokenCache() {
@@ -430,7 +243,9 @@ class RealTimeTokenMonitor {
 
         // Add to pool addresses if pool exists
         let poolAddress = null;
-        if (tokenData.graduatedPool) {
+        if (tokenData.jupiterData?.firstPool?.id) {
+            poolAddress = tokenData.jupiterData.firstPool.id;
+        } else if (tokenData.graduatedPool) {
             poolAddress = typeof tokenData.graduatedPool === 'string' ? 
                 tokenData.graduatedPool : tokenData.graduatedPool?.address;
         }

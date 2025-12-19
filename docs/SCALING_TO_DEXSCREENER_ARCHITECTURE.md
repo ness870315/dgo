@@ -333,3 +333,5 @@ parseSwapFromTransaction(transaction) {
 **Coverage Increase:** From ~200 pools → ALL Solana pools
 **ROI:** Massive - covers entire ecosystem automatically
 
+
+

@@ -279,3 +279,5 @@ await gRPCTrendingService.startMonitoring();
 4. **Historical Analysis**: Track token performance over time
 5. **Multi-Chain Support**: Extend to other blockchains
 
+
+
