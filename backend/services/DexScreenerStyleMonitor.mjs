@@ -208,6 +208,25 @@ export default class DexScreenerStyleMonitor {
       return;
     }
     
+    // Log which tokens/pools are being monitored
+    const monitoredTokens = [];
+    for (const [mint, poolData] of this.pools.entries()) {
+      const tokenData = this.tokens.get(mint);
+      const tokenName = tokenData?.config?.name || mint.substring(0, 8);
+      monitoredTokens.push(`${tokenName} (${poolData.poolAddress.substring(0, 8)}...)`);
+    }
+    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools:`);
+    if (monitoredTokens.length <= 10) {
+      monitoredTokens.forEach((token, idx) => {
+        console.log(`   ${idx + 1}. ${token}`);
+      });
+    } else {
+      monitoredTokens.slice(0, 10).forEach((token, idx) => {
+        console.log(`   ${idx + 1}. ${token}`);
+      });
+      console.log(`   ... and ${monitoredTokens.length - 10} more pools`);
+    }
+    
     const combinedTransactionFilter = {
       client: {
         accountInclude: allPoolAddresses, // Single filter with all pool addresses
@@ -219,7 +238,7 @@ export default class DexScreenerStyleMonitor {
     };
 
     // Create new stream with transaction filters only
-    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools...`);
+    console.log(`📡 [DexScreenerStyleMonitor] Subscribing to transactions involving ${allPoolAddresses.length} pool addresses...`);
     this.stream = await this.grpcClient.subscribeOnce(
       {}, // accounts (no longer used)
       {}, // slots
@@ -1597,7 +1616,10 @@ export default class DexScreenerStyleMonitor {
       
       // Log every 50 transactions to show stream is working
       if (this.globalStats.totalTransactions % 50 === 0) {
-        console.log(`📊 [DexScreenerStyleMonitor] Received ${this.globalStats.totalTransactions} transactions`);
+        const swapRate = this.globalStats.totalTransactions > 0 
+          ? ((this.globalStats.totalSwapsDetected / this.globalStats.totalTransactions) * 100).toFixed(2)
+          : '0.00';
+        console.log(`📊 [DexScreenerStyleMonitor] Received ${this.globalStats.totalTransactions} transactions | Swaps detected: ${this.globalStats.totalSwapsDetected} (${swapRate}% detection rate)`);
       }
       
       const txData = msg.transaction;
@@ -1621,6 +1643,19 @@ export default class DexScreenerStyleMonitor {
       // If no pools involved, skip this transaction
       if (involvedPools.size === 0) return;
       
+      // Track transactions involving pools but not decoding to swaps
+      if (!this.globalStats.txWithPools) this.globalStats.txWithPools = 0;
+      this.globalStats.txWithPools++;
+      
+      // Log first few pool-involved transactions
+      if (this.globalStats.txWithPools <= 3) {
+        const poolNames = Array.from(involvedPools.keys()).map(m => {
+          const td = this.tokens.get(m);
+          return td?.config?.name || m.substring(0, 8);
+        }).join(', ');
+        console.log(`🔍 [DexScreenerStyleMonitor] Transaction #${this.globalStats.txWithPools} involves pools: ${poolNames}`);
+      }
+      
       // Build transaction object for processTxForSwap (must match expected structure)
       const tx = {
         transaction: txData.transaction,
@@ -1630,6 +1665,7 @@ export default class DexScreenerStyleMonitor {
       };
       
       // Try to decode swap for each involved pool
+      let decodedAnySwap = false;
       for (const [mint, poolData] of involvedPools.entries()) {
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
@@ -1652,6 +1688,8 @@ export default class DexScreenerStyleMonitor {
         );
         
         if (swap) {
+          decodedAnySwap = true;
+          
           // Update global counters
           this.globalStats.totalSwapsDetected++;
           if (swap.type === 'BUY') {
@@ -1671,6 +1709,15 @@ export default class DexScreenerStyleMonitor {
           // Display the swap (async - saves to database)
           await this.displaySwapFromTransaction(mint, poolData, swap, txData);
         }
+      }
+      
+      // Log if transaction involved pools but no swap was decoded (first few only)
+      if (!decodedAnySwap && this.globalStats.txWithPools <= 10) {
+        const poolNames = Array.from(involvedPools.keys()).map(m => {
+          const td = this.tokens.get(m);
+          return td?.config?.name || m.substring(0, 8);
+        }).join(', ');
+        console.log(`⚠️  [DexScreenerStyleMonitor] Transaction involved pools (${poolNames}) but no swap decoded`);
       }
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling transaction:`, error.message);
