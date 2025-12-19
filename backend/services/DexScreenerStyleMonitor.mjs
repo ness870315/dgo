@@ -2664,24 +2664,62 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const windowStartTime = now - windowMs;
     
-    // Try to find price at window start from swaps
-    const swaps = tokenData.swaps || [];
-    let priceAtWindowStart = null;
-    
-    // Find swap closest to window start time
-    let closestSwap = null;
-    let minTimeDiff = Infinity;
-    for (const swap of swaps) {
-      const timeDiff = Math.abs(swap.timestamp - windowStartTime);
-      if (timeDiff < minTimeDiff) {
-        minTimeDiff = timeDiff;
-        closestSwap = swap;
+    // CRITICAL: Check if we have Jupiter baseline price change for this specific window
+    // If we don't have enough swap data, use Jupiter's baseline price change directly
+    // This ensures different windows show different values
+    if (tokenData.jupiterBaseline) {
+      const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+      if (baseline && baseline.priceChange !== undefined && baseline.priceChange !== null) {
+        // Check if we have enough swap data for this window
+        const swaps = tokenData.swaps || [];
+        const swapsInWindow = swaps.filter(s => s.timestamp >= windowStartTime);
+        
+        // If we have less than 2 swaps in this window, use Jupiter baseline directly
+        // This ensures different windows show different values even without swap data
+        if (swapsInWindow.length < 2) {
+          return baseline.priceChange;
+        }
       }
     }
     
-    // If we found a swap within 10% of window time, use its price
-    if (closestSwap && minTimeDiff < windowMs * 0.1) {
-      priceAtWindowStart = closestSwap.priceUSD || closestSwap.price;
+    // We have enough swap data - calculate from actual swap prices
+    // Try to find price at window start from price history (most accurate)
+    let priceAtWindowStart = null;
+    
+    // First, try price history (tracks all price points)
+    if (tokenData.priceHistory && tokenData.priceHistory.length > 0) {
+      // Find price point closest to window start time
+      let closestPricePoint = null;
+      let minTimeDiff = Infinity;
+      for (const pricePoint of tokenData.priceHistory) {
+        const timeDiff = Math.abs(pricePoint.timestamp - windowStartTime);
+        if (timeDiff < minTimeDiff) {
+          minTimeDiff = timeDiff;
+          closestPricePoint = pricePoint;
+        }
+      }
+      // Use price if within reasonable time window (50% of window size)
+      if (closestPricePoint && minTimeDiff < windowMs * 0.5) {
+        priceAtWindowStart = closestPricePoint.price;
+      }
+    }
+    
+    // If no price history, try swaps
+    if (!priceAtWindowStart) {
+      const swaps = tokenData.swaps || [];
+      let closestSwap = null;
+      let minTimeDiff = Infinity;
+      for (const swap of swaps) {
+        const timeDiff = Math.abs(swap.timestamp - windowStartTime);
+        if (timeDiff < minTimeDiff) {
+          minTimeDiff = timeDiff;
+          closestSwap = swap;
+        }
+      }
+      // If we found a swap within 50% of window time, use its price
+      if (closestSwap && minTimeDiff < windowMs * 0.5) {
+        priceAtWindowStart = closestSwap.priceUSD || closestSwap.price;
+      }
     }
     
     // If no swap found, try to get from stored price at window start
@@ -2689,23 +2727,39 @@ export default class DexScreenerStyleMonitor {
       priceAtWindowStart = tokenData.priceAtWindowStart[windowKey];
     }
     
-    // If still no price, use Jupiter baseline price as fallback
+    // If still no price, use Jupiter baseline price change to calculate old price
     if (!priceAtWindowStart) {
-      const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
-      if (baselinePrice > 0) {
-        priceAtWindowStart = baselinePrice;
-      } else {
-        // Last resort: Use Jupiter baseline price change if available
-        if (tokenData.jupiterBaseline) {
-          const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
-          return baseline?.priceChange || 0;
+      if (tokenData.jupiterBaseline) {
+        const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+        if (baseline && baseline.priceChange !== undefined && baseline.priceChange !== null) {
+          // Calculate old price from current price and price change
+          // Formula: if price change is C%, then oldPrice = currentPrice / (1 + C/100)
+          const priceChangeDecimal = baseline.priceChange / 100;
+          if (priceChangeDecimal !== -1) { // Avoid division by zero
+            priceAtWindowStart = currentPrice / (1 + priceChangeDecimal);
+          } else {
+            // Fallback to baseline price
+            priceAtWindowStart = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
+          }
+        } else {
+          // No baseline price change, use baseline price
+          priceAtWindowStart = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
         }
-        return 0;
+      } else {
+        // No Jupiter baseline at all, use metadata price
+        priceAtWindowStart = tokenData.metadata?.usdPrice || 0;
       }
     }
     
     // Calculate price change: ((current - old) / old) * 100
-    if (priceAtWindowStart === 0 || priceAtWindowStart === null) return 0;
+    if (priceAtWindowStart === 0 || priceAtWindowStart === null) {
+      // Last resort: Use Jupiter baseline price change if available
+      if (tokenData.jupiterBaseline) {
+        const baseline = this.getJupiterBaselineForWindow(tokenData.jupiterBaseline, windowMs);
+        return baseline?.priceChange || 0;
+      }
+      return 0;
+    }
     return ((currentPrice - priceAtWindowStart) / priceAtWindowStart) * 100;
   }
 
