@@ -58,31 +58,76 @@ const PriceChartModal = ({ token, onClose }) => {
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   const [realTimeData, setRealTimeData] = useState(null);
   
-  // ✅ CRITICAL FIX: Use token prop data directly (already has recentSwaps from WebSocket)
+  // ✅ CRITICAL FIX: Fetch historical swaps from API on mount
   useEffect(() => {
-    if (token?.recentSwaps) {
-      console.log(`📊 [PriceChartModal] Using live data from token prop: ${token.recentSwaps.length} swaps`);
-      
-      // Debug: Log first swap to see what data we have
-      if (token.recentSwaps.length > 0) {
-        const firstSwap = token.recentSwaps[0];
-        console.log(`🔍 [PriceChartModal] First swap data:`, {
-          signature: firstSwap.signature?.slice(0, 20) + '...',
-          type: firstSwap.type,
-          solAmount: firstSwap.solAmount,
-          baseAmount: firstSwap.baseAmount,
-          maker: firstSwap.maker,
-          volumeUsd: firstSwap.volumeUsd,
-          allKeys: Object.keys(firstSwap)
-        });
+    const loadHistoricalSwaps = async () => {
+      if (!token?.contractAddress && !token?.mint && !token?.address) {
+        console.warn('⚠️ [PriceChartModal] No token address available for fetching swaps');
+        return;
       }
+
+      const tokenAddress = token.contractAddress || token.mint || token.address;
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       
-      setRealTimeData({
-        recentSwaps: token.recentSwaps,
-        swapHistory: token.recentSwaps // Alias for compatibility
-      });
-    }
-  }, [token?.recentSwaps]);
+      try {
+        console.log(`📊 [PriceChartModal] Fetching historical swaps for ${tokenAddress.substring(0, 8)}...`);
+        
+        // Try /api/charts/swaps/:token endpoint first
+        const swapsResponse = await fetch(`${API_BASE}/api/charts/swaps/${tokenAddress}?limit=100`);
+        let historicalSwaps = [];
+        
+        if (swapsResponse.ok) {
+          const swapsData = await swapsResponse.json();
+          if (swapsData.success && swapsData.swaps && Array.isArray(swapsData.swaps)) {
+            historicalSwaps = swapsData.swaps;
+            console.log(`✅ [PriceChartModal] Loaded ${historicalSwaps.length} historical swaps from API`);
+          }
+        } else {
+          console.warn(`⚠️ [PriceChartModal] Swaps API returned ${swapsResponse.status}, trying realtime-data endpoint...`);
+          
+          // Fallback to /api/tokens/:address/realtime-data
+          const realtimeResponse = await fetch(`${API_BASE}/api/tokens/${tokenAddress}/realtime-data`);
+          if (realtimeResponse.ok) {
+            const realtimeData = await realtimeResponse.json();
+            if (realtimeData.success && realtimeData.data) {
+              historicalSwaps = realtimeData.data.swapHistory || realtimeData.data.recentSwaps || [];
+              console.log(`✅ [PriceChartModal] Loaded ${historicalSwaps.length} swaps from realtime-data endpoint`);
+            }
+          }
+        }
+        
+        // Merge with token.recentSwaps if available
+        const tokenSwaps = token?.recentSwaps || [];
+        const allSwaps = [...historicalSwaps, ...tokenSwaps];
+        
+        // Remove duplicates by signature
+        const uniqueSwaps = Array.from(
+          new Map(allSwaps.map(swap => [swap.signature, swap])).values()
+        );
+        
+        // Sort by timestamp (newest first)
+        uniqueSwaps.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        
+        console.log(`📊 [PriceChartModal] Total unique swaps: ${uniqueSwaps.length} (${historicalSwaps.length} historical + ${tokenSwaps.length} from token prop)`);
+        
+        setRealTimeData({
+          recentSwaps: uniqueSwaps,
+          swapHistory: uniqueSwaps
+        });
+      } catch (error) {
+        console.error('❌ [PriceChartModal] Error loading historical swaps:', error);
+        // Still set token.recentSwaps if available
+        if (token?.recentSwaps && token.recentSwaps.length > 0) {
+          setRealTimeData({
+            recentSwaps: token.recentSwaps,
+            swapHistory: token.recentSwaps
+          });
+        }
+      }
+    };
+
+    loadHistoricalSwaps();
+  }, [token?.contractAddress, token?.mint, token?.address]);
   
   // Use ref to track previous price for accurate change calculation
   const previousPriceRef = useRef(null);
@@ -304,16 +349,35 @@ const PriceChartModal = ({ token, onClose }) => {
     };
 
     const handleSwapUpdate = (data) => {
-      if (data.tokenAddress === token?.contractAddress) {
-        console.log('🔄 [PriceChartModal] Real-time swap update received:', data.swapData);
+      const tokenAddress = token?.contractAddress || token?.mint || token?.address;
+      if (data.tokenAddress === tokenAddress || data.data?.tokenAddress === tokenAddress) {
+        const swapData = data.swapData || data.data || data;
+        console.log('🔄 [PriceChartModal] Real-time swap update received:', swapData);
         
         // ✅ CRITICAL FIX: Append new swap to existing data instead of reloading
         setRealTimeData(prevData => {
-          if (!prevData) return prevData;
+          // Initialize if no data exists yet
+          if (!prevData) {
+            return {
+              recentSwaps: [swapData],
+              swapHistory: [swapData],
+              totalSwaps: 1
+            };
+          }
           
-          const newSwap = data.swapData;
-          const updatedSwapHistory = [newSwap, ...(prevData.swapHistory || [])];
-          const updatedRecentSwaps = [newSwap, ...(prevData.recentSwaps || [])];
+          // Check if swap already exists (by signature)
+          const existingSignatures = new Set((prevData.swapHistory || []).map(s => s.signature));
+          if (existingSignatures.has(swapData.signature)) {
+            console.log(`⚠️ [PriceChartModal] Swap ${swapData.signature?.slice(0, 8)}... already exists, skipping`);
+            return prevData;
+          }
+          
+          const updatedSwapHistory = [swapData, ...(prevData.swapHistory || [])];
+          const updatedRecentSwaps = [swapData, ...(prevData.recentSwaps || [])];
+          
+          // Sort by timestamp (newest first)
+          updatedSwapHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          updatedRecentSwaps.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
           
           console.log(`✅ [PriceChartModal] Added live swap to table (now ${updatedSwapHistory.length} total swaps)`);
           
