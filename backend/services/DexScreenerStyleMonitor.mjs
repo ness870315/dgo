@@ -2633,24 +2633,26 @@ export default class DexScreenerStyleMonitor {
    */
   async saveSwapToDatabase(mint, swap) {
     try {
-      const tokenDb = this.chartDatabase.getTokenDatabase(mint);
-      if (!tokenDb) return;
-      
-      // Convert swap record to database format
-      const dbSwap = {
-        timestamp: swap.timestamp,
-        type: swap.type,
-        tokenAmount: swap.tokenAmount,
-        baseAmount: swap.baseAmount,
-        price: swap.price,
-        volumeUsd: swap.volumeUSD,
-        maker: swap.maker,
+      // Use ChartDatabase.storeSwaps() which handles batching and atomic writes
+      const swapToStore = {
+        tokenAddress: mint,
+        poolAddress: swap.poolAddress || 'UNKNOWN',
         signature: swap.signature,
-        slot: swap.slot
+        timestamp: swap.timestamp,
+        slot: swap.slot || 0,
+        price: swap.price || 0,
+        volumeUsd: swap.volumeUSD || swap.volumeUsd || 0,
+        source: 'dexscreener_monitor',
+        type: swap.type,
+        tokenAmount: swap.tokenAmount || 0,
+        baseAmount: swap.baseAmount || 0,
+        maker: swap.maker || 'Unknown',
+        rawData: swap,
+        createdAt: Date.now()
       };
       
-      // Add to database
-      tokenDb.addSwap(dbSwap);
+      // Store via ChartDatabase's batch system
+      await this.chartDatabase.storeSwaps([swapToStore]);
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error saving swap to database:`, error.message);
     }
