@@ -373,10 +373,13 @@ export default class DexScreenerStyleMonitor {
         
         // Store seed data for each token
         // Response is an array of token objects
+        const foundMints = new Set();
         for (const tokenInfo of data) {
           const mint = tokenInfo.id;
           const tokenData = this.tokens.get(mint);
           if (!tokenData) continue;
+          
+          foundMints.add(mint);
           
           if (tokenInfo) {
             tokenData.jupiterBaseline = {
@@ -411,6 +414,30 @@ export default class DexScreenerStyleMonitor {
             totalFetched++;
           } else {
             totalFailed++;
+          }
+        }
+        
+        // CRITICAL: Initialize empty baseline for tokens not found in Jupiter response
+        // This ensures all tokens have baseline structure (even if all zeros)
+        for (const mint of batch) {
+          if (!foundMints.has(mint)) {
+            const tokenData = this.tokens.get(mint);
+            if (tokenData && !tokenData.jupiterBaseline) {
+              tokenData.jupiterBaseline = {
+                stats5m: null,
+                stats1h: null,
+                stats6h: null,
+                stats24h: null,
+                volume24h: 0,
+                volume6h: 0,
+                volume1h: 0,
+                volume5m: 0,
+                priceChange24h: 0,
+                priceChange6h: 0,
+                priceChange1h: 0,
+                priceChange5m: 0
+              };
+            }
           }
         }
         
