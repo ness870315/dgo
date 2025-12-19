@@ -54,6 +54,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const [volume, setVolume] = useState(0);
   const [liveMarketCap, setLiveMarketCap] = useState(null);
   const [liveLiquidity, setLiveLiquidity] = useState(null);
+  const [livePriceChange, setLivePriceChange] = useState(null);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   const [realTimeData, setRealTimeData] = useState(null);
   
@@ -117,14 +118,10 @@ const PriceChartModal = ({ token, onClose }) => {
     // Update volume based on current timeframe
     updateVolumeFromLiveData(data);
     
-    // Calculate price change using the ref (previous price)
-    if (previousPriceRef.current !== null && previousPriceRef.current !== price) {
-      const change = ((price - previousPriceRef.current) / previousPriceRef.current) * 100;
-      setPriceChange(change);
-      console.log(`📡 [PRICE-MODAL] 📊 Price change: ${change.toFixed(2)}% (${previousPriceRef.current} → ${price})`);
-    }
+    // Update price change from live data based on timeframe (from DexScreenerStyleMonitor)
+    updatePriceChangeFromLiveData(data);
     
-    // Update the current price and ref
+    // Update the current price and ref (for fallback calculation if needed)
     setCurrentPrice(price);
     previousPriceRef.current = price;
     
@@ -164,6 +161,46 @@ const PriceChartModal = ({ token, onClose }) => {
     if (volumeValue > 0) {
       setVolume(volumeValue);
       console.log(`📡 [PRICE-MODAL] 📊 Live volume (${timeframe}): $${(volumeValue / 1e6).toFixed(2)}M`);
+    }
+  };
+  
+  // Update price change from live data based on timeframe (from DexScreenerStyleMonitor)
+  const updatePriceChangeFromLiveData = (liveData) => {
+    if (!liveData) return;
+    
+    let priceChangeValue = 0;
+    switch (timeframe) {
+      case '1MIN':
+      case '5MIN':
+        priceChangeValue = liveData.priceChange5m || 0;
+        break;
+      case '15MIN':
+      case '1H':
+        priceChangeValue = liveData.priceChange1h || 0;
+        break;
+      case '4H':
+      case '6H':
+        priceChangeValue = liveData.priceChange6h || 0;
+        break;
+      case '1D':
+      default:
+        priceChangeValue = liveData.priceChange24h || 0;
+        break;
+    }
+    
+    // Use live price change from DexScreenerStyleMonitor (more accurate)
+    if (priceChangeValue !== undefined && priceChangeValue !== null) {
+      setLivePriceChange(priceChangeValue);
+      setPriceChange(priceChangeValue);
+      console.log(`📡 [PRICE-MODAL] 📊 Live price change (${timeframe}): ${priceChangeValue.toFixed(2)}%`);
+    } else if (previousPriceRef.current !== null && previousPriceRef.current !== (liveData.priceUsd || liveData.currentPrice || liveData.price)) {
+      // Fallback: Calculate locally if live data not available
+      const price = liveData.priceUsd || liveData.currentPrice || liveData.price;
+      if (price && previousPriceRef.current) {
+        const change = ((price - previousPriceRef.current) / previousPriceRef.current) * 100;
+        setPriceChange(change);
+        console.log(`📡 [PRICE-MODAL] 📊 Calculated price change: ${change.toFixed(2)}% (fallback)`);
+      }
     }
   };
 
@@ -211,11 +248,12 @@ const PriceChartModal = ({ token, onClose }) => {
     }
   }, [timeframe, tokenAnalytics]);
   
-  // Update volume when timeframe changes (if we have live data)
+  // Update volume and price change when timeframe changes (if we have live data)
   useEffect(() => {
-    // If we have live data, use it for volume calculation
+    // If we have live data, use it for volume and price change calculation
     if (latestLiveDataRef.current) {
       updateVolumeFromLiveData(latestLiveDataRef.current);
+      updatePriceChangeFromLiveData(latestLiveDataRef.current);
     } else if (tokenAnalytics) {
       // Fallback to static analytics if no live data yet
       updateVolumeForTimeframe();
@@ -544,6 +582,7 @@ const PriceChartModal = ({ token, onClose }) => {
                   priceChange >= 0 ? 'text-green-400' : 'text-red-400'
                 }`}>
                   {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                  {livePriceChange !== null && <span className="text-green-400 ml-1">📡</span>}
                 </div>
               </div>
               
