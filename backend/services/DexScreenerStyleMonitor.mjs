@@ -174,6 +174,14 @@ export default class DexScreenerStyleMonitor {
     this.fullStateUpdater = setInterval(() => {
       this.broadcastFullState();
     }, 10 * 1000); // 10 seconds
+    
+    // Start periodic metrics broadcaster (every 5 seconds) to update prices even without swaps
+    // This ensures frontend gets live price updates from Jupiter baseline + swap deltas
+    this.metricsUpdater = setInterval(() => {
+      for (const [mint] of this.pools.entries()) {
+        this.broadcastMetrics(mint);
+      }
+    }, 5 * 1000); // 5 seconds
 
     this.isInitialized = true;
     console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
@@ -1585,18 +1593,36 @@ export default class DexScreenerStyleMonitor {
       const txData = msg.transaction;
       if (!txData || !txData.transaction) return;
       
-      // Try to decode swap for each monitored token
+      // Extract transaction accounts to check if this transaction involves any of our pools
+      const txAccounts = this.extractTransactionAccounts(txData);
+      if (!txAccounts || txAccounts.length === 0) return;
+      
+      // Check which pools are involved in this transaction
+      const involvedPools = new Map();
       for (const [mint, poolData] of this.pools.entries()) {
+        if (!poolData.poolAddress) continue;
+        
+        // Check if pool address is in transaction accounts
+        if (txAccounts.includes(poolData.poolAddress)) {
+          involvedPools.set(mint, poolData);
+        }
+      }
+      
+      // If no pools involved, skip this transaction
+      if (involvedPools.size === 0) return;
+      
+      // Build transaction object for processTxForSwap (must match expected structure)
+      const tx = {
+        transaction: txData.transaction,
+        signature: txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
+        slot: txData.slot || msg.slot,
+        blockTime: txData.blockTime || msg.blockTime
+      };
+      
+      // Try to decode swap for each involved pool
+      for (const [mint, poolData] of involvedPools.entries()) {
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
-        
-        // Build transaction object for processTxForSwap
-        const tx = {
-          transaction: txData.transaction,
-          signature: txData.transaction?.signatures?.[0] || txData.transaction?.signature,
-          slot: txData.slot,
-          blockTime: txData.blockTime
-        };
         
         // Get token price cache (for USD calculations)
         const tokenPriceCache = new Map();
@@ -1624,6 +1650,11 @@ export default class DexScreenerStyleMonitor {
             this.globalStats.totalSells++;
           }
           
+          // Log first few swaps to confirm detection is working
+          if (this.globalStats.totalSwapsDetected <= 5) {
+            console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
+          }
+          
           // Update reserves from swap deltas
           this.updateReservesFromSwap(poolData, swap);
           
@@ -1633,6 +1664,54 @@ export default class DexScreenerStyleMonitor {
       }
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling transaction:`, error.message);
+      if (error.stack) {
+        console.error(`   Stack:`, error.stack.split('\n').slice(0, 3).join('\n'));
+      }
+    }
+  }
+  
+  /**
+   * Extract all account addresses from a transaction
+   * Used to check if transaction involves any of our monitored pools
+   */
+  extractTransactionAccounts(txData) {
+    try {
+      const accounts = [];
+      const transaction = txData.transaction;
+      if (!transaction) return accounts;
+      
+      // Try to get accounts from message.accountKeys
+      if (transaction.message?.accountKeys) {
+        for (const key of transaction.message.accountKeys) {
+          const pubkey = key.pubkey || key;
+          if (pubkey && typeof pubkey === 'string') {
+            accounts.push(pubkey);
+          }
+        }
+      }
+      
+      // Also check staticAccountKeys for v0 transactions
+      if (transaction.message?.staticAccountKeys) {
+        for (const key of transaction.message.staticAccountKeys) {
+          const pubkey = key.pubkey || key;
+          if (pubkey && typeof pubkey === 'string') {
+            accounts.push(pubkey);
+          }
+        }
+      }
+      
+      // Check loadedAddresses for v0 transactions with address lookup tables
+      if (transaction.message?.loadedAddresses?.writable) {
+        accounts.push(...transaction.message.loadedAddresses.writable);
+      }
+      if (transaction.message?.loadedAddresses?.readonly) {
+        accounts.push(...transaction.message.loadedAddresses.readonly);
+      }
+      
+      return accounts;
+    } catch (error) {
+      console.error(`❌ [DexScreenerStyleMonitor] Error extracting transaction accounts:`, error.message);
+      return [];
     }
   }
   
@@ -2108,14 +2187,14 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price - ALWAYS use real-time pool price (updated on every swap)
-    // Use Jupiter price only for validation (log if > 5% difference)
-    // Fallback to Jupiter price only if pool data not available
+    // Calculate USD price - CRITICAL: Preserve Jupiter baseline when no swaps detected
+    // Priority 1: Use real-time pool price (updated on every swap) if available AND valid
+    // Priority 2: Fall back to Jupiter baseline price (don't override to 0!)
     let currentPriceUSD = 0;
     let priceSource = 'none';
     
-    if (poolData && poolData.price > 0) {
-      // ALWAYS use real-time pool-calculated price (updated on every swap)
+    if (poolData && poolData.price && poolData.price > 0) {
+      // Use real-time pool-calculated price (updated on every swap)
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
@@ -2125,16 +2204,12 @@ export default class DexScreenerStyleMonitor {
         currentPriceUSD = poolData.price;
         priceSource = 'pool-stable';
       }
-      
-      // NOTE: We don't compare with Jupiter price here because:
-      // - Our price is LIVE (updates with every swap)
-      // - Jupiter price is STATIC (baseline from startup)
-      // - Discrepancies are EXPECTED as the market moves
-      // - Jupiter is only used for initial validation, not live comparison
-    } else if (tokenData.metadata?.usdPrice) {
-      // Fallback to Jupiter price only if pool data not available
+    }
+    
+    // CRITICAL: If pool price is 0 or invalid, use Jupiter baseline (don't override to 0!)
+    if (currentPriceUSD === 0 && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
       currentPriceUSD = tokenData.metadata.usdPrice;
-      priceSource = 'jupiter-fallback';
+      priceSource = 'jupiter-baseline';
     }
     
     // Log price source for Lumen and Meteora
@@ -2142,7 +2217,7 @@ export default class DexScreenerStyleMonitor {
         mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
       const tokenName = tokenData.config?.name || mint.substring(0, 8);
       console.log(`   💰 [${tokenName}] Price: $${currentPriceUSD.toFixed(6)} (source: ${priceSource})`);
-      if (priceSource === 'jupiter-fallback') {
+      if (priceSource === 'jupiter-baseline' || priceSource === 'jupiter-fallback') {
         console.log(`      Jupiter usdPrice: $${tokenData.metadata.usdPrice.toFixed(6)}`);
       } else if (priceSource.startsWith('pool')) {
         console.log(`      Pool price: ${poolData.price.toFixed(10)} ${poolData.quoteName || 'unknown'}`);
@@ -2150,10 +2225,19 @@ export default class DexScreenerStyleMonitor {
       }
     }
 
+    // CRITICAL: Preserve Jupiter baseline for SOL price if pool price is 0
+    let currentPriceSOL = 0;
+    if (poolData && poolData.price && poolData.price > 0) {
+      currentPriceSOL = poolData.price;
+    } else if (tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0 && this.solPriceUSD > 0) {
+      // Fallback: calculate SOL price from Jupiter USD price
+      currentPriceSOL = tokenData.metadata.usdPrice / this.solPriceUSD;
+    }
+    
     return {
-      // Current price
+      // Current price (always preserve Jupiter baseline if pool price is 0)
       currentPrice: currentPriceUSD,
-      currentPriceSOL: poolData ? poolData.price : 0,
+      currentPriceSOL: currentPriceSOL,
 
       // Price changes
       priceChange5m: this.calculatePriceChange(mint, 5 * 60 * 1000),
@@ -2450,16 +2534,20 @@ export default class DexScreenerStyleMonitor {
       // Calculate market cap
       const circSupply = tokenData.metadata?.circSupply || 0;
       
-      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      // Only log first few broadcasts to avoid spam
+      if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 10 === 0) {
+        console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
+        console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      }
       
       const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
       
       // Calculate liquidity (quote reserves × quote price × 2)
+      // CRITICAL: Preserve Jupiter/Moralis baseline liquidity if reserves are 0
       // For SOL pools: quoteReserve × SOL price × 2
       // For USDC/USDT pools: quoteReserve × 2 (already in USD)
       let liquidity = 0;
-      if (poolData && poolData.quoteReserve) {
+      if (poolData && poolData.quoteReserve && poolData.quoteReserve > 0) {
         if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
           // SOL pool
           liquidity = poolData.quoteReserve * this.solPriceUSD * 2;
@@ -2467,6 +2555,15 @@ export default class DexScreenerStyleMonitor {
           // USDC/USDT pool (already in USD)
           liquidity = poolData.quoteReserve * 2;
         }
+      } else if (tokenData.moralisLiquidity && tokenData.moralisLiquidity > 0) {
+        // Fallback to Moralis liquidity baseline
+        liquidity = tokenData.moralisLiquidity;
+      } else if (tokenData.jupiterLiquidity && tokenData.jupiterLiquidity > 0) {
+        // Fallback to Jupiter liquidity baseline
+        liquidity = tokenData.jupiterLiquidity;
+      } else if (tokenData.metadata?.liquidity && tokenData.metadata.liquidity > 0) {
+        // Fallback to metadata liquidity
+        liquidity = tokenData.metadata.liquidity;
       }
       
       // Calculate age (if createdAt is available)
@@ -2517,10 +2614,8 @@ export default class DexScreenerStyleMonitor {
 
       // Use BackendWebSocketServer's broadcastPriceUpdate method
       if (this.webSocketServer.broadcastPriceUpdate) {
-        console.log(`   ✅ Using broadcastPriceUpdate method`);
         this.webSocketServer.broadcastPriceUpdate(mint, priceData);
       } else {
-        console.log(`   ✅ Using direct broadcast method`);
         // Fallback to direct broadcast
         this.webSocketServer.broadcast(JSON.stringify({
           type: 'priceUpdate',
@@ -2679,6 +2774,12 @@ export default class DexScreenerStyleMonitor {
     // Stop SOL price updater
     if (this.priceUpdater) {
       clearInterval(this.priceUpdater);
+    }
+    if (this.fullStateUpdater) {
+      clearInterval(this.fullStateUpdater);
+    }
+    if (this.metricsUpdater) {
+      clearInterval(this.metricsUpdater);
     }
 
     // Close the single gRPC stream
