@@ -1859,12 +1859,17 @@ export default class DexScreenerStyleMonitor {
         
         // Try to decode swap using processTxForSwap
         
+        // CRITICAL: Use the most recent price for midPriceUsd calculation
+        // Get current price from metrics to ensure it's up-to-date
+        const metrics = this.getTokenMetrics(mint);
+        const currentPriceUSD = metrics?.currentPrice || (poolData.price ? poolData.price * this.solPriceUSD : null);
+        
         const swap = processTxForSwap(
           tx,
           mint,
           this.solPriceUSD,
           tokenPriceCache,
-          poolData.price ? poolData.price * this.solPriceUSD : null, // midPriceUsd
+          currentPriceUSD, // Use current price from metrics (more accurate than poolData.price)
           null, // raydiumDecoder (can be added later if needed)
           poolData.poolAddress // knownPoolAddress
         );
@@ -2104,9 +2109,18 @@ export default class DexScreenerStyleMonitor {
     poolData.quoteReserve = reserves.quoteReserve;
     // CRITICAL: Price = quote per token (e.g., SOL per token)
     // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+    // Use higher precision to avoid rounding errors
     poolData.price = reserves.tokenReserve > 0 ? reserves.quoteReserve / reserves.tokenReserve : 0;
     poolData.quoteMint = reserves.quoteMint;
     poolData.lastUpdate = Date.now();
+    
+    // Log price update for debugging (first few swaps only)
+    if (this.globalStats.totalSwapsDetected <= 5) {
+      const priceUSD = poolData.quoteMint === SOL_MINT 
+        ? poolData.price * this.solPriceUSD 
+        : poolData.price;
+      console.log(`   💰 [Price Update] ${poolData.quoteMint === SOL_MINT ? 'SOL' : 'USD'} price: ${poolData.price.toFixed(10)} → $${priceUSD.toFixed(6)}`);
+    }
     
     this.poolReserves.set(poolData.poolAddress, reserves);
   }
@@ -2198,14 +2212,35 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
+      // Get current price after swap (from poolData, which was updated by updateReservesFromSwap)
+      const currentPriceAfterSwap = poolData.price ? 
+        (poolData.quoteMint === 'So11111111111111111111111111111111111111112' 
+          ? poolData.price * this.solPriceUSD 
+          : poolData.price) 
+        : swap.priceUsd;
+      
+      // Calculate current market cap after swap (using current price)
+      let currentMarketCap = 0;
+      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
+        const currentPriceRatio = currentPriceAfterSwap / tokenData.lastBaselinePrice;
+        currentMarketCap = tokenData.jupiterBaselineMarketCap * currentPriceRatio;
+      } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
+        currentMarketCap = tokenData.metadata.marketCap;
+      } else {
+        const supply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+        currentMarketCap = supply > 0 && currentPriceAfterSwap > 0 ? supply * currentPriceAfterSwap : 0;
+      }
+      
       // Log swap
       const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
       console.log(`\n📊 Swap - ${tokenData.config.name} (${swapType})`);
       console.log(`   Amount:      ${swap.tokenAmount.toLocaleString()} tokens`);
       console.log(`   SOL Amount:  ${swap.baseAmount.toFixed(6)} SOL`);
-      console.log(`   Price:       $${swap.priceUsd.toFixed(4)}`);
+      console.log(`   Price:       $${swap.priceUsd.toFixed(4)} (swap price)`);
+      console.log(`   Current:     $${currentPriceAfterSwap.toFixed(4)} (after swap)`);
       console.log(`   Volume USD:  $${swap.volumeUsd.toFixed(2)}`);
-      console.log(`   Market Cap:  $${marketCap > 0 ? marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
+      console.log(`   Market Cap:  $${marketCap > 0 ? marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (at swap)`);
+      console.log(`   Current MCap: $${currentMarketCap > 0 ? currentMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (after swap)`);
       console.log(`   Liquidity:   $${liquidity > 0 ? liquidity.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
       console.log(`   Signature:   ${swap.signature || 'N/A'}`);
       console.log(`   Slot:        ${swap.slot || 'N/A'}`);

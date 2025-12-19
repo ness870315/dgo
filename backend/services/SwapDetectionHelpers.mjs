@@ -702,17 +702,28 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     
     const sigShort = signature?.substring(0, 16) ?? 'unknown';
 
-    // Drop obvious noise - dust volume
-    if (!isFinite(volumeUsd) || volumeUsd < 0.05) {
-        console.log(`⚠️ [processTxForSwap] Skip: dust volume ($${volumeUsd?.toFixed(4) ?? 'N/A'}) for ${sigShort}...`);
+    // Drop obvious noise - dust volume (reduced threshold to match DexScreener)
+    // DexScreener shows swaps down to ~$0.01, so we'll be more lenient
+    if (!isFinite(volumeUsd) || volumeUsd < 0.01) {
+        // Only log if it's a significant amount to avoid spam
+        if (volumeUsd >= 0.001) {
+            console.log(`⚠️ [processTxForSwap] Skip: dust volume ($${volumeUsd?.toFixed(4) ?? 'N/A'}) for ${sigShort}...`);
+        }
         return null;
     }
 
-    // 🚀 HARDENING: Robust price outlier filter (5x/0.2x thresholds)
+    // 🚀 HARDENING: Robust price outlier filter (relaxed thresholds to match DexScreener)
+    // DexScreener shows more volatile swaps, so we'll use 10x/0.1x instead of 5x/0.2x
+    // Only apply filter if we have a recent mid price (within last 5 minutes)
     if (priceUsd > 0 && midPriceUsd && midPriceUsd > 0) {
         const ratio = priceUsd / midPriceUsd;
-        if (ratio > 5 || ratio < 0.2) {
-            // >5× or <0.2× off mid? likely mis-leg or outlier
+        // Relaxed thresholds: 10x/0.1x instead of 5x/0.2x to catch more swaps
+        if (ratio > 10 || ratio < 0.1) {
+            // >10× or <0.1× off mid? likely mis-leg or extreme outlier
+            // Only log significant outliers to avoid spam
+            if (ratio > 20 || ratio < 0.05) {
+                console.log(`⚠️ [processTxForSwap] Skip: extreme price outlier (${ratio.toFixed(2)}x) for ${sigShort}...`);
+            }
             return null;
         }
     }
