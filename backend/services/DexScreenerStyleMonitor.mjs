@@ -59,6 +59,8 @@ class TokenData {
     this.poolData = null; // Pool reserve data
     this.metadata = null; // Jupiter metadata (circSupply, etc)
     this.jupiterBaseline = null; // { stats, timestamp } - for cold start
+    this.jupiterBaselineMarketCap = null; // Jupiter's baseline market cap (starting point)
+    this.lastBaselinePrice = null; // Price at which baseline market cap was set
     this.lastUpdate = Date.now();
   }
 
@@ -410,6 +412,13 @@ export default class DexScreenerStyleMonitor {
             tokenData.metadata.holderCount = tokenInfo.holderCount || 0;
             tokenData.metadata.circSupply = tokenInfo.circSupply || 0;
             tokenData.metadata.totalSupply = tokenInfo.totalSupply || 0;
+            
+            // CRITICAL: Store Jupiter's baseline market cap and price for incremental updates
+            // This is our starting point - we'll adjust from here based on swap price changes
+            if (tokenInfo.marketCap > 0 && tokenInfo.usdPrice > 0) {
+              tokenData.jupiterBaselineMarketCap = tokenInfo.marketCap;
+              tokenData.lastBaselinePrice = tokenInfo.usdPrice;
+            }
             
             totalFetched++;
           } else {
@@ -2054,10 +2063,37 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Calculate market cap
+      // Calculate market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
+      // Formula: baselineMarketCap * (currentPrice / baselinePrice)
+      // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+      let marketCap = 0;
       const metadata = tokenData.metadata;
-      const supply = metadata?.circSupply || metadata?.totalSupply || 0;
-      const marketCap = supply > 0 && swap.priceUsd > 0 ? supply * swap.priceUsd : 0;
+      
+      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
+        // Use Jupiter baseline and adjust for price changes
+        const priceRatio = swap.priceUsd / tokenData.lastBaselinePrice;
+        marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+        
+        // CRITICAL: On first swap, update baseline to use swap price as new baseline
+        // This transitions from Jupiter baseline to our own baseline built from swaps
+        if (!tokenData.firstSwapProcessed) {
+          tokenData.jupiterBaselineMarketCap = marketCap;
+          tokenData.lastBaselinePrice = swap.priceUsd;
+          tokenData.firstSwapProcessed = true;
+        }
+      } else if (metadata?.marketCap && metadata.marketCap > 0) {
+        // Fallback: Use Jupiter's pre-calculated market cap if available
+        marketCap = metadata.marketCap;
+        // Initialize baseline from Jupiter if not set
+        if (!tokenData.jupiterBaselineMarketCap) {
+          tokenData.jupiterBaselineMarketCap = marketCap;
+          tokenData.lastBaselinePrice = swap.priceUsd || metadata.usdPrice || 0;
+        }
+      } else {
+        // Last resort: Calculate from supply * price (only if no baseline available)
+        const supply = metadata?.circSupply || metadata?.totalSupply || 0;
+        marketCap = supply > 0 && swap.priceUsd > 0 ? supply * swap.priceUsd : 0;
+      }
       
       // Create swap record (must match format expected by calculations)
       const swapRecord = {
@@ -2488,13 +2524,30 @@ export default class DexScreenerStyleMonitor {
       makers6h: this.calculateUniqueMakers(mint, 6 * 60 * 60 * 1000),
       makers24h: this.calculateUniqueMakers(mint, 24 * 60 * 60 * 1000),
 
-      // Market cap - use currentPriceUSD (already in USD, works for all pool types)
-      marketCap: tokenData.metadata && tokenData.metadata.circSupply > 0 && currentPriceUSD > 0
-        ? tokenData.metadata.circSupply * currentPriceUSD
-        : 0,
-
       // Metadata
       lastUpdate: tokenData.lastUpdate
+    };
+    
+    // Market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
+    // Formula: baselineMarketCap * (currentPrice / baselinePrice)
+    // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+    let marketCap = 0;
+    if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
+      // Use Jupiter baseline and adjust for price changes
+      const priceRatio = currentPriceUSD / tokenData.lastBaselinePrice;
+      marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+    } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
+      // Fallback: Use Jupiter's pre-calculated market cap if available
+      marketCap = tokenData.metadata.marketCap;
+    } else if (tokenData.metadata && tokenData.metadata.circSupply > 0 && currentPriceUSD > 0) {
+      // Last resort: Calculate from supply * price (only if no baseline available)
+      marketCap = tokenData.metadata.circSupply * currentPriceUSD;
+    }
+    
+    // Add market cap to return object
+    return {
+      ...metrics,
+      marketCap: marketCap
     };
   }
 
@@ -2758,16 +2811,28 @@ export default class DexScreenerStyleMonitor {
 
       const poolData = this.pools.get(mint);
       
-      // Calculate market cap
-      const circSupply = tokenData.metadata?.circSupply || 0;
+      // Calculate market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
+      // Formula: baselineMarketCap * (currentPrice / baselinePrice)
+      // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+      let marketCap = 0;
+      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
+        // Use Jupiter baseline and adjust for price changes
+        const priceRatio = metrics.currentPrice / tokenData.lastBaselinePrice;
+        marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+      } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
+        // Fallback: Use Jupiter's pre-calculated market cap if available
+        marketCap = tokenData.metadata.marketCap;
+      } else {
+        // Last resort: Calculate from supply * price (only if no baseline available)
+        const circSupply = tokenData.metadata?.circSupply || 0;
+        marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
+      }
       
       // Only log first few broadcasts to avoid spam
       if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 10 === 0) {
       console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(circSupply > 0 ? circSupply * metrics.currentPrice / 1000000 : 0).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap / 1000000).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
       }
-      
-      const marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
       
       // Calculate liquidity (quote reserves × quote price × 2)
       // CRITICAL: Preserve Jupiter/Moralis baseline liquidity if reserves are 0
