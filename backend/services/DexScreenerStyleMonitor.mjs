@@ -2625,15 +2625,24 @@ export default class DexScreenerStyleMonitor {
    * Calculate price change percentage over a time window
    * CRITICAL: Always start from Jupiter baseline, then track price at window start times
    * Formula: ((currentPrice - priceAtWindowStart) / priceAtWindowStart) * 100
+   * NOTE: Must NOT call getTokenMetrics() to avoid circular reference
    */
   calculatePriceChange(mint, windowMs) {
     const tokenData = this.tokens.get(mint);
     const poolData = this.pools.get(mint);
     if (!tokenData || !poolData) return 0;
 
-    // Get current price (from pool or most recent swap)
-    const metrics = this.getTokenMetrics(mint);
-    const currentPrice = metrics?.currentPrice || (poolData.price > 0 ? poolData.price * this.solPriceUSD : tokenData.metadata?.usdPrice || 0);
+    // Get current price directly (from pool or metadata) - DO NOT call getTokenMetrics() to avoid circular reference
+    let currentPrice = 0;
+    if (poolData && poolData.price && poolData.price > 0) {
+      if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+        currentPrice = poolData.price * this.solPriceUSD;
+      } else {
+        currentPrice = poolData.price;
+      }
+    } else if (tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+      currentPrice = tokenData.metadata.usdPrice;
+    }
     
     if (currentPrice === 0) {
       // No current price, use Jupiter baseline if available
@@ -3039,9 +3048,9 @@ export default class DexScreenerStyleMonitor {
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
       console.error('   Token:', mint);
-      console.error('   Metrics:', metrics ? 'exists' : 'undefined');
-      console.error('   TokenData:', tokenData ? 'exists' : 'undefined');
-      console.error('   PoolData:', poolData ? 'exists' : 'undefined');
+      if (error.stack) {
+        console.error('   Stack:', error.stack.split('\n').slice(0, 3).join('\n'));
+      }
     }
   }
 
