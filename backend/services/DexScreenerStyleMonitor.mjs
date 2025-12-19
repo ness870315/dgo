@@ -1745,9 +1745,13 @@ export default class DexScreenerStyleMonitor {
       }
       
       // Build transaction object for processTxForSwap (must match expected structure)
+      // CRITICAL: processTxForSwap expects tx.meta at top level (for extractTokenDeltas)
+      // The gRPC structure has meta nested: txData.transaction.meta or txData.transaction.transaction.meta
+      const innerTx = txData.transaction?.transaction || txData.transaction;
       const tx = {
-        transaction: txData.transaction,
-        signature: txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
+        transaction: innerTx,
+        meta: innerTx?.meta || txData.transaction?.meta || txData.meta, // CRITICAL: meta must be at top level
+        signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
         slot: txData.slot || msg.slot,
         blockTime: txData.blockTime || msg.blockTime
       };
@@ -1765,6 +1769,19 @@ export default class DexScreenerStyleMonitor {
         }
         
         // Try to decode swap using processTxForSwap
+        // DEBUG: Log transaction structure for first few swaps (to verify meta is present)
+        if (this.globalStats.txWithPools <= 3) {
+          console.log(`   🔍 Decoding swap for ${tokenData.config?.name || mint.substring(0, 8)}...`);
+          console.log(`      tx structure:`, {
+            hasTransaction: !!tx.transaction,
+            hasMeta: !!tx.meta,
+            hasPreTokenBalances: !!(tx.meta?.preTokenBalances?.length),
+            hasPostTokenBalances: !!(tx.meta?.postTokenBalances?.length),
+            preCount: tx.meta?.preTokenBalances?.length || 0,
+            postCount: tx.meta?.postTokenBalances?.length || 0
+          });
+        }
+        
         const swap = processTxForSwap(
           tx,
           mint,
