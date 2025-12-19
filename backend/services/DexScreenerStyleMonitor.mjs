@@ -965,14 +965,8 @@ export default class DexScreenerStyleMonitor {
 
     console.log('🔍 Phase 1: Preparing tokens (metadata + swaps)...');
     
+    // CRITICAL: Add ALL tokens first (even without pools) so pool discovery can find them
     for (const { mint, config } of tokensConfig) {
-      // Skip if missing pool
-      if (!config.pool) {
-        console.log(`   ⚠️  ${config.name}: No pool address, skipping`);
-        failed++;
-        continue;
-      }
-
       try {
         // Skip if already onboarded
         if (this.tokens.has(mint)) {
@@ -980,7 +974,7 @@ export default class DexScreenerStyleMonitor {
           continue;
         }
 
-        // 1. Create token data structure
+        // 1. Create token data structure (even if no pool yet)
         const tokenData = new TokenData(mint, config);
         this.tokens.set(mint, tokenData);
 
@@ -1008,6 +1002,7 @@ export default class DexScreenerStyleMonitor {
     await this.batchFetchJupiterSeedData(Array.from(this.tokens.keys()));
     
     // Phase 1.6: Discover pools in priority order (Moralis → Jupiter → DexScreener)
+    // CRITICAL: This will update config.pool for tokens that don't have one yet
     console.log(`\n🏊 Phase 1.6: Discovering pools (Moralis → Jupiter → DexScreener)...`);
     await this.discoverPoolsInPriorityOrder(tokensConfig);
     
@@ -1052,6 +1047,21 @@ export default class DexScreenerStyleMonitor {
     
     console.log(`\n✅ Phase 2 complete: ${initialized} pools initialized`);
     
+    // Log tokens that still don't have pools (for debugging)
+    const tokensWithoutPools = tokensConfig.filter(({ mint, config }) => {
+      if (!this.tokens.has(mint)) return false;
+      return !config.pool;
+    });
+    
+    if (tokensWithoutPools.length > 0) {
+      console.log(`\n⚠️  ${tokensWithoutPools.length} tokens without pools (not monitoring swaps):`);
+      for (const { mint, config } of tokensWithoutPools) {
+        console.log(`   - ${config.name} (${mint.substring(0, 8)}...)`);
+      }
+      console.log(`   💡 These tokens will still receive price updates from Jupiter baseline`);
+      console.log(`   💡 Pool discovery will be retried periodically`);
+    }
+    
     // Phase 3: Create stream with all pool addresses
     if (initialized > 0) {
       console.log(`\n📡 Phase 3: Creating stream with ${initialized} pools...`);
@@ -1059,7 +1069,7 @@ export default class DexScreenerStyleMonitor {
       this.stats.tokensMonitored = this.tokens.size;
     }
 
-    console.log(`\n✅ Batch onboarding complete: ${initialized} tokens monitoring\n`);
+    console.log(`\n✅ Batch onboarding complete: ${initialized} tokens monitoring swaps, ${tokensWithoutPools.length} tokens with Jupiter baseline only\n`);
     return { successful: initialized, failed: tokensToInitialize.length - initialized };
   }
 
