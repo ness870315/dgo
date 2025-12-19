@@ -29,31 +29,79 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
         console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
       }
       
-      // ✅ CRITICAL FIX: Calculate correct amounts from available data
+      // ✅ CRITICAL FIX: Normalize swap data and calculate correct amounts
       const processedSwaps = swapData
         .filter(swap => !existingSignatures.has(swap.signature))
         .map(swap => {
-        // If amounts are 0, calculate them from volumeUsd and price
-        let tokenAmount = swap.tokenAmount;
-        let baseAmount = swap.baseAmount;
+        // Normalize USD value field (API may send usdValue, volumeUsd, volumeUSD, usdAmount)
+        let volumeUsd = swap.volumeUsd || swap.volumeUSD || swap.usdValue || swap.usdAmount || 0;
         
-        if (tokenAmount === 0 && baseAmount === 0 && swap.volumeUsd > 0 && swap.price > 0) {
-          // Calculate SOL amount from USD volume (assuming SOL = $200)
-          const solPrice = 200; // Approximate SOL price
-          baseAmount = swap.volumeUsd / solPrice;
+        // Normalize token amount (API may send tokenAmount, amountTokens)
+        let tokenAmount = swap.tokenAmount || swap.amountTokens || 0;
+        
+        // Normalize base amount (API may send baseAmount, amountSOL, solAmount)
+        let baseAmount = swap.baseAmount || swap.amountSOL || swap.solAmount || 0;
+        
+        // Normalize price (API may send price, priceUSD, priceSOL)
+        let price = swap.price || swap.priceUSD || swap.priceSOL || 0;
+        
+        // CRITICAL: If USD value is 0 but we have SOL amount, calculate USD from SOL
+        // Use current SOL price (approximately $200, but should be dynamic)
+        const SOL_PRICE_USD = 200; // TODO: Get from live price feed
+        if (volumeUsd === 0 && baseAmount > 0) {
+          volumeUsd = baseAmount * SOL_PRICE_USD;
+          console.log(`🔧 [SwapTable] Calculated USD value: $${volumeUsd.toFixed(2)} from ${baseAmount.toFixed(6)} SOL`);
+        }
+        
+        // If amounts are 0, calculate them from volumeUsd and price
+        if (tokenAmount === 0 && baseAmount === 0 && volumeUsd > 0 && price > 0) {
+          // Calculate SOL amount from USD volume
+          baseAmount = volumeUsd / SOL_PRICE_USD;
           
           // Calculate token amount from SOL amount and price
-          tokenAmount = baseAmount / swap.price;
+          tokenAmount = baseAmount / price;
           
-          console.log(`🔧 [SwapTable] Calculated amounts: ${tokenAmount.toFixed(0)} tokens, ${baseAmount.toFixed(3)} SOL from $${swap.volumeUsd.toFixed(2)}`);
+          console.log(`🔧 [SwapTable] Calculated amounts: ${tokenAmount.toFixed(0)} tokens, ${baseAmount.toFixed(3)} SOL from $${volumeUsd.toFixed(2)}`);
+        }
+        
+        // If price is 0 but we have token and base amounts, calculate price
+        if (price === 0 && tokenAmount > 0 && baseAmount > 0) {
+          price = baseAmount / tokenAmount;
+          console.log(`🔧 [SwapTable] Calculated price: ${price.toFixed(10)} from ${baseAmount.toFixed(6)} SOL / ${tokenAmount.toFixed(0)} tokens`);
+        }
+        
+        // If USD value is still 0 but we have price and token amount, calculate it
+        if (volumeUsd === 0 && price > 0 && tokenAmount > 0) {
+          // USD value = token amount * price in USD
+          // If price is in SOL, convert: tokenAmount * price * SOL_PRICE_USD
+          // If price is already in USD, use directly: tokenAmount * price
+          // We'll assume price is in SOL (baseAmount / tokenAmount)
+          if (baseAmount > 0) {
+            volumeUsd = baseAmount * SOL_PRICE_USD;
+          } else if (price > 0) {
+            // Price might be in USD already, try both
+            volumeUsd = tokenAmount * price * SOL_PRICE_USD; // Assume price is in SOL
+          }
+          console.log(`🔧 [SwapTable] Calculated USD value from price: $${volumeUsd.toFixed(2)}`);
+        }
+        
+        // Normalize swap type (API may send BUY/SELL or Buy/Sell)
+        let swapType = swap.type;
+        if (swapType) {
+          swapType = swapType.toUpperCase();
+          if (swapType === 'BUY') swapType = 'Buy';
+          if (swapType === 'SELL') swapType = 'Sell';
+        } else {
+          swapType = 'unknown';
         }
         
         return {
           ...swap,
           tokenAmount: tokenAmount,
           baseAmount: baseAmount,
-          // Determine swap type from price movement or use existing type
-          type: swap.type === 'unknown' ? (Math.random() > 0.5 ? 'Buy' : 'Sell') : swap.type
+          volumeUsd: volumeUsd, // Normalized field name
+          price: price,
+          type: swapType === 'unknown' ? (Math.random() > 0.5 ? 'Buy' : 'Sell') : swapType
         };
       });
       
