@@ -2257,18 +2257,10 @@ export default class DexScreenerStyleMonitor {
       }
       
       // Log swap
+      // Reduced verbosity: Only log essential swap info
       const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
-      console.log(`\n📊 Swap - ${tokenData.config.name} (${swapType})`);
-      console.log(`   Amount:      ${swap.tokenAmount.toLocaleString()} tokens`);
-      console.log(`   SOL Amount:  ${swap.baseAmount.toFixed(6)} SOL`);
-      console.log(`   Price:       $${swap.priceUsd.toFixed(6)} (swap price)`);
-      console.log(`   Current:     $${currentPriceAfterSwap.toFixed(6)} (after swap)`);
-      console.log(`   Volume USD:  $${swap.volumeUsd.toFixed(2)}`);
-      console.log(`   Market Cap:  $${marketCap > 0 ? marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (at swap)`);
-      console.log(`   Current MCap: $${currentMarketCap > 0 ? currentMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (after swap)`);
-      console.log(`   Liquidity:   $${liquidity > 0 ? liquidity.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}`);
-      console.log(`   Signature:   ${swap.signature || 'N/A'}`);
-      console.log(`   Slot:        ${swap.slot || 'N/A'}`);
+      const mcapStr = marketCap > 0 ? `$${(marketCap / 1000000).toFixed(2)}M` : 'N/A';
+      console.log(`📊 ${tokenData.config.name} (${swapType}) | ${swap.tokenAmount.toLocaleString()} tokens | $${swap.priceUsd.toFixed(6)} | Vol: $${swap.volumeUsd.toFixed(2)} | MCap: ${mcapStr}`);
 
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error displaying swap:`, error.message);
@@ -3081,10 +3073,9 @@ export default class DexScreenerStyleMonitor {
         marketCap = tokenData.metadata.marketCap;
       }
       
-      // Only log first few broadcasts to avoid spam
-      if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 10 === 0) {
-      console.log(`📡 [DexScreenerStyleMonitor] Broadcasting metrics for ${tokenData.config?.name || mint.substring(0, 8)}...`);
-      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap / 1000000).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      // Reduced verbosity: Only log broadcasts for debugging (controlled by env var)
+      if (process.env.DEBUG_BROADCASTS === 'true' && (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 50 === 0)) {
+        console.log(`📡 [${tokenData.config?.name || mint.substring(0, 8)}] price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap / 1000000).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
       }
       
       // Calculate liquidity (quote reserves × quote price × 2)
@@ -3170,7 +3161,10 @@ export default class DexScreenerStyleMonitor {
         }));
       }
       
-      console.log(`   📊 Broadcast data: price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap/1e6).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      // Reduced verbosity: Only log if DEBUG_BROADCASTS is enabled
+      if (process.env.DEBUG_BROADCASTS === 'true') {
+        console.log(`📡 [${tokenData.config?.name || mint.substring(0, 8)}] price=$${metrics.currentPrice.toFixed(6)}, mcap=$${(marketCap/1e6).toFixed(2)}M, vol24h=$${metrics.volume24h.toFixed(2)}`);
+      }
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error broadcasting metrics:', error.message);
       console.error('   Token:', mint);
