@@ -1859,31 +1859,16 @@ export default class DexScreenerStyleMonitor {
         
         // Try to decode swap using processTxForSwap
         
-        // CRITICAL: Use CURRENT pool price for midPriceUsd (updates after each swap)
-        // Don't use static Jupiter baseline - it becomes stale after first swap!
-        // After first swap, price changes, so we need to use the updated pool price
-        let midPriceUSD = null;
-        const metrics = this.getTokenMetrics(mint);
-        if (metrics?.currentPrice && metrics.currentPrice > 0) {
-          // Use current pool price (updates after each swap) - most accurate
-          midPriceUSD = metrics.currentPrice;
-        } else if (poolData.price && poolData.price > 0) {
-          // Fallback to pool price if metrics not available
-          midPriceUSD = poolData.quoteMint === SOL_MINT 
-            ? poolData.price * this.solPriceUSD 
-            : poolData.price;
-        } else if (tokenData?.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
-          // Last resort: Use Jupiter baseline (only if no pool price available)
-          midPriceUSD = tokenData.metadata.usdPrice;
-        }
-        // If still null, price outlier filter will be disabled (more lenient)
-        
+        // CRITICAL: Disable price outlier filter (pass null) to catch ALL swaps
+        // The price outlier filter was too strict and was filtering valid swaps
+        // After first swap, price changes, so the filter would reject subsequent swaps
+        // Match test behavior: pass null to disable the filter (like test-transaction-level-decoding.mjs)
         const swap = processTxForSwap(
           tx,
           mint,
           this.solPriceUSD,
           tokenPriceCache,
-          midPriceUSD, // Use Jupiter baseline when available (more reliable than pool price)
+          null, // midPriceUsd = null (DISABLE price outlier filter - we want ALL swaps)
           null, // raydiumDecoder (can be added later if needed)
           poolData.poolAddress // knownPoolAddress
         );
