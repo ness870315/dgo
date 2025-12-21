@@ -1813,9 +1813,41 @@ export default class DexScreenerStyleMonitor {
           
           // CRITICAL: Match test behavior - store swap.priceUSD directly (don't rely on poolData.price)
           // The test file uses swap.priceUSD directly, which is more accurate than calculating from reserves
-          if (swap.priceUsd && swap.priceUsd > 0) {
-            tokenData.lastPriceUSD = swap.priceUsd;
-            tokenData.lastPriceUpdate = Date.now();
+          // BUT: Validate the price before storing to prevent erratic jumps
+          if (swap.priceUsd && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
+            // Validate price is reasonable (not too small, not too large)
+            // Typical memecoin prices: $0.000001 to $10
+            const isValidPrice = swap.priceUsd >= 0.0000001 && swap.priceUsd <= 1000;
+            
+            if (isValidPrice) {
+              // Check if price change is reasonable (not more than 10x jump)
+              // This prevents storing obviously wrong prices from bad swaps
+              const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+              if (previousPrice > 0) {
+                const priceRatio = swap.priceUsd / previousPrice;
+                // If price jumps more than 10x or drops more than 10x, it's likely wrong
+                if (priceRatio > 10 || priceRatio < 0.1) {
+                  // Price jump is too large - log and skip storing
+                  if (this.globalStats.totalSwapsDetected <= 10 || this.globalStats.totalSwapsDetected % 50 === 0) {
+                    console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Skipping erratic price: $${swap.priceUsd.toFixed(6)} (previous: $${previousPrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x)`);
+                  }
+                  // Don't update price - keep previous value
+                } else {
+                  // Price change is reasonable - store it
+                  tokenData.lastPriceUSD = swap.priceUsd;
+                  tokenData.lastPriceUpdate = Date.now();
+                }
+              } else {
+                // No previous price - store it (first swap or no baseline)
+                tokenData.lastPriceUSD = swap.priceUsd;
+                tokenData.lastPriceUpdate = Date.now();
+              }
+            } else {
+              // Price is outside reasonable range - log and skip
+              if (this.globalStats.totalSwapsDetected <= 10 || this.globalStats.totalSwapsDetected % 50 === 0) {
+                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Skipping invalid price: $${swap.priceUsd.toFixed(6)} (outside reasonable range)`);
+              }
+            }
           }
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
