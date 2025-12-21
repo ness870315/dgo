@@ -1811,11 +1811,15 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // Update reserves from swap deltas (this updates poolData.price)
-          this.updateReservesFromSwap(poolData, swap);
+          // CRITICAL: Match test behavior - store swap.priceUSD directly (don't rely on poolData.price)
+          // The test file uses swap.priceUSD directly, which is more accurate than calculating from reserves
+          if (swap.priceUsd && swap.priceUsd > 0) {
+            tokenData.lastPriceUSD = swap.priceUsd;
+            tokenData.lastPriceUpdate = Date.now();
+          }
           
-          // CRITICAL: After updating reserves, the pool price has changed
-          // Next swap will use this updated price for midPriceUsd, preventing false filtering
+          // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
+          this.updateReservesFromSwap(poolData, swap);
           
           // Display the swap (async - saves to database)
           await this.displaySwapFromTransaction(mint, poolData, swap, txData);
@@ -2546,48 +2550,30 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price - CRITICAL: Preserve Jupiter baseline when no swaps detected
-    // Priority 1: Use real-time pool price (updated on every swap) if available AND valid
+    // Calculate USD price - CRITICAL: Match test behavior - use swap.priceUSD directly
+    // Priority 1: Use last swap.priceUSD (most accurate, from actual transaction)
     // Priority 2: Fall back to Jupiter baseline price (don't override to 0!)
     let currentPriceUSD = 0;
     let priceSource = 'none';
     
-    // CRITICAL: Validate poolData.price before using it
-    // Check if price is reasonable (not 0, not NaN, not Infinity, and not extremely small/large)
-    const isValidPoolPrice = poolData && poolData.price && 
-                             isFinite(poolData.price) && 
-                             poolData.price > 0 && 
-                             poolData.price < 1e10; // Sanity check: price shouldn't be > 10B SOL per token
-    
-    if (isValidPoolPrice) {
-      // Use real-time pool-calculated price (updated on every swap)
+    // CRITICAL: Match test behavior - use swap.priceUSD directly instead of calculating from poolData.price
+    // The test file stores swap.priceUSD in currentPrices Map and uses it directly
+    // This is more accurate because it comes from the actual transaction, not from reserve calculations
+    if (tokenData.lastPriceUSD && tokenData.lastPriceUSD > 0) {
+      currentPriceUSD = tokenData.lastPriceUSD;
+      priceSource = 'swap-price';
+    } else if (poolData && poolData.price && poolData.price > 0) {
+      // Fallback: Use poolData.price if no swap price available yet
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
-        // SOL pool: price is in SOL, convert to USD
         currentPriceUSD = poolData.price * this.solPriceUSD;
-        priceSource = 'pool-sol';
-        
-        // CRITICAL: Validate the calculated USD price is reasonable
-        // If it's way off (e.g., < 0.0001 or > 1000), something is wrong with poolData.price
-        if (currentPriceUSD < 0.0001 || currentPriceUSD > 1000) {
-          // Price is invalid - fall back to Jupiter baseline
-          if (tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
-            currentPriceUSD = tokenData.metadata.usdPrice;
-            priceSource = 'jupiter-baseline-invalid-pool';
-            
-            // Log the issue for debugging
-            if (this.globalStats.totalSwapsDetected <= 10 || this.globalStats.totalSwapsDetected % 100 === 0) {
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Invalid pool price detected: ${poolData.price.toFixed(10)} SOL/token → $${(poolData.price * this.solPriceUSD).toFixed(6)} (using Jupiter baseline: $${tokenData.metadata.usdPrice.toFixed(6)})`);
-            }
-          }
-        }
+        priceSource = 'pool-sol-fallback';
       } else {
-        // USDC/USDT pool: price is already in USD
         currentPriceUSD = poolData.price;
-        priceSource = 'pool-stable';
+        priceSource = 'pool-stable-fallback';
       }
     }
     
-    // CRITICAL: If pool price is 0 or invalid, use Jupiter baseline (don't override to 0!)
+    // CRITICAL: If no swap price and no pool price, use Jupiter baseline (don't override to 0!)
     if (currentPriceUSD === 0 && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
       currentPriceUSD = tokenData.metadata.usdPrice;
       priceSource = 'jupiter-baseline';
