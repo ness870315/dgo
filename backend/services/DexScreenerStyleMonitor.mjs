@@ -1995,18 +1995,41 @@ export default class DexScreenerStyleMonitor {
           baselinePrice = poolData.price;
         }
         
-        const initialTokenReserve = baselinePrice > 0 
-          ? initialQuoteReserve / baselinePrice 
-          : poolData.tokenReserve || 0;
-        
-        reserves = {
-          tokenReserve: initialTokenReserve,
-          quoteReserve: initialQuoteReserve,
-          quoteMint: quoteMint,
-          quoteDecimals: quoteMint === SOL_MINT ? 9 : 6,
-          initialLiquidity: initialLiquidity,
-          initialized: true
-        };
+        // CRITICAL: If this is the first swap, use swap's actual amounts to initialize reserves
+        // This is more accurate than calculating from liquidity + baseline price
+        // Swap amounts are from the actual transaction, so they reflect true pool state
+        if (swap.tokenAmount > 0 && swap.baseAmount > 0 && swap.price > 0) {
+          // Use swap's actual price to calculate initial reserves
+          // We know: price = quoteReserve / tokenReserve
+          // And: liquidity = 2 * quoteReserve * quotePrice (for SOL pools)
+          // So: quoteReserve = liquidity / (2 * quotePrice)
+          // And: tokenReserve = quoteReserve / price
+          const swapPrice = swap.price; // Already in quote token per token
+          const initialTokenReserve = initialQuoteReserve / swapPrice;
+          
+          reserves = {
+            tokenReserve: initialTokenReserve,
+            quoteReserve: initialQuoteReserve,
+            quoteMint: quoteMint,
+            quoteDecimals: quoteMint === SOL_MINT ? 9 : 6,
+            initialLiquidity: initialLiquidity,
+            initialized: true
+          };
+        } else {
+          // Fallback: Use baseline price if swap amounts not available
+          const initialTokenReserve = baselinePrice > 0 
+            ? initialQuoteReserve / baselinePrice 
+            : poolData.tokenReserve || 0;
+          
+          reserves = {
+            tokenReserve: initialTokenReserve,
+            quoteReserve: initialQuoteReserve,
+            quoteMint: quoteMint,
+            quoteDecimals: quoteMint === SOL_MINT ? 9 : 6,
+            initialLiquidity: initialLiquidity,
+            initialized: true
+          };
+        }
       } else {
         // Fallback: use current pool data
         reserves = {
@@ -2042,10 +2065,18 @@ export default class DexScreenerStyleMonitor {
     // Update pool data
     poolData.tokenReserve = reserves.tokenReserve;
     poolData.quoteReserve = reserves.quoteReserve;
-    // CRITICAL: Price = quote per token (e.g., SOL per token)
-    // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
-    // Use higher precision to avoid rounding errors
-    poolData.price = reserves.tokenReserve > 0 ? reserves.quoteReserve / reserves.tokenReserve : 0;
+    
+    // CRITICAL: Use swap's actual price if available (more accurate than calculating from reserves)
+    // Reserve tracking can accumulate errors, but swap price is from actual transaction
+    if (swap.price && swap.price > 0) {
+      poolData.price = swap.price; // Use swap's actual price (in quote token per token)
+    } else {
+      // Fallback: Calculate from reserves if swap price not available
+      // Price = quote per token (e.g., SOL per token)
+      // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+      poolData.price = reserves.tokenReserve > 0 ? reserves.quoteReserve / reserves.tokenReserve : 0;
+    }
+    
     poolData.quoteMint = reserves.quoteMint;
     poolData.lastUpdate = Date.now();
     
@@ -2054,7 +2085,8 @@ export default class DexScreenerStyleMonitor {
       const priceUSD = poolData.quoteMint === SOL_MINT 
         ? poolData.price * this.solPriceUSD 
         : poolData.price;
-      console.log(`   💰 [Price Update] ${poolData.quoteMint === SOL_MINT ? 'SOL' : 'USD'} price: ${poolData.price.toFixed(10)} → $${priceUSD.toFixed(6)}`);
+      const swapPriceUSD = swap.priceUsd || (swap.price && poolData.quoteMint === SOL_MINT ? swap.price * this.solPriceUSD : swap.price);
+      console.log(`   💰 [Price Update] ${poolData.quoteMint === SOL_MINT ? 'SOL' : 'USD'} price: ${poolData.price.toFixed(10)} → $${priceUSD.toFixed(6)} (swap: $${swapPriceUSD?.toFixed(6) || 'N/A'})`);
     }
     
     this.poolReserves.set(poolData.poolAddress, reserves);
