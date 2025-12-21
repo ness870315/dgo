@@ -1738,78 +1738,16 @@ export default class DexScreenerStyleMonitor {
       const txData = msg.transaction;
       if (!txData || !txData.transaction) return;
       
-      // Extract transaction accounts to check if this transaction involves any of our pools
       // CRITICAL: Match test behavior - try to decode swaps for ALL tokens on EVERY transaction
-      // Don't pre-filter by accounts - aggregator swaps may not have pool addresses in accounts
+      // Don't pre-filter by pool address - aggregator swaps may not have pool addresses in accounts
       // processTxForSwap will return null if it's not a swap, so there's no harm in trying
+      // This ensures we catch ALL swaps, including those through aggregators/routers
       
-      // DEBUG: Log first transaction only to verify account extraction is working
+      // DEBUG: Log first transaction
       if (this.globalStats.totalTransactions === 1) {
-        console.log(`🔍 [DexScreenerStyleMonitor] First transaction extracted ${txAccounts.length} accounts, monitoring ${this.pools.size} pools`);
+        console.log(`🔍 [DexScreenerStyleMonitor] First transaction, monitoring ${this.pools.size} pools`);
       }
       
-      // Check which pools are involved in this transaction
-      // Try multiple methods to find pool addresses:
-      // 1. Direct account key match (primary)
-      // 2. Check in transaction metadata (pre/post token balances)
-      // 3. Check in inner instructions
-      const involvedPools = new Map();
-      const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress).filter(Boolean);
-      
-      for (const [mint, poolData] of this.pools.entries()) {
-        if (!poolData.poolAddress) continue;
-        
-        // Method 1: Check if pool address is in transaction accounts (primary method)
-        if (txAccounts.includes(poolData.poolAddress)) {
-          involvedPools.set(mint, poolData);
-          continue;
-        }
-        
-        // Method 2: Check transaction metadata for pool-related accounts
-        const tx = txData.transaction?.transaction || txData.transaction;
-        if (tx?.meta) {
-          // Check pre/post token balances for pool token accounts
-          const allTokenBalances = [
-            ...(tx.meta.preTokenBalances || []),
-            ...(tx.meta.postTokenBalances || [])
-          ];
-          
-          for (const balance of allTokenBalances) {
-            // The owner field might be the pool address for some pool types
-            if (balance.owner === poolData.poolAddress) {
-              involvedPools.set(mint, poolData);
-              break;
-            }
-          }
-        }
-        
-        // Method 3: Check inner instructions (for wrapped transactions)
-        if (!involvedPools.has(mint) && tx?.meta?.innerInstructions) {
-          for (const innerIx of tx.meta.innerInstructions) {
-            // Inner instructions might reference pool addresses
-            // This is a fallback - processTxForSwap should handle this
-          }
-        }
-      }
-      
-      // If no pools involved, skip this transaction
-      // CRITICAL: Match test behavior - try to decode swaps for ALL tokens on EVERY transaction
-      // Removed early return - processTxForSwap will return null if it's not a swap
-      if (false) { // Always false - removed filtering logic
-        // DEBUG: Log why transactions aren't matching (periodically)
-        if (this.globalStats.totalTransactions <= 10 || this.globalStats.totalTransactions % 1000 === 0) {
-          const samplePoolAddr = Array.from(this.pools.values())[0]?.poolAddress;
-          const sampleTxAccount = txAccounts[0];
-          console.log(`⚠️  [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} has ${txAccounts.length} accounts but no pool match`);
-          if (samplePoolAddr && sampleTxAccount) {
-            console.log(`   Sample pool: ${samplePoolAddr.substring(0, 12)}...`);
-            console.log(`   Sample tx account: ${sampleTxAccount.substring(0, 12)}...`);
-            console.log(`   Match: ${sampleTxAccount === samplePoolAddr}`);
-            console.log(`   Includes check: ${txAccounts.includes(samplePoolAddr)}`);
-          }
-        }
-        // Don't return - try decoding for all tokens anyway (match test behavior)
-      }
       
       // Build transaction object for processTxForSwap (must match expected structure)
       // CRITICAL: processTxForSwap expects tx.meta at top level (for extractTokenDeltas)
