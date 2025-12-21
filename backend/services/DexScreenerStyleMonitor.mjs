@@ -2290,7 +2290,9 @@ export default class DexScreenerStyleMonitor {
         if (newAmount !== null && poolData.tokenReserve !== null) {
           const delta = newAmount - poolData.tokenReserve;
 
-          if (Math.abs(delta) > 0.001) { // Ignore dust
+          // CRITICAL: Don't filter dust - user wants to see ALL swaps
+          // Only filter truly invalid deltas (0, NaN, Infinity)
+          if (isFinite(delta) && delta !== 0) {
             // Update global counters
             this.globalStats.totalSwapsDetected++;
             
@@ -2371,7 +2373,9 @@ export default class DexScreenerStyleMonitor {
         if (newAmount !== null && poolData.quoteReserve !== null) {
           const delta = newAmount - poolData.quoteReserve;
 
-          if (Math.abs(delta) > 0.0001) { // Ignore dust
+          // CRITICAL: Don't filter dust - user wants to see ALL swaps
+          // Only filter truly invalid deltas (0, NaN, Infinity)
+          if (isFinite(delta) && delta !== 0) {
             poolData.quoteReserve = newAmount;
             poolData.price = newAmount / poolData.tokenReserve;
           }
