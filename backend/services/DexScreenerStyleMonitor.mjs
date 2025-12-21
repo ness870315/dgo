@@ -1739,20 +1739,9 @@ export default class DexScreenerStyleMonitor {
       if (!txData || !txData.transaction) return;
       
       // Extract transaction accounts to check if this transaction involves any of our pools
-      const txAccounts = this.extractTransactionAccounts(txData);
-      if (!txAccounts || txAccounts.length === 0) {
-        // DEBUG: Log why no accounts extracted (first few only)
-        if (this.globalStats.totalTransactions <= 3) {
-          console.log(`⚠️  [DexScreenerStyleMonitor] Transaction #${this.globalStats.totalTransactions} - No accounts extracted`);
-          console.log(`   txData structure:`, {
-            hasTransaction: !!txData.transaction,
-            hasNestedTransaction: !!txData.transaction?.transaction,
-            hasMessage: !!txData.transaction?.message,
-            hasNestedMessage: !!txData.transaction?.transaction?.message
-          });
-        }
-        return;
-      }
+      // CRITICAL: Match test behavior - try to decode swaps for ALL tokens on EVERY transaction
+      // Don't pre-filter by accounts - aggregator swaps may not have pool addresses in accounts
+      // processTxForSwap will return null if it's not a swap, so there's no harm in trying
       
       // DEBUG: Log first transaction only to verify account extraction is working
       if (this.globalStats.totalTransactions === 1) {
@@ -1804,7 +1793,9 @@ export default class DexScreenerStyleMonitor {
       }
       
       // If no pools involved, skip this transaction
-      if (involvedPools.size === 0) {
+      // CRITICAL: Match test behavior - try to decode swaps for ALL tokens on EVERY transaction
+      // Removed early return - processTxForSwap will return null if it's not a swap
+      if (false) { // Always false - removed filtering logic
         // DEBUG: Log why transactions aren't matching (periodically)
         if (this.globalStats.totalTransactions <= 10 || this.globalStats.totalTransactions % 1000 === 0) {
           const samplePoolAddr = Array.from(this.pools.values())[0]?.poolAddress;
@@ -1817,20 +1808,7 @@ export default class DexScreenerStyleMonitor {
             console.log(`   Includes check: ${txAccounts.includes(samplePoolAddr)}`);
           }
         }
-        return;
-      }
-      
-      // Track transactions involving pools but not decoding to swaps
-      if (!this.globalStats.txWithPools) this.globalStats.txWithPools = 0;
-      this.globalStats.txWithPools++;
-      
-      // Log first few pool-involved transactions
-      if (this.globalStats.txWithPools <= 3) {
-        const poolNames = Array.from(involvedPools.keys()).map(m => {
-          const td = this.tokens.get(m);
-          return td?.config?.name || m.substring(0, 8);
-        }).join(', ');
-        console.log(`🔍 [DexScreenerStyleMonitor] Transaction #${this.globalStats.txWithPools} involves pools: ${poolNames}`);
+        // Don't return - try decoding for all tokens anyway (match test behavior)
       }
       
       // Build transaction object for processTxForSwap (must match expected structure)
@@ -1845,9 +1823,10 @@ export default class DexScreenerStyleMonitor {
         blockTime: txData.blockTime || msg.blockTime
       };
       
-      // Try to decode swap for each involved pool
+      // Try to decode swap for ALL monitored tokens (match test behavior)
       let decodedAnySwap = false;
-      for (const [mint, poolData] of involvedPools.entries()) {
+      for (const [mint, poolData] of this.pools.entries()) {
+        if (!poolData.poolAddress) continue; // Skip tokens without pool addresses
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
         
@@ -1905,14 +1884,7 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Log if transaction involved pools but no swap was decoded (first few only)
-      if (!decodedAnySwap && this.globalStats.txWithPools <= 10) {
-        const poolNames = Array.from(involvedPools.keys()).map(m => {
-          const td = this.tokens.get(m);
-          return td?.config?.name || m.substring(0, 8);
-        }).join(', ');
-        console.log(`⚠️  [DexScreenerStyleMonitor] Transaction involved pools (${poolNames}) but no swap decoded`);
-      }
+      // Note: No need to log "no swap decoded" - processTxForSwap returns null for non-swaps, which is expected
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling transaction:`, error.message);
       if (error.stack) {
