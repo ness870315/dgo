@@ -7,7 +7,9 @@ const bs58 = require('bs58');
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
+const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+const JUPITER_API_BASE = `${JUPITER_API_ENDPOINT}/tokens/v2`;
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
@@ -117,7 +119,14 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
 
             // Fetch from Jupiter API
-            const response = await axios.get(`${JUPITER_API_BASE}/${tokenAddress}`);
+            const headers = {};
+            if (JUPITER_API_KEY) {
+              headers['x-api-key'] = JUPITER_API_KEY;
+            }
+            
+            const response = await axios.get(`${JUPITER_API_BASE}/${tokenAddress}`, {
+              headers: headers
+            });
             if (response.data && response.data.price) {
                 const price = parseFloat(response.data.price);
                 
@@ -145,7 +154,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                 return this.solPriceUSD;
             }
 
-            const response = await axios.get(`${JUPITER_API_BASE}/${WSOL}`);
+            const headers = {};
+            if (JUPITER_API_KEY) {
+              headers['x-api-key'] = JUPITER_API_KEY;
+            }
+            
+            const response = await axios.get(`${JUPITER_API_BASE}/${WSOL}`, {
+              headers: headers
+            });
             if (response.data && response.data.price) {
                 this.solPriceUSD = parseFloat(response.data.price);
                 this.lastSolPriceUpdate = Date.now();

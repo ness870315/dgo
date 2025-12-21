@@ -75,7 +75,8 @@ class TokenMetadataUpdater {
 
             // Create comma-separated query string for Jupiter batch API
             const queryString = tokenAddresses.join(',');
-            const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+            const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+            const data = await this.makeJupiterRequest(`${JUPITER_API_ENDPOINT}/tokens/v2/search`, {
                 query: queryString
             });
 

@@ -75,10 +75,18 @@ class TrendingTokensAIAnalysisService {
         console.log(`🔄 [TRENDING AI] Fetching Jupiter data for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(mints.length/batchSize)} (${batch.length} tokens)...`);
         
         try {
-          const url = `https://lite-api.jup.ag/tokens/v2/search?query=${ids}`;
+          const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+          const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+          
+          const headers = { 'Accept': 'application/json' };
+          if (JUPITER_API_KEY) {
+            headers['x-api-key'] = JUPITER_API_KEY;
+          }
+          
+          const url = `${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${ids}`;
           const response = await fetch(url, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: headers
           });
           
           if (!response.ok) {

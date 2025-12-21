@@ -71,11 +71,13 @@ class EnhancedTokenProcessor {
     this.stages = ['coingecko', 'dexscreener', 'jupiter', 'twitter', 'scoring', 'saving'];
     
     // API endpoints
+    const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
     this.apis = {
       coingecko: 'https://api.coingecko.com/api/v3',
-      jupiter: 'https://lite-api.jup.ag/tokens/v2',
+      jupiter: `${JUPITER_API_ENDPOINT}/tokens/v2`,
       rettiwt: null // Will be initialized from your existing service
     };
+    this.jupiterApiKey = process.env.JUP_API_KEY || '';
   }
 
   async initialize() {
@@ -1109,7 +1111,13 @@ class EnhancedTokenProcessor {
         try {
           console.log(`🔍 [DEX STREAM] Fetching Jupiter data for ${tokenMint.slice(0,8)}...`);
           
-          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+          const headers = {};
+          if (this.jupiterApiKey) {
+            headers['x-api-key'] = this.jupiterApiKey;
+          }
+          
+          const response = await axios.get(`${this.apis.jupiter}/search?query=${tokenMint}`, {
+            headers: headers,
             timeout: 5000
           });
           

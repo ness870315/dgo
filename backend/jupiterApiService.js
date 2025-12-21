@@ -2,7 +2,10 @@ import axios from 'axios';
 
 class JupiterApiService {
   constructor() {
-    this.baseURL = 'https://lite-api.jup.ag/tokens/v2';
+    // Use new Jupiter API endpoint from env
+    const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+    this.baseURL = `${JUPITER_API_ENDPOINT}/tokens/v2`;
+    this.apiKey = process.env.JUP_API_KEY || '';
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes cache (increased to reduce API calls)
 

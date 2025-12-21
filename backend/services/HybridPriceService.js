@@ -3,7 +3,9 @@ import EventEmitter from 'events';
 
 // Updated to new Constant K RPC endpoint with correct API key (Nov 2025)
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
+const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+const JUPITER_API_BASE = `${JUPITER_API_ENDPOINT}/tokens/v2`;
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 
@@ -135,8 +137,14 @@ class HybridPriceService extends EventEmitter {
         try {
             console.log(`🪐 [Jupiter] Fetching token info for ${tokenAddress}`);
             
+            const headers = {};
+            if (JUPITER_API_KEY) {
+              headers['x-api-key'] = JUPITER_API_KEY;
+            }
+            
             const response = await axios.get(`${JUPITER_API_BASE}/search`, {
                 params: { query: tokenAddress },
+                headers: headers,
                 timeout: 5000
             });
 
@@ -164,10 +172,16 @@ class HybridPriceService extends EventEmitter {
             console.log(`🪐 [Jupiter] Fetching SOL price`);
             
             // Use Jupiter API to get native SOL price (same API we use for token info)
+            const headers = {};
+            if (JUPITER_API_KEY) {
+              headers['x-api-key'] = JUPITER_API_KEY;
+            }
+            
             const response = await axios.get(`${JUPITER_API_BASE}/search`, {
                 params: {
                     query: 'So11111111111111111111111111111111111111112'
                 },
+                headers: headers,
                 timeout: 5000
             });
 

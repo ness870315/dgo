@@ -14,7 +14,9 @@ const require = createRequire(import.meta.url);
 const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const CONSTANT_K_RPC_ENDPOINT = process.env.CONSTANT_K_RPC_ENDPOINT || 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2'; // Free tier API
+const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+const JUPITER_API_BASE = `${JUPITER_API_ENDPOINT}/tokens/v2`;
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
 const WSOL = 'So11111111111111111111111111111111111111112';
 const RPC_FETCH_DELAY_MS = Number(process.env.RPC_FETCH_DELAY_MS || 50);
@@ -1411,7 +1413,13 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     try {
       // Use Jupiter tokens search API (searches by mint address)
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
       const response = await axios.get(`${JUPITER_API_BASE}/search?query=${tokenAddress}`, {
+        headers: headers,
         timeout: 5000
       });
       
@@ -1517,7 +1525,13 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     try {
       // Use Jupiter tokens search API for SOL
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
       const response = await axios.get(`${JUPITER_API_BASE}/search?query=${WSOL}`, {
+        headers: headers,
         timeout: 5000
       });
       

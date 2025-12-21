@@ -67,6 +67,10 @@ import { X402PaymentHandler } from '@payai/x402-solana';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Jupiter API configuration from environment variables
+const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+
 class EnhancedBackend {
   // Helper method to get image format from URL
   getImageFormatFromUrl(url) {
@@ -17036,12 +17040,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
           console.log(`[🛡️ Enhanced Backend] 🚀 Batch updating Jupiter data for ${batch.length} tokens (batch ${Math.floor(i/batchSize) + 1})...`);
           
           // Use Jupiter API batch endpoint
-          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddresses.join(',')}`, {
+          const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+          };
+          
+          // Add API key if available
+          if (JUPITER_API_KEY) {
+            headers['x-api-key'] = JUPITER_API_KEY;
+          }
+          
+          const response = await axios.get(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${contractAddresses.join(',')}`, {
             timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json'
-            }
+            headers: headers
           });
           
           if (response.data && response.data.length > 0) {
@@ -17296,12 +17307,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
           this.priorityQueue.recordRequest();
           
           // Use Jupiter API batch endpoint
-          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddresses.join(',')}`, {
+          const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+          };
+          
+          // Add API key if available
+          if (JUPITER_API_KEY) {
+            headers['x-api-key'] = JUPITER_API_KEY;
+          }
+          
+          const response = await axios.get(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${contractAddresses.join(',')}`, {
             timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json'
-            }
+            headers: headers
           });
           
           if (response.data && response.data.length > 0) {
@@ -18567,8 +18585,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         try {
           // Call Jupiter API with batch (use /search endpoint with comma-separated mints)
-          const url = `https://lite-api.jup.ag/tokens/v2/search?query=${batch.join(',')}`;
-          const response = await fetch(url);
+          const headers = {};
+          if (JUPITER_API_KEY) {
+            headers['x-api-key'] = JUPITER_API_KEY;
+          }
+          
+          const url = `${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${batch.join(',')}`;
+          const response = await fetch(url, { headers });
           
           if (!response.ok) {
             console.error(`❌ [Backend] Jupiter API error: ${response.status}`);

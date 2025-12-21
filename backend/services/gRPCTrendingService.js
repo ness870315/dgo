@@ -285,8 +285,17 @@ class gRPCTrendingService {
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
             const batch = batches[batchIndex];
             try {
+                const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+                const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+                
+                const headers = {};
+                if (JUPITER_API_KEY) {
+                  headers['x-api-key'] = JUPITER_API_KEY;
+                }
+                
                 const query = batch.join(',');
-                const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${query}`, {
+                const response = await axios.get(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${query}`, {
+                    headers: headers,
                     timeout: 10000
                 });
                 

@@ -8,7 +8,9 @@ import path from 'path';
 class BondingTokenValidationService {
   constructor() {
     this.cachePath = '/var/data/PreBonded-BackendCache.json';
-    this.jupiterApiUrl = 'https://lite-api.jup.ag/tokens/v2/search';
+    const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+    this.jupiterApiUrl = `${JUPITER_API_ENDPOINT}/tokens/v2/search`;
+    this.apiKey = process.env.JUP_API_KEY || '';
     this.batchSize = 100; // Jupiter API limit (process 100 tokens per batch)
     this.batchDelay = 60000; // 1 minute (60000ms) delay between batches
   }
@@ -92,7 +94,12 @@ class BondingTokenValidationService {
           
           console.log(`[BondingValidation] 🔗 Batch API URL: ${url.substring(0, 100)}...`);
           
-          const response = await fetch(url);
+          const headers = {};
+          if (this.apiKey) {
+            headers['x-api-key'] = this.apiKey;
+          }
+          
+          const response = await fetch(url, { headers });
           
           if (!response.ok) {
             console.log(`[BondingValidation] ⚠️ HTTP ${response.status} for batch ${batchNumber}`);
