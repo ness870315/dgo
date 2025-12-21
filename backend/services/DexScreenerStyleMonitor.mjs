@@ -2666,20 +2666,18 @@ export default class DexScreenerStyleMonitor {
       lastUpdate: tokenData.lastUpdate
     };
     
-    // Market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
-    // Formula: baselineMarketCap * (currentPrice / baselinePrice)
-    // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+    // Market cap - CRITICAL: Match test behavior - use supply * price directly
+    // The test file calculates: marketCap = tokenConfig.supply * swap.priceUSD
+    // This is simpler and more accurate than incremental baseline calculations
     let marketCap = 0;
-    if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
-      // Use Jupiter baseline and adjust for price changes
-      const priceRatio = currentPriceUSD / tokenData.lastBaselinePrice;
-      marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+    const circSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+    
+    if (circSupply > 0 && currentPriceUSD > 0) {
+      // Match test: supply * price (direct calculation, no baseline adjustments)
+      marketCap = circSupply * currentPriceUSD;
     } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-      // Fallback: Use Jupiter's pre-calculated market cap if available
+      // Fallback: Use Jupiter's pre-calculated market cap if supply not available
       marketCap = tokenData.metadata.marketCap;
-    } else if (tokenData.metadata && tokenData.metadata.circSupply > 0 && currentPriceUSD > 0) {
-      // Last resort: Calculate from supply * price (only if no baseline available)
-      marketCap = tokenData.metadata.circSupply * currentPriceUSD;
     }
     
     // Add market cap to return object
@@ -3069,27 +3067,18 @@ export default class DexScreenerStyleMonitor {
 
       const poolData = this.pools.get(mint);
       
-      // Calculate market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
-      // Formula: baselineMarketCap * (currentPrice / baselinePrice)
-      // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+      // Calculate market cap - CRITICAL: Match test behavior - use supply * price directly
+      // The test file calculates: marketCap = tokenConfig.supply * swap.priceUSD
+      // This is simpler and more accurate than incremental baseline calculations
       let marketCap = 0;
-      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
-        // Use Jupiter baseline and adjust for price changes
-        // CRITICAL: Use higher precision to avoid rounding errors
-        const priceRatio = metrics.currentPrice / tokenData.lastBaselinePrice;
-        marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
-        
-        // Log for debugging (first few broadcasts only)
-        if (this.globalStats.totalSwapsDetected <= 5 || this.globalStats.totalSwapsDetected % 50 === 0) {
-          console.log(`   💰 [Market Cap] Baseline: $${(tokenData.jupiterBaselineMarketCap / 1e6).toFixed(2)}M, Price ratio: ${priceRatio.toFixed(6)}, Mcap: $${(marketCap / 1e6).toFixed(2)}M`);
-        }
+      const circSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+      
+      if (circSupply > 0 && metrics.currentPrice > 0) {
+        // Match test: supply * price (direct calculation, no baseline adjustments)
+        marketCap = circSupply * metrics.currentPrice;
       } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-        // Fallback: Use Jupiter's pre-calculated market cap if available
+        // Fallback: Use Jupiter's pre-calculated market cap if supply not available
         marketCap = tokenData.metadata.marketCap;
-      } else {
-        // Last resort: Calculate from supply * price (only if no baseline available)
-        const circSupply = tokenData.metadata?.circSupply || 0;
-        marketCap = circSupply > 0 ? circSupply * metrics.currentPrice : 0;
       }
       
       // Only log first few broadcasts to avoid spam
