@@ -406,7 +406,7 @@ const BubbleMap = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenSelect,
           if (isNaN(numPrice)) return '$0';
           
           if (numPrice < 0.0001) return `$${numPrice.toExponential(2)}`;
-          if (numPrice < 1) return `$${numPrice.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
+          if (numPrice < 1) return `$${numPrice.toFixed(6)}`; // 6 decimals for prices < 1
           return `$${numPrice.toFixed(2)}`;
         };
         

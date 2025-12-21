@@ -199,7 +199,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 5000, enableWebSo
     if (price < 0.0001) {
       return `$${price.toExponential(2)}`;
     } else if (price < 1) {
-      return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
+      return `$${price.toFixed(6)}`; // 6 decimals for prices < 1
     } else {
       return `$${price.toFixed(2)}`;
     }

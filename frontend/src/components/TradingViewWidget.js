@@ -236,7 +236,7 @@ const TradingViewWidget = ({ token, onClose }) => {
                 if (displayMode === 'mcap') return `$${currentPrice.toFixed(0)}`;
                 // Match DexScreener: 4 decimals for prices < 1
                 if (currentPrice < 0.0001) return `$${currentPrice.toExponential(2)}`;
-                if (currentPrice < 1) return `$${currentPrice.toFixed(4)}`;
+                if (currentPrice < 1) return `$${currentPrice.toFixed(6)}`;
                 return `$${currentPrice.toFixed(2)}`;
               })()}
             </span>

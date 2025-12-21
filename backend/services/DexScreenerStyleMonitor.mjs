@@ -1859,17 +1859,24 @@ export default class DexScreenerStyleMonitor {
         
         // Try to decode swap using processTxForSwap
         
-        // CRITICAL: Use Jupiter baseline price for midPriceUsd when pool price might be unreliable
-        // Priority: Jupiter baseline > pool price > null (let filter be more lenient)
+        // CRITICAL: Use CURRENT pool price for midPriceUsd (updates after each swap)
+        // Don't use static Jupiter baseline - it becomes stale after first swap!
+        // After first swap, price changes, so we need to use the updated pool price
         let midPriceUSD = null;
-        if (tokenData?.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
-          // Use Jupiter baseline price (most reliable)
+        const metrics = this.getTokenMetrics(mint);
+        if (metrics?.currentPrice && metrics.currentPrice > 0) {
+          // Use current pool price (updates after each swap) - most accurate
+          midPriceUSD = metrics.currentPrice;
+        } else if (poolData.price && poolData.price > 0) {
+          // Fallback to pool price if metrics not available
+          midPriceUSD = poolData.quoteMint === SOL_MINT 
+            ? poolData.price * this.solPriceUSD 
+            : poolData.price;
+        } else if (tokenData?.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+          // Last resort: Use Jupiter baseline (only if no pool price available)
           midPriceUSD = tokenData.metadata.usdPrice;
-        } else {
-          // Fallback to pool price if Jupiter baseline not available
-          const metrics = this.getTokenMetrics(mint);
-          midPriceUSD = metrics?.currentPrice || (poolData.price ? poolData.price * this.solPriceUSD : null);
         }
+        // If still null, price outlier filter will be disabled (more lenient)
         
         const swap = processTxForSwap(
           tx,
@@ -1902,8 +1909,11 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // Update reserves from swap deltas
+          // Update reserves from swap deltas (this updates poolData.price)
           this.updateReservesFromSwap(poolData, swap);
+          
+          // CRITICAL: After updating reserves, the pool price has changed
+          // Next swap will use this updated price for midPriceUsd, preventing false filtering
           
           // Display the swap (async - saves to database)
           await this.displaySwapFromTransaction(mint, poolData, swap, txData);
@@ -2267,8 +2277,8 @@ export default class DexScreenerStyleMonitor {
       console.log(`\n📊 Swap - ${tokenData.config.name} (${swapType})`);
       console.log(`   Amount:      ${swap.tokenAmount.toLocaleString()} tokens`);
       console.log(`   SOL Amount:  ${swap.baseAmount.toFixed(6)} SOL`);
-      console.log(`   Price:       $${swap.priceUsd.toFixed(4)} (swap price)`);
-      console.log(`   Current:     $${currentPriceAfterSwap.toFixed(4)} (after swap)`);
+      console.log(`   Price:       $${swap.priceUsd.toFixed(6)} (swap price)`);
+      console.log(`   Current:     $${currentPriceAfterSwap.toFixed(6)} (after swap)`);
       console.log(`   Volume USD:  $${swap.volumeUsd.toFixed(2)}`);
       console.log(`   Market Cap:  $${marketCap > 0 ? marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (at swap)`);
       console.log(`   Current MCap: $${currentMarketCap > 0 ? currentMarketCap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'} (after swap)`);

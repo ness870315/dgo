@@ -8,7 +8,7 @@ const EnhancedTokenCard = ({ token, onTokenSelect }) => {
   const formatPrice = (price) => {
     if (!price || isNaN(price)) return '$0.00';
     if (price < 0.0001) return `$${price.toExponential(2)}`;
-    if (price < 1) return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals for prices < 1
+    if (price < 1) return `$${price.toFixed(6)}`; // 6 decimals for prices < 1
     return `$${price.toFixed(2)}`;
   };
 

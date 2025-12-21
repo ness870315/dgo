@@ -1320,7 +1320,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           const price = tokenData.price;
                           if (!price || isNaN(price)) return 'N/A';
                           if (price < 0.0001) return `$${price.toExponential(2)}`;
-                          if (price < 1) return `$${price.toFixed(4)}`; // Match DexScreener: 4 decimals
+                          if (price < 1) return `$${price.toFixed(6)}`; // 6 decimals
                           return `$${price.toFixed(2)}`;
                         })()}
                       </p>

@@ -331,29 +331,54 @@ function userTouchedTargetMint(deltas, feePayer, signerSet, targetMint, raydiumD
  * @returns {{ target: TokenDelta, counter: TokenDelta, side: 'BUY'|'SELL', feePayer: string } | null}
  */
 export function pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder = null, poolAddress = null) {
-    // 🚀 GUARDRAIL 1: Require fee payer/signer to be involved on target mint
+    // 🚀 RELAXED: Don't require fee payer to touch target mint (aggregator swaps may not)
+    // Instead, check if target mint appears in ANY delta (user or pool side)
     const feePayer = getFeePayer(tx);
-    if (!userTouchedTargetMint(deltas, feePayer, signerSet, targetMint, raydiumDecoder, poolAddress)) {
+    const hasTargetMint = deltas.some(d => d.mint === targetMint && Math.abs(d.deltaUI) > 1e-9);
+    
+    if (!hasTargetMint) {
+        if (process.env.DEBUG_SWAPS === '1') {
+            console.log(`⚠️ [pickLegsAndSide] Target mint ${targetMint.substring(0, 8)}... not found in deltas`);
+        }
         return null;
+    }
+    
+    // If fee payer didn't touch target mint, it might be an aggregator swap - still allow it
+    const userTouched = userTouchedTargetMint(deltas, feePayer, signerSet, targetMint, raydiumDecoder, poolAddress);
+    if (!userTouched && process.env.DEBUG_SWAPS === '1') {
+        console.log(`⚠️ [pickLegsAndSide] Fee payer didn't touch target mint (aggregator swap?), allowing anyway`);
     }
     
     // 🚀 GUARDRAIL 2: Collapse user-side deltas by mint to avoid double-counting
     const collapsed = collapseUserSideByMint(deltas, signerSet, raydiumDecoder, poolAddress);
     
-    // 🚀 HARDENING: Check for multi-hop routes (3+ mints on user side)
+    // 🚀 RELAXED: Allow multi-hop routes (aggregator swaps can have 3+ mints)
+    // Instead of rejecting, just pick the target mint and largest counter mint
     const userSideByMint = new Map();
     for (const d of collapsed) {
         userSideByMint.set(d.mint, (userSideByMint.get(d.mint) || 0) + d.deltaUI);
     }
     
-    if (userSideByMint.size > 2) {
-        return null;
+    // If more than 2 mints, it's a multi-hop - still allow it but log for debugging
+    if (userSideByMint.size > 2 && process.env.DEBUG_SWAPS === '1') {
+        console.log(`⚠️ [pickLegsAndSide] Multi-hop route detected (${userSideByMint.size} mints), allowing anyway`);
     }
     
-    // Pick target delta (MUST be user-side)
-    const targetLeg = collapsed
+    // Pick target delta - RELAXED: Allow pool-side if user-side not found (aggregator swaps)
+    let targetLeg = collapsed
         .filter((d) => d.mint === targetMint)
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
+    
+    // Fallback: Check all deltas (not just collapsed user-side) for aggregator swaps
+    if (!targetLeg || Math.abs(targetLeg.deltaUI) < 1e-9) {
+        targetLeg = deltas
+            .filter((d) => d.mint === targetMint)
+            .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
+        
+        if (targetLeg && process.env.DEBUG_SWAPS === '1') {
+            console.log(`⚠️ [pickLegsAndSide] Using pool-side target leg (aggregator swap?)`);
+        }
+    }
     
     if (!targetLeg || Math.abs(targetLeg.deltaUI) < 1e-9) {
         return null;
@@ -412,6 +437,7 @@ export function computePriceAndVolume(target, counter, solUsd, getUsdForMint) {
         return { priceInCounter: NaN, priceUsd: NaN, volumeUsd: 0 };
     }
 
+    // Price = counter amount per token (e.g., SOL per token)
     const priceInCounter = qtyC / qtyT;
 
     let counterUsd = 0;
@@ -425,8 +451,15 @@ export function computePriceAndVolume(target, counter, solUsd, getUsdForMint) {
         counterUsd = getUsdForMint(counter.mint) ?? 0;
     }
 
+    // Price in USD = price in counter * counter USD price
     const priceUsd = counterUsd > 0 ? priceInCounter * counterUsd : NaN;
-    const volumeUsd = counterUsd > 0 ? qtyC * counterUsd : 0;
+    
+    // CRITICAL: Volume should be calculated as tokenAmount * priceUsd (like DexScreener)
+    // This is more accurate than qtyC * counterUsd due to rounding
+    // Both should be equivalent, but tokenAmount * priceUsd uses the actual swap price
+    const volumeUsd = (priceUsd > 0 && isFinite(priceUsd)) 
+        ? qtyT * priceUsd  // Token amount * price USD (DexScreener method)
+        : (counterUsd > 0 ? qtyC * counterUsd : 0); // Fallback: counter amount * counter USD price
 
     return { priceInCounter, priceUsd, volumeUsd };
 }
@@ -654,11 +687,22 @@ export function extractRaydiumPoolFromIx(tx, programId) {
  * @returns {Object | null} Swap record or null if not a valid swap
  */
 export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, knownPoolAddress = null) {
-    // 🚀 FILTER 1: Only process AMM program swaps (exclude JOE RFQ and OTC fills)
-    // This matches DexScreener behavior - they don't show RFQ/OTC fills in the AMM tape
-    if (!hasAmmProgram(tx)) {
-        // Skip non-AMM transactions (JOE RFQ, OTC, etc.)
+    // 🚀 RELAXED: Don't require AMM program (aggregator swaps may not have direct AMM program)
+    // Check for AMM program, but if not found and we have a known pool address, still try to decode
+    const hasAmm = hasAmmProgram(tx);
+    if (!hasAmm && !knownPoolAddress) {
+        // No AMM program AND no known pool address - likely not a swap
+        if (process.env.DEBUG_SWAPS === '1') {
+            const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
+            console.log(`⚠️ [processTxForSwap] Filter: no AMM program and no known pool - ${sig}...`);
+        }
         return null;
+    }
+    
+    // If we have a known pool address, allow even without AMM program (aggregator swap)
+    if (!hasAmm && knownPoolAddress && process.env.DEBUG_SWAPS === '1') {
+        const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
+        console.log(`⚠️ [processTxForSwap] No AMM program but have known pool ${knownPoolAddress.substring(0, 8)}..., allowing - ${sig}...`);
     }
     
     // 🚀 FILTER 2: Skip known market-maker wallets (optional but recommended)
@@ -669,14 +713,29 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     
     if (isKnownMaker(feePayer)) {
         // Skip swaps from known market-maker wallets (RFQ/OTC fills)
+        if (process.env.DEBUG_SWAPS === '1') {
+            console.log(`⚠️ [processTxForSwap] Filter: known maker - ${feePayer.substring(0, 8)}...`);
+        }
         return null;
     }
     
     const deltas = extractTokenDeltas(tx);
-    if (!deltas.length) return null;
+    if (!deltas.length) {
+        if (process.env.DEBUG_SWAPS === '1') {
+            const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
+            console.log(`⚠️ [processTxForSwap] Filter: no token deltas - ${sig}...`);
+        }
+        return null;
+    }
 
     const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder, knownPoolAddress); // Pass decoder
-    if (!legs) return null;
+    if (!legs) {
+        if (process.env.DEBUG_SWAPS === '1') {
+            const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
+            console.log(`⚠️ [processTxForSwap] Filter: cannot pick legs (${deltas.length} deltas) - ${sig}...`);
+        }
+        return null;
+    }
 
     const getUsdForMint = (m) => tokenPriceCache.get(m);
     const { priceInCounter, priceUsd, volumeUsd } = computePriceAndVolume(
@@ -702,28 +761,26 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     
     const sigShort = signature?.substring(0, 16) ?? 'unknown';
 
-    // Drop obvious noise - dust volume (reduced threshold to match DexScreener)
-    // DexScreener shows swaps down to ~$0.01, so we'll be more lenient
-    if (!isFinite(volumeUsd) || volumeUsd < 0.01) {
-        // Only log if it's a significant amount to avoid spam
-        if (volumeUsd >= 0.001) {
-            console.log(`⚠️ [processTxForSwap] Skip: dust volume ($${volumeUsd?.toFixed(4) ?? 'N/A'}) for ${sigShort}...`);
+    // Drop only truly invalid swaps (0, NaN, negative) - don't filter small but valid swaps
+    // User wants to see ALL swaps, even very small ones
+    if (!isFinite(volumeUsd) || volumeUsd <= 0) {
+        // Only log if DEBUG_SWAPS is enabled to avoid spam
+        if (process.env.DEBUG_SWAPS === '1') {
+            console.log(`⚠️ [processTxForSwap] Skip: invalid volume ($${volumeUsd?.toFixed(4) ?? 'N/A'}) for ${sigShort}...`);
         }
         return null;
     }
 
     // 🚀 HARDENING: Robust price outlier filter (relaxed thresholds to match DexScreener)
     // DexScreener shows more volatile swaps, so we'll use 10x/0.1x instead of 5x/0.2x
-    // Only apply filter if we have a recent mid price (within last 5 minutes)
+    // CRITICAL: After first swap, price changes, so midPriceUsd must be updated (use current pool price, not static baseline)
     if (priceUsd > 0 && midPriceUsd && midPriceUsd > 0) {
         const ratio = priceUsd / midPriceUsd;
         // Relaxed thresholds: 10x/0.1x instead of 5x/0.2x to catch more swaps
         if (ratio > 10 || ratio < 0.1) {
             // >10× or <0.1× off mid? likely mis-leg or extreme outlier
-            // Only log significant outliers to avoid spam
-            if (ratio > 20 || ratio < 0.05) {
-                console.log(`⚠️ [processTxForSwap] Skip: extreme price outlier (${ratio.toFixed(2)}x) for ${sigShort}...`);
-            }
+            // Log ALL filtered swaps for debugging (user reported missing swaps after first swap)
+            console.log(`⚠️ [processTxForSwap] Skip: price outlier (${ratio.toFixed(2)}x) - Price: $${priceUsd.toFixed(4)}, Mid: $${midPriceUsd.toFixed(4)}, Vol: $${volumeUsd.toFixed(2)} for ${sigShort}...`);
             return null;
         }
     }
@@ -804,7 +861,8 @@ function detectAggregatorFallbackSwap(tx, targetMint, solUsd, tokenPriceCache, k
         tokenPriceCache,
     });
 
-    if (!isFinite(volumeUsd) || volumeUsd < 0.01) return [];
+    // Don't filter small swaps - user wants to see ALL swaps
+    if (!isFinite(volumeUsd) || volumeUsd <= 0) return [];
 
     const signature = tx.transaction?.signatures?.[0] || tx.signature || tx.meta?.transaction?.signatures?.[0];
     const walletAddress = tokenUserDelta.owner || counterDelta.owner || getFeePayer(tx) || 'unknown';
@@ -907,16 +965,25 @@ function computeAggregatorPricing({ counterDelta, tokenAmount, baseAmount, solUs
     if (counterDelta.mint === WSOL_MINT) {
         priceInSol = baseAmount / tokenAmount;
         priceUsd = solUsd > 0 ? priceInSol * solUsd : NaN;
-        volumeUsd = solUsd > 0 ? baseAmount * solUsd : 0;
+        // CRITICAL: Use DexScreener method (tokenAmount * priceUsd) for consistency
+        volumeUsd = (priceUsd > 0 && isFinite(priceUsd) && tokenAmount > 0)
+            ? tokenAmount * priceUsd
+            : (solUsd > 0 ? baseAmount * solUsd : 0); // Fallback
     } else if (STABLECOIN_MINTS.has(counterDelta.mint)) {
         priceUsd = baseAmount / tokenAmount;
-        volumeUsd = baseAmount;
+        // CRITICAL: Use DexScreener method (tokenAmount * priceUsd) for consistency
+        volumeUsd = (priceUsd > 0 && isFinite(priceUsd) && tokenAmount > 0)
+            ? tokenAmount * priceUsd
+            : baseAmount; // Fallback
         priceInSol = solUsd > 0 ? priceUsd / solUsd : undefined;
     } else {
         const cachedPrice = tokenPriceCache?.get(counterDelta.mint);
         if (cachedPrice) {
             priceUsd = (baseAmount * cachedPrice) / tokenAmount;
-            volumeUsd = baseAmount * cachedPrice;
+            // CRITICAL: Use DexScreener method (tokenAmount * priceUsd) for consistency
+            volumeUsd = (priceUsd > 0 && isFinite(priceUsd) && tokenAmount > 0)
+                ? tokenAmount * priceUsd
+                : (baseAmount * cachedPrice); // Fallback
         }
     }
 

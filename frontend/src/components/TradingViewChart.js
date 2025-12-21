@@ -275,7 +275,7 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
       } else if (price < 0.0001) {
         return price.toExponential(2);
       } else {
-        return price.toFixed(4); // Match DexScreener: 4 decimals for prices < 1
+        return price.toFixed(6); // 6 decimals for prices < 1
       }
     };
 
