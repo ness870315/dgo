@@ -1859,23 +1859,35 @@ export default class DexScreenerStyleMonitor {
         
         // Try to decode swap using processTxForSwap
         
-        // CRITICAL: Use the most recent price for midPriceUsd calculation
-        // Get current price from metrics to ensure it's up-to-date
-        const metrics = this.getTokenMetrics(mint);
-        const currentPriceUSD = metrics?.currentPrice || (poolData.price ? poolData.price * this.solPriceUSD : null);
+        // CRITICAL: Use Jupiter baseline price for midPriceUsd when pool price might be unreliable
+        // Priority: Jupiter baseline > pool price > null (let filter be more lenient)
+        let midPriceUSD = null;
+        if (tokenData?.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+          // Use Jupiter baseline price (most reliable)
+          midPriceUSD = tokenData.metadata.usdPrice;
+        } else {
+          // Fallback to pool price if Jupiter baseline not available
+          const metrics = this.getTokenMetrics(mint);
+          midPriceUSD = metrics?.currentPrice || (poolData.price ? poolData.price * this.solPriceUSD : null);
+        }
         
         const swap = processTxForSwap(
           tx,
           mint,
           this.solPriceUSD,
           tokenPriceCache,
-          currentPriceUSD, // Use current price from metrics (more accurate than poolData.price)
+          midPriceUSD, // Use Jupiter baseline when available (more reliable than pool price)
           null, // raydiumDecoder (can be added later if needed)
           poolData.poolAddress // knownPoolAddress
         );
         
         if (swap) {
           decodedAnySwap = true;
+          
+          // Log large swaps for debugging (user reported missing large swaps)
+          if (swap.volumeUsd && swap.volumeUsd >= 100) {
+            console.log(`💰 [DexScreenerStyleMonitor] Large swap detected: ${tokenData.config.name} - $${swap.volumeUsd.toFixed(2)} (${swap.type})`);
+          }
           
           // Update global counters
           this.globalStats.totalSwapsDetected++;
@@ -2060,8 +2072,26 @@ export default class DexScreenerStyleMonitor {
           initialQuoteReserve = initialLiquidity / 2;
         }
         
-        const initialTokenReserve = swap.priceUsd > 0 && swap.price > 0 
-          ? initialQuoteReserve / swap.price 
+        // CRITICAL: Use Jupiter baseline price instead of swap price for initialization
+        // swap.price might be from a single transaction and not reflect true pool state
+        let baselinePrice = 0;
+        if (tokenData?.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+          // Jupiter price is in USD, convert to SOL per token if needed
+          if (quoteMint === SOL_MINT) {
+            baselinePrice = tokenData.metadata.usdPrice / this.solPriceUSD;
+          } else {
+            baselinePrice = tokenData.metadata.usdPrice; // Already in USD for stablecoin pools
+          }
+        } else if (swap.priceUsd > 0 && swap.price > 0) {
+          // Fallback to swap price if Jupiter baseline not available
+          baselinePrice = swap.price;
+        } else if (poolData.price && poolData.price > 0) {
+          // Last resort: use pool data price
+          baselinePrice = poolData.price;
+        }
+        
+        const initialTokenReserve = baselinePrice > 0 
+          ? initialQuoteReserve / baselinePrice 
           : poolData.tokenReserve || 0;
         
         reserves = {
@@ -2192,7 +2222,8 @@ export default class DexScreenerStyleMonitor {
         signature: swap.signature || 'Unknown',
         slot: swap.slot || (txData.slot ? Number(txData.slot) : 0),
         marketCap: marketCap, // Market cap at time of swap
-        liquidity: liquidity // Liquidity at time of swap
+        liquidity: liquidity, // Liquidity at time of swap
+        poolAddress: poolData.poolAddress || 'UNKNOWN' // Add poolAddress for database storage
       };
       
       // Add to token's swap history
@@ -2930,16 +2961,17 @@ export default class DexScreenerStyleMonitor {
   async saveSwapToDatabase(mint, swap) {
     try {
       // Use ChartDatabase.storeSwaps() which handles batching and atomic writes
+      // Note: swap parameter is the swapRecord from displaySwapFromTransaction, which has volumeUSD (uppercase)
       const swapToStore = {
         tokenAddress: mint,
         poolAddress: swap.poolAddress || 'UNKNOWN',
-        signature: swap.signature,
-        timestamp: swap.timestamp,
+        signature: swap.signature || 'Unknown',
+        timestamp: swap.timestamp || Date.now(),
         slot: swap.slot || 0,
-        price: swap.price || 0,
-        volumeUsd: swap.volumeUSD || swap.volumeUsd || 0,
+        price: swap.price || swap.priceUSD || 0, // Support both price and priceUSD
+        volumeUsd: swap.volumeUSD || swap.volumeUsd || 0, // Support both volumeUSD and volumeUsd
         source: 'dexscreener_monitor',
-        type: swap.type,
+        type: swap.type || 'UNKNOWN',
         tokenAmount: swap.tokenAmount || 0,
         baseAmount: swap.baseAmount || 0,
         maker: swap.maker || 'Unknown',
@@ -2949,8 +2981,16 @@ export default class DexScreenerStyleMonitor {
       
       // Store via ChartDatabase's batch system
       await this.chartDatabase.storeSwaps([swapToStore]);
+      
+      // Log first few swaps to verify they're being saved
+      if (this.globalStats.totalSwapsDetected <= 5) {
+        console.log(`💾 [DexScreenerStyleMonitor] Saved swap to database: ${mint.substring(0, 8)}... - $${swapToStore.volumeUsd.toFixed(2)} (${swapToStore.type})`);
+      }
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error saving swap to database:`, error.message);
+      if (error.stack) {
+        console.error(`   Stack:`, error.stack.split('\n').slice(0, 3).join('\n'));
+      }
     }
   }
 
