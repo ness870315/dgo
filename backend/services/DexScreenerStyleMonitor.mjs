@@ -2661,8 +2661,11 @@ export default class DexScreenerStyleMonitor {
         mint === 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL') {
       const tokenName = tokenData.config?.name || mint.substring(0, 8);
       console.log(`   💰 [${tokenName}] Price: $${currentPriceUSD.toFixed(6)} (source: ${priceSource})`);
-      if (priceSource === 'jupiter-baseline' || priceSource === 'jupiter-fallback') {
+      if (priceSource === 'jupiter-baseline-cold-start') {
+        console.log(`      ⚠️ Using stale Jupiter baseline (cold start - no swap data yet)`);
         console.log(`      Jupiter usdPrice: $${tokenData.metadata.usdPrice.toFixed(6)}`);
+      } else if (priceSource === 'swap-price' || priceSource === 'swap-history') {
+        console.log(`      ✅ Using live swap data (${tokenData.swaps?.length || 0} swaps in history)`);
       } else if (priceSource.startsWith('pool')) {
         console.log(`      Pool price: ${poolData.price.toFixed(10)} ${poolData.quoteName || 'unknown'}`);
         console.log(`      SOL price: $${this.solPriceUSD.toFixed(2)}`);
