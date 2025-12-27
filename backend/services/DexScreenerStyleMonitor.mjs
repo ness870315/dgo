@@ -2180,11 +2180,41 @@ export default class DexScreenerStyleMonitor {
       if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
         // Use Jupiter baseline and adjust for price changes
         const priceRatio = swap.priceUsd / tokenData.lastBaselinePrice;
-        marketCap = tokenData.jupiterBaselineMarketCap * priceRatio;
+        
+        // 🚨 CRITICAL FIX: Validate price ratio to prevent market cap from jumping too drastically
+        // A single bad swap shouldn't cause market cap to change by more than 3x (300%)
+        // This prevents $486M from a single incorrect swap price
+        const MAX_PRICE_RATIO = 3.0; // Maximum 3x change from baseline
+        const MIN_PRICE_RATIO = 0.33; // Minimum 0.33x change (3x down)
+        
+        let validatedPriceRatio = priceRatio;
+        if (priceRatio > MAX_PRICE_RATIO) {
+          console.log(`⚠️ [DexScreenerStyleMonitor] Price ratio too high (${priceRatio.toFixed(2)}x), capping at ${MAX_PRICE_RATIO}x for ${tokenData.config.name}`);
+          validatedPriceRatio = MAX_PRICE_RATIO;
+        } else if (priceRatio < MIN_PRICE_RATIO) {
+          console.log(`⚠️ [DexScreenerStyleMonitor] Price ratio too low (${priceRatio.toFixed(2)}x), capping at ${MIN_PRICE_RATIO}x for ${tokenData.config.name}`);
+          validatedPriceRatio = MIN_PRICE_RATIO;
+        }
+        
+        marketCap = tokenData.jupiterBaselineMarketCap * validatedPriceRatio;
+        
+        // 🚨 ADDITIONAL VALIDATION: If calculated market cap is way off from Jupiter baseline, use Jupiter
+        // This catches cases where baseline was already corrupted by a previous bad swap
+        if (metadata?.marketCap && metadata.marketCap > 0) {
+          const baselineRatio = marketCap / metadata.marketCap;
+          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
+            console.log(`⚠️ [DexScreenerStyleMonitor] Calculated market cap ($${(marketCap/1000000).toFixed(2)}M) is ${baselineRatio.toFixed(2)}x off from Jupiter baseline ($${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter baseline for ${tokenData.config.name}`);
+            marketCap = metadata.marketCap;
+            // Reset baseline to Jupiter to prevent further corruption
+            tokenData.jupiterBaselineMarketCap = metadata.marketCap;
+            tokenData.lastBaselinePrice = swap.priceUsd || metadata.usdPrice || tokenData.lastBaselinePrice;
+          }
+        }
         
         // CRITICAL: On first swap, update baseline to use swap price as new baseline
         // This transitions from Jupiter baseline to our own baseline built from swaps
-        if (!tokenData.firstSwapProcessed) {
+        // BUT: Only if the price ratio is reasonable (not a bad swap)
+        if (!tokenData.firstSwapProcessed && validatedPriceRatio >= MIN_PRICE_RATIO && validatedPriceRatio <= MAX_PRICE_RATIO) {
           tokenData.jupiterBaselineMarketCap = marketCap;
           tokenData.lastBaselinePrice = swap.priceUsd;
           tokenData.firstSwapProcessed = true;
@@ -2574,9 +2604,11 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price - CRITICAL: Match test behavior - use swap.priceUSD directly
+    // Calculate USD price - CRITICAL: Use live swap data, NOT stale Jupiter baseline
     // Priority 1: Use last swap.priceUSD (most accurate, from actual transaction)
-    // Priority 2: Fall back to Jupiter baseline price (don't override to 0!)
+    // Priority 2: Use most recent swap from history (if lastPriceUSD not set)
+    // Priority 3: Use pool price (live from reserves)
+    // Priority 4: Jupiter baseline ONLY if no swap data exists (cold start)
     let currentPriceUSD = 0;
     let priceSource = 'none';
     
@@ -2586,8 +2618,28 @@ export default class DexScreenerStyleMonitor {
     if (tokenData.lastPriceUSD && tokenData.lastPriceUSD > 0) {
       currentPriceUSD = tokenData.lastPriceUSD;
       priceSource = 'swap-price';
+    } else if (tokenData.swaps && tokenData.swaps.length > 0) {
+      // 🚨 CRITICAL FIX: If we have swap history, use the most recent swap price (live data)
+      // Don't fall back to stale Jupiter baseline if we have recent swap data
+      const recentSwaps = tokenData.swaps
+        .filter(s => s.priceUSD && s.priceUSD > 0)
+        .sort((a, b) => b.timestamp - a.timestamp);
+      
+      if (recentSwaps.length > 0) {
+        currentPriceUSD = recentSwaps[0].priceUSD;
+        priceSource = 'swap-history';
+      } else if (poolData && poolData.price && poolData.price > 0) {
+        // Fallback: Use poolData.price if no valid swap prices in history
+        if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+          currentPriceUSD = poolData.price * this.solPriceUSD;
+          priceSource = 'pool-sol-fallback';
+        } else {
+          currentPriceUSD = poolData.price;
+          priceSource = 'pool-stable-fallback';
+        }
+      }
     } else if (poolData && poolData.price && poolData.price > 0) {
-      // Fallback: Use poolData.price if no swap price available yet
+      // Fallback: Use poolData.price if no swap history available yet
       if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
         currentPriceUSD = poolData.price * this.solPriceUSD;
         priceSource = 'pool-sol-fallback';
@@ -2597,10 +2649,11 @@ export default class DexScreenerStyleMonitor {
       }
     }
     
-    // CRITICAL: If no swap price and no pool price, use Jupiter baseline (don't override to 0!)
-    if (currentPriceUSD === 0 && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+    // 🚨 CRITICAL FIX: Jupiter baseline ONLY for cold start (no swap data exists)
+    // Once we have swap data, we should NEVER use stale Jupiter baseline
+    if (currentPriceUSD === 0 && !tokenData.swaps?.length && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
       currentPriceUSD = tokenData.metadata.usdPrice;
-      priceSource = 'jupiter-baseline';
+      priceSource = 'jupiter-baseline-cold-start';
     }
     
     // Log price source for Lumen and Meteora
