@@ -113,7 +113,8 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        body: text,  // API expects 'body' not 'text'
+        body: text,  // API requires both 'body' and 'text'
+        text: text,  // API requires both parameters
         media: mediaUrls.map(url => ({ url }))
       };
 
@@ -234,7 +235,8 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        body: text  // API expects 'body' not 'text'
+        body: text,  // API requires both 'body' and 'text'
+        text: text   // API requires both parameters
       };
 
       // API requires 'proxy' parameter (even if null/empty)
@@ -363,7 +365,8 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        body: text,  // API expects 'body' not 'text'
+        body: text,  // API requires both 'body' and 'text'
+        text: text,  // API requires both parameters
         tweetId: tweetId
       };
 
@@ -487,7 +490,8 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        body: text,  // API expects 'body' not 'text'
+        body: text,  // API requires both 'body' and 'text'
+        text: text,  // API requires both parameters
         quoteTweetId: quoteTweetId
       };
 
