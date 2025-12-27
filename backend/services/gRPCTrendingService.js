@@ -1069,13 +1069,19 @@ class gRPCTrendingService {
             return null;
         }
 
-        // Reset stats for this cycle
+        // Reset stats for this cycle (BUT keep tokenSwaps and tokenVolumes - they accumulate during monitoring)
         this.stats.startTime = Date.now();
         this.stats.swapsDetected = 0;
         this.stats.poolsDiscovered.clear();
         this.stats.tokensSeen.clear();
         this.stats.totalTransactions = 0;
         this.stats.errors = 0;
+        
+        // CRITICAL: Clear tokenSwaps and tokenVolumes at START of cycle (not in interval callback)
+        // This ensures we only track swaps from THIS cycle
+        this.tokenSwaps.clear();
+        this.tokenVolumes.clear();
+        console.log(`🔄 [gRPCTrending] Cleared token tracking for new cycle (tokenSwaps: ${this.tokenSwaps.size})`);
 
         await this.startMonitoring();
         
