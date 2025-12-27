@@ -81,15 +81,8 @@ class PerplexitySonarService {
       const usage = data.usage || {};
       const modelUsed = requestBody.model;
 
-      // Strip reasoning tags if using sonar-reasoning model
-      if (modelUsed.includes('reasoning') && content.includes('<think>')) {
-        console.log(`✂️ [PERPLEXITY] Stripping reasoning tags from ${modelUsed} response...`);
-        content = this.stripReasoningTags(content);
-        if (!content) {
-          console.error('❌ [PERPLEXITY] Failed to extract answer from reasoning response');
-          return null;
-        }
-      }
+      // Note: sonar-reasoning model is deprecated, so we no longer need to strip reasoning tags
+      // sonar-pro doesn't include <think> tags
 
       console.log(`✅ [PERPLEXITY] Response generated (${usage.total_tokens || 0} tokens, model: ${modelUsed})`);
       console.log(`📚 [PERPLEXITY] Citations: ${citations.length}, Search results: ${searchResults.length}`);
@@ -132,10 +125,10 @@ class PerplexitySonarService {
    */
   async searchWithReasoning(query, customOptions = {}) {
     return await this.search(query, {
-      model: this.reasoningModel, // Use sonar-reasoning for creative content
+      model: this.reasoningModel, // Use sonar-pro (sonar-reasoning deprecated)
       systemPrompt: 'You are a witty crypto degen. Use the search results to create engaging, factual content. Do not include citations in your answer.',
       searchRecencyFilter: 'day', // Focus on today's news for freshness
-      maxTokens: 1500, // Higher limit for reasoning + answer
+      maxTokens: 1500, // Higher limit for creative content
       ...customOptions
     });
   }
