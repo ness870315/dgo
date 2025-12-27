@@ -183,7 +183,19 @@ class gRPCTrendingService {
             console.log(`✅ [gRPCTrending] Subscribed to transaction stream (instance ${this.clientInstanceId})`);
 
             this.stream.on('data', (msg) => {
-                this.processTransaction(msg);
+                // Only process if message has transaction (same as DexScreenerStyleMonitor)
+                if (msg.transaction) {
+                    this.processTransaction(msg);
+                } else {
+                    // Debug: Log first few non-transaction messages
+                    if (this.stats.totalTransactions === 0) {
+                        console.log(`🔍 [gRPCTrending] First message (no transaction):`, {
+                            keys: Object.keys(msg),
+                            type: typeof msg,
+                            hasTransaction: !!msg.transaction
+                        });
+                    }
+                }
             });
 
             this.stream.on('error', (error) => {
@@ -224,20 +236,41 @@ class gRPCTrendingService {
             // Get SOL price from enhancedHybridPriceService if available
             const solPrice = this.enhancedHybridPriceService?.solPriceUSD || this.solPrice || 200;
             
-            // Extract transaction data structure
-            const txData = msg.transaction || msg;
-            const innerTx = txData.transaction || txData;
+            // Extract transaction data structure (match DexScreenerStyleMonitor exactly)
+            const txData = msg.transaction;
+            if (!txData || !txData.transaction) {
+                if (this.stats.totalTransactions <= 3) {
+                    console.log(`⚠️ [gRPCTrending] Transaction ${this.stats.totalTransactions}: Missing txData or txData.transaction`);
+                }
+                return;
+            }
             
-            // Build transaction object for processTxForSwap
+            // Build transaction object for processTxForSwap (match DexScreenerStyleMonitor structure)
             const tx = {
-                transaction: innerTx,
-                meta: innerTx?.meta || txData.transaction?.meta || txData.meta,
-                signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
-                slot: txData.slot || msg.slot,
-                blockTime: txData.blockTime || msg.blockTime
+                transaction: txData.transaction,
+                meta: txData.meta || msg.meta,
+                signature: txData.transaction?.signatures?.[0] || msg.signature,
+                slot: msg.slot || txData.slot,
+                blockTime: msg.blockTime || txData.blockTime
             };
             
-            if (!innerTx || !tx.meta) return;
+            // Debug: Log first few transactions to understand structure
+            if (this.stats.totalTransactions <= 3) {
+                console.log(`🔍 [gRPCTrending] Transaction ${this.stats.totalTransactions} structure:`, {
+                    hasTransaction: !!tx.transaction,
+                    hasMeta: !!tx.meta,
+                    hasSignature: !!tx.signature,
+                    msgKeys: Object.keys(msg),
+                    txDataKeys: txData ? Object.keys(txData) : 'no txData'
+                });
+            }
+            
+            if (!tx.transaction || !tx.meta) {
+                if (this.stats.totalTransactions <= 3) {
+                    console.log(`⚠️ [gRPCTrending] Skipping transaction ${this.stats.totalTransactions}: missing transaction or meta`);
+                }
+                return;
+            }
 
             // Extract all token mints from pre/post token balances
             const preTokenBalances = tx.meta.preTokenBalances || [];
@@ -250,7 +283,16 @@ class gRPCTrendingService {
                 }
             });
             
-            if (tokenMints.size === 0) return;
+            if (tokenMints.size === 0) {
+                if (this.stats.totalTransactions <= 3) {
+                    console.log(`⚠️ [gRPCTrending] Transaction ${this.stats.totalTransactions}: No token mints found (pre: ${preTokenBalances.length}, post: ${postTokenBalances.length})`);
+                }
+                return;
+            }
+            
+            if (this.stats.totalTransactions <= 3) {
+                console.log(`✅ [gRPCTrending] Transaction ${this.stats.totalTransactions}: Found ${tokenMints.size} token mints`);
+            }
 
             // Try to decode swaps for each token mint found
             const tokenPriceCache = new Map();
@@ -271,6 +313,16 @@ class gRPCTrendingService {
                     if (swap && swap.signature && !processedSwaps.has(swap.signature)) {
                         processedSwaps.add(swap.signature);
                         this.stats.swapsDetected++;
+                        
+                        // Debug: Log first few swaps
+                        if (this.stats.swapsDetected <= 3) {
+                            console.log(`✅ [gRPCTrending] Swap ${this.stats.swapsDetected} detected:`, {
+                                mintAddress: swap.mintAddress?.substring(0, 8),
+                                counterMint: swap.counterMint?.substring(0, 8),
+                                volumeUsd: swap.volumeUsd?.toFixed(2),
+                                poolAddress: swap.poolAddress?.substring(0, 8)
+                            });
+                        }
                         
                         // Track both token mints from the swap
                         // processTxForSwap returns: mintAddress (target) and counterMint (what we're trading against)
