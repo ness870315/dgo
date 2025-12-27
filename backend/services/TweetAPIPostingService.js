@@ -118,8 +118,14 @@ class TweetAPIPostingService {
         media: mediaUrls.map(url => ({ url }))
       };
 
-      // API requires 'proxy' parameter (even if null/empty)
-      payload.proxy = this.proxy || '';
+      // Only include proxy if it's configured and not disabled
+      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
+      if (this.proxy && this.proxy.trim() !== '') {
+        payload.proxy = this.proxy;
+      } else {
+        // Don't include proxy parameter if not configured
+        // Some API versions may not require it
+      }
 
       const headers = this.getBrowserHeaders();
 
@@ -185,10 +191,10 @@ class TweetAPIPostingService {
             console.warn(`⚠️ [TWEETAPI V2] Retrying media post after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
             // On last retry, try without proxy if one is configured
-            if (retryCount === maxRetries - 1 && this.proxy) {
+            if (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '') {
               console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
               const originalProxy = this.proxy;
-              this.proxy = null;
+              this.proxy = ''; // Disable proxy for this attempt
               await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
               const result = await this.postTweetWithMedia(text, mediaUrls, retryCount + 1);
               this.proxy = originalProxy; // Restore proxy
@@ -239,8 +245,14 @@ class TweetAPIPostingService {
         text: text   // API requires both parameters
       };
 
-      // API requires 'proxy' parameter (even if null/empty)
-      payload.proxy = this.proxy || '';
+      // Only include proxy if it's configured and not disabled
+      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
+      if (this.proxy && this.proxy.trim() !== '') {
+        payload.proxy = this.proxy;
+      } else {
+        // Don't include proxy parameter if not configured
+        // Some API versions may not require it
+      }
 
       // Get fresh browser headers with rotation (especially important on retries)
       const headers = this.getBrowserHeaders();
@@ -370,8 +382,14 @@ class TweetAPIPostingService {
         tweetId: tweetId
       };
 
-      // API requires 'proxy' parameter (even if null/empty)
-      payload.proxy = this.proxy || '';
+      // Only include proxy if it's configured and not disabled
+      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
+      if (this.proxy && this.proxy.trim() !== '') {
+        payload.proxy = this.proxy;
+      } else {
+        // Don't include proxy parameter if not configured
+        // Some API versions may not require it
+      }
 
       // Get fresh browser headers with rotation
       const headers = this.getBrowserHeaders();
@@ -495,8 +513,14 @@ class TweetAPIPostingService {
         quoteTweetId: quoteTweetId
       };
 
-      // API requires 'proxy' parameter (even if null/empty)
-      payload.proxy = this.proxy || '';
+      // Only include proxy if it's configured and not disabled
+      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
+      if (this.proxy && this.proxy.trim() !== '') {
+        payload.proxy = this.proxy;
+      } else {
+        // Don't include proxy parameter if not configured
+        // Some API versions may not require it
+      }
 
       // Get fresh browser headers with rotation
       const headers = this.getBrowserHeaders();
@@ -562,10 +586,10 @@ class TweetAPIPostingService {
             console.warn(`⚠️ [TWEETAPI V2] Retrying quote tweet after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
             // On last retry, try without proxy if one is configured
-            if (retryCount === maxRetries - 1 && this.proxy) {
+            if (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '') {
               console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
               const originalProxy = this.proxy;
-              this.proxy = null;
+              this.proxy = ''; // Disable proxy for this attempt
               await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
               const result = await this.postQuoteTweet(text, quoteTweetId, retryCount + 1);
               this.proxy = originalProxy; // Restore proxy
