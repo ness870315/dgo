@@ -367,13 +367,15 @@ class TweetAPIPostingService {
             await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
             return await this.postTweet(text, retryCount + 1);
           }
-        } else {
+        } else if ((status === 403 || status === 504) && retryCount < maxRetries) {
           // Reset consecutive failures on non-proxy errors
           this.consecutiveProxyFailures = 0;
-        } else if ((status === 403 || status === 504) && retryCount < maxRetries) {
           console.warn(`⚠️ [TWEETAPI V2] Retrying after ${status} error (${retryCount + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           return await this.postTweet(text, retryCount + 1);
+        } else {
+          // Reset consecutive failures on other errors
+          this.consecutiveProxyFailures = 0;
         }
 
         return {
