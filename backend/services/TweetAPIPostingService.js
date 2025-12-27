@@ -256,7 +256,7 @@ class TweetAPIPostingService {
 
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post`, payload, {
         headers: headers,
-        timeout: 30000,
+        timeout: 60000, // Increased to 60s to handle proxy timeouts better
         maxRedirects: 5,
         validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
