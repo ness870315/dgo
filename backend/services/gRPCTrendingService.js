@@ -701,7 +701,23 @@ class gRPCTrendingService {
             .sort((a, b) => b.score - a.score)
             .slice(0, this.topTokensCount);
 
-        console.log(`\n💎 [gRPCTrending] Found ${validTokens.length} valid tokens`);
+        console.log(`\n💎 [gRPCTrending] Found ${validTokens.length} valid trending tokens`);
+        
+        // Log discovered trending tokens
+        if (validTokens.length > 0) {
+            console.log(`\n${'='.repeat(80)}`);
+            console.log(`📊 [gRPCTrending] DISCOVERED TRENDING TOKENS (${validTokens.length}):`);
+            console.log(`${'='.repeat(80)}`);
+            validTokens.forEach((token, index) => {
+                console.log(`${index + 1}. ${token.symbol || 'UNKNOWN'} (${token.name || 'Unknown Token'})`);
+                console.log(`   Contract: ${token.contractAddress}`);
+                console.log(`   Score: ${token.score.toFixed(2)}/9.9 | Swaps (5min): ${token.swapCount5min}`);
+                console.log(`   Market Cap: $${(token.marketCap / 1000000).toFixed(2)}M | Volume 24h: $${(token.volume24h / 1000).toFixed(2)}K`);
+                console.log(`   Liquidity: $${(token.liquidity / 1000000).toFixed(2)}M | Organic Score: ${token.organicScore || 'N/A'}`);
+                console.log('');
+            });
+            console.log(`${'='.repeat(80)}\n`);
+        }
         
         // Feed tokens into EnhancedTokenProcessor for full workflow (Twitter + Scoring)
         if (this.enhancedTokenProcessor && validTokens.length > 0) {
@@ -762,6 +778,20 @@ class gRPCTrendingService {
             
             console.log(`🆕 [gRPCTrending] Found ${newTokens.length} new tokens (${tokens.length - newTokens.length} duplicates filtered out)`);
             
+            // Log tokens that will be processed
+            console.log(`\n${'='.repeat(80)}`);
+            console.log(`🚀 [gRPCTrending] TOKENS TO BE PROCESSED (${newTokens.length}):`);
+            console.log(`${'='.repeat(80)}`);
+            newTokens.forEach((token, index) => {
+                console.log(`${index + 1}. ${token.symbol || 'UNKNOWN'} (${token.name || 'Unknown Token'})`);
+                console.log(`   Contract: ${token.contractAddress}`);
+                console.log(`   Score: ${token.score.toFixed(2)}/9.9 | Swaps (5min): ${token.swapCount5min}`);
+                console.log(`   Market Cap: $${(token.marketCap / 1000000).toFixed(2)}M | Volume 24h: $${(token.volume24h / 1000).toFixed(2)}K`);
+                console.log(`   Will go through: Jupiter → Twitter → Scoring → Database`);
+                console.log('');
+            });
+            console.log(`${'='.repeat(80)}\n`);
+            
             // Add only new tokens to the processor's queue
             // The processor will handle: Jupiter data enrichment → Twitter data → Scoring → Saving
             for (const token of newTokens) {
@@ -773,11 +803,52 @@ class gRPCTrendingService {
             // Trigger the processor to run if it's not already processing
             if (!this.enhancedTokenProcessor.isProcessing) {
                 console.log(`🚀 [gRPCTrending] Starting EnhancedTokenProcessor workflow...`);
+                
+                // Store the contract addresses of tokens we're processing to track them
+                const processingContracts = new Set(newTokens.map(t => t.contractAddress.toLowerCase()));
+                const processingContractsArray = Array.from(processingContracts);
+                
+                // Get count of tokens in database before processing
+                const tokensBeforeSave = (this.enhancedTokenProcessor.processedTokens || []).length;
+                
                 // Run through Jupiter → Twitter → Scoring → Saving stages
                 await this.enhancedTokenProcessor.processJupiterStage();
                 await this.enhancedTokenProcessor.processTwitterStage();
                 await this.enhancedTokenProcessor.processScoringStage();
                 await this.enhancedTokenProcessor.saveFinalDatabase();
+                
+                // Check which tokens were successfully saved to database
+                // Look for tokens that match our processing contracts and were just added
+                const allProcessedTokens = this.enhancedTokenProcessor.processedTokens || [];
+                const savedTokens = allProcessedTokens
+                    .filter(t => {
+                        if (!t.contractAddress) return false;
+                        const contractLower = t.contractAddress.toLowerCase();
+                        return processingContracts.has(contractLower);
+                    });
+                
+                if (savedTokens.length > 0) {
+                    console.log(`\n${'='.repeat(80)}`);
+                    console.log(`✅ [gRPCTrending] TOKENS ADDED TO DATABASE (${savedTokens.length}):`);
+                    console.log(`${'='.repeat(80)}`);
+                    savedTokens.forEach((token, index) => {
+                        console.log(`${index + 1}. ${token.symbol || 'UNKNOWN'} (${token.name || 'Unknown Token'})`);
+                        console.log(`   Contract: ${token.contractAddress}`);
+                        console.log(`   Overall Score: ${token.overallScore ? token.overallScore.toFixed(2) : 'N/A'}`);
+                        console.log(`   Market Cap: $${token.marketCap ? (token.marketCap / 1000000).toFixed(2) + 'M' : 'N/A'}`);
+                        console.log(`   Volume 24h: $${token.volume24h ? (token.volume24h / 1000).toFixed(2) + 'K' : 'N/A'}`);
+                        console.log(`   Twitter Mentions: ${token.twitterData?.mentions || 0}`);
+                        console.log(`   Source: ${token.source || 'gRPC-Trending'}`);
+                        console.log(`   ✅ Successfully saved to database`);
+                        console.log('');
+                    });
+                    console.log(`${'='.repeat(80)}\n`);
+                } else {
+                    console.log(`⚠️ [gRPCTrending] No tokens from this batch were found in database yet (may still be processing or failed)`);
+                    console.log(`   Expected: ${processingContractsArray.length} tokens`);
+                    console.log(`   Processing contracts: ${processingContractsArray.slice(0, 5).join(', ')}${processingContractsArray.length > 5 ? '...' : ''}`);
+                }
+                
                 console.log(`✅ [gRPCTrending] Processor workflow completed`);
             } else {
                 console.log(`⏳ [gRPCTrending] Processor already running, tokens will be picked up in next cycle`);
