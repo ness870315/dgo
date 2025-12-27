@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { processTxForSwap } from './SwapDetectionHelpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,11 +26,18 @@ const DEX_PROGRAMS = [
 
 const NULL_PUBKEY = '11111111111111111111111111111111';
 
-// Exclude SOL and stablecoins
+// Exclude SOL, stablecoins, wrapped tokens, and staking tokens
 const EXCLUDED_TOKENS = new Set([
     'So11111111111111111111111111111111111111112', // Wrapped SOL
     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
     'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+    '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo', // PayPal USD (PYUSD)
+    'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij', // Coinbase Wrapped BTC (cbBTC)
+    '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh', // Wrapped BTC (Portal) (WBTC)
+    '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', // Ether (Portal) (ETH)
+    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // Marinade staked SOL (mSOL)
+    'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', // Jito Staked SOL (JitoSOL)
+    'jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v', // Jupiter Staked SOL (JupSOL)
     'EX8AQmPLGAKuJ1HGaDCu5ZwyPQK1xn8Y9REMN8soyvEs', // TeslaAI (scam)
     'BAZ2uNKcANstKoqSzzbMd89eDVhLRKdFdQAZsPdwUQ4Q', // Scam token
     'EHVebVwCTrqvdGLKisU5M5ikW5VHRALx93XvHa7zJLBR', // TRUMPET (scam)
@@ -84,7 +92,9 @@ class gRPCTrendingService {
         // Monitoring configuration
         this.monitoringDuration = 5 * 60 * 1000; // 5 minutes
         this.reportInterval = 30 * 1000; // 30 seconds
-        this.topTokensCount = 20;
+        this.topTokensCount = parseInt(process.env.TOP_TRENDING_TOKENS_COUNT || '50', 10);
+        this.continuousInterval = null; // For continuous mode
+        this.solPrice = 200; // Default SOL price, will be updated from enhancedHybridPriceService
     }
 
     async initialize() {
@@ -201,74 +211,96 @@ class gRPCTrendingService {
     processTransaction(msg) {
         try {
             this.stats.totalTransactions++;
-            const swap = this.parseRaydiumSwap(msg);
             
-            if (swap) {
-                this.stats.swapsDetected++;
-                this.stats.poolsDiscovered.add(swap.poolAddress);
-                this.stats.tokensSeen.add(swap.tokenMintA);
-                this.stats.tokensSeen.add(swap.tokenMintB);
+            // Get SOL price from enhancedHybridPriceService if available
+            const solPrice = this.enhancedHybridPriceService?.solPriceUSD || this.solPrice || 200;
+            
+            // Extract transaction data structure
+            const txData = msg.transaction || msg;
+            const innerTx = txData.transaction || txData;
+            
+            // Build transaction object for processTxForSwap
+            const tx = {
+                transaction: innerTx,
+                meta: innerTx?.meta || txData.transaction?.meta || txData.meta,
+                signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
+                slot: txData.slot || msg.slot,
+                blockTime: txData.blockTime || msg.blockTime
+            };
+            
+            if (!innerTx || !tx.meta) return;
 
-                // Track swaps per token (exclude SOL/stables)
-                [swap.tokenMintA, swap.tokenMintB].forEach((tokenAddress) => {
-                    if (tokenAddress && !EXCLUDED_TOKENS.has(tokenAddress)) {
-                        const count = this.tokenSwaps.get(tokenAddress) || 0;
-                        this.tokenSwaps.set(tokenAddress, count + 1);
+            // Extract all token mints from pre/post token balances
+            const preTokenBalances = tx.meta.preTokenBalances || [];
+            const postTokenBalances = tx.meta.postTokenBalances || [];
+            const tokenMints = new Set();
+            
+            [...preTokenBalances, ...postTokenBalances].forEach(balance => {
+                if (balance.mint && !EXCLUDED_TOKENS.has(balance.mint)) {
+                    tokenMints.add(balance.mint);
+                }
+            });
+            
+            if (tokenMints.size === 0) return;
+
+            // Try to decode swaps for each token mint found
+            const tokenPriceCache = new Map();
+            const processedSwaps = new Set(); // Track swap signatures to avoid duplicates
+            
+            tokenMints.forEach(mint => {
+                try {
+                    const swap = processTxForSwap(
+                        tx,
+                        mint,
+                        solPrice,
+                        tokenPriceCache,
+                        null, // midPriceUsd = null (disable price outlier filter)
+                        null, // raydiumDecoder
+                        null  // knownPoolAddress (let it discover)
+                    );
+                    
+                    if (swap && swap.signature && !processedSwaps.has(swap.signature)) {
+                        processedSwaps.add(swap.signature);
+                        this.stats.swapsDetected++;
                         
-                        const volume = this.tokenVolumes.get(tokenAddress) || 0;
-                        this.tokenVolumes.set(tokenAddress, volume + Math.abs(swap.amountIn || swap.amountOut || 1));
+                        // Track both token mints from the swap
+                        // processTxForSwap returns: mintAddress (target) and counterMint (what we're trading against)
+                        const tokenA = swap.mintAddress || swap.tokenMint; // The target token we're looking for
+                        const tokenB = swap.counterMint; // What we're trading against (SOL, USDC, etc.)
+                        
+                        // Track the target token (mintAddress)
+                        if (tokenA && !EXCLUDED_TOKENS.has(tokenA)) {
+                            this.stats.tokensSeen.add(tokenA);
+                            const count = this.tokenSwaps.get(tokenA) || 0;
+                            this.tokenSwaps.set(tokenA, count + 1);
+                            
+                            const volume = this.tokenVolumes.get(tokenA) || 0;
+                            this.tokenVolumes.set(tokenA, volume + (swap.volumeUsd || 0));
+                        }
+                        
+                        // Also track the counter token if it's not excluded (for completeness)
+                        if (tokenB && !EXCLUDED_TOKENS.has(tokenB)) {
+                            this.stats.tokensSeen.add(tokenB);
+                            const count = this.tokenSwaps.get(tokenB) || 0;
+                            this.tokenSwaps.set(tokenB, count + 1);
+                            
+                            const volume = this.tokenVolumes.get(tokenB) || 0;
+                            this.tokenVolumes.set(tokenB, volume + (swap.volumeUsd || 0));
+                        }
+                        
+                        if (swap.poolAddress) {
+                            this.stats.poolsDiscovered.add(swap.poolAddress);
+                        }
                     }
-                });
-            }
+                } catch (error) {
+                    // Silent fail for individual token decoding
+                }
+            });
         } catch (error) {
             this.stats.errors++;
         }
     }
 
-    parseRaydiumSwap(msg) {
-        try {
-            const txWrapper = msg.transaction?.transaction || msg.transaction || msg;
-            const transaction = txWrapper.transaction || txWrapper;
-            const meta = txWrapper.meta || msg.transactionStatus?.meta || msg.meta || {};
-            
-            if (!transaction) return null;
-
-            const preTokenBalances = meta.preTokenBalances || [];
-            const postTokenBalances = meta.postTokenBalances || [];
-            
-            if (preTokenBalances.length > 0 && postTokenBalances.length > 0) {
-                const accountKeys = transaction.message?.accountKeys || [];
-                const poolAddress = accountKeys.find((key, idx) => {
-                    const pubkey = key.pubkey || key;
-                    return pubkey && pubkey !== '11111111111111111111111111111111' && idx < 10;
-                })?.pubkey || accountKeys[0]?.pubkey || accountKeys[0];
-
-                if (!poolAddress) return null;
-
-                const tokenChanges = postTokenBalances.filter(post => {
-                    const pre = preTokenBalances.find(p => 
-                        p.accountIndex === post.accountIndex && 
-                        p.mint === post.mint
-                    );
-                    return pre && pre.uiTokenAmount.uiAmount !== post.uiTokenAmount.uiAmount;
-                });
-
-                if (tokenChanges.length >= 2) {
-                    return {
-                        poolAddress,
-                        tokenMintA: tokenChanges[0].mint,
-                        tokenMintB: tokenChanges[1].mint,
-                        amountIn: tokenChanges[0].uiTokenAmount.uiAmount,
-                        amountOut: tokenChanges[1].uiTokenAmount.uiAmount,
-                        signature: msg.signature || 'unknown'
-                    };
-                }
-            }
-            return null;
-        } catch (error) {
-            return null;
-        }
-    }
 
     async fetchJupiterDataBatch(tokenAddresses) {
         const BATCH_SIZE = 100;
@@ -316,7 +348,12 @@ class gRPCTrendingService {
                                 audit: tokenData.audit || {},
                                 organicScore: tokenData.organicScore || null,
                                 organicScoreLabel: tokenData.organicScoreLabel || null,
-                                stats24h: tokenData.stats24h || {}
+                                stats1h: tokenData.stats1h || {},
+                                stats6h: tokenData.stats6h || {},
+                                stats24h: tokenData.stats24h || {},
+                                bondingCurve: tokenData.bondingCurve || null,
+                                graduatedAt: tokenData.graduatedAt || null,
+                                launchpad: tokenData.launchpad || null
                             });
                         }
                     });
@@ -331,13 +368,110 @@ class gRPCTrendingService {
         return allResults;
     }
     
+    /**
+     * L2 Filter: Check if token is valid (has price, market cap, liquidity, volume)
+     */
+    isValidToken(tokenAddress) {
+        const tokenData = this.tokenData.get(tokenAddress);
+        if (!tokenData) return false;
+        
+        // Must have at least a price OR market cap OR liquidity to be valid
+        const hasPrice = tokenData.priceUsd && tokenData.priceUsd > 0;
+        const hasMarketCap = tokenData.marketCap && tokenData.marketCap > 0;
+        const hasLiquidity = tokenData.liquidity && tokenData.liquidity > 0;
+        
+        // If token has none of these, it's invalid/non-tradeable
+        if (!hasPrice && !hasMarketCap && !hasLiquidity) {
+            return false;
+        }
+        
+        // Minimum market cap requirement: must be strictly greater than $10,000
+        const MIN_MARKET_CAP = 10000;
+        if (hasMarketCap && tokenData.marketCap <= MIN_MARKET_CAP) {
+            return false;
+        }
+        
+        // Also check if market cap is missing or 0 - require at least $10,000
+        if (!hasMarketCap || tokenData.marketCap === 0) {
+            return false;
+        }
+        
+        // Minimum 24h volume requirement: must be at least $5,000
+        const MIN_VOLUME_24H = 5000;
+        const volume24h = tokenData.volume24h || 0;
+        if (volume24h < MIN_VOLUME_24H) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * L2 Filter: Check if token has rugged (crashed significantly)
+     */
+    isRuggedToken(tokenAddress) {
+        const tokenData = this.tokenData.get(tokenAddress);
+        if (!tokenData) return false;
+        
+        const stats1h = tokenData.stats1h || {};
+        const stats6h = tokenData.stats6h || {};
+        const stats24h = tokenData.stats24h || {};
+        
+        // Check for large negative price changes (indicating a rug pull or crash)
+        // 1h: > -20% drop is suspicious
+        const priceChange1h = stats1h.priceChange || 0;
+        if (priceChange1h < -20) return true;
+        
+        // 6h: > -30% drop is very suspicious
+        const priceChange6h = stats6h.priceChange || 0;
+        if (priceChange6h < -30) return true;
+        
+        // 24h: > -50% drop indicates a major crash/rug
+        const priceChange24h = stats24h.priceChange || 0;
+        if (priceChange24h < -50) return true;
+        
+        // Check for large liquidity drops (rug pull indicator)
+        const liquidityChange1h = stats1h.liquidityChange || 0;
+        const liquidityChange6h = stats6h.liquidityChange || 0;
+        const liquidityChange24h = stats24h.liquidityChange || 0;
+        
+        // If liquidity dropped > 50% in 6h or 24h, likely rugged
+        if (liquidityChange6h < -50 || liquidityChange24h < -50) return true;
+        
+        // Check if market cap is very low compared to volume (indicates recent crash)
+        // If volume is high but market cap is very low, it likely crashed
+        const volume24h = tokenData.volume24h || 0;
+        const marketCap = tokenData.marketCap || 0;
+        
+        // If 24h volume is > 3x the current market cap, likely crashed
+        // (e.g., had $100k mcap, did $300k volume, now at $9k mcap = rugged)
+        if (volume24h > 0 && marketCap > 0 && volume24h > marketCap * 3) {
+            // Additional check: if price dropped significantly, confirm it's rugged
+            if (priceChange24h < -40 || priceChange6h < -25) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     isBondingCurve(tokenAddress) {
         const tokenData = this.tokenData.get(tokenAddress);
         
-        // If no Jupiter data at all, likely bonding curve
+        // Check bonding curve progress from Jupiter data
+        const bondingCurveProgress = tokenData?.bondingCurve !== null && tokenData?.bondingCurve !== undefined 
+            ? parseFloat(tokenData.bondingCurve) 
+            : null;
+        
+        // If bonding curve progress is < 100%, it's a bonding curve token
+        if (bondingCurveProgress !== null && bondingCurveProgress < 100) {
+            return true;
+        }
+        
+        // Legacy check: If no Jupiter data at all, likely bonding curve
         if (!tokenData) return true;
         
-        // If no market cap or liquidity, likely bonding curve
+        // Legacy check: If no market cap or liquidity, likely bonding curve
         if (!tokenData.marketCap || tokenData.marketCap === 0) return true;
         if (!tokenData.liquidity || tokenData.liquidity === 0) return true;
         
@@ -345,6 +479,39 @@ class gRPCTrendingService {
         if (tokenData.marketCap && tokenData.liquidity) {
             const liquidityRatio = (tokenData.liquidity / tokenData.marketCap) * 100;
             if (liquidityRatio < 0.1) return true;
+        }
+        
+        return false;
+    }
+
+    isStableOrWrappedToken(tokenAddress) {
+        const tokenData = this.tokenData.get(tokenAddress);
+        if (!tokenData) return false;
+        
+        const symbol = (tokenData.symbol || '').toUpperCase();
+        const name = (tokenData.name || '').toUpperCase();
+        
+        // Stablecoin patterns
+        const stablePatterns = ['USD', 'USDT', 'USDC', 'PYUSD', 'BUSD', 'DAI', 'TUSD', 'PAX', 'GUSD', 'HUSD'];
+        if (stablePatterns.some(pattern => symbol.includes(pattern) || name.includes(pattern))) {
+            return true;
+        }
+        
+        // Wrapped token patterns
+        const wrappedPatterns = ['WBTC', 'WETH', 'WBNB', 'WAVAX', 'WMATIC', 'WRAPPED', 'CBTC'];
+        if (wrappedPatterns.some(pattern => symbol.includes(pattern) || name.includes(pattern))) {
+            return true;
+        }
+        
+        // Staking token patterns
+        const stakingPatterns = ['STAKED', 'STSOL', 'MSOL', 'JSOL', 'JITOSOL', 'JUPITERSOL', 'MARINADE'];
+        if (stakingPatterns.some(pattern => symbol.includes(pattern) || name.includes(pattern))) {
+            return true;
+        }
+        
+        // Portal/wormhole wrapped tokens
+        if (name.includes('PORTAL') || name.includes('WORMHOLE')) {
+            return true;
         }
         
         return false;
@@ -362,20 +529,59 @@ class gRPCTrendingService {
         if (audit.blockaidWashTrading === true) return true;
         if (audit.blockaidHiddenKeyHolder === true) return true;
         
-        // Check mint/freeze authority
+        // Check mint/freeze authority (handle both boolean and string formats)
+        // mintAuthorityDisabled === false means mint authority is ENABLED (suspicious)
+        // freezeAuthorityDisabled === false means freeze authority is ENABLED (suspicious)
         if (audit.mintAuthorityDisabled === false) return true;
         if (audit.freezeAuthorityDisabled === false) return true;
+        
+        // Also check string format (mintAuth=enabled, freezeAuth=enabled)
+        if (audit.mintAuth === 'enabled' || audit.mintAuthority === 'enabled') return true;
+        if (audit.freezeAuth === 'enabled' || audit.freezeAuthority === 'enabled') return true;
         
         // Check top holders percentage (if > 50%, suspicious)
         if (audit.topHoldersPercentage && audit.topHoldersPercentage > 50) return true;
         
-        // Filter tokens with market cap < $100K
-        if (tokenData.marketCap && tokenData.marketCap < 100000) return true;
-        
-        // Check liquidity/market cap ratio (should be at least 2%)
+        // Check liquidity/market cap ratio (should be at least 5%)
+        // Very low liquidity ratio indicates unlocked liquidity (scam risk)
+        // Legitimate tokens typically have 5-20% liquidity locked
         if (tokenData.marketCap && tokenData.liquidity) {
             const liquidityRatio = (tokenData.liquidity / tokenData.marketCap) * 100;
+            
+            // If liquidity is < 2% of market cap, it's very suspicious (likely unlocked)
             if (liquidityRatio < 2) return true;
+            
+            // If liquidity is < 5% of market cap, it's suspicious (unlocked liquidity risk)
+            const volume24h = tokenData.volume24h || 0;
+            if (liquidityRatio < 5) {
+                // If volume is significant (> $10K), low liquidity is risky
+                if (volume24h > 10000) {
+                    return true;
+                }
+            }
+            
+            // If liquidity is < 7% of market cap AND has meaningful volume, it's suspicious
+            // (unlocked liquidity can be pulled easily)
+            if (liquidityRatio < 7 && volume24h > 20000) {
+                return true;
+            }
+            
+            // If liquidity is < 10% AND volume > liquidity, it's suspicious
+            // (can be rugged easily with high volume but low locked liquidity)
+            if (liquidityRatio < 10 && volume24h > tokenData.liquidity) {
+                return true;
+            }
+        }
+        
+        // Check liquidity vs 24h volume ratio
+        // If liquidity is very low compared to volume, it can be rugged easily
+        const volume24h = tokenData.volume24h || 0;
+        const liquidity = tokenData.liquidity || 0;
+        if (liquidity > 0 && volume24h > 0) {
+            // If 24h volume is > 5x liquidity, it's risky (unlocked liquidity can be pulled)
+            if (volume24h > liquidity * 5) {
+                return true;
+            }
         }
         
         // Check dev balance (if dev holds more than 10%, suspicious)
@@ -428,18 +634,45 @@ class gRPCTrendingService {
             this.tokenData.set(address, data);
         });
         
-        // Filter and rank tokens
+        // Filter and rank tokens (apply filters in order)
         const validTokens = Array.from(this.tokenSwaps.entries())
             .filter(([token]) => {
-                if (EXCLUDED_TOKENS.has(token)) return false;
+                // L1 Filter: Exclude SOL/stables (already done, but double-check)
+                if (EXCLUDED_TOKENS.has(token)) {
+                    return false;
+                }
+                
+                const tokenData = this.tokenData.get(token);
+                
+                // L2 Filter: Valid token check (must have price/market cap/liquidity/volume)
+                if (!this.isValidToken(token)) {
+                    return false;
+                }
+                
+                // L2 Filter: Stable/wrapped/staking tokens
+                if (this.isStableOrWrappedToken(token)) {
+                    console.log(`💵 [gRPCTrending] Filtering stable/wrapped/staking: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    return false;
+                }
+                
+                // L2 Filter: Rugged token check (crashed significantly)
+                if (this.isRuggedToken(token)) {
+                    console.log(`💥 [gRPCTrending] Filtering rugged token: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    return false;
+                }
+                
+                // L2 Filter: Bonding curve tokens (EXCLUDE FOR NOW)
                 if (this.isBondingCurve(token)) {
-                    console.log(`🌊 [gRPCTrending] Filtering bonding curve: ${token.substring(0,8)}...`);
+                    console.log(`🌊 [gRPCTrending] Filtering bonding curve: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
                     return false;
                 }
+                
+                // L2 Filter: Suspicious token check
                 if (this.isSuspiciousToken(token)) {
-                    console.log(`🚫 [gRPCTrending] Filtering suspicious: ${token.substring(0,8)}...`);
+                    console.log(`🚫 [gRPCTrending] Filtering suspicious: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
                     return false;
                 }
+                
                 return true;
             })
             .map(([token, swapCount]) => {
@@ -484,15 +717,58 @@ class gRPCTrendingService {
 
     async feedTokensIntoProcessor(tokens) {
         try {
-            console.log(`📥 [gRPCTrending] Adding ${tokens.length} tokens to processor queue...`);
+            console.log(`📥 [gRPCTrending] Checking ${tokens.length} tokens for duplicates...`);
             
-            // Add tokens to the processor's queue
+            // Get existing tokens from processor's database to check for duplicates
+            const existingTokens = this.enhancedTokenProcessor.processedTokens || [];
+            const existingContracts = new Set(
+                existingTokens
+                    .filter(t => t.contractAddress)
+                    .map(t => t.contractAddress.toLowerCase())
+            );
+            
+            // Also check tokens already in processing queue
+            const queuedContracts = new Set(
+                this.enhancedTokenProcessor.processingQueue
+                    .filter(t => t.contractAddress)
+                    .map(t => t.contractAddress.toLowerCase())
+            );
+            
+            // Filter out tokens that already exist in database or are already queued
+            const newTokens = tokens.filter(token => {
+                if (!token.contractAddress) return false;
+                
+                const contractLower = token.contractAddress.toLowerCase();
+                
+                // Skip if already in database
+                if (existingContracts.has(contractLower)) {
+                    console.log(`⏭️ [gRPCTrending] Skipping existing token: ${token.symbol || 'UNKNOWN'} (${token.contractAddress.substring(0, 8)}...) - already in database`);
+                    return false;
+                }
+                
+                // Skip if already in processing queue
+                if (queuedContracts.has(contractLower)) {
+                    console.log(`⏭️ [gRPCTrending] Skipping queued token: ${token.symbol || 'UNKNOWN'} (${token.contractAddress.substring(0, 8)}...) - already in queue`);
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            if (newTokens.length === 0) {
+                console.log(`✅ [gRPCTrending] All ${tokens.length} tokens already exist in database or queue - nothing to process`);
+                return;
+            }
+            
+            console.log(`🆕 [gRPCTrending] Found ${newTokens.length} new tokens (${tokens.length - newTokens.length} duplicates filtered out)`);
+            
+            // Add only new tokens to the processor's queue
             // The processor will handle: Jupiter data enrichment → Twitter data → Scoring → Saving
-            for (const token of tokens) {
+            for (const token of newTokens) {
                 this.enhancedTokenProcessor.processingQueue.push(token);
             }
             
-            console.log(`✅ [gRPCTrending] Added ${tokens.length} tokens to processor queue (total queue: ${this.enhancedTokenProcessor.processingQueue.length})`);
+            console.log(`✅ [gRPCTrending] Added ${newTokens.length} new tokens to processor queue (total queue: ${this.enhancedTokenProcessor.processingQueue.length})`);
             
             // Trigger the processor to run if it's not already processing
             if (!this.enhancedTokenProcessor.isProcessing) {
@@ -583,12 +859,61 @@ class gRPCTrendingService {
         this.isRunning = false;
         
         const duration = (Date.now() - this.stats.startTime) / 1000;
-        console.log(`\n📊 [gRPCTrending] Final Stats:`);
+        console.log(`\n📊 [gRPCTrending] Cycle Stats:`);
         console.log(`   Duration: ${duration.toFixed(1)}s`);
         console.log(`   Total swaps: ${this.stats.swapsDetected}`);
         console.log(`   Swaps/sec: ${(this.stats.swapsDetected / duration).toFixed(2)}`);
         console.log(`   Unique tokens: ${this.tokenSwaps.size}`);
         console.log(`   Pools discovered: ${this.stats.poolsDiscovered.size}`);
+    }
+
+    /**
+     * Start continuous monitoring mode (runs every 5 minutes)
+     */
+    async startContinuousMonitoring() {
+        if (this.continuousMode) {
+            console.log('⚠️ [gRPCTrending] Continuous monitoring already running');
+            return;
+        }
+
+        this.continuousMode = true;
+        console.log(`\n🔄 [gRPCTrending] Starting continuous monitoring mode (every ${this.monitoringDuration / 60000} minutes)...`);
+
+        // Run first cycle immediately
+        await this.runDiscoveryCycle();
+
+        // Then run every 5 minutes
+        this.continuousInterval = setInterval(async () => {
+            if (!this.continuousMode) {
+                clearInterval(this.continuousInterval);
+                return;
+            }
+
+            // Reset swap tracking for next cycle (keep token data for reference)
+            this.tokenSwaps.clear();
+            this.tokenVolumes.clear();
+            this.stats.swapsDetected = 0;
+            this.stats.poolsDiscovered.clear();
+            this.stats.tokensSeen.clear();
+
+            console.log(`\n${'='.repeat(80)}`);
+            console.log(`🔄 [gRPCTrending] Starting next discovery cycle...`);
+            console.log(`${'='.repeat(80)}`);
+
+            await this.runDiscoveryCycle();
+        }, this.monitoringDuration);
+    }
+
+    /**
+     * Stop continuous monitoring mode
+     */
+    stopContinuousMonitoring() {
+        if (this.continuousInterval) {
+            clearInterval(this.continuousInterval);
+            this.continuousInterval = null;
+        }
+        this.continuousMode = false;
+        console.log('🛑 [gRPCTrending] Continuous monitoring stopped');
     }
 
     isGrpcInitialized() {
@@ -608,9 +933,17 @@ class gRPCTrendingService {
             return null;
         }
 
+        // Reset stats for this cycle
+        this.stats.startTime = Date.now();
+        this.stats.swapsDetected = 0;
+        this.stats.poolsDiscovered.clear();
+        this.stats.tokensSeen.clear();
+        this.stats.totalTransactions = 0;
+        this.stats.errors = 0;
+
         await this.startMonitoring();
         
-        // Wait for monitoring to complete
+        // Wait for monitoring to complete (startMonitoring sets up a timeout that stops after monitoringDuration)
         return new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 if (!this.isRunning) {

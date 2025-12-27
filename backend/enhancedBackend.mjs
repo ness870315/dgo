@@ -33,6 +33,7 @@ import HybridPriceService from './services/HybridPriceService.js';
 import DexScreenerStyleMonitor from './services/DexScreenerStyleMonitor.mjs';
 import ChartDatabase from './services/ChartDatabase.js';
 import TokenCacheWatcher from './services/TokenCacheWatcher.mjs';
+import gRPCTrendingService from './services/gRPCTrendingService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
@@ -18489,6 +18490,16 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Onboard tokens to monitor
       await this.onboardCachedTokens(tokens);
       console.log(`✅ Onboarded ${tokens.length} tokens to DexScreener monitor`);
+      
+      // 🚀 Initialize gRPC Trending Service (separate stream for trending discovery)
+      console.log('🚀 Initializing gRPC Trending Service...');
+      this.grpcTrendingService = new gRPCTrendingService(
+        null, // enhancedHybridPriceService (not needed for trending service)
+        this.tokenProcessor // enhancedTokenProcessor (for full workflow)
+      );
+      await this.grpcTrendingService.initialize();
+      await this.grpcTrendingService.startContinuousMonitoring();
+      console.log('✅ gRPC Trending Service initialized and started (continuous mode)');
       
       // ✅ Token Cache Watcher - TEMPORARILY DISABLED (causing duplicate onboarding issues)
       // TODO: Re-enable after fixing the logic to properly detect truly new tokens
