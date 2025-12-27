@@ -340,7 +340,13 @@ class gRPCTrendingService {
                             this.tokenSwaps.set(tokenA, count + 1);
                             
                             const volume = this.tokenVolumes.get(tokenA) || 0;
-                            this.tokenVolumes.set(tokenA, volume + (swap.volumeUsd || 0));
+                            const volumeUsd = typeof swap.volumeUsd === 'number' ? swap.volumeUsd : parseFloat(swap.volumeUsd) || 0;
+                            this.tokenVolumes.set(tokenA, volume + volumeUsd);
+                            
+                            // Debug: Log first few token additions
+                            if (this.tokenSwaps.size <= 5 && count === 0) {
+                                console.log(`📝 [gRPCTrending] Tracking new token: ${tokenA.substring(0, 8)}... (swaps: ${count + 1}, volume: $${(volume + volumeUsd).toFixed(2)})`);
+                            }
                         }
                         
                         // Also track the counter token if it's not excluded (for completeness)
@@ -350,7 +356,8 @@ class gRPCTrendingService {
                             this.tokenSwaps.set(tokenB, count + 1);
                             
                             const volume = this.tokenVolumes.get(tokenB) || 0;
-                            this.tokenVolumes.set(tokenB, volume + (swap.volumeUsd || 0));
+                            const volumeUsd = typeof swap.volumeUsd === 'number' ? swap.volumeUsd : parseFloat(swap.volumeUsd) || 0;
+                            this.tokenVolumes.set(tokenB, volume + volumeUsd);
                         }
                         
                         if (swap.poolAddress) {
@@ -692,6 +699,11 @@ class gRPCTrendingService {
         
         // Fetch Jupiter data for all tokens
         const allTokenAddresses = Array.from(this.tokenSwaps.keys());
+        console.log(`📊 [gRPCTrending] Processing ${allTokenAddresses.length} tokens from tokenSwaps Map`);
+        if (allTokenAddresses.length === 0) {
+            console.log(`⚠️ [gRPCTrending] tokenSwaps Map is empty! Stats: swapsDetected=${this.stats.swapsDetected}, tokensSeen=${this.stats.tokensSeen.size}`);
+            console.log(`   This suggests tokens were cleared before processing or not being tracked correctly`);
+        }
         const jupiterData = await this.fetchJupiterDataBatch(allTokenAddresses);
         
         // Store the fetched data
@@ -1025,9 +1037,8 @@ class gRPCTrendingService {
                 return;
             }
 
-            // Reset swap tracking for next cycle (keep token data for reference)
-            this.tokenSwaps.clear();
-            this.tokenVolumes.clear();
+            // NOTE: Don't clear tokenSwaps/tokenVolumes here - they're cleared at START of runDiscoveryCycle
+            // This ensures processAndSaveTokens (called from timeout) has access to the data
             this.stats.swapsDetected = 0;
             this.stats.poolsDiscovered.clear();
             this.stats.tokensSeen.clear();
