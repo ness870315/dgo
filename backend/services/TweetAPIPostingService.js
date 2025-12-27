@@ -127,13 +127,12 @@ class TweetAPIPostingService {
         media: mediaUrls.map(url => ({ url }))
       };
 
-      // Only include proxy if it's configured and not disabled
-      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
-      if (this.proxy && this.proxy.trim() !== '') {
-        payload.proxy = this.proxy;
+      // API requires 'proxy' parameter (even if empty string)
+      // If proxy is disabled or not configured, use empty string
+      if (this.proxyDisabled || !this.proxy || this.proxy.trim() === '') {
+        payload.proxy = '';
       } else {
-        // Don't include proxy parameter if not configured
-        // Some API versions may not require it
+        payload.proxy = this.proxy;
       }
 
       const headers = this.getBrowserHeaders();
@@ -257,13 +256,12 @@ class TweetAPIPostingService {
         text: text   // API requires both parameters
       };
 
-      // Only include proxy if it's configured and not disabled
-      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
-      if (this.proxy && this.proxy.trim() !== '') {
-        payload.proxy = this.proxy;
+      // API requires 'proxy' parameter (even if empty string)
+      // If proxy is disabled or not configured, use empty string
+      if (this.proxyDisabled || !this.proxy || this.proxy.trim() === '') {
+        payload.proxy = '';
       } else {
-        // Don't include proxy parameter if not configured
-        // Some API versions may not require it
+        payload.proxy = this.proxy;
       }
 
       // Get fresh browser headers with rotation (especially important on retries)
@@ -435,13 +433,12 @@ class TweetAPIPostingService {
         tweetId: tweetId
       };
 
-      // Only include proxy if it's configured and not disabled
-      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
-      if (this.proxy && this.proxy.trim() !== '') {
-        payload.proxy = this.proxy;
+      // API requires 'proxy' parameter (even if empty string)
+      // If proxy is disabled or not configured, use empty string
+      if (this.proxyDisabled || !this.proxy || this.proxy.trim() === '') {
+        payload.proxy = '';
       } else {
-        // Don't include proxy parameter if not configured
-        // Some API versions may not require it
+        payload.proxy = this.proxy;
       }
 
       // Get fresh browser headers with rotation
@@ -566,13 +563,12 @@ class TweetAPIPostingService {
         quoteTweetId: quoteTweetId
       };
 
-      // Only include proxy if it's configured and not disabled
-      // If proxy is consistently failing, set TWEETAPI_PROXY='' to disable it
-      if (this.proxy && this.proxy.trim() !== '') {
-        payload.proxy = this.proxy;
+      // API requires 'proxy' parameter (even if empty string)
+      // If proxy is disabled or not configured, use empty string
+      if (this.proxyDisabled || !this.proxy || this.proxy.trim() === '') {
+        payload.proxy = '';
       } else {
-        // Don't include proxy parameter if not configured
-        // Some API versions may not require it
+        payload.proxy = this.proxy;
       }
 
       // Get fresh browser headers with rotation
