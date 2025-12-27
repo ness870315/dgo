@@ -931,11 +931,11 @@ class gRPCTrendingService {
                     ? tokensThatCompletedScoring 
                     : savedTokensFromProcessed;
                 
-                if (savedTokens.length > 0) {
+                if (finalSavedTokens.length > 0) {
                     console.log(`\n${'='.repeat(80)}`);
-                    console.log(`✅ [gRPCTrending] TOKENS ADDED TO DATABASE (${savedTokens.length}):`);
+                    console.log(`✅ [gRPCTrending] TOKENS ADDED TO DATABASE (${finalSavedTokens.length}):`);
                     console.log(`${'='.repeat(80)}`);
-                    savedTokens.forEach((token, index) => {
+                    finalSavedTokens.forEach((token, index) => {
                         console.log(`${index + 1}. ${token.symbol || 'UNKNOWN'} (${token.name || 'Unknown Token'})`);
                         console.log(`   Contract: ${token.contractAddress}`);
                         console.log(`   Overall Score: ${token.overallScore ? token.overallScore.toFixed(2) : 'N/A'}`);
