@@ -71,6 +71,10 @@ class TokenData {
       '24h': null   // Price 24 hours ago
     };
     this.priceHistory = []; // Array of {timestamp, price} for price tracking (last 24h)
+    
+    // 🚨 CRITICAL: Price smoothing - track recent valid prices for median calculation
+    this.recentValidPrices = []; // Last 10 valid swap prices (for median smoothing)
+    this.maxRecentPrices = 10;
   }
 
   addSwap(swap) {
@@ -1811,50 +1815,69 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // 🚨 CRITICAL FIX: Validate swap price BEFORE using it for market cap calculation
-          // Reject swaps with prices that are clearly wrong (outliers)
+          // 🚨 CRITICAL FIX: Use rolling median of recent valid prices for stability
+          // This prevents wild price swings from individual bad swaps
           const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           let validatedPrice = swap.priceUsd;
           let priceRejected = false;
           
+          // Helper function to calculate median
+          const calculateMedian = (arr) => {
+            if (arr.length === 0) return 0;
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 === 0 
+              ? (sorted[mid - 1] + sorted[mid]) / 2 
+              : sorted[mid];
+          };
+          
           if (swap.priceUsd && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
             // Validate price is reasonable (not too small, not too large)
-            // Typical memecoin prices: $0.000001 to $10
             const isValidPrice = swap.priceUsd >= 0.0000001 && swap.priceUsd <= 1000;
             
-            if (isValidPrice && previousPrice > 0) {
-              // 🚨 CRITICAL: Check if price change is reasonable (not more than 3x jump)
-              // This prevents wild market cap swings from bad swap prices
-              const priceRatio = swap.priceUsd / previousPrice;
-              // If price jumps more than 3x or drops more than 3x, it's likely wrong
-              if (priceRatio > 3.0 || priceRatio < 0.33) {
-                // Price jump is too large - reject this swap price
-                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING erratic price: $${swap.priceUsd.toFixed(6)} (previous: $${previousPrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x) - using previous price`);
-                validatedPrice = previousPrice; // Use previous price instead
-                priceRejected = true;
-              } else {
-                // Price change is reasonable - use it
-                tokenData.lastPriceUSD = swap.priceUsd;
-                tokenData.lastPriceUpdate = Date.now();
+            if (isValidPrice) {
+              // Get median of recent valid prices (if we have enough history)
+              const recentMedian = tokenData.recentValidPrices.length >= 3 
+                ? calculateMedian(tokenData.recentValidPrices) 
+                : previousPrice;
+              
+              // Use median as reference price (more stable than last price)
+              const referencePrice = recentMedian > 0 ? recentMedian : previousPrice;
+              
+              if (referencePrice > 0) {
+                // 🚨 CRITICAL: Check if price change is reasonable (not more than 2x jump from median)
+                // Using 2x instead of 3x for tighter control
+                const priceRatio = swap.priceUsd / referencePrice;
+                if (priceRatio > 2.0 || priceRatio < 0.5) {
+                  // Price jump is too large - reject this swap entirely
+                  console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: price $${swap.priceUsd.toFixed(6)} (median: $${referencePrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x) - SKIPPING DISPLAY`);
+                  return; // Skip this swap entirely - don't display it
+                }
               }
-            } else if (isValidPrice && previousPrice === 0) {
-              // No previous price - use it (first swap or no baseline)
-              tokenData.lastPriceUSD = swap.priceUsd;
+              
+              // Price is valid - add to recent prices and update
+              tokenData.recentValidPrices.push(swap.priceUsd);
+              if (tokenData.recentValidPrices.length > tokenData.maxRecentPrices) {
+                tokenData.recentValidPrices.shift(); // Remove oldest
+              }
+              
+              // Update lastPriceUSD with median (more stable than individual swap price)
+              const newMedian = calculateMedian(tokenData.recentValidPrices);
+              tokenData.lastPriceUSD = newMedian;
               tokenData.lastPriceUpdate = Date.now();
+              validatedPrice = newMedian; // Use median for display
             } else {
-              // Price is outside reasonable range - reject it
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING invalid price: $${swap.priceUsd.toFixed(6)} (outside reasonable range) - using previous price`);
-              validatedPrice = previousPrice > 0 ? previousPrice : (tokenData.metadata?.usdPrice || 0);
-              priceRejected = true;
+              // Price is outside reasonable range - reject swap entirely
+              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: invalid price $${swap.priceUsd.toFixed(6)} (outside range) - SKIPPING DISPLAY`);
+              return; // Skip this swap entirely
             }
           } else {
-            // Invalid price - use previous or baseline
-            validatedPrice = previousPrice > 0 ? previousPrice : (tokenData.metadata?.usdPrice || 0);
-            priceRejected = true;
+            // Invalid price - reject swap entirely
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: invalid price data - SKIPPING DISPLAY`);
+            return; // Skip this swap entirely
           }
           
-          // 🚨 CRITICAL: Update swap.priceUsd with validated price before displaying
-          // This ensures market cap calculation uses the validated price, not the raw swap price
+          // 🚨 CRITICAL: Update swap.priceUsd with validated median price before displaying
           swap.priceUsd = validatedPrice;
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
