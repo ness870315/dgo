@@ -245,11 +245,15 @@ class gRPCTrendingService {
                 return;
             }
             
+            // CRITICAL: Match DexScreenerStyleMonitor structure extraction
+            // The gRPC structure has meta nested: txData.transaction.meta or txData.transaction.transaction.meta
+            const innerTx = txData.transaction?.transaction || txData.transaction;
+            
             // Build transaction object for processTxForSwap (match DexScreenerStyleMonitor structure)
             const tx = {
-                transaction: txData.transaction,
-                meta: txData.meta || msg.meta,
-                signature: txData.transaction?.signatures?.[0] || msg.signature,
+                transaction: innerTx,
+                meta: innerTx?.meta || txData.transaction?.meta || txData.meta || msg.meta, // CRITICAL: meta must be at top level
+                signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
                 slot: msg.slot || txData.slot,
                 blockTime: msg.blockTime || txData.blockTime
             };
