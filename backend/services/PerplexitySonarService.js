@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 /**
  * Perplexity Sonar Service - Grounded LLM with real-time search
- * Uses Perplexity's sonar-reasoning model for fact-based, cited responses
+ * Uses Perplexity's sonar-pro model for fact-based, cited responses
  * Documentation: https://docs.perplexity.ai/getting-started/quickstart
  */
 class PerplexitySonarService {
@@ -196,8 +196,9 @@ class PerplexitySonarService {
   }
 
   /**
-   * Strip reasoning tags from sonar-reasoning model responses
-   * Format: <think>reasoning...</think>actual answer
+   * Strip reasoning tags from deprecated sonar-reasoning model responses
+   * Note: This method is kept for backward compatibility but is no longer used
+   * since sonar-reasoning is deprecated and replaced with sonar-pro
    * @param {string} content - Raw Perplexity response
    * @returns {string} - Clean answer without reasoning
    */
