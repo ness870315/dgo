@@ -939,37 +939,41 @@ class gRPCTrendingService {
                 await this.enhancedTokenProcessor.saveFinalDatabase();
                 
                 // Wait a moment for database write to complete
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
                 
-                // Check which tokens were successfully saved to database
-                // Method 1: Check tokens that completed scoring stage (these should have been saved)
-                const tokensThatCompletedScoring = this.enhancedTokenProcessor.processingQueue
-                    .filter(t => t.stage === 'completed' || t.stage === 'scoring')
-                    .filter(t => {
-                        if (!t.contractAddress) return false;
-                        const contractLower = t.contractAddress.toLowerCase();
-                        return processingContracts.has(contractLower);
-                    });
-                
-                // Method 2: Check processedTokens array (after merge with existing cache)
+                // 🚨 CRITICAL: Check processedTokens array (tokens are removed from queue after saving)
+                // saveFinalDatabase() removes tokens from processingQueue after saving them
                 const allProcessedTokens = this.enhancedTokenProcessor.processedTokens || [];
-                const savedTokensFromProcessed = allProcessedTokens
-                    .filter(t => {
-                        if (!t.contractAddress) return false;
-                        const contractLower = t.contractAddress.toLowerCase();
-                        return processingContracts.has(contractLower);
-                    });
+                const tokensBeforeSaveCount = tokensBeforeSave;
+                const tokensAfterSaveCount = allProcessedTokens.length;
+                const newTokensCount = tokensAfterSaveCount - tokensBeforeSaveCount;
                 
                 console.log(`🔍 [gRPCTrending] Checking saved tokens:`);
                 console.log(`   Processing contracts: ${processingContractsArray.length}`);
-                console.log(`   Tokens that completed scoring: ${tokensThatCompletedScoring.length}`);
-                console.log(`   Found in processedTokens: ${savedTokensFromProcessed.length}`);
+                console.log(`   Tokens in database before: ${tokensBeforeSaveCount}`);
+                console.log(`   Tokens in database after: ${tokensAfterSaveCount}`);
+                console.log(`   New tokens added: ${newTokensCount}`);
                 console.log(`   Total processedTokens: ${allProcessedTokens.length}`);
                 
-                // Use tokens that completed scoring as the source of truth (they were just saved)
-                const savedTokens = tokensThatCompletedScoring.length > 0 
-                    ? tokensThatCompletedScoring 
-                    : savedTokensFromProcessed;
+                // Find tokens that match our processing contracts
+                const savedTokens = allProcessedTokens
+                    .filter(t => {
+                        if (!t.contractAddress) return false;
+                        const contractLower = t.contractAddress.toLowerCase();
+                        return processingContracts.has(contractLower);
+                    })
+                    // Only get tokens that were just added (check by discoveredAt timestamp or source)
+                    .filter(t => {
+                        // Check if token was discovered recently (within last 2 minutes) or has gRPC-Trending source
+                        if (t.source === 'gRPC-Trending') return true;
+                        if (t.discoveredAt) {
+                            const discoveredTime = new Date(t.discoveredAt).getTime();
+                            const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+                            return discoveredTime > twoMinutesAgo;
+                        }
+                        // If no timestamp, include it if it's in our processing contracts
+                        return true;
+                    });
                 
                 if (savedTokens.length > 0) {
                     console.log(`\n${'='.repeat(80)}`);
