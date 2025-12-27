@@ -303,6 +303,39 @@ class TweetAPIPostingService {
         Object.assign(headers, retryHeaders);
       }
 
+      // Final validation - ensure all required fields are present
+      if (!payload.body || !payload.text) {
+        console.error('❌ [TWEETAPI V2] Missing required fields in payload:', {
+          hasBody: !!payload.body,
+          hasText: !!payload.text,
+          hasProxy: 'proxy' in payload
+        });
+        return {
+          success: false,
+          error: 'Missing required fields: body or text is missing'
+        };
+      }
+
+      // Ensure proxy is always present (required by API)
+      if (!('proxy' in payload)) {
+        payload.proxy = '';
+      }
+
+      // Log final payload structure before sending
+      console.log('📤 [TWEETAPI V2] Sending payload with keys:', Object.keys(payload));
+      console.log('📤 [TWEETAPI V2] Payload structure:', {
+        hasAuthToken: !!payload.authToken,
+        hasBody: !!payload.body,
+        bodyType: typeof payload.body,
+        bodyLength: payload.body?.length || 0,
+        hasText: !!payload.text,
+        textType: typeof payload.text,
+        textLength: payload.text?.length || 0,
+        hasProxy: 'proxy' in payload,
+        proxyType: typeof payload.proxy,
+        proxyValue: payload.proxy ? '***configured***' : 'empty string'
+      });
+
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post`, payload, {
         headers: headers,
         timeout: 60000, // Increased to 60s to handle proxy timeouts better
