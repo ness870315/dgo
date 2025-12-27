@@ -152,6 +152,9 @@ class TweetAPIPostingService {
       }
 
       if (response.data?.data?.success) {
+        // Reset consecutive proxy failures on success
+        this.consecutiveProxyFailures = 0;
+        
         const tweetData = response.data.data;
         console.log('✅ [TWEETAPI V2] Tweet with media posted successfully!');
         console.log('🔗 [TWEETAPI V2] Tweet URL:', tweetData.metadata?.url);
@@ -289,6 +292,9 @@ class TweetAPIPostingService {
       }
 
       if (response.data?.data?.success) {
+        // Reset consecutive proxy failures on success
+        this.consecutiveProxyFailures = 0;
+        
         const tweetData = response.data.data;
         console.log('✅ [TWEETAPI V2] Tweet posted successfully!');
         console.log('🔗 [TWEETAPI V2] Tweet URL:', tweetData.metadata?.url);
@@ -329,26 +335,41 @@ class TweetAPIPostingService {
         );
 
         if (isProxyTimeout) {
+          this.consecutiveProxyFailures++;
           console.warn(`⚠️ [TWEETAPI V2] Proxy timeout detected (${responseData.message || 'unknown'})`);
+          console.warn(`⚠️ [TWEETAPI V2] Consecutive proxy failures: ${this.consecutiveProxyFailures}/${this.maxConsecutiveProxyFailures}`);
+          
+          // Auto-disable proxy after too many consecutive failures
+          if (this.consecutiveProxyFailures >= this.maxConsecutiveProxyFailures && !this.proxyDisabled) {
+            console.warn(`🚫 [TWEETAPI V2] Auto-disabling proxy after ${this.consecutiveProxyFailures} consecutive failures`);
+            this.proxyDisabled = true;
+            this.proxy = '';
+          }
+          
           if (retryCount < maxRetries) {
             // Longer delay for proxy timeouts (10s, 20s, 30s)
             const proxyRetryDelay = (retryCount + 1) * 10000;
             console.warn(`⚠️ [TWEETAPI V2] Retrying after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
-            // On last retry, try without proxy if one is configured
-            if (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '') {
-              console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
+            // If proxy is disabled or on last retry, try without proxy
+            if (this.proxyDisabled || (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '')) {
+              console.warn(`⚠️ [TWEETAPI V2] Retrying without proxy...`);
               const originalProxy = this.proxy;
               this.proxy = ''; // Disable proxy for this attempt
               await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
               const result = await this.postTweet(text, retryCount + 1);
-              this.proxy = originalProxy; // Restore proxy
+              if (!this.proxyDisabled) {
+                this.proxy = originalProxy; // Restore proxy (if not permanently disabled)
+              }
               return result;
             }
             
             await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
             return await this.postTweet(text, retryCount + 1);
           }
+        } else {
+          // Reset consecutive failures on non-proxy errors
+          this.consecutiveProxyFailures = 0;
         } else if ((status === 403 || status === 504) && retryCount < maxRetries) {
           console.warn(`⚠️ [TWEETAPI V2] Retrying after ${status} error (${retryCount + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
