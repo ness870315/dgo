@@ -264,6 +264,12 @@ class TweetAPIPostingService {
         payload.proxy = this.proxy;
       }
 
+      // Debug: Log payload structure (without sensitive data)
+      console.log('🔍 [TWEETAPI V2] Payload keys:', Object.keys(payload));
+      console.log('🔍 [TWEETAPI V2] Has body:', !!payload.body);
+      console.log('🔍 [TWEETAPI V2] Has text:', !!payload.text);
+      console.log('🔍 [TWEETAPI V2] Has proxy:', !!payload.proxy, payload.proxy ? '(configured)' : '(empty)');
+
       // Get fresh browser headers with rotation (especially important on retries)
       const headers = this.getBrowserHeaders();
 
