@@ -24,6 +24,9 @@ class TwitterAPIioWebSocketService {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 5000; // 5 seconds
+    this.maxDelay = 60000; // Maximum delay cap (60 seconds)
+    this.consecutiveFailures = 0; // Track consecutive failures for circuit breaker
+    this.circuitBreakerThreshold = 5; // After 5 consecutive failures, pause longer
     
     // Store rule IDs for deletion
     this.activeRuleIds = [];
@@ -67,6 +70,7 @@ class TwitterAPIioWebSocketService {
     console.log('✅ [TwitterAPI.io WS] Connection established!');
     this.isConnected = true;
     this.reconnectAttempts = 0;
+    this.consecutiveFailures = 0; // Reset on successful connection
   }
 
   /**
@@ -124,14 +128,31 @@ class TwitterAPIioWebSocketService {
    * Handle errors
    */
   onError(error) {
-    console.error('❌ [TwitterAPI.io WS] Error:', error.message);
+    const errorMsg = error.message || error.toString();
+    console.error('❌ [TwitterAPI.io WS] Error:', errorMsg);
     
-    if (error.message.includes('timeout')) {
+    // Check for specific error types
+    if (errorMsg.includes('504') || errorMsg.includes('Gateway Timeout')) {
+      console.log('   ⚠️ Gateway Timeout (504) - TwitterAPI.io server is overloaded or temporarily unavailable');
+      console.log('   This is usually temporary. Will retry with exponential backoff.');
+    } else if (errorMsg.includes('timeout')) {
       console.log('   Connection timeout - will attempt reconnect');
-    } else if (error.message.includes('refused')) {
+    } else if (errorMsg.includes('refused')) {
       console.log('   Connection refused - check server status');
-    } else if (error.message.includes('401') || error.message.includes('403')) {
+    } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
       console.log('   Authentication error - check API key');
+    } else if (errorMsg.includes('502') || errorMsg.includes('503')) {
+      console.log('   Server error (502/503) - TwitterAPI.io server issue, will retry');
+    } else if (errorMsg.includes('Unexpected server response')) {
+      // This is the actual error we're seeing - extract status code if available
+      const statusMatch = errorMsg.match(/(\d{3})/);
+      if (statusMatch) {
+        const statusCode = statusMatch[1];
+        console.log(`   Unexpected server response: ${statusCode}`);
+        if (statusCode === '504') {
+          console.log('   Gateway Timeout - server is overloaded, will retry with backoff');
+        }
+      }
     }
   }
 
@@ -149,17 +170,28 @@ class TwitterAPIioWebSocketService {
       1001: 'Going away',
       1002: 'Protocol error',
       1003: 'Unsupported data',
-      1006: 'Abnormal closure',
+      1006: 'Abnormal closure (often indicates 504 Gateway Timeout)',
       1008: 'Policy violation',
       1011: 'Server error',
       1013: 'Try again later'
     };
     
-    console.log(`   Reason: ${closeReasons[code] || 'Unknown'}`);
+    const reasonDescription = closeReasons[code] || 'Unknown';
+    console.log(`   Reason: ${reasonDescription}`);
+    
+    // Special handling for 1006 (abnormal closure) - often indicates 504
+    if (code === 1006) {
+      console.log(`   ⚠️ Abnormal closure (1006) - This often indicates a 504 Gateway Timeout`);
+      console.log(`   TwitterAPI.io server may be overloaded. Will retry with exponential backoff.`);
+    }
     
     // Reconnect unless it's a normal closure
     if (code !== 1000) {
       this.scheduleReconnect();
+    } else {
+      // Normal closure - reset reconnect attempts
+      this.reconnectAttempts = 0;
+      console.log('✅ [TwitterAPI.io WS] Normal closure - connection ended gracefully');
     }
   }
 
@@ -171,18 +203,41 @@ class TwitterAPIioWebSocketService {
   }
 
   /**
-   * Schedule reconnection
+   * Schedule reconnection with exponential backoff and max delay cap
    */
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(`❌ [TwitterAPI.io WS] Max reconnect attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
+      console.error(`   TwitterAPI.io WebSocket will remain disconnected.`);
+      console.error(`   The service will fall back to polling mode for mentions.`);
+      console.error(`   To retry, restart the service or wait for automatic retry after some time.`);
       return;
     }
     
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * this.reconnectAttempts; // Exponential backoff
+    this.consecutiveFailures++;
+    
+    // Exponential backoff with max delay cap
+    // Formula: min(5000 * attempts, maxDelay)
+    const baseDelay = this.reconnectDelay * this.reconnectAttempts;
+    let delay = Math.min(baseDelay, this.maxDelay);
+    
+    // Circuit breaker: If we have many consecutive failures, add extra delay
+    if (this.consecutiveFailures >= this.circuitBreakerThreshold) {
+      const extraDelay = 30000; // Add 30 seconds for circuit breaker
+      delay = Math.min(delay + extraDelay, this.maxDelay);
+      console.warn(`   🔴 Circuit breaker active (${this.consecutiveFailures} consecutive failures)`);
+      console.warn(`   Adding extra delay to reduce load on TwitterAPI.io server`);
+    }
     
     console.log(`🔄 [TwitterAPI.io WS] Reconnecting in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+    
+    // If we've hit max delay, log a warning
+    if (delay >= this.maxDelay && this.reconnectAttempts < this.maxReconnectAttempts) {
+      console.warn(`   ⚠️ Using maximum delay (${this.maxDelay/1000}s) due to persistent connection issues`);
+      console.warn(`   TwitterAPI.io server may be experiencing high load or maintenance`);
+      console.warn(`   This is likely a temporary issue on TwitterAPI.io's side`);
+    }
     
     setTimeout(() => {
       this.connect();
