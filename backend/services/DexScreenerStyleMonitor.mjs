@@ -2171,66 +2171,44 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Calculate market cap - CRITICAL: Start from Jupiter baseline, then adjust based on price changes
-      // Formula: baselineMarketCap * (currentPrice / baselinePrice)
-      // This ensures we build on top of Jupiter's baseline, not recalculate from scratch
+      // Calculate market cap - CRITICAL: Match test behavior - use supply * price directly
+      // The test file calculates: marketCap = supply * price (direct calculation, no baseline adjustments)
+      // This is simpler and more accurate than incremental baseline calculations
       let marketCap = 0;
       const metadata = tokenData.metadata;
+      const supply = metadata?.circSupply || metadata?.totalSupply || 0;
       
-      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
-        // Use Jupiter baseline and adjust for price changes
-        const priceRatio = swap.priceUsd / tokenData.lastBaselinePrice;
+      // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
+      // This prevents wild market cap swings from bad swap prices
+      if (supply > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd) && swap.priceUsd > 0.00000001) {
+        marketCap = supply * swap.priceUsd;
         
-        // 🚨 CRITICAL FIX: Validate price ratio to prevent market cap from jumping too drastically
-        // A single bad swap shouldn't cause market cap to change by more than 3x (300%)
-        // This prevents $486M from a single incorrect swap price
-        const MAX_PRICE_RATIO = 3.0; // Maximum 3x change from baseline
-        const MIN_PRICE_RATIO = 0.33; // Minimum 0.33x change (3x down)
-        
-        let validatedPriceRatio = priceRatio;
-        if (priceRatio > MAX_PRICE_RATIO) {
-          console.log(`⚠️ [DexScreenerStyleMonitor] Price ratio too high (${priceRatio.toFixed(2)}x), capping at ${MAX_PRICE_RATIO}x for ${tokenData.config.name}`);
-          validatedPriceRatio = MAX_PRICE_RATIO;
-        } else if (priceRatio < MIN_PRICE_RATIO) {
-          console.log(`⚠️ [DexScreenerStyleMonitor] Price ratio too low (${priceRatio.toFixed(2)}x), capping at ${MIN_PRICE_RATIO}x for ${tokenData.config.name}`);
-          validatedPriceRatio = MIN_PRICE_RATIO;
-        }
-        
-        marketCap = tokenData.jupiterBaselineMarketCap * validatedPriceRatio;
-        
-        // 🚨 ADDITIONAL VALIDATION: If calculated market cap is way off from Jupiter baseline, use Jupiter
-        // This catches cases where baseline was already corrupted by a previous bad swap
+        // 🚨 VALIDATION: If calculated market cap is way off from Jupiter baseline, validate the price
+        // This catches cases where swap price is clearly wrong (e.g., $0.66 when it should be $0.0006)
         if (metadata?.marketCap && metadata.marketCap > 0) {
           const baselineRatio = marketCap / metadata.marketCap;
-          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
-            console.log(`⚠️ [DexScreenerStyleMonitor] Calculated market cap ($${(marketCap/1000000).toFixed(2)}M) is ${baselineRatio.toFixed(2)}x off from Jupiter baseline ($${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter baseline for ${tokenData.config.name}`);
+          // If market cap is >10x or <0.1x off from Jupiter, the swap price is likely wrong
+          // In this case, use Jupiter's market cap instead
+          if (baselineRatio > 10.0 || baselineRatio < 0.1) {
+            console.log(`⚠️ [DexScreenerStyleMonitor] Swap price $${swap.priceUsd.toFixed(6)} gives market cap $${(marketCap/1000000).toFixed(2)}M (${baselineRatio.toFixed(2)}x off from Jupiter $${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter for ${tokenData.config.name}`);
             marketCap = metadata.marketCap;
-            // Reset baseline to Jupiter to prevent further corruption
-            tokenData.jupiterBaselineMarketCap = metadata.marketCap;
-            tokenData.lastBaselinePrice = swap.priceUsd || metadata.usdPrice || tokenData.lastBaselinePrice;
+            // Don't update lastPriceUSD with a bad price
+          } else {
+            // Price looks reasonable, use it
+            tokenData.lastPriceUSD = swap.priceUsd;
           }
-        }
-        
-        // CRITICAL: On first swap, update baseline to use swap price as new baseline
-        // This transitions from Jupiter baseline to our own baseline built from swaps
-        // BUT: Only if the price ratio is reasonable (not a bad swap)
-        if (!tokenData.firstSwapProcessed && validatedPriceRatio >= MIN_PRICE_RATIO && validatedPriceRatio <= MAX_PRICE_RATIO) {
-          tokenData.jupiterBaselineMarketCap = marketCap;
-          tokenData.lastBaselinePrice = swap.priceUsd;
-          tokenData.firstSwapProcessed = true;
+        } else {
+          // No Jupiter baseline to validate against, use calculated market cap
+          tokenData.lastPriceUSD = swap.priceUsd;
         }
       } else if (metadata?.marketCap && metadata.marketCap > 0) {
-        // Fallback: Use Jupiter's pre-calculated market cap if available
+        // Fallback: Use Jupiter's pre-calculated market cap if supply/price not available
         marketCap = metadata.marketCap;
-        // Initialize baseline from Jupiter if not set
-        if (!tokenData.jupiterBaselineMarketCap) {
-          tokenData.jupiterBaselineMarketCap = marketCap;
-          tokenData.lastBaselinePrice = swap.priceUsd || metadata.usdPrice || 0;
-        }
       } else {
-        // Last resort: Calculate from supply * price (only if no baseline available)
-        const supply = metadata?.circSupply || metadata?.totalSupply || 0;
-        marketCap = supply > 0 && swap.priceUsd > 0 ? supply * swap.priceUsd : 0;
+        // Last resort: Try to calculate from supply if we have it
+        if (supply > 0 && metadata?.usdPrice && metadata.usdPrice > 0) {
+          marketCap = supply * metadata.usdPrice;
+        }
       }
       
       // Create swap record (must match format expected by calculations)
