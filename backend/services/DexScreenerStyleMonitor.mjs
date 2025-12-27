@@ -2253,15 +2253,22 @@ export default class DexScreenerStyleMonitor {
         : swap.priceUsd;
       
       // Calculate current market cap after swap (using current price)
+      // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
       let currentMarketCap = 0;
-      if (tokenData.jupiterBaselineMarketCap && tokenData.lastBaselinePrice && tokenData.lastBaselinePrice > 0) {
-        const currentPriceRatio = currentPriceAfterSwap / tokenData.lastBaselinePrice;
-        currentMarketCap = tokenData.jupiterBaselineMarketCap * currentPriceRatio;
+      const supply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+      
+      if (supply > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap) && currentPriceAfterSwap > 0.00000001) {
+        currentMarketCap = supply * currentPriceAfterSwap;
+        
+        // Validate against Jupiter baseline
+        if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
+          const baselineRatio = currentMarketCap / tokenData.metadata.marketCap;
+          if (baselineRatio > 10.0 || baselineRatio < 0.1) {
+            currentMarketCap = tokenData.metadata.marketCap;
+          }
+        }
       } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
         currentMarketCap = tokenData.metadata.marketCap;
-      } else {
-        const supply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
-        currentMarketCap = supply > 0 && currentPriceAfterSwap > 0 ? supply * currentPriceAfterSwap : 0;
       }
       
       // Log swap
