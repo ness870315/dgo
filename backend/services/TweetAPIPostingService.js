@@ -285,6 +285,17 @@ class TweetAPIPostingService {
         validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
 
+      // Handle 400 errors (validation errors) - log and return error immediately
+      if (response.status === 400) {
+        console.error('❌ [TWEETAPI V2] Validation error (400):', response.data);
+        return {
+          success: false,
+          error: response.data?.message || 'Validation error',
+          status: 400,
+          raw: response.data
+        };
+      }
+
       if ((response.status === 403 || response.status === 504) && retryCount < maxRetries) {
         console.warn(`⚠️ [TWEETAPI V2] Got ${response.status}, retrying... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
