@@ -13780,16 +13780,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
+        // Get recent swaps from tokenData if available
+        const tokenData = this.dexScreenerMonitor.tokens.get(contract);
+        const recentSwaps = tokenData?.swaps || [];
+        const swapHistory = recentSwaps.slice(-50); // Last 50 swaps
+        
         console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
-          price: realTimeData.price,
-          liquidity: realTimeData.liquidity,
-          source: realTimeData.source,
-          swaps: realTimeData.recentSwaps.length
+          price: realTimeData.currentPrice,
+          liquidity: realTimeData.liquidity || 'N/A',
+          source: 'gRPC',
+          swaps: swapHistory.length
         });
+
+        // Build response with swap history included
+        const responseData = {
+          ...realTimeData,
+          recentSwaps: swapHistory,
+          swapHistory: swapHistory,
+          totalSwaps: swapHistory.length
+        };
 
         res.json({
           success: true,
-          data: realTimeData,
+          data: responseData,
           connectionId: connectionId,
           timestamp: new Date().toISOString()
         });
