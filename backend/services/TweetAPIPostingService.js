@@ -327,16 +327,26 @@ class TweetAPIPostingService {
         console.error('📡 [TWEETAPI V2] Response status:', status);
         console.error('📄 [TWEETAPI V2] Response data:', responseData);
 
-        // Check for proxy timeout specifically
+        // Check for proxy timeout specifically (504 with proxy-related message)
         const isProxyTimeout = status === 504 && (
           responseData.message?.includes('proxy timeout') ||
           responseData.message?.includes('proxy configuration') ||
-          responseData.message?.includes('connectivity')
+          responseData.message?.includes('connectivity') ||
+          responseData.message?.includes('User proxy timeout')
         );
 
-        if (isProxyTimeout) {
-          this.consecutiveProxyFailures++;
-          console.warn(`⚠️ [TWEETAPI V2] Proxy timeout detected (${responseData.message || 'unknown'})`);
+        // Also treat generic 504 as potential proxy issue if proxy is configured
+        const isGeneric504 = status === 504 && !isProxyTimeout && this.proxy && this.proxy.trim() !== '';
+
+        if (isProxyTimeout || isGeneric504) {
+          if (isProxyTimeout) {
+            this.consecutiveProxyFailures++;
+            console.warn(`⚠️ [TWEETAPI V2] Proxy timeout detected (${responseData.message || 'unknown'})`);
+          } else {
+            this.consecutiveProxyFailures++;
+            console.warn(`⚠️ [TWEETAPI V2] Generic 504 error (possibly proxy-related)`);
+          }
+          
           console.warn(`⚠️ [TWEETAPI V2] Consecutive proxy failures: ${this.consecutiveProxyFailures}/${this.maxConsecutiveProxyFailures}`);
           
           // Auto-disable proxy after too many consecutive failures
@@ -349,7 +359,7 @@ class TweetAPIPostingService {
           if (retryCount < maxRetries) {
             // Longer delay for proxy timeouts (10s, 20s, 30s)
             const proxyRetryDelay = (retryCount + 1) * 10000;
-            console.warn(`⚠️ [TWEETAPI V2] Retrying after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
+            console.warn(`⚠️ [TWEETAPI V2] Retrying after ${isProxyTimeout ? 'proxy timeout' : '504 error'} (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
             // If proxy is disabled or on last retry, try without proxy
             if (this.proxyDisabled || (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '')) {
