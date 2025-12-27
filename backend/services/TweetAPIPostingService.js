@@ -378,7 +378,7 @@ class TweetAPIPostingService {
 
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/reply-post`, payload, {
         headers: headers,
-        timeout: 30000,
+        timeout: 60000, // Increased to 60s to handle proxy timeouts better
         maxRedirects: 5,
         validateStatus: (status) => status < 500
       });
@@ -421,10 +421,39 @@ class TweetAPIPostingService {
 
       if (error.response) {
         const status = error.response.status;
+        const responseData = error.response.data || {};
         console.error('📡 [TWEETAPI V2] Response status:', status);
-        console.error('📄 [TWEETAPI V2] Response data:', error.response.data);
+        console.error('📄 [TWEETAPI V2] Response data:', responseData);
 
-        if ((status === 403 || status === 504) && retryCount < maxRetries) {
+        // Check for proxy timeout specifically
+        const isProxyTimeout = status === 504 && (
+          responseData.message?.includes('proxy timeout') ||
+          responseData.message?.includes('proxy configuration') ||
+          responseData.message?.includes('connectivity')
+        );
+
+        if (isProxyTimeout) {
+          console.warn(`⚠️ [TWEETAPI V2] Proxy timeout detected (${responseData.message || 'unknown'})`);
+          if (retryCount < maxRetries) {
+            // Longer delay for proxy timeouts (10s, 20s, 30s)
+            const proxyRetryDelay = (retryCount + 1) * 10000;
+            console.warn(`⚠️ [TWEETAPI V2] Retrying reply after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
+            
+            // On last retry, try without proxy if one is configured
+            if (retryCount === maxRetries - 1 && this.proxy) {
+              console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
+              const originalProxy = this.proxy;
+              this.proxy = null;
+              await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
+              const result = await this.postReply(text, tweetId, retryCount + 1);
+              this.proxy = originalProxy; // Restore proxy
+              return result;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
+            return await this.postReply(text, tweetId, retryCount + 1);
+          }
+        } else if ((status === 403 || status === 504) && retryCount < maxRetries) {
           console.warn(`⚠️ [TWEETAPI V2] Retrying reply after ${status} error (${retryCount + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           return await this.postReply(text, tweetId, retryCount + 1);
@@ -432,9 +461,9 @@ class TweetAPIPostingService {
 
         return {
           success: false,
-          error: error.response.data?.message || `HTTP ${status}`,
+          error: responseData.message || `HTTP ${status}`,
           status: status,
-          raw: error.response.data
+          raw: responseData
         };
       }
 
@@ -474,7 +503,7 @@ class TweetAPIPostingService {
 
       const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/quote-post`, payload, {
         headers: headers,
-        timeout: 30000,
+        timeout: 60000, // Increased to 60s to handle proxy timeouts better
         maxRedirects: 5,
         validateStatus: (status) => status < 500
       });
@@ -514,10 +543,39 @@ class TweetAPIPostingService {
 
       if (error.response) {
         const status = error.response.status;
+        const responseData = error.response.data || {};
         console.error('📡 [TWEETAPI V2] Response status:', status);
-        console.error('📄 [TWEETAPI V2] Response data:', error.response.data);
+        console.error('📄 [TWEETAPI V2] Response data:', responseData);
 
-        if ((status === 403 || status === 504) && retryCount < maxRetries) {
+        // Check for proxy timeout specifically
+        const isProxyTimeout = status === 504 && (
+          responseData.message?.includes('proxy timeout') ||
+          responseData.message?.includes('proxy configuration') ||
+          responseData.message?.includes('connectivity')
+        );
+
+        if (isProxyTimeout) {
+          console.warn(`⚠️ [TWEETAPI V2] Proxy timeout detected (${responseData.message || 'unknown'})`);
+          if (retryCount < maxRetries) {
+            // Longer delay for proxy timeouts (10s, 20s, 30s)
+            const proxyRetryDelay = (retryCount + 1) * 10000;
+            console.warn(`⚠️ [TWEETAPI V2] Retrying quote tweet after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
+            
+            // On last retry, try without proxy if one is configured
+            if (retryCount === maxRetries - 1 && this.proxy) {
+              console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
+              const originalProxy = this.proxy;
+              this.proxy = null;
+              await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
+              const result = await this.postQuoteTweet(text, quoteTweetId, retryCount + 1);
+              this.proxy = originalProxy; // Restore proxy
+              return result;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
+            return await this.postQuoteTweet(text, quoteTweetId, retryCount + 1);
+          }
+        } else if ((status === 403 || status === 504) && retryCount < maxRetries) {
           console.warn(`⚠️ [TWEETAPI V2] Retrying quote after ${status} error (${retryCount + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           return await this.postQuoteTweet(text, quoteTweetId, retryCount + 1);
@@ -525,9 +583,9 @@ class TweetAPIPostingService {
 
         return {
           success: false,
-          error: error.response.data?.message || `HTTP ${status}`,
+          error: responseData.message || `HTTP ${status}`,
           status: status,
-          raw: error.response.data
+          raw: responseData
         };
       }
 
