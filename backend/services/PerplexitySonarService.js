@@ -10,7 +10,7 @@ class PerplexitySonarService {
     this.apiKey = process.env.PERPLEXITY_API_KEY;
     this.baseUrl = 'https://api.perplexity.ai';
     this.defaultModel = 'sonar-pro'; // Default: Fast, no reasoning overhead
-    this.reasoningModel = 'sonar-reasoning'; // For jokes and creative content
+    this.reasoningModel = 'sonar-pro'; // Updated: sonar-reasoning deprecated, use sonar-pro instead
     this.isInitialized = false;
 
     if (!this.apiKey) {
