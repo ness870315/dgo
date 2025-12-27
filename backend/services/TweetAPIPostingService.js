@@ -363,13 +363,12 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        text: text,
+        body: text,  // API expects 'body' not 'text'
         tweetId: tweetId
       };
 
-      if (this.proxy) {
-        payload.proxy = this.proxy;
-      }
+      // API requires 'proxy' parameter (even if null/empty)
+      payload.proxy = this.proxy || '';
 
       // Get fresh browser headers with rotation
       const headers = this.getBrowserHeaders();
