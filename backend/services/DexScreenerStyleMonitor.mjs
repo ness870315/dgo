@@ -2190,23 +2190,17 @@ export default class DexScreenerStyleMonitor {
       if (supply > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd) && swap.priceUsd > 0.00000001) {
         marketCap = supply * swap.priceUsd;
         
-        // 🚨 VALIDATION: If calculated market cap is way off from Jupiter baseline, validate the price
-        // This catches cases where swap price is clearly wrong (e.g., $0.66 when it should be $0.0006)
+        // 🚨 ADDITIONAL VALIDATION: Double-check against Jupiter baseline as a safety net
+        // This catches any edge cases where price validation might have missed something
+        // Note: swap.priceUsd has already been validated in handleTransaction, so this is just a safety check
         if (metadata?.marketCap && metadata.marketCap > 0) {
           const baselineRatio = marketCap / metadata.marketCap;
-          // If market cap is >10x or <0.1x off from Jupiter, the swap price is likely wrong
-          // In this case, use Jupiter's market cap instead
-          if (baselineRatio > 10.0 || baselineRatio < 0.1) {
-            console.log(`⚠️ [DexScreenerStyleMonitor] Swap price $${swap.priceUsd.toFixed(6)} gives market cap $${(marketCap/1000000).toFixed(2)}M (${baselineRatio.toFixed(2)}x off from Jupiter $${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter for ${tokenData.config.name}`);
+          // If market cap is >5x or <0.2x off from Jupiter, use Jupiter's market cap instead
+          // (Tighter bounds since price should already be validated)
+          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
+            console.log(`⚠️ [DexScreenerStyleMonitor] Market cap $${(marketCap/1000000).toFixed(2)}M (${baselineRatio.toFixed(2)}x off from Jupiter $${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter for ${tokenData.config.name}`);
             marketCap = metadata.marketCap;
-            // Don't update lastPriceUSD with a bad price
-          } else {
-            // Price looks reasonable, use it
-            tokenData.lastPriceUSD = swap.priceUsd;
           }
-        } else {
-          // No Jupiter baseline to validate against, use calculated market cap
-          tokenData.lastPriceUSD = swap.priceUsd;
         }
       } else if (metadata?.marketCap && metadata.marketCap > 0) {
         // Fallback: Use Jupiter's pre-calculated market cap if supply/price not available
