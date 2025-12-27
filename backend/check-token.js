@@ -6,7 +6,14 @@ async function checkToken() {
     try {
         console.log(`\n🔍 Checking token: ${tokenAddress}\n`);
         
-        const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenAddress}`, {
+        const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+        const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+        const headers = {};
+        if (JUPITER_API_KEY) {
+          headers['x-api-key'] = JUPITER_API_KEY;
+        }
+        const response = await axios.get(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${tokenAddress}`, {
+            headers: headers,
             timeout: 10000
         });
         

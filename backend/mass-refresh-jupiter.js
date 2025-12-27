@@ -40,13 +40,19 @@ async function massRefreshJupiter() {
         const progress = `[${i + 1}/${Math.min(sortedTokens.length, 100)}]`;
         process.stdout.write(`\r🔄 ${progress} Refreshing ${token.symbol}...`);
         
-        const url = `https://lite-api.jup.ag/tokens/v2/search?query=${token.contractAddress}`;
+        const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+        const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+        const url = `${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${token.contractAddress}`;
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        };
+        if (JUPITER_API_KEY) {
+          headers['x-api-key'] = JUPITER_API_KEY;
+        }
         const response = await axios.get(url, {
           timeout: 8000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json'
-          }
+          headers: headers
         });
         
         if (response.data && response.data.length > 0) {

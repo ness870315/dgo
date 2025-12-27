@@ -112,14 +112,21 @@ class JupiterApiService {
       console.log(`🔍 Fetching comprehensive token data from Jupiter API for ${contractAddress.substring(0, 8)}...`);
       console.log(`🌐 API URL: ${this.baseURL}/search?query=${contractAddress}`);
 
+      const headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+      };
+      
+      // Add API key if available
+      if (this.apiKey) {
+        headers['x-api-key'] = this.apiKey;
+      }
+
       const config = {
         method: 'get',
         maxBodyLength: Infinity,
         url: `${this.baseURL}/search?query=${contractAddress}`,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
-        },
+        headers: headers,
         timeout: 15000
       };
 
@@ -424,14 +431,21 @@ class JupiterApiService {
 
       console.log(`🚀 Batch fetching Jupiter data for ${batchAddresses.length} contracts...`);
 
+      const headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+      };
+      
+      // Add API key if available
+      if (this.apiKey) {
+        headers['x-api-key'] = this.apiKey;
+      }
+      
       const config = {
         method: 'get',
         maxBodyLength: Infinity,
         url: `${this.baseURL}/search?query=${mintQuery}`,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
-        },
+        headers: headers,
         timeout: 15000
       };
 

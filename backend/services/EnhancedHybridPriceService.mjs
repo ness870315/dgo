@@ -1480,9 +1480,15 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     try {
+      const headers = {};
+      if (JUPITER_API_KEY) {
+        headers['x-api-key'] = JUPITER_API_KEY;
+      }
+      
       const response = await axios.get(
         `${JUPITER_API_BASE}/search?query=${normalizedBatch.join(',')}`,
         {
+          headers: headers,
           timeout: 10000,
         }
       );
