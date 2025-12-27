@@ -889,20 +889,31 @@ class gRPCTrendingService {
                 const tokensBeforeSave = (this.enhancedTokenProcessor.processedTokens || []).length;
                 
                 // Run through Jupiter → Twitter → Scoring → Saving stages
+                console.log(`🔄 [gRPCTrending] Running Jupiter stage...`);
                 await this.enhancedTokenProcessor.processJupiterStage();
+                console.log(`🔄 [gRPCTrending] Running Twitter stage...`);
                 await this.enhancedTokenProcessor.processTwitterStage();
+                console.log(`🔄 [gRPCTrending] Running Scoring stage...`);
                 await this.enhancedTokenProcessor.processScoringStage();
+                console.log(`🔄 [gRPCTrending] Running Save to Database stage...`);
                 await this.enhancedTokenProcessor.saveFinalDatabase();
+                
+                // Wait a moment for database write to complete
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 // Check which tokens were successfully saved to database
                 // Look for tokens that match our processing contracts and were just added
                 const allProcessedTokens = this.enhancedTokenProcessor.processedTokens || [];
+                console.log(`🔍 [gRPCTrending] Checking saved tokens: processingContracts=${processingContractsArray.length}, processedTokens=${allProcessedTokens.length}`);
+                
                 const savedTokens = allProcessedTokens
                     .filter(t => {
                         if (!t.contractAddress) return false;
                         const contractLower = t.contractAddress.toLowerCase();
                         return processingContracts.has(contractLower);
                     });
+                
+                console.log(`🔍 [gRPCTrending] Found ${savedTokens.length} matching tokens in processedTokens`);
                 
                 if (savedTokens.length > 0) {
                     console.log(`\n${'='.repeat(80)}`);
@@ -921,9 +932,17 @@ class gRPCTrendingService {
                     });
                     console.log(`${'='.repeat(80)}\n`);
                 } else {
-                    console.log(`⚠️ [gRPCTrending] No tokens from this batch were found in database yet (may still be processing or failed)`);
+                    console.log(`⚠️ [gRPCTrending] No tokens from this batch were found in database yet`);
                     console.log(`   Expected: ${processingContractsArray.length} tokens`);
                     console.log(`   Processing contracts: ${processingContractsArray.slice(0, 5).join(', ')}${processingContractsArray.length > 5 ? '...' : ''}`);
+                    console.log(`   Processed tokens count: ${allProcessedTokens.length}`);
+                    console.log(`   Processing queue length: ${this.enhancedTokenProcessor.processingQueue.length}`);
+                    console.log(`   Processing queue stages:`, {
+                        jupiter: this.enhancedTokenProcessor.processingQueue.filter(t => t.stage === 'jupiter').length,
+                        twitter: this.enhancedTokenProcessor.processingQueue.filter(t => t.stage === 'twitter').length,
+                        scoring: this.enhancedTokenProcessor.processingQueue.filter(t => t.stage === 'scoring').length,
+                        completed: this.enhancedTokenProcessor.processingQueue.filter(t => t.stage === 'completed').length
+                    });
                 }
                 
                 console.log(`✅ [gRPCTrending] Processor workflow completed`);
