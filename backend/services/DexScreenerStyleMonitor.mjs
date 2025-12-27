@@ -1811,44 +1811,51 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // CRITICAL: Match test behavior - store swap.priceUSD directly (don't rely on poolData.price)
-          // The test file uses swap.priceUSD directly, which is more accurate than calculating from reserves
-          // BUT: Validate the price before storing to prevent erratic jumps
+          // 🚨 CRITICAL FIX: Validate swap price BEFORE using it for market cap calculation
+          // Reject swaps with prices that are clearly wrong (outliers)
+          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+          let validatedPrice = swap.priceUsd;
+          let priceRejected = false;
+          
           if (swap.priceUsd && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
             // Validate price is reasonable (not too small, not too large)
             // Typical memecoin prices: $0.000001 to $10
             const isValidPrice = swap.priceUsd >= 0.0000001 && swap.priceUsd <= 1000;
             
-            if (isValidPrice) {
-              // Check if price change is reasonable (not more than 10x jump)
-              // This prevents storing obviously wrong prices from bad swaps
-              const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
-              if (previousPrice > 0) {
-                const priceRatio = swap.priceUsd / previousPrice;
-                // If price jumps more than 10x or drops more than 10x, it's likely wrong
-                if (priceRatio > 10 || priceRatio < 0.1) {
-                  // Price jump is too large - log and skip storing
-                  if (this.globalStats.totalSwapsDetected <= 10 || this.globalStats.totalSwapsDetected % 50 === 0) {
-                    console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Skipping erratic price: $${swap.priceUsd.toFixed(6)} (previous: $${previousPrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x)`);
-                  }
-                  // Don't update price - keep previous value
-                } else {
-                  // Price change is reasonable - store it
-                  tokenData.lastPriceUSD = swap.priceUsd;
-                  tokenData.lastPriceUpdate = Date.now();
-                }
+            if (isValidPrice && previousPrice > 0) {
+              // 🚨 CRITICAL: Check if price change is reasonable (not more than 3x jump)
+              // This prevents wild market cap swings from bad swap prices
+              const priceRatio = swap.priceUsd / previousPrice;
+              // If price jumps more than 3x or drops more than 3x, it's likely wrong
+              if (priceRatio > 3.0 || priceRatio < 0.33) {
+                // Price jump is too large - reject this swap price
+                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING erratic price: $${swap.priceUsd.toFixed(6)} (previous: $${previousPrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x) - using previous price`);
+                validatedPrice = previousPrice; // Use previous price instead
+                priceRejected = true;
               } else {
-                // No previous price - store it (first swap or no baseline)
+                // Price change is reasonable - use it
                 tokenData.lastPriceUSD = swap.priceUsd;
                 tokenData.lastPriceUpdate = Date.now();
               }
+            } else if (isValidPrice && previousPrice === 0) {
+              // No previous price - use it (first swap or no baseline)
+              tokenData.lastPriceUSD = swap.priceUsd;
+              tokenData.lastPriceUpdate = Date.now();
             } else {
-              // Price is outside reasonable range - log and skip
-              if (this.globalStats.totalSwapsDetected <= 10 || this.globalStats.totalSwapsDetected % 50 === 0) {
-                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Skipping invalid price: $${swap.priceUsd.toFixed(6)} (outside reasonable range)`);
-              }
+              // Price is outside reasonable range - reject it
+              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING invalid price: $${swap.priceUsd.toFixed(6)} (outside reasonable range) - using previous price`);
+              validatedPrice = previousPrice > 0 ? previousPrice : (tokenData.metadata?.usdPrice || 0);
+              priceRejected = true;
             }
+          } else {
+            // Invalid price - use previous or baseline
+            validatedPrice = previousPrice > 0 ? previousPrice : (tokenData.metadata?.usdPrice || 0);
+            priceRejected = true;
           }
+          
+          // 🚨 CRITICAL: Update swap.priceUsd with validated price before displaying
+          // This ensures market cap calculation uses the validated price, not the raw swap price
+          swap.priceUsd = validatedPrice;
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
           this.updateReservesFromSwap(poolData, swap);
