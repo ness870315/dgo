@@ -11,7 +11,11 @@ class TweetAPIPostingService {
     this.apiKey = process.env.TWEETAPI_API_KEY || 'new1_047620c16d4e4e0b8056824ddf1e68a2';
     this.authToken = process.env.TWEETAPI_AUTH_TOKEN || '85aad2d6ed8ebe60c2f7501ad69d675eabea70f5';
     this.baseUrl = 'https://api.tweetapi.com';
-    this.proxy = process.env.TWEETAPI_PROXY || null;
+    this.originalProxy = process.env.TWEETAPI_PROXY || null;
+    this.proxy = this.originalProxy; // Current proxy (can be disabled temporarily)
+    this.proxyDisabled = false; // Track if proxy was auto-disabled
+    this.consecutiveProxyFailures = 0; // Track consecutive proxy failures
+    this.maxConsecutiveProxyFailures = 3; // Auto-disable after 3 consecutive failures
     
     // Rotate User-Agents to avoid detection
     this.userAgents = [
@@ -27,6 +31,11 @@ class TweetAPIPostingService {
     this.minDelayBetweenRequests = 2000; // 2 seconds minimum between requests
     
     console.log('🐦 [TWEETAPI V2] Service initialized with enhanced browser headers');
+    if (this.proxy && this.proxy.trim() !== '') {
+      console.log(`🔗 [TWEETAPI V2] Proxy configured: ${this.proxy.substring(0, 20)}...`);
+    } else {
+      console.log('🔗 [TWEETAPI V2] No proxy configured - using direct connection');
+    }
   }
 
   /**
