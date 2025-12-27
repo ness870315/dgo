@@ -113,13 +113,12 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        text: text,
+        body: text,  // API expects 'body' not 'text'
         media: mediaUrls.map(url => ({ url }))
       };
 
-      if (this.proxy) {
-        payload.proxy = this.proxy;
-      }
+      // API requires 'proxy' parameter (even if null/empty)
+      payload.proxy = this.proxy || '';
 
       const headers = this.getBrowserHeaders();
 
@@ -235,12 +234,11 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        text: text
+        body: text  // API expects 'body' not 'text'
       };
 
-      if (this.proxy) {
-        payload.proxy = this.proxy;
-      }
+      // API requires 'proxy' parameter (even if null/empty)
+      payload.proxy = this.proxy || '';
 
       // Get fresh browser headers with rotation (especially important on retries)
       const headers = this.getBrowserHeaders();
@@ -490,13 +488,12 @@ class TweetAPIPostingService {
 
       const payload = {
         authToken: this.authToken,
-        text: text,
+        body: text,  // API expects 'body' not 'text'
         quoteTweetId: quoteTweetId
       };
 
-      if (this.proxy) {
-        payload.proxy = this.proxy;
-      }
+      // API requires 'proxy' parameter (even if null/empty)
+      payload.proxy = this.proxy || '';
 
       // Get fresh browser headers with rotation
       const headers = this.getBrowserHeaders();
