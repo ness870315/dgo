@@ -245,15 +245,34 @@ class TweetAPIPostingService {
     const retryDelay = (retryCount + 1) * 5000; // 5s, 10s, 15s
 
     try {
+      // Validate input
+      if (!text || typeof text !== 'string' || text.trim() === '') {
+        console.error('❌ [TWEETAPI V2] Invalid text parameter:', text);
+        return {
+          success: false,
+          error: 'Text is required and must be a non-empty string'
+        };
+      }
+
       // Add human-like delay before request
       await this.addHumanDelay();
 
       console.log('🐦 [TWEETAPI V2] Posting tweet:', text.substring(0, 50) + '...');
 
+      // Ensure text is a string and not empty
+      const tweetText = String(text).trim();
+      if (!tweetText) {
+        console.error('❌ [TWEETAPI V2] Text is empty after trimming');
+        return {
+          success: false,
+          error: 'Text cannot be empty'
+        };
+      }
+
       const payload = {
         authToken: this.authToken,
-        body: text,  // API requires both 'body' and 'text'
-        text: text   // API requires both parameters
+        body: tweetText,  // API requires both 'body' and 'text'
+        text: tweetText   // API requires both parameters
       };
 
       // API requires 'proxy' parameter (even if empty string)
@@ -266,9 +285,11 @@ class TweetAPIPostingService {
 
       // Debug: Log payload structure (without sensitive data)
       console.log('🔍 [TWEETAPI V2] Payload keys:', Object.keys(payload));
-      console.log('🔍 [TWEETAPI V2] Has body:', !!payload.body);
-      console.log('🔍 [TWEETAPI V2] Has text:', !!payload.text);
-      console.log('🔍 [TWEETAPI V2] Has proxy:', !!payload.proxy, payload.proxy ? '(configured)' : '(empty)');
+      console.log('🔍 [TWEETAPI V2] Has body:', !!payload.body, `(${typeof payload.body})`);
+      console.log('🔍 [TWEETAPI V2] Has text:', !!payload.text, `(${typeof payload.text})`);
+      console.log('🔍 [TWEETAPI V2] Has proxy:', 'proxy' in payload, `(${typeof payload.proxy}, value: "${payload.proxy}")`);
+      console.log('🔍 [TWEETAPI V2] Body length:', payload.body?.length || 0);
+      console.log('🔍 [TWEETAPI V2] Text length:', payload.text?.length || 0);
 
       // Get fresh browser headers with rotation (especially important on retries)
       const headers = this.getBrowserHeaders();
