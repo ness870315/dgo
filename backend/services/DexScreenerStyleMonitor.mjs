@@ -2269,14 +2269,12 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // Get current price after swap (from poolData, which was updated by updateReservesFromSwap)
-      const currentPriceAfterSwap = poolData.price ? 
-        (poolData.quoteMint === 'So11111111111111111111111111111111111111112' 
-          ? poolData.price * this.solPriceUSD 
-          : poolData.price) 
-        : swap.priceUsd;
+      // 🚨 CRITICAL FIX: Use validated price (median) for current price, NOT pool reserves
+      // Pool reserves can be volatile and cause wild price swings
+      // We've already validated swap.priceUsd and set it to the median, so use that
+      const currentPriceAfterSwap = swap.priceUsd; // This is already the validated median price
       
-      // Calculate current market cap after swap (using current price)
+      // Calculate current market cap after swap (using validated price)
       // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
       let currentMarketCap = 0;
       const currentSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
@@ -2284,10 +2282,11 @@ export default class DexScreenerStyleMonitor {
       if (currentSupply > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap) && currentPriceAfterSwap > 0.00000001) {
         currentMarketCap = currentSupply * currentPriceAfterSwap;
         
-        // Validate against Jupiter baseline
+        // Validate against Jupiter baseline (tighter bounds since price is already validated)
         if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
           const baselineRatio = currentMarketCap / tokenData.metadata.marketCap;
-          if (baselineRatio > 10.0 || baselineRatio < 0.1) {
+          // Tighter bounds (5x) since we're using validated median price
+          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
             currentMarketCap = tokenData.metadata.marketCap;
           }
         }
