@@ -712,10 +712,24 @@ class gRPCTrendingService {
         });
         
         // Filter and rank tokens (apply filters in order)
+        let filterStats = {
+            total: 0,
+            excluded: 0,
+            invalid: 0,
+            stableWrapped: 0,
+            rugged: 0,
+            bondingCurve: 0,
+            suspicious: 0,
+            passed: 0
+        };
+        
         const validTokens = Array.from(this.tokenSwaps.entries())
-            .filter(([token]) => {
+            .filter(([token, swapCount]) => {
+                filterStats.total++;
+                
                 // L1 Filter: Exclude SOL/stables (already done, but double-check)
                 if (EXCLUDED_TOKENS.has(token)) {
+                    filterStats.excluded++;
                     return false;
                 }
                 
@@ -723,33 +737,50 @@ class gRPCTrendingService {
                 
                 // L2 Filter: Valid token check (must have price/market cap/liquidity/volume)
                 if (!this.isValidToken(token)) {
+                    filterStats.invalid++;
+                    if (filterStats.invalid <= 5) {
+                        console.log(`❌ [gRPCTrending] Invalid token: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'}) - missing price/mcap/liquidity/volume`);
+                    }
                     return false;
                 }
                 
                 // L2 Filter: Stable/wrapped/staking tokens
                 if (this.isStableOrWrappedToken(token)) {
-                    console.log(`💵 [gRPCTrending] Filtering stable/wrapped/staking: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    filterStats.stableWrapped++;
+                    if (filterStats.stableWrapped <= 5) {
+                        console.log(`💵 [gRPCTrending] Filtering stable/wrapped/staking: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    }
                     return false;
                 }
                 
                 // L2 Filter: Rugged token check (crashed significantly)
                 if (this.isRuggedToken(token)) {
-                    console.log(`💥 [gRPCTrending] Filtering rugged token: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    filterStats.rugged++;
+                    if (filterStats.rugged <= 5) {
+                        console.log(`💥 [gRPCTrending] Filtering rugged token: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    }
                     return false;
                 }
                 
                 // L2 Filter: Bonding curve tokens (EXCLUDE FOR NOW)
                 if (this.isBondingCurve(token)) {
-                    console.log(`🌊 [gRPCTrending] Filtering bonding curve: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    filterStats.bondingCurve++;
+                    if (filterStats.bondingCurve <= 5) {
+                        console.log(`🌊 [gRPCTrending] Filtering bonding curve: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    }
                     return false;
                 }
                 
                 // L2 Filter: Suspicious token check
                 if (this.isSuspiciousToken(token)) {
-                    console.log(`🚫 [gRPCTrending] Filtering suspicious: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    filterStats.suspicious++;
+                    if (filterStats.suspicious <= 5) {
+                        console.log(`🚫 [gRPCTrending] Filtering suspicious: ${token.substring(0,8)}... (${tokenData?.symbol || 'UNKNOWN'})`);
+                    }
                     return false;
                 }
                 
+                filterStats.passed++;
                 return true;
             })
             .map(([token, swapCount]) => {
@@ -779,6 +810,15 @@ class gRPCTrendingService {
             .slice(0, this.topTokensCount);
 
         console.log(`\n💎 [gRPCTrending] Found ${validTokens.length} valid trending tokens`);
+        console.log(`📊 [gRPCTrending] Filter Statistics:`);
+        console.log(`   Total tokens with swaps: ${filterStats.total}`);
+        console.log(`   Excluded (SOL/stables): ${filterStats.excluded}`);
+        console.log(`   Invalid (missing data): ${filterStats.invalid}`);
+        console.log(`   Stable/Wrapped/Staking: ${filterStats.stableWrapped}`);
+        console.log(`   Rugged: ${filterStats.rugged}`);
+        console.log(`   Bonding Curve: ${filterStats.bondingCurve}`);
+        console.log(`   Suspicious: ${filterStats.suspicious}`);
+        console.log(`   ✅ Passed all filters: ${filterStats.passed}`);
         
         // Log discovered trending tokens
         if (validTokens.length > 0) {
