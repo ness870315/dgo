@@ -327,10 +327,10 @@ class TweetAPIPostingService {
             console.warn(`⚠️ [TWEETAPI V2] Retrying after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
             // On last retry, try without proxy if one is configured
-            if (retryCount === maxRetries - 1 && this.proxy) {
+            if (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '') {
               console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
               const originalProxy = this.proxy;
-              this.proxy = null;
+              this.proxy = ''; // Disable proxy for this attempt
               await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
               const result = await this.postTweet(text, retryCount + 1);
               this.proxy = originalProxy; // Restore proxy
@@ -458,10 +458,10 @@ class TweetAPIPostingService {
             console.warn(`⚠️ [TWEETAPI V2] Retrying reply after proxy timeout (${retryCount + 1}/${maxRetries}) in ${proxyRetryDelay}ms...`);
             
             // On last retry, try without proxy if one is configured
-            if (retryCount === maxRetries - 1 && this.proxy) {
+            if (retryCount === maxRetries - 1 && this.proxy && this.proxy.trim() !== '') {
               console.warn(`⚠️ [TWEETAPI V2] Last retry - attempting without proxy...`);
               const originalProxy = this.proxy;
-              this.proxy = null;
+              this.proxy = ''; // Disable proxy for this attempt
               await new Promise(resolve => setTimeout(resolve, proxyRetryDelay));
               const result = await this.postReply(text, tweetId, retryCount + 1);
               this.proxy = originalProxy; // Restore proxy
