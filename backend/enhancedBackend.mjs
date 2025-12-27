@@ -15099,45 +15099,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
-        // Get pool address for the token from DexScreener monitor
-        let poolAddress = null;
-        let useEnhancedHybrid = false;
-        
-        if (this.dexScreenerMonitor) {
-          const tokenData = this.dexScreenerMonitor.tokens.get(token);
-          if (tokenData) {
-            // Get pool from first pool in the token's pools
-            const poolKey = Array.from(this.dexScreenerMonitor.pools.keys()).find(key => {
-              const pool = this.dexScreenerMonitor.pools.get(key);
-              return pool.tokenMint === token;
-            });
-            poolAddress = poolKey;
-            useEnhancedHybrid = !!poolAddress;
-          }
-        }
-        
-        // Fallback to hybridChartService
-        if (!poolAddress) {
-          poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
-        }
-        
-        if (!poolAddress) {
-          console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
-          return res.json({
-            success: true,
-            swaps: [],
-            source: 'none',
-            lastUpdate: Date.now(),
-            totalSwaps: 0,
-            message: 'No pool address found - token may not be trading yet'
-          });
-        }
-        
-        // Get recent swaps from database - use EnhancedHybridPriceService if available
+        // ✅ CRITICAL FIX: Always try ChartDatabase first (it stores swaps by token address)
+        // ChartDatabase is the primary source for swaps from DexScreenerStyleMonitor
         const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
         let swaps = [];
+        let useEnhancedHybrid = false;
         
-        if (useEnhancedHybrid && this.chartDatabase) {
+        // Try ChartDatabase first (primary source for real-time swaps)
+        if (this.chartDatabase) {
+          useEnhancedHybrid = true;
           // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
           const tokenDb = this.chartDatabase.getTokenDatabase(token);
           
@@ -15145,41 +15115,75 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // No need to manually call loadTokenDatabaseFromFile here
           
           if (tokenDb && tokenDb.swaps) {
+            // tokenDb.swaps is a Map, iterate through values
             for (const swap of tokenDb.swaps.values()) {
+              // Filter by timestamp if provided (sinceTimestamp is in seconds, swap.timestamp is in milliseconds)
+              if (sinceTimestamp && swap.timestamp <= sinceTimestamp * 1000) {
+                continue;
+              }
               swaps.push(swap);
             }
           }
           
-          // Apply limit and sort
-          if (sinceTimestamp) {
-            swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
-          }
+          // Sort by timestamp (newest first) and apply limit
           swaps.sort((a, b) => b.timestamp - a.timestamp);
           swaps = swaps.slice(0, parseInt(limit));
           
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
-        } else {
-          // Fallback to hybridChartService
-          swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
-            poolAddress, 
-            parseInt(limit), 
-            sinceTimestamp
-          );
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from ChartDatabase for ${token.substring(0, 8)}`);
+          if (swaps.length > 0) {
+            console.log(`   First swap: ${swaps[0].signature?.substring(0, 8)}... at ${new Date(swaps[0].timestamp).toISOString()}`);
+            console.log(`   Last swap: ${swaps[swaps.length - 1].signature?.substring(0, 8)}... at ${new Date(swaps[swaps.length - 1].timestamp).toISOString()}`);
+            // Extract pool address from first swap if available
+            if (!poolAddress && swaps[0].poolAddress) {
+              poolAddress = swaps[0].poolAddress;
+            }
+          } else {
+            console.log(`⚠️ [SWAPS-API] No swaps found in ChartDatabase for ${token.substring(0, 8)}, trying fallback...`);
+          }
         }
         
-        // Format swaps for frontend
+        // Fallback to hybridChartService if ChartDatabase has no swaps
+        if (swaps.length === 0 && this.hybridChartService) {
+          // Get pool address for fallback
+          if (!poolAddress) {
+            if (this.dexScreenerMonitor) {
+              const poolKey = Array.from(this.dexScreenerMonitor.pools.keys()).find(key => {
+                const pool = this.dexScreenerMonitor.pools.get(key);
+                return pool.tokenMint === token;
+              });
+              poolAddress = poolKey;
+            }
+            if (!poolAddress) {
+              poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
+            }
+          }
+          
+          if (poolAddress) {
+            swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+              poolAddress, 
+              parseInt(limit), 
+              sinceTimestamp
+            );
+            console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database (fallback) for ${token.substring(0, 8)}`);
+            useEnhancedHybrid = false;
+          } else {
+            console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
+          }
+        }
+        
+        // Format swaps for frontend (normalize field names for compatibility)
         const formattedSwaps = swaps.map(swap => ({
-          signature: swap.signature,
-          timestamp: swap.timestamp,
-          type: swap.type,
-          usdValue: swap.volumeUsd,
-          tokenAmount: swap.tokenAmount,
-          baseAmount: swap.baseAmount,
-          baseToken: swap.baseToken,
-          price: swap.price,
-          maker: swap.maker,
-          source: swap.source
+          signature: swap.signature || 'unknown',
+          timestamp: swap.timestamp || Date.now(),
+          type: swap.type || 'UNKNOWN',
+          usdValue: swap.volumeUsd || swap.volumeUSD || swap.usdValue || 0,
+          volumeUsd: swap.volumeUsd || swap.volumeUSD || swap.usdValue || 0, // Add both for compatibility
+          tokenAmount: swap.tokenAmount || swap.amountTokens || 0,
+          baseAmount: swap.baseAmount || swap.amountSOL || swap.solAmount || 0,
+          baseToken: swap.baseToken || 'SOL',
+          price: swap.price || swap.priceUSD || swap.priceSOL || 0,
+          maker: swap.maker || swap.walletAddress || 'unknown',
+          source: swap.source || 'grpc_realtime'
         }));
         
         res.json({
@@ -15187,8 +15191,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           swaps: formattedSwaps,
           source: useEnhancedHybrid ? 'grpc_realtime' : 'helius',
           lastUpdate: Date.now(),
-          totalSwaps: swaps.length,
-          poolAddress: poolAddress.substring(0, 8) + '...'
+          totalSwaps: formattedSwaps.length,
+          poolAddress: poolAddress ? poolAddress.substring(0, 8) + '...' : 'unknown'
         });
         
       } catch (error) {
