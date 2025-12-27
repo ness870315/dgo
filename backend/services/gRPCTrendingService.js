@@ -154,7 +154,8 @@ class gRPCTrendingService {
         this.stats.startTime = Date.now();
 
         try {
-            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel() || { CONFIRMED: 'confirmed' };
+            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel() || { CONFIRMED: 1 };
+            const commitmentLevel = CommitmentLevel.CONFIRMED || 1; // Use numeric value (1 = CONFIRMED)
             
             const transactionFilters = {
                 client: {
@@ -166,9 +167,17 @@ class gRPCTrendingService {
                 }
             };
 
-            this.stream = await this.grpcClient.subscribeTransactions(
-                transactionFilters,
-                CommitmentLevel.CONFIRMED
+            // Use subscribeOnce (same as DexScreenerStyleMonitor and EnhancedHybridPriceService)
+            this.stream = await this.grpcClient.subscribeOnce(
+                {}, // accounts
+                {}, // slots
+                transactionFilters, // transactions
+                {}, // blocks
+                {}, // blocksMeta
+                {}, // entry
+                {}, // transactionsStatus
+                commitmentLevel, // CONFIRMED (numeric: 1)
+                [] // accountsDataSlice
             );
 
             console.log(`✅ [gRPCTrending] Subscribed to transaction stream (instance ${this.clientInstanceId})`);
