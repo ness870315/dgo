@@ -1071,6 +1071,7 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     // Header
     text += `================================================================================\n`;
     text += `📊 TECHNICAL ANALYSIS REPORT - DEGEN ORACLE\n`;
+    text += `⏰ Timeframe: ${ta?.timeframe || 'N/A'}\n`;
     text += `================================================================================\n\n`;
     
     // Token Info
@@ -1137,9 +1138,8 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     if (ta && ta.raw_analysis) {
       text += `${ta.raw_analysis}\n\n`;
       if (ta.sources && ta.sources.length > 0) {
-        text += `📚 Sources: ${ta.sources.length} verified sources\n`;
+        text += `📚 Sources: ${ta.sources.length} verified sources\n\n`;
       }
-      text += `⏰ Timeframe: ${ta.timeframe}\n`;
     } else {
       text += `⚠️  No comprehensive technical analysis available\n\n`;
     }
@@ -1147,8 +1147,7 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     // Footer
     text += `\n================================================================================\n`;
     text += `🕒 Generated: ${new Date(analysis.generated_at).toLocaleString()}\n`;
-    text += `📡 Data Sources: ${analysis.data_sources.technical_analysis} + ${analysis.data_sources.oracle_verdict}\n`;
-    text += `🔗 Degen Oracle - ai.degen-oracle.com\n`;
+    text += `🔗 Degen Oracle - degen-oracle.com\n`;
     text += `================================================================================\n`;
     
     return text;
