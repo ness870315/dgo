@@ -2220,18 +2220,20 @@ export default class DexScreenerStyleMonitor {
       }
       
       // Create swap record (must match format expected by calculations)
+      // Store ACTUAL swap price (for swap table display) but use smoothed price for metrics
       const swapRecord = {
         timestamp: swap.timestamp || Date.now(),
         type: swap.type, // 'BUY' or 'SELL'
         tokenAmount: swap.tokenAmount || 0,
         baseAmount: swap.baseAmount || 0, // SOL/USDC amount
         price: swap.price || 0, // Price in quote token (SOL/USDC)
-        priceUSD: swap.priceUsd || 0, // Price in USD
+        priceUSD: swap.priceUsd || 0, // ACTUAL swap price in USD (for display in swap table)
+        smoothedPriceUSD: swap.smoothedPriceUsd || swap.priceUsd, // Smoothed price (for reference)
         volumeUSD: swap.volumeUsd || 0, // Volume in USD (used by calculateVolume)
         maker: swap.maker || 'Unknown', // Wallet address (used by calculateUniqueMakers)
         signature: swap.signature || 'Unknown',
         slot: swap.slot || (txData.slot ? Number(txData.slot) : 0),
-        marketCap: marketCap, // Market cap at time of swap
+        marketCap: marketCap, // Market cap at time of swap (calculated from smoothed price)
         liquidity: liquidity, // Liquidity at time of swap
         poolAddress: poolData.poolAddress || 'UNKNOWN' // Add poolAddress for database storage
       };
@@ -2253,10 +2255,10 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // 🚨 CRITICAL FIX: Use validated price (median) for current price, NOT pool reserves
-      // Pool reserves can be volatile and cause wild price swings
-      // We've already validated swap.priceUsd and set it to the median, so use that
-      const currentPriceAfterSwap = swap.priceUsd; // This is already the validated median price
+      // 🚨 CRITICAL FIX: Use SMOOTHED median price for current price/metrics (prevents spikes)
+      // The swap record has the actual price, but we use smoothed price for display
+      // This prevents wild price/mcap swings while still showing all swaps
+      const currentPriceAfterSwap = swap.smoothedPriceUsd || tokenData.lastPriceUSD || swap.priceUsd;
       
       // Calculate current market cap after swap (using validated price)
       // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
