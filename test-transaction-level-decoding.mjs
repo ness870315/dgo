@@ -26,9 +26,9 @@ const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
 // Import our existing swap decoder!
 import { processTxForSwap } from './backend/services/SwapDetectionHelpers.mjs';
 
-// Configuration
-const RPC_ENDPOINT = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const GRPC_TOKEN = 'nyobwvg4-zxpy-41c0-zuy7-fz69xihu0q5p';
+// Configuration - Hardcoded (no env variables)
+const RPC_ENDPOINT = 'https://rpc-indianapolis.constant-k.com/?api-key=of5jq21y-hu8g-4n8y-rmu1-3u6tkhbn591d';
+const GRPC_TOKEN = 'of5jq21y-hu8g-4n8y-rmu1-3u6tkhbn591d';
 
 // Test endpoints - Only Kaldera
 const ENDPOINTS = {
@@ -38,13 +38,13 @@ const ENDPOINTS = {
   }
 };
 
-// Test token - WhiteWhale for 5-minute test
+// Test token - Whitewhale for 10-minute test
 const TEST_TOKENS = {
   whitewhale: {
-    name: 'WhiteWhale',
+    name: 'Whitewhale',
     mint: 'a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump',
-    pool: null, // Will be discovered
-    decimals: null,
+    pool: '4qxSqMh6iEdbdvtMp8r5MK2psAGKNk57PfGeVo2VhczQ', // Known pool from Jupiter
+    decimals: 6, // Known from Jupiter
     supply: null, // Will be fetched from Jupiter
     marketCap: null // Will be calculated
   }
@@ -211,6 +211,7 @@ function decodeSwapFromTransaction(msgTransaction, poolAddress, tokenMint, token
       blockTime: swap.timestamp ? new Date(swap.timestamp) : null,
       tokenMint,
       poolAddress,
+      counterMint: swap.counterMint || null, // Track what we're trading against (SOL, USDC, etc.)
       dex: swap.dex || 'Unknown'
     };
   } catch (error) {
@@ -271,7 +272,7 @@ async function testEndpoint(endpointName, endpointConfig) {
   
   const swapStats = new Map();
   const startTime = Date.now();
-  const testDuration = 5 * 60 * 1000; // 5 minutes
+  const testDuration = 10 * 60 * 1000; // 10 minutes
   
   // Track current price for each token (updates after each swap)
   const currentPrices = new Map();
@@ -347,6 +348,41 @@ async function testEndpoint(endpointName, endpointConfig) {
         // After first swap, price changes, so we don't want to filter subsequent swaps
         const swap = decodeSwapFromTransaction(msg.transaction, tokenConfig.pool, tokenConfig.mint, tokenConfig, null);
         
+        // CRITICAL: Filter out swaps that don't match our known pool address
+        // Multi-hop swaps can include our token but in a different pool
+        if (swap && swap.poolAddress && swap.poolAddress !== 'unknown' && swap.poolAddress !== tokenConfig.pool) {
+          console.log(`⚠️  [TEST] Swap decoded but pool mismatch: expected ${tokenConfig.pool.substring(0, 8)}..., got ${swap.poolAddress.substring(0, 8)}... - FILTERING OUT`);
+          continue; // Skip this swap
+        }
+        
+        // Also skip swaps where pool couldn't be determined (might be aggregator internals)
+        if (swap && swap.poolAddress === 'unknown') {
+          console.log(`⚠️  [TEST] Swap decoded but pool is 'unknown' - FILTERING OUT (might be aggregator internal)`);
+          continue; // Skip this swap
+        }
+        
+        // CRITICAL: Filter out swaps with invalid prices (multi-hop internals, MEV bots)
+        // For Whitewhale, we expect price to be around $0.05-$0.07 based on previous swaps
+        // Anything outside a reasonable range is likely a multi-hop leg or sandwich bot
+        if (swap && swap.priceUSD) {
+          const expectedPrice = currentPrice || 0.06; // Use last known price or reasonable default
+          
+          // Reject swaps with price > 10x or < 0.1x of expected (likely multi-hop leg)
+          if (expectedPrice > 0) {
+            const priceRatio = swap.priceUSD / expectedPrice;
+            if (priceRatio > 10 || priceRatio < 0.1) {
+              console.log(`⚠️  [TEST] Swap price outlier: $${swap.priceUSD.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
+              continue; // Skip this swap
+            }
+          }
+          
+          // Also reject swaps with extremely low volume (likely dust/MEV)
+          if (swap.volumeUSD < 0.50) {
+            console.log(`⚠️  [TEST] Swap volume too low: $${swap.volumeUSD.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
+            continue; // Skip this swap
+          }
+        }
+        
         // Debug: Log ALL transactions that don't decode to swaps (after first swap detected, log all)
         if (!swap) {
           // Check if transaction involves the pool address
@@ -408,12 +444,31 @@ async function testEndpoint(endpointName, endpointConfig) {
           
           // Display swap with detailed calculation breakdown
           const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
+          
+          // Determine counter token (SOL, USDC, etc.)
+          const WSOL = 'So11111111111111111111111111111111111111112';
+          const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+          const USDT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+          let counterSymbol = 'UNKNOWN';
+          let isSOL = false;
+          
+          if (swap.counterMint === WSOL) {
+            counterSymbol = 'SOL';
+            isSOL = true;
+          } else if (swap.counterMint === USDC) {
+            counterSymbol = 'USDC';
+          } else if (swap.counterMint === USDT) {
+            counterSymbol = 'USDT';
+          } else if (swap.counterMint) {
+            counterSymbol = swap.counterMint.substring(0, 8) + '...';
+          }
+          
           console.log(`\n📊 Swap #${swapCount} - ${tokenConfig.name} (${swapType})`);
           console.log(`   DEX:         ${swap.dex || 'Unknown'}`);
           console.log(`   Pool:        ${tokenConfig.pool.substring(0, 16)}...`);
           console.log(`   Wallet:      ${swap.walletAccount?.substring(0, 16) || 'N/A'}...`);
           console.log(`   Amount:      ${swap.baseAmount.toLocaleString()} tokens`);
-          console.log(`   SOL Amount:  ${swap.quoteAmount.toFixed(6)} SOL`);
+          console.log(`   Counter:     ${swap.quoteAmount.toFixed(6)} ${counterSymbol}`);
           console.log(`   Price:       $${swap.priceUSD.toFixed(6)}`); // 6 decimals
           console.log(`   Volume USD:  $${swap.volumeUSD?.toFixed(2) || '0.00'}`);
           
@@ -423,19 +478,6 @@ async function testEndpoint(endpointName, endpointConfig) {
             marketCap = tokenConfig.supply * swap.priceUSD;
             console.log(`   Market Cap:  $${marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
           }
-          
-          // Debug calculations - compare with what we expect
-          const expectedPriceUSD = swap.price * solPriceUSD;
-          const expectedVolumeUSD = swap.quoteAmount * solPriceUSD;
-          const impliedSOLPrice = swap.volumeUSD / swap.quoteAmount;
-          
-          console.log(`   📊 Calculation Details:`);
-          console.log(`      SOL Price Used:    $${solPriceUSD.toFixed(2)}`);
-          console.log(`      Implied SOL Price: $${impliedSOLPrice.toFixed(2)} (from volume)`);
-          console.log(`      Expected Price:    $${expectedPriceUSD.toFixed(6)}`); // 6 decimals
-          console.log(`      Expected Volume:   $${expectedVolumeUSD.toFixed(2)}`);
-          console.log(`      Price Diff:        $${Math.abs(swap.priceUSD - expectedPriceUSD).toFixed(6)}`); // 6 decimals
-          console.log(`      Volume Diff:       $${Math.abs(swap.volumeUSD - expectedVolumeUSD).toFixed(2)}`);
           
           console.log(`   Signature:   ${swap.signature?.substring(0, 16) || 'N/A'}...`);
           if (swap.blockTime) {

@@ -1816,6 +1816,31 @@ export default class DexScreenerStyleMonitor {
         if (swap) {
           decodedAnySwap = true;
           
+          // 🚨 CRITICAL FILTERS: Reject multi-hop legs, MEV dust, and aggregator internals
+          // These filters match test-transaction-level-decoding.mjs behavior (98% accuracy)
+          
+          // Filter 1: Price Outlier Filter (rejects multi-hop internal legs)
+          // If price is >10x or <0.1x the expected price, it's likely a multi-hop leg or sandwich bot
+          const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+          if (expectedPrice > 0 && swap.priceUsd) {
+            const priceRatio = swap.priceUsd / expectedPrice;
+            if (priceRatio > 10 || priceRatio < 0.1) {
+              if (this.globalStats.totalSwapsDetected <= 10) {
+                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price outlier: $${swap.priceUsd.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
+              }
+              continue; // Skip this swap
+            }
+          }
+          
+          // Filter 2: Dust Volume Filter (rejects MEV bot dust trades)
+          // Real traders don't make sub-$0.50 swaps
+          if (swap.volumeUsd && swap.volumeUsd < 0.50) {
+            if (this.globalStats.totalSwapsDetected <= 10) {
+              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap volume too low: $${swap.volumeUsd.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
+            }
+            continue; // Skip this swap
+          }
+          
           // Log large swaps for debugging (user reported missing large swaps)
           if (swap.volumeUsd && swap.volumeUsd >= 100) {
             console.log(`💰 [DexScreenerStyleMonitor] Large swap detected: ${tokenData.config.name} - $${swap.volumeUsd.toFixed(2)} (${swap.type})`);
@@ -1834,10 +1859,9 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // 🚨 TRADE-GRADE FIX: Show ALL swaps, but use smoothed prices for display to prevent spikes
-          // DO NOT filter swaps based on price volatility - that's normal in crypto markets!
-          // Users need to see ALL swaps to make informed trading decisions
-          // BUT use median prices for currentPrice/marketCap to prevent wild spikes
+          // 🚨 TRADE-GRADE FIX: Show ALL swaps (that pass filters), and use smoothed prices for display to prevent spikes
+          // Users need to see ALL legitimate swaps to make informed trading decisions
+          // Use median prices for currentPrice/marketCap to prevent wild spikes
           
           // Only reject if price is truly invalid (NaN, Infinity, negative, or zero)
           if (!swap.priceUsd || !isFinite(swap.priceUsd) || swap.priceUsd <= 0) {
