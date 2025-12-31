@@ -15,12 +15,14 @@ import fetch from 'node-fetch';
 const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
 const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
 const GROK_API_KEY = process.env.GROK_API_KEY || '';
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || '';
 
 class TechnicalAnalysisService {
   constructor() {
     this.jupiterEndpoint = JUPITER_API_ENDPOINT;
     this.jupiterApiKey = JUPITER_API_KEY;
     this.grokApiKey = GROK_API_KEY;
+    this.perplexityApiKey = PERPLEXITY_API_KEY;
   }
 
   /**
@@ -34,11 +36,19 @@ class TechnicalAnalysisService {
       const jupiterData = await this.fetchJupiterMetadata(contractAddress);
       const currentPrice = jupiterData.usdPrice;
       
-      // 2. Generate synthetic OHLCV (for demonstration)
+      // 2. Search Perplexity for real-time news and sentiment
+      const perplexityData = await this.searchPerplexity(
+        jupiterData.name,
+        jupiterData.symbol,
+        contractAddress,
+        timeframe
+      );
+      
+      // 3. Generate synthetic OHLCV (for demonstration)
       // TODO: Replace with real Moralis OHLCV data
       const ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
       
-      // 3. Calculate technical indicators
+      // 4. Calculate technical indicators
       const indicators = {
         rsi: this.calculateRSI(ohlcv),
         macd: this.calculateMACD(ohlcv),
@@ -47,10 +57,10 @@ class TechnicalAnalysisService {
         volume: this.analyzeVolume(ohlcv)
       };
       
-      // 4. Calculate support/resistance
+      // 5. Calculate support/resistance
       const levels = this.calculateSupportResistance(ohlcv, currentPrice);
       
-      // 5. Prepare data for AI
+      // 6. Prepare data for AI (including Perplexity insights)
       const analysisData = {
         token: {
           name: jupiterData.name,
@@ -58,13 +68,18 @@ class TechnicalAnalysisService {
           address: contractAddress,
           price: currentPrice,
           marketCap: jupiterData.marketCap,
-          volume24h: jupiterData.volume24h
+          volume24h: jupiterData.volume24h,
+          priceChange24h: jupiterData.priceChange24h,
+          holderCount: jupiterData.holderCount,
+          organicScore: jupiterData.organicScore,
+          organicScoreLabel: jupiterData.organicScoreLabel
         },
         indicators,
-        levels
+        levels,
+        perplexityData // Include real-time news and sentiment
       };
       
-      // 6. Generate AI analysis (try Grok first, fallback to mock)
+      // 7. Generate AI analysis (try Grok first, fallback to mock)
       let aiAnalysis;
       if (this.grokApiKey) {
         try {
@@ -93,6 +108,166 @@ class TechnicalAnalysisService {
     } catch (error) {
       console.error(`❌ [TA] Error analyzing token:`, error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Search Perplexity for real-time token news and market sentiment
+   */
+  async searchPerplexity(tokenName, tokenSymbol, contractAddress, timeframe) {
+    if (!this.perplexityApiKey) {
+      console.log(`⚠️  [TA] No Perplexity API key, skipping real-time search`);
+      return null;
+    }
+
+    try {
+      console.log(`🔍 [TA] Searching Perplexity for ${tokenName} news and sentiment...`);
+
+      const query = `Search for the latest news, price action, technical analysis, market sentiment, and trading activity for the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${timeframe === '1h' ? '24 hours' : timeframe === '4h' ? '3 days' : '7 days'}. Include:
+- Recent price movements and volatility
+- Any major news or announcements
+- Social media sentiment and trending topics
+- Whale activity or large transactions
+- CEX listings or partnership announcements
+- Trading volume changes
+- Technical patterns traders are discussing
+- Any upcoming catalysts or events
+
+Provide specific details with dates, percentages, and sources where possible.`;
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.perplexityApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a crypto market analyst providing real-time information. Be specific with dates, percentages, and sources. Focus on actionable information for traders.'
+            },
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+          return_citations: true
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Perplexity API error: ${response.status} - ${errorText.substring(0, 200)}`);
+        return null;
+      }
+
+      const result = await response.json();
+      const newsContent = result.choices[0].message.content;
+      const citations = result.citations || [];
+
+      console.log(`✅ [TA] Perplexity search complete (${citations.length} sources)`);
+
+      return {
+        news: newsContent,
+        citations: citations,
+        timestamp: Date.now()
+      };
+
+    } catch (error) {
+      console.error(`❌ [TA] Perplexity search failed:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Search Perplexity for real-time token news, sentiment, AND technical analysis
+   */
+  async searchPerplexity(tokenName, tokenSymbol, contractAddress, timeframe) {
+    if (!this.perplexityApiKey) {
+      console.log(`⚠️  [TA] No Perplexity API key, skipping real-time search`);
+      return null;
+    }
+
+    try {
+      console.log(`🔍 [TA] Searching Perplexity for ${tokenName} news, sentiment & TA...`);
+
+      const query = `Search for the latest information about the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${timeframe === '1h' ? '24 hours' : timeframe === '4h' ? '3 days' : '7 days'}. Include:
+
+**TECHNICAL ANALYSIS & CHART PATTERNS:**
+- Current technical analysis from traders and analysts
+- Key support and resistance levels being watched
+- Chart patterns (head & shoulders, triangles, flags, wedges, etc.)
+- RSI, MACD, Bollinger Bands analysis from crypto analysts
+- Moving average crossovers or key levels
+- Volume profile and order book analysis
+- Fibonacci retracement levels
+- Price action patterns and breakout setups
+
+**NEWS & CATALYSTS:**
+- Recent price movements with specific percentages
+- Major news, announcements, or partnerships
+- CEX listings (BitMart, MEXC, Gate.io, Bybit, etc.) with dates
+- Protocol upgrades or tokenomics changes
+- Upcoming events or launches
+
+**MARKET SENTIMENT & ACTIVITY:**
+- Social media sentiment (Twitter/X, Reddit, Discord)
+- Whale activity and large transactions
+- Trading volume spikes with context
+- Influencer or analyst commentary
+- Community growth or engagement changes
+
+Provide specific details with dates, percentages, price levels, and sources where possible. If technical analysis is being discussed in the community, include those insights.`;
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.perplexityApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a comprehensive crypto market analyst providing real-time information including technical analysis, news, and sentiment. Be specific with dates, percentages, price levels, and sources. Focus on actionable information for traders.'
+            },
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+          return_citations: true
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Perplexity API error: ${response.status} - ${errorText.substring(0, 200)}`);
+        return null;
+      }
+
+      const result = await response.json();
+      const newsContent = result.choices[0].message.content;
+      const citations = result.citations || [];
+
+      console.log(`✅ [TA] Perplexity search complete (${citations.length} sources)`);
+
+      return {
+        content: newsContent,
+        citations: citations,
+        timestamp: Date.now()
+      };
+
+    } catch (error) {
+      console.error(`❌ [TA] Perplexity search failed:`, error.message);
+      return null;
     }
   }
 
@@ -499,6 +674,25 @@ class TechnicalAnalysisService {
 - Current Price: $${data.token.price.toFixed(6)}
 - Market Cap: $${data.token.marketCap.toLocaleString()}
 - 24h Volume: $${data.token.volume24h.toLocaleString()}
+- Price Change 24h: ${data.token.priceChange24h ? (data.token.priceChange24h > 0 ? '+' : '') + data.token.priceChange24h.toFixed(2) + '%' : 'N/A'}
+- Holders: ${data.token.holderCount ? data.token.holderCount.toLocaleString() : 'N/A'}
+- Organic Score: ${data.token.organicScoreLabel || 'N/A'}
+
+${data.perplexityData ? `**REAL-TIME MARKET INTELLIGENCE (from Degen Oracle's real-time search):**
+${data.perplexityData.news}
+
+**Key Sources (${data.perplexityData.citations?.length || 0}):**
+${(data.perplexityData.citations || []).slice(0, 5).map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+**CRITICAL**: Use the above real-time market intelligence to enhance your analysis. Extract SPECIFIC details about:
+- Recent price movements and catalysts
+- News or announcements (with dates)
+- Social sentiment and trending topics
+- Whale activity or large transactions
+- Any upcoming events or catalysts
+When referencing this data, use phrases like "Degen Oracle confirms", "Our platform analysis shows", "Our analytics indicate", "Recent data reveals", etc. NEVER mention "Perplexity" or external sources.
+
+` : '**NOTE**: No real-time market intelligence available for this token.\n\n'}
 
 **TECHNICAL INDICATORS:**
 - RSI (14): ${data.indicators.rsi.value?.toFixed(2)} (${data.indicators.rsi.signal})
@@ -586,9 +780,11 @@ Generate a comprehensive trading strategy in JSON format with these exact fields
 - Be direct and actionable
 - Provide specific price levels based on support/resistance
 - Make the oracle_verdict.summary punchy and memorable
+${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intelligence into your analysis. Mention specific catalysts, news, or events from the data.
+- Lead with the most important real-time information (e.g., "Fresh off a CEX listing...", "Following whale accumulation...", "After breaking ATH...")` : ''}
 - If Bollinger squeeze detected = emphasize breakout potential
 - If RSI extreme = emphasize reversal potential
-- Consider ALL indicators together for the signal
+- Consider ALL indicators AND real-time market data together for the signal
 - Return ONLY valid JSON, no other text`;
 
     try {
