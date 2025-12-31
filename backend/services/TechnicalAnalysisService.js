@@ -18,17 +18,19 @@ const GROK_API_KEY = process.env.GROK_API || ''; // Same as Trending AI service
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || '';
 
 class TechnicalAnalysisService {
-  constructor() {
+  constructor(hybridChartService = null) {
     this.jupiterEndpoint = JUPITER_API_ENDPOINT;
     this.jupiterApiKey = JUPITER_API_KEY;
     this.grokApiKey = GROK_API_KEY;
     this.perplexityApiKey = PERPLEXITY_API_KEY;
+    this.hybridChartService = hybridChartService;
     
     // Log API key status
     console.log(`🔧 [TA Service] Initialized`);
     console.log(`   Jupiter API Key: ${this.jupiterApiKey ? 'SET' : 'MISSING ⚠️'}`);
     console.log(`   Grok API Key: ${this.grokApiKey ? 'SET ✅' : 'MISSING ⚠️'}`);
     console.log(`   Perplexity API Key: ${this.perplexityApiKey ? 'SET ✅' : 'MISSING ⚠️'}`);
+    console.log(`   Moralis OHLCV: ${this.hybridChartService ? 'AVAILABLE ✅' : 'USING SYNTHETIC ⚠️'}`);
   }
 
   /**
@@ -50,9 +52,21 @@ class TechnicalAnalysisService {
         timeframe
       );
       
-      // 3. Generate synthetic OHLCV (for demonstration)
-      // TODO: Replace with real Moralis OHLCV data
-      const ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
+      // 3. Fetch OHLCV data (Moralis if available, otherwise synthetic)
+      let ohlcv;
+      if (this.hybridChartService) {
+        try {
+          console.log(`📊 [TA] Fetching real OHLCV data from Moralis...`);
+          ohlcv = await this.fetchMoralisOHLCV(contractAddress, timeframe);
+          console.log(`✅ [TA] Got ${ohlcv.length} real candles from Moralis`);
+        } catch (error) {
+          console.log(`⚠️  [TA] Moralis failed, using synthetic: ${error.message}`);
+          ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
+        }
+      } else {
+        console.log(`⚠️  [TA] No Moralis service, using synthetic OHLCV`);
+        ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
+      }
       
       // 4. Calculate technical indicators
       const indicators = {
@@ -350,8 +364,54 @@ Provide specific details with dates, percentages, price levels, and sources wher
   }
 
   /**
-   * Generate synthetic OHLCV for demonstration
-   * TODO: Replace with real Moralis data
+   * Fetch real OHLCV data from Moralis via HybridChartService
+   */
+  async fetchMoralisOHLCV(tokenAddress, timeframe) {
+    if (!this.hybridChartService) {
+      throw new Error('HybridChartService not available');
+    }
+
+    // Map our timeframes to Moralis/HybridService format
+    const timeframeMap = {
+      '5m': '5',
+      '15m': '15',
+      '1h': '60',
+      '4h': '240',
+      '1d': '1440'
+    };
+    
+    const moralisTimeframe = timeframeMap[timeframe] || '60';
+    const limit = 100; // Get last 100 candles
+    
+    try {
+      const chartData = await this.hybridChartService.getHistoricalPrices(
+        tokenAddress,
+        moralisTimeframe,
+        limit
+      );
+      
+      if (!chartData || chartData.length === 0) {
+        throw new Error('No OHLCV data returned from Moralis');
+      }
+      
+      // Convert to our format
+      return chartData.map(candle => ({
+        timestamp: candle.time,
+        open: candle.open.toString(),
+        high: candle.high.toString(),
+        low: candle.low.toString(),
+        close: candle.close.toString(),
+        volume: (candle.volume || 0).toString()
+      }));
+      
+    } catch (error) {
+      console.error(`❌ [TA] Moralis OHLCV error:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate synthetic OHLCV for demonstration (fallback)
    */
   generateSyntheticOHLCV(currentPrice, numCandles = 100) {
     const ohlcv = [];

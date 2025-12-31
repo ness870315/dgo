@@ -2065,7 +2065,8 @@ class EnhancedBackend {
         // Lazy-load the service
         if (!this.technicalAnalysisService) {
           const TechnicalAnalysisService = (await import('./services/TechnicalAnalysisService.js')).default;
-          this.technicalAnalysisService = new TechnicalAnalysisService();
+          // Pass HybridChartService for real OHLCV data
+          this.technicalAnalysisService = new TechnicalAnalysisService(this.hybridService);
         }
         
         // Generate analysis
