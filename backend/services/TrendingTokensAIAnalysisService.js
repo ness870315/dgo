@@ -27,40 +27,108 @@ class TrendingTokensAIAnalysisService {
 
   /**
    * Get trending tokens from internal API
+   * Uses multiple strategies to ensure we get enough tokens
    */
   async getTrendingTokens(limit = 10) {
     try {
-      // 🚨 CRITICAL FIX: Request more tokens to ensure we get at least 'limit' after filtering
-      // Request 2x the limit to account for potential filtering/failures
-      const requestLimit = Math.max(limit * 2, 20);
+      console.log(`📡 [TRENDING AI] Fetching trending tokens (target: ${limit})...`);
       
-      console.log(`📡 [TRENDING AI] Requesting ${requestLimit} tokens from API (target: ${limit})...`);
-      
-      const response = await fetch(`${this.apiBaseUrl}/api/tokens/trending?limit=${requestLimit}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // Strategy 1: Try the standard trending endpoint with lower score threshold for AI analysis
+      let tokens = [];
+      try {
+        // Use minScore=5.0 to get more tokens (lower threshold for AI analysis)
+        const response = await fetch(`${this.apiBaseUrl}/api/tokens/trending?limit=100&minScore=5.0`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        if (response.ok) {
+          tokens = await response.json();
+          console.log(`✅ [TRENDING AI] Fetched ${tokens.length} tokens from trending endpoint (score >5.0)`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ [TRENDING AI] Trending endpoint failed: ${error.message}`);
       }
-
-      const tokens = await response.json();
-      console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from API`);
       
+      // Strategy 2: If we don't have enough tokens, try Dexscreener endpoint as fallback
       if (tokens.length < limit) {
-        console.warn(`⚠️ [TRENDING AI] Only ${tokens.length} tokens available (requested ${limit})`);
+        console.log(`📡 [TRENDING AI] Only ${tokens.length} tokens from trending endpoint, trying Dexscreener...`);
+        try {
+          const dexscreenerResponse = await fetch(`${this.apiBaseUrl}/api/tokens/dexscreener?limit=${limit * 2}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (dexscreenerResponse.ok) {
+            const dexscreenerTokens = await dexscreenerResponse.json();
+            console.log(`✅ [TRENDING AI] Fetched ${dexscreenerTokens.length} tokens from Dexscreener endpoint`);
+            
+            // Merge with existing tokens (deduplicate by contractAddress)
+            const existingAddresses = new Set(tokens.map(t => t.contractAddress?.toLowerCase()));
+            const newTokens = dexscreenerTokens.filter(t => 
+              t.contractAddress && !existingAddresses.has(t.contractAddress.toLowerCase())
+            );
+            
+            tokens = [...tokens, ...newTokens];
+            console.log(`✅ [TRENDING AI] Combined ${tokens.length} total tokens (${tokens.length - newTokens.length} from trending + ${newTokens.length} from Dexscreener)`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [TRENDING AI] Dexscreener endpoint failed: ${error.message}`);
+        }
+      }
+      
+      // Strategy 3: If still not enough, try to get all tokens from cache and sort by score
+      if (tokens.length < limit) {
+        console.log(`📡 [TRENDING AI] Only ${tokens.length} tokens total, trying to get all tokens from cache...`);
+        try {
+          // Try to get tokens directly from the cache endpoint (if it exists)
+          // Or we can try a different approach - get tokens sorted by volume/activity
+          const allTokensResponse = await fetch(`${this.apiBaseUrl}/api/tokens/trending?limit=200`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (allTokensResponse.ok) {
+            const allTokens = await allTokensResponse.json();
+            console.log(`✅ [TRENDING AI] Fetched ${allTokens.length} tokens with expanded limit`);
+            
+            // Merge with existing tokens (deduplicate)
+            const existingAddresses = new Set(tokens.map(t => t.contractAddress?.toLowerCase()));
+            const newTokens = allTokens.filter(t => 
+              t.contractAddress && !existingAddresses.has(t.contractAddress.toLowerCase())
+            );
+            
+            tokens = [...tokens, ...newTokens];
+            console.log(`✅ [TRENDING AI] Combined ${tokens.length} total tokens after expanded fetch`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [TRENDING AI] Expanded fetch failed: ${error.message}`);
+        }
+      }
+      
+      // Sort all tokens by overallScore (highest first), then by volume24h as tiebreaker
+      tokens.sort((a, b) => {
+        const scoreA = a.overallScore || 0;
+        const scoreB = b.overallScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.volume24h || 0) - (a.volume24h || 0);
+      });
+      
+      // Take top N tokens
+      const topTokens = tokens.slice(0, limit);
+      console.log(`📊 [TRENDING AI] Selected top ${topTokens.length} tokens by score/volume`);
+      
+      if (topTokens.length < limit) {
+        console.warn(`⚠️ [TRENDING AI] Only ${topTokens.length} tokens available (requested ${limit})`);
       }
       
       // Enrich with fresh Jupiter data
-      const enrichedTokens = await this.enrichTokensWithJupiterData(tokens);
+      const enrichedTokens = await this.enrichTokensWithJupiterData(topTokens);
       console.log(`✅ [TRENDING AI] Enriched ${enrichedTokens.length} tokens with fresh Jupiter data`);
       
-      // 🚨 CRITICAL FIX: Ensure we return at least 'limit' tokens (or all available if less)
-      const finalTokens = enrichedTokens.slice(0, limit);
-      console.log(`✅ [TRENDING AI] Returning ${finalTokens.length} tokens for analysis`);
+      console.log(`✅ [TRENDING AI] Returning ${enrichedTokens.length} tokens for analysis`);
       
-      return finalTokens;
+      return enrichedTokens;
       
     } catch (error) {
       console.error('❌ [TRENDING AI] Error fetching trending tokens:', error.message);

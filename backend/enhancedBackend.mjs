@@ -1706,10 +1706,12 @@ class EnhancedBackend {
         }
 
         // Filter for trending tokens (Viral and Trending status)
+        // Allow minScore parameter to lower threshold for AI analysis
+        const minScore = parseFloat(req.query.minScore) || 7.8; // Default 7.8, but can be lowered
         const trendingTokens = tokens.filter(token => {
           const overallScore = token.overallScore || 0;
-          // Viral: >8.5, Trending: >7.8
-          const isHighScore = overallScore > 7.8;
+          // Viral: >8.5, Trending: >7.8 (or custom minScore)
+          const isHighScore = overallScore > minScore;
           const isSuspicious = this.isSuspiciousToken(token);
           const isRugged = this.isRuggedToken(token);
           const isExcluded = this.isExcludedMajorOrStable(token);
@@ -1734,7 +1736,7 @@ class EnhancedBackend {
           mcap: token.mcap || token.marketCap || token.jupiterData?.mcap || token.jupiterData?.marketCap || 0
         }));
 
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${normalizedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${normalizedTrending.length} trending tokens (score >${minScore}, limit: ${requestedLimit})`);
         res.json(normalizedTrending);
 
       } catch (error) {
