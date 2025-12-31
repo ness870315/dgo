@@ -988,30 +988,60 @@ class EnhancedTokenProcessor {
     
     console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (5-day rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
     
-    // 🚨 CRITICAL FIX: Update processing queue to only keep tokens that completed Twitter stage
-    // allTokens contains the filtered tokens that were processed (excluding suspicious/rugged/major)
+    // 🚨 CRITICAL FIX: Update processing queue to keep tokens that completed Twitter stage
+    // BUT also preserve tokens that were added to queue during processing (they haven't been processed yet)
+    // allTokens contains the filtered tokens that were processed in THIS batch
     // Since allTokens are object references to tokens in this.processingQueue, updating token.stage
-    // in allTokens also updates the tokens in the queue. However, we need to remove tokens that
-    // were filtered out (suspicious/rugged/major) and never processed.
+    // in allTokens also updates the tokens in the queue. However, we need to:
+    // 1. Keep tokens that completed Twitter stage (ready for scoring)
+    // 2. Keep tokens that were added during processing (not in allTokens batch)
+    // 3. Remove only tokens that were in the batch but didn't complete Twitter stage
     
-    // Keep only tokens that completed Twitter stage (have stage === 'twitter')
-    // This removes tokens that were filtered out before Twitter processing
     const tokensBeforeFilter = this.processingQueue.length;
-    this.processingQueue = this.processingQueue.filter(token => 
-      token.stage === 'twitter' || token.twitterTimestamp
-    );
+    
+    // Create a set of tokens that were in the current batch for quick lookup
+    const batchTokenKeys = new Set();
+    allTokens.forEach(token => {
+      if (token.contractAddress) {
+        batchTokenKeys.add(token.contractAddress.toLowerCase());
+      } else if (token.symbol) {
+        batchTokenKeys.add(token.symbol.toLowerCase());
+      }
+    });
+    
+    // Filter queue: keep tokens that either:
+    // 1. Completed Twitter stage (have stage === 'twitter' or twitterTimestamp)
+    // 2. Were NOT in the current batch (added during processing, need to be processed later)
+    this.processingQueue = this.processingQueue.filter(token => {
+      // Keep if completed Twitter stage
+      if (token.stage === 'twitter' || token.twitterTimestamp) {
+        return true;
+      }
+      // Keep if not in current batch (was added during processing)
+      const tokenKey = token.contractAddress?.toLowerCase() || token.symbol?.toLowerCase();
+      if (tokenKey && !batchTokenKeys.has(tokenKey)) {
+        return true; // Token was added during processing, keep it for next run
+      }
+      // Remove if was in batch but didn't complete Twitter stage
+      return false;
+    });
+    
     const tokensRemoved = tokensBeforeFilter - this.processingQueue.length;
+    const newlyAddedTokens = this.processingQueue.filter(t => t.stage !== 'twitter' && !t.twitterTimestamp).length;
     
     if (tokensRemoved > 0) {
-      console.log(`🧹 [QUEUE CLEANUP] Removed ${tokensRemoved} tokens from queue (filtered out before Twitter stage)`);
+      console.log(`🧹 [QUEUE CLEANUP] Removed ${tokensRemoved} tokens from queue (didn't complete Twitter stage)`);
+    }
+    if (newlyAddedTokens > 0) {
+      console.log(`🔄 [QUEUE DEBUG] Preserved ${newlyAddedTokens} newly added tokens in queue (will be processed in next run)`);
     }
     
     console.log(`🔍 [QUEUE DEBUG] Twitter stage complete - queue updated`);
     console.log(`🔍 [QUEUE DEBUG] Processing queue size: ${this.processingQueue.length} tokens`);
-    console.log(`🔍 [QUEUE DEBUG] Tokens with stage 'twitter': ${this.processingQueue.filter(t => t.stage === 'twitter').length}`);
-    console.log(`🔍 [QUEUE DEBUG] Tokens ready for scoring stage: ${this.processingQueue.length}`);
+    console.log(`🔍 [QUEUE DEBUG] Tokens with stage 'twitter' (ready for scoring): ${this.processingQueue.filter(t => t.stage === 'twitter').length}`);
+    console.log(`🔍 [QUEUE DEBUG] Newly added tokens (not yet processed): ${newlyAddedTokens}`);
     
-    // Tokens remain in queue for scoring stage - they will be removed after saving to database
+    // Tokens remain in queue for scoring stage - newly added tokens will be processed after current run completes
     
   }
 

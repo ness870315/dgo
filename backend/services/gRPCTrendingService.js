@@ -1057,9 +1057,18 @@ class gRPCTrendingService {
                 
                 // 🚨 CRITICAL: Check if there are more tokens in queue after processing completes
                 // This handles the case where tokens were added while processing was running
+                // Wait a moment to ensure isProcessing flag is reset
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
                 if (this.enhancedTokenProcessor.processingQueue.length > 0 && !this.enhancedTokenProcessor.isProcessing) {
                     const queuedCount = this.enhancedTokenProcessor.processingQueue.length;
+                    const queuedTokensInfo = this.enhancedTokenProcessor.processingQueue.map(t => ({
+                        symbol: t.symbol,
+                        contract: t.contractAddress?.substring(0, 8),
+                        stage: t.stage || 'none'
+                    }));
                     console.log(`🔄 [gRPCTrending] Found ${queuedCount} tokens still in queue, processing them now...`);
+                    console.log(`   Queued tokens: ${queuedTokensInfo.slice(0, 5).map(t => `${t.symbol}(${t.contract}...)[${t.stage}]`).join(', ')}${queuedCount > 5 ? '...' : ''}`);
                     
                     // Process remaining tokens in queue directly (they're already in the queue)
                     // Set isProcessing flag to prevent early exit in stages
