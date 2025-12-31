@@ -1817,10 +1817,10 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // 🚨 TRADE-GRADE FIX: Only filter TRULY invalid swaps (NaN, Infinity, negative, zero)
-          // DO NOT filter based on price volatility - that's normal in crypto markets!
+          // 🚨 TRADE-GRADE FIX: Show ALL swaps, but use smoothed prices for display to prevent spikes
+          // DO NOT filter swaps based on price volatility - that's normal in crypto markets!
           // Users need to see ALL swaps to make informed trading decisions
-          let validatedPrice = swap.priceUsd;
+          // BUT use median prices for currentPrice/marketCap to prevent wild spikes
           
           // Only reject if price is truly invalid (NaN, Infinity, negative, or zero)
           if (!swap.priceUsd || !isFinite(swap.priceUsd) || swap.priceUsd <= 0) {
@@ -1828,11 +1828,7 @@ export default class DexScreenerStyleMonitor {
             return; // Only skip truly invalid prices
           }
           
-          // Price is valid - use it directly (no median filtering for display)
-          // Update tracking for metrics, but display the actual swap price
-          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
-          
-          // Helper function to calculate median (for tracking only, not filtering)
+          // Helper function to calculate median (for smoothing prices)
           const calculateMedian = (arr) => {
             if (arr.length === 0) return 0;
             const sorted = [...arr].sort((a, b) => a - b);
@@ -1842,20 +1838,31 @@ export default class DexScreenerStyleMonitor {
               : sorted[mid];
           };
           
-          // Track recent prices for metrics (but don't filter swaps based on this)
+          // Track recent prices for smoothing (prevent spikes)
+          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           tokenData.recentValidPrices.push(swap.priceUsd);
           if (tokenData.recentValidPrices.length > tokenData.maxRecentPrices) {
             tokenData.recentValidPrices.shift(); // Remove oldest
           }
           
-          // Update lastPriceUSD with median for metrics (but display actual swap price)
-          const newMedian = calculateMedian(tokenData.recentValidPrices);
-          tokenData.lastPriceUSD = newMedian;
+          // Calculate smoothed median price (for display/metrics to prevent spikes)
+          const smoothedPrice = tokenData.recentValidPrices.length >= 3
+            ? calculateMedian(tokenData.recentValidPrices)
+            : (previousPrice > 0 ? previousPrice : swap.priceUsd);
+          
+          // Update lastPriceUSD with smoothed median (prevents price spikes)
+          tokenData.lastPriceUSD = smoothedPrice;
           tokenData.lastPriceUpdate = Date.now();
           
-          // 🚨 CRITICAL: Use ACTUAL swap price for display, not median
-          // Users need to see real market activity, not smoothed prices
-          validatedPrice = swap.priceUsd;
+          // 🚨 CRITICAL: Store ACTUAL swap price in swap record (for swap table display)
+          // But use SMOOTHED price for currentPrice/marketCap calculations (prevents spikes)
+          // This way: users see all swaps with actual prices, but display prices are stable
+          const actualSwapPrice = swap.priceUsd; // Keep actual price for swap record
+          const validatedPrice = smoothedPrice; // Use smoothed price for metrics
+          
+          // Update swap object with actual price (will be stored in swap record)
+          swap.priceUsd = actualSwapPrice; // Keep actual price in swap record
+          swap.smoothedPriceUsd = validatedPrice; // Also store smoothed price for reference
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
           this.updateReservesFromSwap(poolData, swap);
