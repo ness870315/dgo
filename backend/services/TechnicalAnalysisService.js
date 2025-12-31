@@ -487,6 +487,169 @@ class TechnicalAnalysisService {
   }
 
   /**
+   * Format analysis as readable text (like Trending AI report)
+   */
+  formatAsText(analysis) {
+    const t = analysis.token;
+    const i = analysis.technical_indicators;
+    const s = analysis.trading_strategy;
+    const sr = analysis.support_resistance;
+    
+    let text = '';
+    
+    // Header
+    text += `================================================================================\n`;
+    text += `📊 TECHNICAL ANALYSIS REPORT - DEGEN ORACLE\n`;
+    text += `================================================================================\n\n`;
+    
+    // Token Info
+    text += `🪙 TOKEN: ${t.name} (${t.symbol})\n`;
+    text += `💰 Price: $${t.price.toFixed(6)}\n`;
+    text += `📈 Market Cap: $${t.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
+    text += `💧 24h Volume: $${t.volume24h.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
+    text += `📍 Contract: ${t.address}\n\n`;
+    
+    // Oracle Verdict (Most Important!)
+    text += `================================================================================\n`;
+    text += `🎭 ORACLE VERDICT ${s.oracle_verdict.emoji}\n`;
+    text += `================================================================================\n`;
+    text += `${s.oracle_verdict.summary}\n\n`;
+    text += `📊 Signal: ${s.signal} (${(s.confidence * 100).toFixed(0)}% confidence)\n`;
+    text += `🎯 Action: ${s.oracle_verdict.action}\n`;
+    text += `📦 Position Size: ${s.oracle_verdict.position_size}\n`;
+    text += `⏱️  Timeframe: ${s.oracle_verdict.timeframe}\n\n`;
+    
+    // Key Insight
+    text += `💡 ${s.ai_summary.one_liner}\n\n`;
+    
+    // Technical Indicators
+    text += `================================================================================\n`;
+    text += `📈 TECHNICAL INDICATORS\n`;
+    text += `================================================================================\n`;
+    text += `📊 RSI (14): ${i.rsi.value?.toFixed(2) || 'N/A'} - ${i.rsi.signal.toUpperCase()}\n`;
+    text += `   ${i.rsi.interpretation}\n\n`;
+    
+    text += `📉 MACD: ${i.macd.value?.toFixed(6) || 'N/A'} - ${i.macd.crossover.toUpperCase()}\n`;
+    text += `   ${i.macd.interpretation}\n\n`;
+    
+    text += `📊 Bollinger Bands: ${i.bollinger.position.toUpperCase()}`;
+    if (i.bollinger.squeeze) {
+      text += ` ⚠️ SQUEEZE DETECTED!\n`;
+    } else {
+      text += `\n`;
+    }
+    text += `   ${i.bollinger.interpretation}\n\n`;
+    
+    text += `📈 EMAs: ${i.ema.trend.toUpperCase()} alignment\n`;
+    text += `   9 EMA: $${i.ema.ema_9.toFixed(6)} | 21 EMA: $${i.ema.ema_21.toFixed(6)} | 50 EMA: $${i.ema.ema_50.toFixed(6)}\n`;
+    text += `   ${i.ema.interpretation}\n\n`;
+    
+    text += `📊 Volume: ${i.volume.spike ? '🔥 SPIKE!' : 'Normal'} (${i.volume.ratio.toFixed(2)}x average)\n`;
+    text += `   Current: ${i.volume.current.toLocaleString()} | Avg: ${i.volume.avg_20.toLocaleString()}\n`;
+    text += `   ${i.volume.interpretation}\n\n`;
+    
+    // Support & Resistance
+    text += `================================================================================\n`;
+    text += `🎯 SUPPORT & RESISTANCE LEVELS\n`;
+    text += `================================================================================\n`;
+    
+    if (sr.strong_resistance && sr.strong_resistance.length > 0) {
+      text += `🔴 Strong Resistance:\n`;
+      sr.strong_resistance.forEach(r => {
+        text += `   $${r.toFixed(6)} (+${(((r / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
+      });
+      text += `\n`;
+    }
+    
+    if (sr.resistance && sr.resistance.length > 0) {
+      text += `🟠 Resistance:\n`;
+      sr.resistance.forEach(r => {
+        text += `   $${r.toFixed(6)} (+${(((r / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
+      });
+      text += `\n`;
+    }
+    
+    text += `🎯 Current Price: $${sr.current_price.toFixed(6)}\n\n`;
+    
+    if (sr.support && sr.support.length > 0) {
+      text += `🟢 Support:\n`;
+      sr.support.forEach(s => {
+        text += `   $${s.toFixed(6)} (${(((s / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
+      });
+      text += `\n`;
+    }
+    
+    if (sr.strong_support && sr.strong_support.length > 0) {
+      text += `🟩 Strong Support:\n`;
+      sr.strong_support.forEach(s => {
+        text += `   $${s.toFixed(6)} (${(((s / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
+      });
+      text += `\n`;
+    }
+    
+    // Trading Strategy
+    text += `================================================================================\n`;
+    text += `💰 TRADING STRATEGY\n`;
+    text += `================================================================================\n`;
+    text += `${s.reasoning}\n\n`;
+    
+    text += `📊 ENTRY STRATEGY:\n`;
+    text += `   🔴 Aggressive Entry: $${s.entry_strategy.aggressive_entry.price.toFixed(6)}\n`;
+    text += `      Size: ${s.entry_strategy.aggressive_entry.size}\n`;
+    text += `      ${s.entry_strategy.aggressive_entry.reasoning}\n\n`;
+    
+    text += `   🟢 Conservative Entry: $${s.entry_strategy.conservative_entry.price.toFixed(6)}\n`;
+    text += `      Size: ${s.entry_strategy.conservative_entry.size}\n`;
+    text += `      ${s.entry_strategy.conservative_entry.reasoning}\n\n`;
+    
+    text += `🛡️ EXIT STRATEGY:\n`;
+    text += `   🛑 Stop Loss: $${s.exit_strategy.stop_loss.price.toFixed(6)} (${s.exit_strategy.stop_loss.percentage}%)\n`;
+    text += `      ${s.exit_strategy.stop_loss.reasoning}\n\n`;
+    
+    text += `   🎯 Take Profit Levels:\n`;
+    s.exit_strategy.take_profit_levels.forEach(tp => {
+      text += `      ${tp.level}: $${tp.price.toFixed(6)} (+${tp.percentage}%) - ${tp.action}\n`;
+      text += `         ${tp.reasoning}\n`;
+    });
+    text += `\n`;
+    
+    text += `   ⚖️  Risk/Reward: ${s.risk_reward.ratio}\n`;
+    text += `      ${s.risk_reward.verdict}\n\n`;
+    
+    // Key Catalysts
+    text += `================================================================================\n`;
+    text += `🔑 KEY CATALYSTS\n`;
+    text += `================================================================================\n`;
+    s.ai_summary.key_catalysts.forEach(catalyst => {
+      text += `✅ ${catalyst}\n`;
+    });
+    text += `\n`;
+    
+    // Risks
+    text += `================================================================================\n`;
+    text += `⚠️ RISKS TO CONSIDER\n`;
+    text += `================================================================================\n`;
+    s.ai_summary.risks.forEach(risk => {
+      text += `❌ ${risk}\n`;
+    });
+    text += `\n`;
+    
+    // Detailed Analysis
+    text += `================================================================================\n`;
+    text += `📝 DETAILED ANALYSIS\n`;
+    text += `================================================================================\n`;
+    text += `${s.ai_summary.detailed_analysis}\n\n`;
+    
+    // Footer
+    text += `================================================================================\n`;
+    text += `🕒 Generated: ${new Date(analysis.generated_at).toLocaleString()}\n`;
+    text += `🔗 Degen Oracle - ai.degen-oracle.com\n`;
+    text += `================================================================================\n`;
+    
+    return text;
+  }
+
+  /**
    * Generate mock analysis (fallback)
    */
   generateMockAnalysis(data, currentPrice) {

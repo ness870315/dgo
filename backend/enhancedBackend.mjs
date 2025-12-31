@@ -2046,18 +2046,19 @@ class EnhancedBackend {
     // GET endpoint so you can test directly in browser!
     this.app.get('/api/technical-analysis/analyze', async (req, res) => {
       try {
-        const { contract, timeframe = '1h', depth = 'standard' } = req.query;
+        const { contract, timeframe = '1h', depth = 'standard', format = 'json' } = req.query;
         
         console.log(`\n📊 [TA API] Technical Analysis Request`);
         console.log(`   Contract: ${contract?.substring(0, 8)}...`);
         console.log(`   Timeframe: ${timeframe}`);
         console.log(`   Depth: ${depth}`);
+        console.log(`   Format: ${format}`);
         
         if (!contract) {
           return res.status(400).json({
             success: false,
             error: 'Missing contract address',
-            usage: 'GET /api/technical-analysis/analyze?contract=YOUR_TOKEN_ADDRESS'
+            usage: 'GET /api/technical-analysis/analyze?contract=YOUR_TOKEN_ADDRESS&format=text'
           });
         }
         
@@ -2075,7 +2076,15 @@ class EnhancedBackend {
         );
         
         console.log(`✅ [TA API] Analysis complete for ${contract.substring(0, 8)}`);
-        res.json(analysis);
+        
+        // Return formatted text if requested
+        if (format === 'text') {
+          const formattedText = this.technicalAnalysisService.formatAsText(analysis);
+          res.set('Content-Type', 'text/plain; charset=utf-8');
+          res.send(formattedText);
+        } else {
+          res.json(analysis);
+        }
         
       } catch (error) {
         console.error(`❌ [TA API] Error:`, error.message);
