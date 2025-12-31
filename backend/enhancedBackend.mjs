@@ -16201,42 +16201,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       console.log(`[🛡️ Enhanced Backend] 📊 Tokens by stage:`, stageCount);
 
-      // Filter only completed tokens
+      // 🚨 CRITICAL FIX: Return ALL tokens, not just completed ones
+      // Filtering to only 'completed' tokens causes tokens to disappear from API
+      // Tokens may be in various stages (jupiter, twitter, scoring) and should still be visible
       const completedTokens = tokens.filter(t => t.stage === 'completed');
-      console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
-
-      // 🔧 FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
-      if (completedTokens.length === 0) {
-        const jupiterTokens = tokens.filter(t => t.stage === 'jupiter' && t.contractAddress && t.symbol);
-        console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
-        
-        if (jupiterTokens.length > 0) {
-          // Don't start processing automatically on restart - let manual triggers handle it
-          console.log('[🛡️ Enhanced Backend] 📊 Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
-          
-          // Return Jupiter tokens with minimal processing
-          return jupiterTokens.map(token => ({
-            ...token,
-            // Ensure basic fields are present
-            price: token.jupiterData?.price || token.price || 0,
-            marketCap: token.jupiterData?.mcap || token.marketCap || 0,
-            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : 0,
-            score: token.score || token.overallScore || 5.0,
-            // Mark as fallback data
-            _fallbackData: true,
-            _dataSource: 'jupiter-discovery'
-          }));
-        }
-        
-        // No tokens at all - only start processing if this is truly a fresh start
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
+      const nonCompletedTokens = tokens.filter(t => t.stage !== 'completed' && t.stage !== undefined);
+      console.log(`[🛡️ Enhanced Backend] 📊 Tokens loaded: ${tokens.length} total`);
+      console.log(`   - ${completedTokens.length} completed`);
+      console.log(`   - ${nonCompletedTokens.length} in progress (jupiter/twitter/scoring)`);
+      
+      // 🔧 FALLBACK: If no tokens at all, return empty array
+      if (tokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
+        this.tokensCache.data = [];
+        this.tokensCache.timestamp = Date.now();
+        return [];
       }
 
-      // ✅ UPDATE MEMORY CACHE
-      this.tokensCache.data = completedTokens;
+      // ✅ UPDATE MEMORY CACHE with ALL tokens
+      this.tokensCache.data = tokens;
       this.tokensCache.timestamp = Date.now();
       
-      return completedTokens;
+      // Return ALL tokens - let frontend/API handle filtering if needed
+      return tokens;
 
     } catch (error) {
       console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
@@ -18620,17 +18607,22 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       const tokens = JSON.parse(cacheData);
       
-      // Filter tokens that have a pool address (for monitoring)
-      // Prioritize tokens with stage === 'completed', but also include tokens with pool addresses
+      // 🚨 CRITICAL FIX: Load ALL tokens from cache, don't filter on startup
+      // Filtering should only happen when onboarding to DexScreener monitor, not when loading cache
+      // This prevents tokens from disappearing after backend restarts
+      const completedCount = tokens.filter(t => t.stage === 'completed').length;
       const tokensWithPools = tokens.filter(token => {
         const hasPool = token.poolAddress || token.graduatedPool || token.jupiterData?.graduatedPool;
-        return hasPool || token.stage === 'completed';
-      });
+        return hasPool;
+      }).length;
       
-      const completedCount = tokens.filter(t => t.stage === 'completed').length;
-      console.log(`📊 [Backend] Found ${tokens.length} total tokens, ${completedCount} completed, ${tokensWithPools.length} with pools`);
+      console.log(`📊 [Backend] Loaded ${tokens.length} total tokens from cache`);
+      console.log(`   - ${completedCount} completed`);
+      console.log(`   - ${tokensWithPools} with pools`);
+      console.log(`   - ${tokens.length - tokensWithPools} without pools (will be onboarded if pool found)`);
       
-      return tokensWithPools;
+      // Return ALL tokens - filtering happens later during onboarding
+      return tokens;
       
     } catch (error) {
       console.error('❌ [Backend] Failed to load token cache:', error.message);
