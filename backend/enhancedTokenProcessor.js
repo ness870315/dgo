@@ -830,13 +830,17 @@ class EnhancedTokenProcessor {
       const totalBatches = Math.ceil(allTokens.length / batchSize);
       
       console.log(`🔄 Processing Twitter batch ${batchNumber}/${totalBatches}: ${tokens.length} tokens (${i + 1}-${i + tokens.length})`);
+      console.log(`🔍 [TWITTER DEBUG] isProcessing: ${this.isProcessing}, tokens in batch: ${tokens.length}`);
       
       try {
         let batchProcessed = 0;
         let batchSkipped = 0;
         
         for (let j = 0; j < tokens.length; j++) {
-          if (!this.isProcessing) break;
+          if (!this.isProcessing) {
+            console.log(`⚠️ [TWITTER DEBUG] Breaking loop - isProcessing is false (processed: ${batchProcessed}, skipped: ${batchSkipped})`);
+            break;
+          }
           
           const token = tokens[j];
           const symbol = token.symbol;

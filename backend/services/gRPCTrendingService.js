@@ -109,11 +109,11 @@ class gRPCTrendingService {
 
         try {
             // Create client directly (same as DexScreenerStyleMonitor) instead of using GrpcWrapper
-            const { createRequire } = await import('module');
-            const require = createRequire(import.meta.url);
+                const { createRequire } = await import('module');
+                const require = createRequire(import.meta.url);
             const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
             const Client = YellowstoneGrpc.default || YellowstoneGrpc;
-            
+
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
             this.grpcInitialized = true;
             
@@ -954,22 +954,30 @@ class gRPCTrendingService {
             if (!this.enhancedTokenProcessor.isProcessing) {
                 console.log(`🚀 [gRPCTrending] Starting EnhancedTokenProcessor workflow...`);
                 
-                // Store the contract addresses of tokens we're processing to track them
+                // Store the contract addresses of tokens we're processing to track them (before try block for scope)
                 const processingContracts = new Set(newTokens.map(t => t.contractAddress.toLowerCase()));
                 const processingContractsArray = Array.from(processingContracts);
                 
                 // Get count of tokens in database before processing
                 const tokensBeforeSave = (this.enhancedTokenProcessor.processedTokens || []).length;
                 
-                // Run through Jupiter → Twitter → Scoring → Saving stages
-                console.log(`🔄 [gRPCTrending] Running Jupiter stage...`);
-                await this.enhancedTokenProcessor.processJupiterStage();
-                console.log(`🔄 [gRPCTrending] Running Twitter stage...`);
-                await this.enhancedTokenProcessor.processTwitterStage();
-                console.log(`🔄 [gRPCTrending] Running Scoring stage...`);
-                await this.enhancedTokenProcessor.processScoringStage();
-                console.log(`🔄 [gRPCTrending] Running Save to Database stage...`);
-                await this.enhancedTokenProcessor.saveFinalDatabase();
+                // 🚨 CRITICAL: Set isProcessing flag to prevent early exit in stages
+                this.enhancedTokenProcessor.isProcessing = true;
+                
+                try {
+                    // Run through Jupiter → Twitter → Scoring → Saving stages
+                    console.log(`🔄 [gRPCTrending] Running Jupiter stage...`);
+                    await this.enhancedTokenProcessor.processJupiterStage();
+                    console.log(`🔄 [gRPCTrending] Running Twitter stage...`);
+                    await this.enhancedTokenProcessor.processTwitterStage();
+                    console.log(`🔄 [gRPCTrending] Running Scoring stage...`);
+                    await this.enhancedTokenProcessor.processScoringStage();
+                    console.log(`🔄 [gRPCTrending] Running Save to Database stage...`);
+                    await this.enhancedTokenProcessor.saveFinalDatabase();
+                } finally {
+                    // Always reset isProcessing flag
+                    this.enhancedTokenProcessor.isProcessing = false;
+                }
                 
                 // Wait a moment for database write to complete
                 await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
@@ -1125,7 +1133,7 @@ class gRPCTrendingService {
                 await fs.mkdir(this.cacheDir, { recursive: true });
                 
                 // Write temp file
-                await fs.writeFile(tempPath, jsonData, 'utf8');
+            await fs.writeFile(tempPath, jsonData, 'utf8');
                 console.log(`✅ [gRPCTrending] Temp file written: ${tempPath}`);
                 
                 // 🚨 VERIFY: Read back temp file to ensure it was written correctly
@@ -1145,7 +1153,7 @@ class gRPCTrendingService {
                 }
                 
                 // 🚨 ATOMIC RENAME: Only rename after successful write and verification
-                await fs.rename(tempPath, cachePath);
+            await fs.rename(tempPath, cachePath);
                 console.log(`💾 [gRPCTrending] Saved ${newTokens.length} new tokens to cache (total: ${finalTokens.length}) - atomic write`);
                 
                 // Cleanup backup after successful write (optional - can keep for safety)
@@ -1223,6 +1231,12 @@ class gRPCTrendingService {
         this.continuousInterval = setInterval(async () => {
             if (!this.continuousMode) {
                 clearInterval(this.continuousInterval);
+                return;
+            }
+
+            // 🚨 CRITICAL: Don't start a new cycle if processor is still running
+            if (this.enhancedTokenProcessor && this.enhancedTokenProcessor.isProcessing) {
+                console.log(`⏸️ [gRPCTrending] Skipping discovery cycle - processor is still running (queue: ${this.enhancedTokenProcessor.processingQueue.length} tokens)`);
                 return;
             }
 
