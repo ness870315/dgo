@@ -2386,28 +2386,6 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // 🚨 DEX-GRADE FIX: Use pool reserves price (most accurate) instead of smoothed median
-      // Pool reserves reflect actual pool state, not individual swap prices
-      // Calculate price from reserves after swap (most accurate method)
-      let currentPriceAfterSwap = 0;
-      const reserves = this.poolReserves.get(poolData.poolAddress);
-      if (reserves && reserves.tokenReserve > 0 && reserves.quoteReserve > 0) {
-        // Calculate price from reserves (most accurate)
-        const priceInQuote = reserves.quoteReserve / reserves.tokenReserve;
-        if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
-          currentPriceAfterSwap = priceInQuote * this.solPriceUSD;
-        } else {
-          currentPriceAfterSwap = priceInQuote;
-        }
-        // Update poolData.price and lastPriceUSD with accurate reserve-based price
-        poolData.price = priceInQuote;
-        tokenData.lastPriceUSD = currentPriceAfterSwap;
-        tokenData.lastPriceUpdate = Date.now();
-      } else {
-        // Fallback: Use swap price if reserves not available yet
-        currentPriceAfterSwap = swap.priceUsd || tokenData.lastPriceUSD || 0;
-      }
-      
       // Calculate current market cap after swap (using validated price)
       // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
       let currentMarketCap = 0;
