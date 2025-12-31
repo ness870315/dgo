@@ -92,7 +92,7 @@ class TechnicalAnalysisService {
           console.log(`🤖 [TA] Generating AI analysis with Grok...`);
           aiAnalysis = await this.generateAIAnalysis(analysisData);
           console.log(`✅ [TA] Grok analysis complete`);
-        } catch (error) {
+    } catch (error) {
           console.log(`⚠️  [TA] Grok failed (${error.message}), using mock analysis`);
           aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
         }
@@ -212,7 +212,17 @@ Provide specific details with dates, percentages, and sources where possible.`;
     try {
       console.log(`🔍 [TA] Searching Perplexity for ${tokenName} news, sentiment & TA...`);
 
-      const query = `Search for the latest information about the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${timeframe === '1h' ? '24 hours' : timeframe === '4h' ? '3 days' : '7 days'}. Include:
+      // Map timeframe to search window
+      const timeWindowMap = {
+        '5m': '2 hours',
+        '15m': '6 hours',
+        '1h': '24 hours',
+        '4h': '3 days',
+        '1d': '7 days'
+      };
+      const searchWindow = timeWindowMap[timeframe] || '7 days';
+      
+      const query = `Search for the latest information about the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${searchWindow}. Include:
 
 **TECHNICAL ANALYSIS & CHART PATTERNS:**
 - Current technical analysis from traders and analysts
