@@ -1817,13 +1817,22 @@ export default class DexScreenerStyleMonitor {
             console.log(`✅ [DexScreenerStyleMonitor] Swap #${this.globalStats.totalSwapsDetected} detected: ${tokenData.config?.name || mint.substring(0, 8)} (${swap.type}) - $${swap.volumeUsd?.toFixed(2) || 'N/A'}`);
           }
           
-          // 🚨 CRITICAL FIX: Use rolling median of recent valid prices for stability
-          // This prevents wild price swings from individual bad swaps
-          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+          // 🚨 TRADE-GRADE FIX: Only filter TRULY invalid swaps (NaN, Infinity, negative, zero)
+          // DO NOT filter based on price volatility - that's normal in crypto markets!
+          // Users need to see ALL swaps to make informed trading decisions
           let validatedPrice = swap.priceUsd;
-          let priceRejected = false;
           
-          // Helper function to calculate median
+          // Only reject if price is truly invalid (NaN, Infinity, negative, or zero)
+          if (!swap.priceUsd || !isFinite(swap.priceUsd) || swap.priceUsd <= 0) {
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: truly invalid price (${swap.priceUsd}) - SKIPPING DISPLAY`);
+            return; // Only skip truly invalid prices
+          }
+          
+          // Price is valid - use it directly (no median filtering for display)
+          // Update tracking for metrics, but display the actual swap price
+          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+          
+          // Helper function to calculate median (for tracking only, not filtering)
           const calculateMedian = (arr) => {
             if (arr.length === 0) return 0;
             const sorted = [...arr].sort((a, b) => a - b);
@@ -1833,54 +1842,20 @@ export default class DexScreenerStyleMonitor {
               : sorted[mid];
           };
           
-          if (swap.priceUsd && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
-            // Validate price is reasonable (not too small, not too large)
-            const isValidPrice = swap.priceUsd >= 0.0000001 && swap.priceUsd <= 1000;
-            
-            if (isValidPrice) {
-              // Get median of recent valid prices (if we have enough history)
-              const recentMedian = tokenData.recentValidPrices.length >= 3 
-                ? calculateMedian(tokenData.recentValidPrices) 
-                : previousPrice;
-              
-              // Use median as reference price (more stable than last price)
-              const referencePrice = recentMedian > 0 ? recentMedian : previousPrice;
-              
-              if (referencePrice > 0) {
-                // 🚨 CRITICAL: Check if price change is reasonable (not more than 2x jump from median)
-                // Using 2x instead of 3x for tighter control
-                const priceRatio = swap.priceUsd / referencePrice;
-                if (priceRatio > 2.0 || priceRatio < 0.5) {
-                  // Price jump is too large - reject this swap entirely
-                  console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: price $${swap.priceUsd.toFixed(6)} (median: $${referencePrice.toFixed(6)}, ratio: ${priceRatio.toFixed(2)}x) - SKIPPING DISPLAY`);
-                  return; // Skip this swap entirely - don't display it
-                }
-              }
-              
-              // Price is valid - add to recent prices and update
-              tokenData.recentValidPrices.push(swap.priceUsd);
-              if (tokenData.recentValidPrices.length > tokenData.maxRecentPrices) {
-                tokenData.recentValidPrices.shift(); // Remove oldest
-              }
-              
-              // Update lastPriceUSD with median (more stable than individual swap price)
-              const newMedian = calculateMedian(tokenData.recentValidPrices);
-              tokenData.lastPriceUSD = newMedian;
-              tokenData.lastPriceUpdate = Date.now();
-              validatedPrice = newMedian; // Use median for display
-            } else {
-              // Price is outside reasonable range - reject swap entirely
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: invalid price $${swap.priceUsd.toFixed(6)} (outside range) - SKIPPING DISPLAY`);
-              return; // Skip this swap entirely
-            }
-          } else {
-            // Invalid price - reject swap entirely
-            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: invalid price data - SKIPPING DISPLAY`);
-            return; // Skip this swap entirely
+          // Track recent prices for metrics (but don't filter swaps based on this)
+          tokenData.recentValidPrices.push(swap.priceUsd);
+          if (tokenData.recentValidPrices.length > tokenData.maxRecentPrices) {
+            tokenData.recentValidPrices.shift(); // Remove oldest
           }
           
-          // 🚨 CRITICAL: Update swap.priceUsd with validated median price before displaying
-          swap.priceUsd = validatedPrice;
+          // Update lastPriceUSD with median for metrics (but display actual swap price)
+          const newMedian = calculateMedian(tokenData.recentValidPrices);
+          tokenData.lastPriceUSD = newMedian;
+          tokenData.lastPriceUpdate = Date.now();
+          
+          // 🚨 CRITICAL: Use ACTUAL swap price for display, not median
+          // Users need to see real market activity, not smoothed prices
+          validatedPrice = swap.priceUsd;
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
           this.updateReservesFromSwap(poolData, swap);
