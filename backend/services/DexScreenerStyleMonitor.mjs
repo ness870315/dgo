@@ -1821,8 +1821,10 @@ export default class DexScreenerStyleMonitor {
           
           // Filter 1: Price Outlier Filter (rejects multi-hop internal legs)
           // If price is >10x or <0.1x the expected price, it's likely a multi-hop leg or sandwich bot
-          // CRITICAL: Only use lastPriceUSD (recent), NOT Jupiter's stale price
-          const expectedPrice = tokenData.lastPriceUSD || 0;
+          // Priority 1: lastPriceUSD (from recent swaps) - most accurate
+          // Priority 2: Jupiter initial price (ONLY as initial baseline when backend reboots)
+          // Priority 3: No baseline (0) - accept first swap after absolute checks
+          const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           
           // 🚨 ABSOLUTE PRICE SANITY CHECK: Reject obviously invalid prices (< $0.000001 or > $1M)
           // Even if we have no baseline, extremely low prices are always multi-hop legs
@@ -1839,7 +1841,8 @@ export default class DexScreenerStyleMonitor {
             continue; // Skip this swap
           }
           
-          // Relative price check (only if we have a RECENT baseline - don't use Jupiter's stale price)
+          // Relative price check (only if we have a baseline)
+          // Jupiter price is used ONLY as initial baseline (backend reboot), then swaps take over
           if (expectedPrice > 0 && swap.priceUsd) {
             const priceRatio = swap.priceUsd / expectedPrice;
             if (priceRatio > 10 || priceRatio < 0.1) {
