@@ -117,7 +117,7 @@ class TechnicalAnalysisService {
         aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
       }
       
-      // 8. Build final report
+      // 8. Build final report (Perplexity data is used for enrichment only, not displayed)
       const report = {
         success: true,
         token: analysisData.token,
@@ -132,14 +132,9 @@ class TechnicalAnalysisService {
         generated_at: new Date().toISOString()
       };
 
-      // Include Perplexity data if available (for transparency)
-      if (perplexityData && perplexityData.content) {
-        report.market_intelligence = {
-          summary: perplexityData.content.substring(0, 500) + '...', // Truncated for API response
-          sources_count: perplexityData.citations?.length || 0,
-          timestamp: new Date(perplexityData.timestamp).toISOString()
-        };
-      }
+      // Note: Perplexity data is passed to Grok for analysis enrichment
+      // It's not included in the report output to avoid redundancy
+      // The AI-generated analysis (trading_strategy) incorporates Perplexity insights
 
       return report;
 
@@ -1048,15 +1043,9 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     text += `💧 24h Volume: $${t.volume24h.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
     text += `📍 Contract: ${t.address}\n\n`;
     
-    // Market Intelligence (if available)
-    if (analysis.market_intelligence) {
-      text += `================================================================================\n`;
-      text += `🔍 REAL-TIME MARKET INTELLIGENCE\n`;
-      text += `================================================================================\n`;
-      text += `${analysis.market_intelligence.summary}\n`;
-      text += `\n📊 Sources: ${analysis.market_intelligence.sources_count} verified sources\n`;
-      text += `⏰ Updated: ${new Date(analysis.market_intelligence.timestamp).toLocaleString()}\n\n`;
-    }
+    // Note: Market intelligence from Perplexity is used to enrich the AI analysis
+    // It's not displayed separately to avoid redundancy - the insights are incorporated
+    // into the Oracle Verdict, Trading Strategy, and Key Catalysts sections below
     
     // Oracle Verdict (Most Important!)
     text += `================================================================================\n`;
