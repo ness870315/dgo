@@ -22,6 +22,7 @@ class TechnicalAnalysisService {
     this.jupiterEndpoint = JUPITER_API_ENDPOINT;
     this.jupiterApiKey = JUPITER_API_KEY;
     this.grokApiKey = GROK_API_KEY;
+    this.grokEndpoint = 'https://api.x.ai/v1/chat/completions';
     this.perplexityApiKey = PERPLEXITY_API_KEY;
     this.hybridChartService = hybridChartService;
     
@@ -1103,35 +1104,6 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     } else {
       text += `⚠️  No comprehensive technical analysis available\n\n`;
     }
-    
-    // Trading Strategy
-    text += `================================================================================\n`;
-    text += `💰 TRADING STRATEGY\n`;
-    text += `================================================================================\n`;
-    text += `${s.reasoning}\n\n`;
-    
-    text += `📊 ENTRY STRATEGY:\n`;
-    text += `   🔴 Aggressive Entry: $${s.entry_strategy.aggressive_entry.price.toFixed(6)}\n`;
-    text += `      Size: ${s.entry_strategy.aggressive_entry.size}\n`;
-    text += `      ${s.entry_strategy.aggressive_entry.reasoning}\n\n`;
-    
-    text += `   🟢 Conservative Entry: $${s.entry_strategy.conservative_entry.price.toFixed(6)}\n`;
-    text += `      Size: ${s.entry_strategy.conservative_entry.size}\n`;
-    text += `      ${s.entry_strategy.conservative_entry.reasoning}\n\n`;
-    
-    text += `🛡️ EXIT STRATEGY:\n`;
-    text += `   🛑 Stop Loss: $${s.exit_strategy.stop_loss.price.toFixed(6)} (${s.exit_strategy.stop_loss.percentage}%)\n`;
-    text += `      ${s.exit_strategy.stop_loss.reasoning}\n\n`;
-    
-    text += `   🎯 Take Profit Levels:\n`;
-    s.exit_strategy.take_profit_levels.forEach(tp => {
-      text += `      ${tp.level}: $${tp.price.toFixed(6)} (+${tp.percentage}%) - ${tp.action}\n`;
-      text += `         ${tp.reasoning}\n`;
-    });
-    text += `\n`;
-    
-    text += `   ⚖️  Risk/Reward: ${s.risk_reward.ratio}\n`;
-    text += `      ${s.risk_reward.verdict}\n\n`;
     
     // Footer
     text += `\n================================================================================\n`;
