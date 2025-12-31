@@ -984,22 +984,30 @@ class EnhancedTokenProcessor {
     
     console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (5-day rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
     
-    // 🚨 CRITICAL FIX: Update processing queue to remove processed tokens
-    // Mark all processed tokens as completed and remove them from queue
-    const processedTokens = allTokens.filter(token => {
-      // Keep tokens that have been processed through Twitter stage
-      return token.stage === 'twitter' || token.twitterTimestamp;
-    });
+    // 🚨 CRITICAL FIX: Update processing queue to only keep tokens that completed Twitter stage
+    // allTokens contains the filtered tokens that were processed (excluding suspicious/rugged/major)
+    // Since allTokens are object references to tokens in this.processingQueue, updating token.stage
+    // in allTokens also updates the tokens in the queue. However, we need to remove tokens that
+    // were filtered out (suspicious/rugged/major) and never processed.
     
-    // 🚨 CRITICAL BUG FIX: DO NOT remove Twitter-processed tokens from processing queue!
-    // The scoring stage needs tokens with stage === 'twitter' to be IN the processing queue
-    // Removing them here prevents them from being scored and saved!
+    // Keep only tokens that completed Twitter stage (have stage === 'twitter')
+    // This removes tokens that were filtered out before Twitter processing
+    const tokensBeforeFilter = this.processingQueue.length;
+    this.processingQueue = this.processingQueue.filter(token => 
+      token.stage === 'twitter' || token.twitterTimestamp
+    );
+    const tokensRemoved = tokensBeforeFilter - this.processingQueue.length;
     
-    console.log(`🔍 [QUEUE DEBUG] Twitter-processed tokens should remain in processing queue for scoring stage`);
+    if (tokensRemoved > 0) {
+      console.log(`🧹 [QUEUE CLEANUP] Removed ${tokensRemoved} tokens from queue (filtered out before Twitter stage)`);
+    }
+    
+    console.log(`🔍 [QUEUE DEBUG] Twitter stage complete - queue updated`);
     console.log(`🔍 [QUEUE DEBUG] Processing queue size: ${this.processingQueue.length} tokens`);
     console.log(`🔍 [QUEUE DEBUG] Tokens with stage 'twitter': ${this.processingQueue.filter(t => t.stage === 'twitter').length}`);
+    console.log(`🔍 [QUEUE DEBUG] Tokens ready for scoring stage: ${this.processingQueue.length}`);
     
-    // DO NOT REMOVE TOKENS FROM PROCESSING QUEUE - they need to be scored and saved!
+    // Tokens remain in queue for scoring stage - they will be removed after saving to database
     
   }
 
