@@ -2609,56 +2609,72 @@ export default class DexScreenerStyleMonitor {
     const now = Date.now();
     const poolData = this.pools.get(mint);
 
-    // Calculate USD price - CRITICAL: Use live swap data, NOT stale Jupiter baseline
-    // Priority 1: Use last swap.priceUSD (most accurate, from actual transaction)
-    // Priority 2: Use most recent swap from history (if lastPriceUSD not set)
-    // Priority 3: Use pool price (live from reserves)
-    // Priority 4: Jupiter baseline ONLY if no swap data exists (cold start)
+    // 🚨 DEX-GRADE FIX: Use pool reserves as PRIMARY source (most accurate)
+    // Priority 1: poolData.price (calculated from live reserves - most accurate)
+    // Priority 2: Calculate from pool reserves directly if price not set
+    // Priority 3: Use lastPriceUSD (from swaps) as fallback
+    // Priority 4: Jupiter baseline ONLY for cold start
     let currentPriceUSD = 0;
     let priceSource = 'none';
     
-    // CRITICAL: Match test behavior - use swap.priceUSD directly instead of calculating from poolData.price
-    // The test file stores swap.priceUSD in currentPrices Map and uses it directly
-    // This is more accurate because it comes from the actual transaction, not from reserve calculations
-    if (tokenData.lastPriceUSD && tokenData.lastPriceUSD > 0) {
+    // PRIORITY 1: Use pool reserves (most accurate - reflects actual pool state)
+    if (poolData && poolData.price && poolData.price > 0) {
+      // Pool price is in quote token per token (SOL per token or USD per token)
+      if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
+        // SOL pool: convert to USD
+        currentPriceUSD = poolData.price * this.solPriceUSD;
+        priceSource = 'pool-reserves-sol';
+      } else {
+        // USDC/USDT pool: already in USD
+        currentPriceUSD = poolData.price;
+        priceSource = 'pool-reserves-stable';
+      }
+    } 
+    // PRIORITY 2: Calculate from reserves directly if price not set but reserves are available
+    else if (poolData) {
+      const reserves = this.poolReserves.get(poolData.poolAddress);
+      if (reserves && reserves.tokenReserve > 0 && reserves.quoteReserve > 0) {
+        const priceInQuote = reserves.quoteReserve / reserves.tokenReserve;
+        if (reserves.quoteMint === 'So11111111111111111111111111111111111111112') {
+          currentPriceUSD = priceInQuote * this.solPriceUSD;
+          priceSource = 'pool-reserves-calc-sol';
+        } else {
+          currentPriceUSD = priceInQuote;
+          priceSource = 'pool-reserves-calc-stable';
+        }
+        // Update poolData.price for next time
+        poolData.price = priceInQuote;
+      }
+    }
+    
+    // PRIORITY 3: Fallback to lastPriceUSD (from swaps) if pool reserves not available
+    if (currentPriceUSD === 0 && tokenData.lastPriceUSD && tokenData.lastPriceUSD > 0) {
       currentPriceUSD = tokenData.lastPriceUSD;
-      priceSource = 'swap-price';
-    } else if (tokenData.swaps && tokenData.swaps.length > 0) {
-      // 🚨 CRITICAL FIX: If we have swap history, use the most recent swap price (live data)
-      // Don't fall back to stale Jupiter baseline if we have recent swap data
+      priceSource = 'swap-price-fallback';
+    }
+    // PRIORITY 4: Use most recent swap from history
+    else if (currentPriceUSD === 0 && tokenData.swaps && tokenData.swaps.length > 0) {
       const recentSwaps = tokenData.swaps
         .filter(s => s.priceUSD && s.priceUSD > 0)
         .sort((a, b) => b.timestamp - a.timestamp);
       
       if (recentSwaps.length > 0) {
         currentPriceUSD = recentSwaps[0].priceUSD;
-        priceSource = 'swap-history';
-      } else if (poolData && poolData.price && poolData.price > 0) {
-        // Fallback: Use poolData.price if no valid swap prices in history
-        if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
-          currentPriceUSD = poolData.price * this.solPriceUSD;
-          priceSource = 'pool-sol-fallback';
-        } else {
-          currentPriceUSD = poolData.price;
-          priceSource = 'pool-stable-fallback';
-        }
-      }
-    } else if (poolData && poolData.price && poolData.price > 0) {
-      // Fallback: Use poolData.price if no swap history available yet
-      if (poolData.quoteMint === 'So11111111111111111111111111111111111111112') {
-        currentPriceUSD = poolData.price * this.solPriceUSD;
-        priceSource = 'pool-sol-fallback';
-      } else {
-        currentPriceUSD = poolData.price;
-        priceSource = 'pool-stable-fallback';
+        priceSource = 'swap-history-fallback';
       }
     }
     
-    // 🚨 CRITICAL FIX: Jupiter baseline ONLY for cold start (no swap data exists)
-    // Once we have swap data, we should NEVER use stale Jupiter baseline
-    if (currentPriceUSD === 0 && !tokenData.swaps?.length && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
+    // PRIORITY 5: Jupiter baseline ONLY for cold start (no swap data, no pool data)
+    if (currentPriceUSD === 0 && !tokenData.swaps?.length && !poolData && tokenData.metadata?.usdPrice && tokenData.metadata.usdPrice > 0) {
       currentPriceUSD = tokenData.metadata.usdPrice;
       priceSource = 'jupiter-baseline-cold-start';
+    }
+    
+    // 🚨 CRITICAL: Update lastPriceUSD from pool price (not smoothed median) for consistency
+    // This ensures we always have the most accurate price
+    if (currentPriceUSD > 0 && priceSource.startsWith('pool-reserves')) {
+      tokenData.lastPriceUSD = currentPriceUSD;
+      tokenData.lastPriceUpdate = Date.now();
     }
     
     // Log price source for Lumen and Meteora
