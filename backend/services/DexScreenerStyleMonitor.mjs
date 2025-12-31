@@ -1904,32 +1904,13 @@ export default class DexScreenerStyleMonitor {
               : sorted[mid];
           };
           
-          // Track recent prices for smoothing (prevent spikes)
-          const previousPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
-          tokenData.recentValidPrices.push(swap.priceUsd);
-          if (tokenData.recentValidPrices.length > tokenData.maxRecentPrices) {
-            tokenData.recentValidPrices.shift(); // Remove oldest
-          }
-          
-          // Calculate smoothed median price (for display/metrics to prevent spikes)
-          // 🚨 INCREASED: Require 5 prices (was 3) for more stable smoothing
-          const smoothedPrice = tokenData.recentValidPrices.length >= 5
-            ? calculateMedian(tokenData.recentValidPrices)
-            : (previousPrice > 0 ? previousPrice : swap.priceUsd);
-          
-          // Update lastPriceUSD with smoothed median (prevents price spikes)
-          tokenData.lastPriceUSD = smoothedPrice;
+          // 🚨 CRITICAL: Use ACTUAL swap price (like test-transaction-level-decoding.mjs)
+          // The 3x filter + $1 min volume is enough to prevent bad prices
+          // Median smoothing causes price lag and doesn't help with real volatility
+          tokenData.lastPriceUSD = swap.priceUsd; // Use actual swap price directly
           tokenData.lastPriceUpdate = Date.now();
           
-          // 🚨 CRITICAL: Store ACTUAL swap price in swap record (for swap table display)
-          // But use SMOOTHED price for currentPrice/marketCap calculations (prevents spikes)
-          // This way: users see all swaps with actual prices, but display prices are stable
-          const actualSwapPrice = swap.priceUsd; // Keep actual price for swap record
-          const validatedPrice = smoothedPrice; // Use smoothed price for metrics
-          
-          // Update swap object with actual price (will be stored in swap record)
-          swap.priceUsd = actualSwapPrice; // Keep actual price in swap record
-          swap.smoothedPriceUsd = validatedPrice; // Also store smoothed price for reference
+          // Swap price is already set correctly (no smoothing needed)
           
           // Update reserves from swap deltas (for liquidity calculation, but don't use for price)
           this.updateReservesFromSwap(poolData, swap);
@@ -2384,8 +2365,7 @@ export default class DexScreenerStyleMonitor {
         tokenAmount: swap.tokenAmount || 0,
         baseAmount: swap.baseAmount || 0, // SOL/USDC amount
         price: swap.price || 0, // Price in quote token (SOL/USDC)
-        priceUSD: swap.priceUsd || 0, // ACTUAL swap price in USD (for display in swap table)
-        smoothedPriceUSD: swap.smoothedPriceUsd || swap.priceUsd, // Smoothed price (for reference)
+        priceUSD: swap.priceUsd || 0, // ACTUAL swap price in USD (for display)
         volumeUSD: swap.volumeUsd || 0, // Volume in USD (used by calculateVolume)
         maker: swap.maker || 'Unknown', // Wallet address (used by calculateUniqueMakers)
         signature: swap.signature || 'Unknown',
@@ -2416,7 +2396,7 @@ export default class DexScreenerStyleMonitor {
       // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
       let currentMarketCap = 0;
       const currentSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
-      const currentPriceAfterSwap = tokenData.lastPriceUSD || swap.smoothedPriceUsd || swap.priceUsd || 0;
+      const currentPriceAfterSwap = tokenData.lastPriceUSD || swap.priceUsd || 0;
       
       if (currentSupply > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap) && currentPriceAfterSwap > 0.00000001) {
         currentMarketCap = currentSupply * currentPriceAfterSwap;
