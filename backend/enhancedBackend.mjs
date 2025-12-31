@@ -13786,17 +13786,41 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         // Get real-time data from DexScreener monitor
-        const realTimeData = this.dexScreenerMonitor.getTokenMetrics(contract);
+        let realTimeData = this.dexScreenerMonitor.getTokenMetrics(contract);
+        let tokenData = this.dexScreenerMonitor.tokens.get(contract);
         
-        if (!realTimeData) {
-          return res.status(404).json({
-            success: false,
-            error: 'Token not found in real-time monitoring'
-          });
+        // 🚨 CRITICAL FIX: If token not in monitoring, try to onboard it
+        if (!realTimeData || !tokenData) {
+          console.log(`⚠️ [RealTime] Token ${contract.substring(0, 8)}... not in monitoring, attempting to onboard...`);
+          
+          // Try to load token from cache and onboard it
+          const cachedToken = await this.loadTokenFromCache(contract);
+          if (cachedToken) {
+            try {
+              await this.onboardCachedTokens([cachedToken]);
+              // Retry getting metrics after onboarding
+              realTimeData = this.dexScreenerMonitor.getTokenMetrics(contract);
+              tokenData = this.dexScreenerMonitor.tokens.get(contract);
+              
+              if (realTimeData && tokenData) {
+                console.log(`✅ [RealTime] Successfully onboarded ${contract.substring(0, 8)}... to monitoring`);
+              }
+            } catch (onboardError) {
+              console.error(`❌ [RealTime] Failed to onboard token:`, onboardError.message);
+            }
+          }
+          
+          // If still not found, return 404 (token needs to be in database first)
+          if (!realTimeData || !tokenData) {
+            return res.status(404).json({
+              success: false,
+              error: 'Token not found in real-time monitoring. Token must be in database and have a pool address.',
+              hint: 'Token may need to be discovered by gRPC trending service first'
+            });
+          }
         }
         
         // Get recent swaps from tokenData if available
-        const tokenData = this.dexScreenerMonitor.tokens.get(contract);
         const recentSwaps = tokenData?.swaps || [];
         const swapHistory = recentSwaps.slice(-50); // Last 50 swaps
         

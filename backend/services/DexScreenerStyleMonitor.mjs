@@ -233,8 +233,10 @@ export default class DexScreenerStyleMonitor {
     
     // Start periodic metrics broadcaster (every 5 seconds) to update prices even without swaps
     // This ensures frontend gets live price updates from Jupiter baseline + swap deltas
+    // 🚨 CRITICAL FIX: Broadcast for ALL tokens, not just those with pools
+    // Tokens without pools can still have Jupiter baseline prices
     this.metricsUpdater = setInterval(() => {
-      for (const [mint] of this.pools.entries()) {
+      for (const [mint] of this.tokens.entries()) {
         this.broadcastMetrics(mint);
       }
     }, 5 * 1000); // 5 seconds
