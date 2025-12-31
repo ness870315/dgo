@@ -1829,15 +1829,11 @@ export default class DexScreenerStyleMonitor {
           // 🚨 ABSOLUTE PRICE SANITY CHECK: Reject obviously invalid prices (< $0.000001 or > $1M)
           // Even if we have no baseline, extremely low prices are always multi-hop legs
           if (swap.priceUsd < 0.000001) {
-            if (this.globalStats.totalSwapsDetected <= 10) {
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too low: $${swap.priceUsd.toFixed(10)} - FILTERING OUT (likely multi-hop leg)`);
-            }
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too low: $${swap.priceUsd.toFixed(10)} - FILTERING OUT (likely multi-hop leg)`);
             continue; // Skip this swap
           }
           if (swap.priceUsd > 1000000) {
-            if (this.globalStats.totalSwapsDetected <= 10) {
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too high: $${swap.priceUsd.toFixed(2)} - FILTERING OUT (likely error)`);
-            }
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too high: $${swap.priceUsd.toFixed(2)} - FILTERING OUT (likely error)`);
             continue; // Skip this swap
           }
           
@@ -1849,9 +1845,7 @@ export default class DexScreenerStyleMonitor {
             // Allows 3x upside or 0.33x downside (33% of current price)
             // Prevents wild price swings while allowing natural volatility
             if (priceRatio > 3 || priceRatio < 0.33) {
-              if (this.globalStats.totalSwapsDetected <= 10) {
-                console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price outlier: $${swap.priceUsd.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
-              }
+              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price outlier: $${swap.priceUsd.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
               continue; // Skip this swap
             }
           }
@@ -1860,11 +1854,13 @@ export default class DexScreenerStyleMonitor {
           // 🚨 INCREASED: $1.00 minimum (was $0.50) - more aggressive filtering
           // Real traders rarely make sub-$1 swaps, MEV bots use dust to manipulate price
           if (swap.volumeUsd && swap.volumeUsd < 1.00) {
-            if (this.globalStats.totalSwapsDetected <= 10) {
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap volume too low: $${swap.volumeUsd.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
-            }
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap volume too low: $${swap.volumeUsd.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
             continue; // Skip this swap
           }
+          
+          // 🚨 ACCEPTED SWAP - Log for debugging
+          console.log(`✅ [${tokenData.config?.name || mint.substring(0, 8)}] SWAP ACCEPTED: ${swap.type} $${swap.priceUsd.toFixed(6)} vol=$${swap.volumeUsd.toFixed(2)}`);
+
           
           // Log large swaps for debugging (user reported missing large swaps)
           if (swap.volumeUsd && swap.volumeUsd >= 100) {
