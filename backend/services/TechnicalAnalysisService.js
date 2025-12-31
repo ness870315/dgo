@@ -95,8 +95,8 @@ class TechnicalAnalysisService {
         aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
       }
       
-      // 7. Build final report
-      return {
+      // 8. Build final report
+      const report = {
         success: true,
         token: analysisData.token,
         technical_indicators: indicators,
@@ -104,6 +104,17 @@ class TechnicalAnalysisService {
         trading_strategy: aiAnalysis,
         generated_at: new Date().toISOString()
       };
+
+      // Include Perplexity data if available (for transparency)
+      if (perplexityData) {
+        report.market_intelligence = {
+          summary: perplexityData.news.substring(0, 500) + '...', // Truncated for API response
+          sources_count: perplexityData.citations?.length || 0,
+          timestamp: new Date(perplexityData.timestamp).toISOString()
+        };
+      }
+
+      return report;
 
     } catch (error) {
       console.error(`❌ [TA] Error analyzing token:`, error.message);
@@ -862,6 +873,16 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     text += `📈 Market Cap: $${t.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
     text += `💧 24h Volume: $${t.volume24h.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
     text += `📍 Contract: ${t.address}\n\n`;
+    
+    // Market Intelligence (if available)
+    if (analysis.market_intelligence) {
+      text += `================================================================================\n`;
+      text += `🔍 REAL-TIME MARKET INTELLIGENCE\n`;
+      text += `================================================================================\n`;
+      text += `${analysis.market_intelligence.summary}\n`;
+      text += `\n📊 Sources: ${analysis.market_intelligence.sources_count} verified sources\n`;
+      text += `⏰ Updated: ${new Date(analysis.market_intelligence.timestamp).toLocaleString()}\n\n`;
+    }
     
     // Oracle Verdict (Most Important!)
     text += `================================================================================\n`;
