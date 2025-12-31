@@ -12,7 +12,7 @@ class ChartService {
 
     // Maximum bars per timeframe to prevent unbounded arrays
     this.MAX_BARS = {
-      '1MIN': 1200, '5MIN': 1200, '15MIN': 1200, '1H': 1200,
+      '1MIN': 1200, '5MIN': 1200, '10MIN': 1200, '1H': 1200,
       '4H': 1200, '1D': 1500, '1W': 600, '1M': 300
     };
     
@@ -20,7 +20,7 @@ class ChartService {
     this.cacheTimeouts = {
       '1MIN': 30 * 1000,        // 30 seconds
       '5MIN': 2 * 60 * 1000,    // 2 minutes
-      '15MIN': 5 * 60 * 1000,   // 5 minutes
+      '10MIN': 5 * 60 * 1000,   // 5 minutes (was 15MIN)
       '1H': 10 * 60 * 1000,     // 10 minutes
       '4H': 30 * 60 * 1000,     // 30 minutes
       '1D': 60 * 60 * 1000,     // 1 hour
@@ -257,7 +257,7 @@ class ChartService {
     const limits = {
       '1MIN': 100,   // 4 hours (100 bars - Helius limit)
       '5MIN': 96,    // 8 hours (96 bars)  
-      '15MIN': 48,   // 12 hours (48 bars)
+      '10MIN': 96,   // 16 hours (96 bars) - Changed from 15MIN
       '1H': 168,     // 7 days (168 bars)
       '4H': 90,      // 15 days (90 bars)
       '1D': 90,      // 90 days (90 bars)

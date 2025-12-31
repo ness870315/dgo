@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import chartService from "../services/chartService";
 
 // ------- helpers
-const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000 };
+// Note: Moralis API supports: 1s, 10s, 30s, 1min, 5min, 10min, 30min, 1h, 4h, 12h, 1d, 1w, 1M
+// Using 10MIN instead of 15MIN (which is not supported)
+const TF_SEC = { '1MIN':60,'5MIN':300,'10MIN':600,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000 };
 
 const WINDOW_BY_TF = {
   '1MIN': 180,   // ~3h
   '5MIN': 144,   // ~12h
-  '15MIN': 96,   // ~1 day
+  '10MIN': 96,   // ~16h (was 15MIN: ~1 day)
   '1H': 240,     // ~10 days
   '4H': 180,     // ~30 days
   '1D': 120,     // ~4 months
@@ -116,7 +118,7 @@ const fmtMcap = (v) => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).to
 
 function formatTickTime(tMs, tf, useUTC) {
   const d = new Date(tMs);
-  const opts = tf==='1MIN'||tf==='5MIN'||tf==='15MIN'||tf==='1H' ? { hour:'2-digit', minute:'2-digit' } :
+  const opts = tf==='1MIN'||tf==='5MIN'||tf==='10MIN'||tf==='1H' ? { hour:'2-digit', minute:'2-digit' } :
               tf==='4H'||tf==='1D'||tf==='ALL' ? { month:'short', day:'2-digit', hour:'2-digit' } :
               { month:'short', day:'2-digit' };
   return (useUTC ? new Intl.DateTimeFormat('en-US', {...opts, timeZone:'UTC'}) 
@@ -504,11 +506,11 @@ const SVGChart = ({ token, onClose }) => {
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC'); // UTC or local
 
-  // Timeframe options
+  // Timeframe options (aligned with Moralis API support)
   const timeframes = [
     { id: '1MIN', label: '1Min' },
     { id: '5MIN', label: '5Min' },
-    { id: '15MIN', label: '15Min' },
+    { id: '10MIN', label: '10Min' }, // Changed from 15Min (not supported by Moralis)
     { id: '1H', label: '1H' },
     { id: '4H', label: '4H' },
     { id: '1D', label: '1D' },

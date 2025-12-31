@@ -210,7 +210,7 @@ const PriceChartModal = ({ token, onClose }) => {
       case '5MIN':
         volumeValue = liveData.volume5m || 0;
         break;
-      case '15MIN':
+      case '10MIN': // Changed from 15MIN
       case '1H':
         volumeValue = liveData.volume1h || 0;
         break;
@@ -240,7 +240,7 @@ const PriceChartModal = ({ token, onClose }) => {
       case '5MIN':
         priceChangeValue = liveData.priceChange5m || 0;
         break;
-      case '15MIN':
+      case '10MIN': // Changed from 15MIN
       case '1H':
         priceChangeValue = liveData.priceChange1h || 0;
         break;
@@ -592,7 +592,7 @@ const PriceChartModal = ({ token, onClose }) => {
           volumeValue = buyVol1h + sellVol1h;
         }
         break;
-      case '15MIN':
+      case '10MIN': // Changed from 15MIN
       case '1H':
         const buyVol1h = parseFloat(tokenAnalytics.totalBuyVolume?.['1h']) || 0;
         const sellVol1h = parseFloat(tokenAnalytics.totalSellVolume?.['1h']) || 0;

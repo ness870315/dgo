@@ -174,12 +174,13 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
   }, []); // INIT ONCE
 
   // ---- B) APPLY/UPDATE DATA (safe even if tab was hidden earlier)
-  const TF_SEC = { '1MIN':60, '5MIN':300, '15MIN':900, '1H':3600, '4H':14400, '1D':86400, '1W':604800, '1M':2592000 };
+  // Note: Moralis API supports: 1s, 10s, 30s, 1min, 5min, 10min, 30min, 1h, 4h, 12h, 1d, 1w, 1M
+  const TF_SEC = { '1MIN':60, '5MIN':300, '10MIN':600, '1H':3600, '4H':14400, '1D':86400, '1W':604800, '1M':2592000 };
 
   const VIEW_BARS = {
     '1MIN': 180,   // ~3h
     '5MIN': 144,   // ~12h
-    '15MIN': 96,   // ~1 day
+    '10MIN': 96,   // ~16h (was 15MIN: ~1 day)
     '1H': 240,     // ~10 days
     '4H': 180,     // ~30 days
     '1D': 120,     // ~4 months
@@ -212,7 +213,7 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
   }
 
   const normalizeCandles = (rows = [], tf = "1MIN") => {
-    const TF_SEC = { "1MIN":60, "5MIN":300, "15MIN":900, "1H":3600, "4H":14400, "1D":86400, "1W":604800, "1M":2592000 };
+    const TF_SEC = { "1MIN":60, "5MIN":300, "10MIN":600, "1H":3600, "4H":14400, "1D":86400, "1W":604800, "1M":2592000 };
     const step = TF_SEC[tf] || 60;
     const pick  = (...xs) => xs.find(v => v != null);
     const toNum = v => v == null ? null : Number(v);
@@ -432,7 +433,7 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
       <div className="flex flex-wrap gap-2 mb-4">
         {/* Timeframe Buttons */}
         <div className="flex items-center gap-1">
-          {['1MIN', '5MIN', '15MIN', '1H', '4H', '1D', 'ALL'].map(tf => (
+          {['1MIN', '5MIN', '10MIN', '1H', '4H', '1D', 'ALL'].map(tf => ( // Changed 15MIN to 10MIN
             <button
               key={tf}
               onClick={() => setSelectedTimeframe(tf)}
