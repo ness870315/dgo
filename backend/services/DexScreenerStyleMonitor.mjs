@@ -1841,25 +1841,18 @@ export default class DexScreenerStyleMonitor {
           // Jupiter price is used ONLY as initial baseline (backend reboot), then swaps take over
           if (expectedPrice > 0 && swap.priceUsd) {
             const priceRatio = swap.priceUsd / expectedPrice;
-            // 🚨 TIGHTENED: 3x range instead of 10x (more aggressive filtering)
-            // Allows 3x upside or 0.33x downside (33% of current price)
-            // Prevents wild price swings while allowing natural volatility
-            if (priceRatio > 3 || priceRatio < 0.33) {
+            // EXACT MATCH: test-transaction-level-decoding.mjs (10x range)
+            if (priceRatio > 10 || priceRatio < 0.1) {
               console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price outlier: $${swap.priceUsd.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
               continue; // Skip this swap
             }
           }
           
-          // Filter 3: Dust Volume Filter (rejects MEV bot dust trades)
-          // 🚨 INCREASED: $1.00 minimum (was $0.50) - more aggressive filtering
-          // Real traders rarely make sub-$1 swaps, MEV bots use dust to manipulate price
-          if (swap.volumeUsd && swap.volumeUsd < 1.00) {
+          // EXACT MATCH: test-transaction-level-decoding.mjs ($0.50 minimum)
+          if (swap.volumeUsd && swap.volumeUsd < 0.50) {
             console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap volume too low: $${swap.volumeUsd.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
             continue; // Skip this swap
           }
-          
-          // 🚨 ACCEPTED SWAP - Log for debugging
-          console.log(`✅ [${tokenData.config?.name || mint.substring(0, 8)}] SWAP ACCEPTED: ${swap.type} $${swap.priceUsd.toFixed(6)} vol=$${swap.volumeUsd.toFixed(2)}`);
 
           
           // Log large swaps for debugging (user reported missing large swaps)
