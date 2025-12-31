@@ -63,7 +63,7 @@ class TechnicalAnalysisService {
           console.log(`🤖 [TA] Wrapping Perplexity TA in Oracle Verdict with Grok...`);
           oracleVerdict = await this.generateOracleVerdict(perplexityTA, jupiterData);
           console.log(`✅ [TA] Oracle Verdict complete`);
-        } catch (error) {
+    } catch (error) {
           console.log(`⚠️  [TA] Grok failed (${error.message}), using default verdict`);
           oracleVerdict = this.generateDefaultVerdict();
         }
@@ -134,7 +134,15 @@ Current price: $${currentPrice.toFixed(6)}
 Market cap: $${marketCap.toLocaleString()}
 24h volume: $${volume24h.toLocaleString()}
 
-Focus on the ${tfDisplay} timeframe structure, momentum, key levels, and trading setup. Include specific price levels, indicator signals (RSI, MACD, Bollinger Bands, EMAs), support/resistance zones, and actionable trading strategy for this timeframe.`;
+Your analysis MUST include:
+
+1. **${tfDisplay.toUpperCase()} CHART STRUCTURE** - Trend, momentum, key levels
+2. **TECHNICAL INDICATORS** - RSI, MACD, Bollinger Bands, EMAs with specific values
+3. **SUPPORT & RESISTANCE** - Exact price levels
+4. **PERPS TRADING STRATEGY** - Should we go LONG or SHORT? Entry price, stop loss, take profit levels, and reasoning
+5. **SPOT TRADING STRATEGY** - Should we BUY (accumulate), HOLD, or SELL? Entry zones, targets, and reasoning
+
+Be specific with prices, percentages, and actionable strategies. Do NOT include citation markers like [1], [2], [3] or reference numbers in your response. Write in clean, professional format without markdown asterisks or special formatting.`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -167,8 +175,16 @@ Focus on the ${tfDisplay} timeframe structure, momentum, key levels, and trading
       }
 
       const result = await response.json();
-      const taContent = result.choices[0].message.content;
+      let taContent = result.choices[0].message.content;
       const citations = result.citations || [];
+
+      // Clean up the output: remove citation brackets [1][2][3] and asterisks
+      taContent = taContent
+        .replace(/\[\d+\]/g, '') // Remove [1], [2], [3], etc.
+        .replace(/\*\*/g, '') // Remove bold markdown **
+        .replace(/\*/g, '') // Remove remaining asterisks
+        .replace(/\n{3,}/g, '\n\n') // Clean up excessive newlines
+        .trim();
 
       console.log(`✅ [TA] Perplexity sonar-pro analysis complete (${citations.length} sources)`);
 
@@ -226,7 +242,20 @@ ${perplexityTA.raw_analysis}
    - **🔴 FADE IT** = Bearish, stay away or take profits
    - **⚪ WATCHLIST** = Interesting but need more confirmation
 
-4. **RISK LEVEL** (with crypto slang explanation):
+4. **PERPS STRATEGY** (CRITICAL - must be specific):
+   - Direction: LONG, SHORT, or STAY OUT
+   - Entry price with reasoning
+   - Stop loss level
+   - Take profit targets
+   - Use degen slang (e.g., "long it with tight stops", "short squeeze incoming", "leverage at your own risk, fam")
+
+5. **SPOT STRATEGY** (CRITICAL - must be specific):
+   - Action: BUY (accumulate), HOLD, or SELL
+   - Entry zones with prices
+   - Target prices for taking profit
+   - Use degen slang (e.g., "ape in at support", "DCA the dip", "bag holder zone", "time to dump bags")
+
+6. **RISK LEVEL** (with crypto slang explanation):
    - 🟢 LOW RISK (safe for normies)
    - 🟡 MEDIUM RISK (degen territory)
    - 🔴 HIGH RISK (ape at your own risk)
@@ -250,6 +279,19 @@ ${perplexityTA.raw_analysis}
   "verdict": "CALL IT | WAIT FOR CALL | FADE IT | WATCHLIST",
   "verdict_emoji": "🟢 | 🟡 | 🔴 | ⚪",
   "reasoning": "...",
+  "perps_strategy": {
+    "direction": "LONG | SHORT | STAY OUT",
+    "entry": "...",
+    "stop_loss": "...",
+    "take_profit": "...",
+    "reasoning": "..."
+  },
+  "spot_strategy": {
+    "action": "BUY | HOLD | SELL",
+    "entry_zone": "...",
+    "targets": "...",
+    "reasoning": "..."
+  },
   "risk_level": "LOW | MEDIUM | HIGH | EXTREME",
   "risk_emoji": "🟢 | 🟡 | 🔴 | ⚫",
   "risk_explanation": "..."
@@ -268,7 +310,7 @@ ${perplexityTA.raw_analysis}
             { role: 'user', content: prompt }
           ],
           temperature: 0.9, // High creativity for degen slang
-          max_tokens: 1000
+          max_tokens: 1500
         })
       });
 
@@ -314,6 +356,19 @@ ${perplexityTA.raw_analysis}
       verdict: "WATCHLIST",
       verdict_emoji: "⚪",
       reasoning: "Insufficient data for Oracle verdict. DYOR before aping.",
+      perps_strategy: {
+        direction: "STAY OUT",
+        entry: "Wait for clearer setup",
+        stop_loss: "N/A",
+        take_profit: "N/A",
+        reasoning: "Not enough data for safe perps entry. Market too choppy, ser."
+      },
+      spot_strategy: {
+        action: "HOLD",
+        entry_zone: "Wait for dip to support",
+        targets: "See resistance levels above",
+        reasoning: "HODL your bags if you're in. New buyers should wait for better entry."
+      },
       risk_level: "HIGH",
       risk_emoji: "🔴",
       risk_explanation: "All crypto is high risk, ser. Only invest what you can afford to lose. NFA."
@@ -579,7 +634,7 @@ ${perplexityTA.raw_analysis}
    */
   calculateMACD(ohlcv, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
     if (ohlcv.length < slowPeriod + signalPeriod) {
-      return { 
+    return {
         value: null, 
         signal: null, 
         histogram: null, 
@@ -1045,9 +1100,35 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
       text += `\n`;
     }
     
+    // PERPS Strategy
+    if (verdict.perps_strategy) {
+      text += `================================================================================\n`;
+      text += `⚡ PERPS TRADING STRATEGY\n`;
+      text += `================================================================================\n`;
+      text += `📊 Direction: ${verdict.perps_strategy.direction}\n`;
+      text += `🎯 Entry: ${verdict.perps_strategy.entry}\n`;
+      text += `🛑 Stop Loss: ${verdict.perps_strategy.stop_loss}\n`;
+      text += `💰 Take Profit: ${verdict.perps_strategy.take_profit}\n`;
+      text += `💡 Reasoning: ${verdict.perps_strategy.reasoning}\n\n`;
+    }
+    
+    // SPOT Strategy
+    if (verdict.spot_strategy) {
+      text += `================================================================================\n`;
+      text += `💎 SPOT TRADING STRATEGY\n`;
+      text += `================================================================================\n`;
+      text += `📊 Action: ${verdict.spot_strategy.action}\n`;
+      text += `🎯 Entry Zone: ${verdict.spot_strategy.entry_zone}\n`;
+      text += `💰 Targets: ${verdict.spot_strategy.targets}\n`;
+      text += `💡 Reasoning: ${verdict.spot_strategy.reasoning}\n\n`;
+    }
+    
     // Risk Assessment
-    text += `⚠️  RISK LEVEL: ${verdict.risk_emoji} ${verdict.risk_level}\n`;
-    text += `   ${verdict.risk_explanation}\n\n`;
+    text += `================================================================================\n`;
+    text += `⚠️  RISK ASSESSMENT\n`;
+    text += `================================================================================\n`;
+    text += `${verdict.risk_emoji} ${verdict.risk_level}\n`;
+    text += `${verdict.risk_explanation}\n\n`;
     
     // Comprehensive Technical Analysis (from Perplexity sonar-pro)
     text += `================================================================================\n`;
