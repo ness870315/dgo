@@ -536,6 +536,19 @@ class EnhancedBackend {
     
     // Serve other static files without protection (if any)
     this.app.use(express.static(path.join(__dirname, 'public')));
+    
+    // Explicit route for x402 verification file to ensure it's publicly accessible
+    this.app.get('/.well-known/x402-verification.json', (req, res) => {
+      const verificationPath = path.join(__dirname, 'public', '.well-known', 'x402-verification.json');
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.sendFile(verificationPath, (err) => {
+        if (err) {
+          console.error('[x402] Error serving verification file:', err.message);
+          res.status(404).json({ error: 'Verification file not found' });
+        }
+      });
+    });
   }
 
   setupRoutes() {
