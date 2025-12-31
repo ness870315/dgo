@@ -11,7 +11,25 @@ class TweetAPIPostingService {
     this.apiKey = process.env.TWEETAPI_API_KEY || 'new1_047620c16d4e4e0b8056824ddf1e68a2';
     this.authToken = process.env.TWEETAPI_AUTH_TOKEN || '85aad2d6ed8ebe60c2f7501ad69d675eabea70f5';
     this.baseUrl = 'https://api.tweetapi.com';
-    this.originalProxy = process.env.TWEETAPI_PROXY || null;
+    
+    // Build proxy from environment variables
+    // Priority: TWEETAPI_PROXY (full string) > SMART_PROXY_* (individual components)
+    let proxyString = process.env.TWEETAPI_PROXY || null;
+    
+    if (!proxyString) {
+      // Build proxy string from Smartproxy environment variables
+      const smartProxyHost = process.env.SMART_PROXY_HOST || 'proxy.smartproxy.net';
+      const smartProxyPort = process.env.SMART_PROXY_PORT || '3120';
+      const smartProxyUsername = process.env.SMART_PROXY_USERNAME;
+      const smartProxyPassword = process.env.SMART_PROXY_PASSWORD;
+      
+      if (smartProxyUsername && smartProxyPassword) {
+        proxyString = `${smartProxyHost}:${smartProxyPort}@${smartProxyUsername}:${smartProxyPassword}`;
+        console.log(`🔗 [TWEETAPI V2] Built proxy from SMART_PROXY_* environment variables`);
+      }
+    }
+    
+    this.originalProxy = proxyString;
     this.proxy = this.originalProxy; // Current proxy (can be disabled temporarily)
     this.proxyDisabled = false; // Track if proxy was auto-disabled
     this.consecutiveProxyFailures = 0; // Track consecutive proxy failures
