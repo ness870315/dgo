@@ -240,6 +240,12 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
     }, 5 * 1000); // 5 seconds
+    
+    // 🚨 DEX-GRADE: Periodically refresh pool reserves from RPC (like test file)
+    // This ensures prices stay accurate even if swap tracking drifts
+    this.reserveRefresher = setInterval(async () => {
+      await this.refreshPoolReservesFromRPC();
+    }, 10 * 1000); // Refresh every 10 seconds
 
     this.isInitialized = true;
     console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
@@ -2175,6 +2181,96 @@ export default class DexScreenerStyleMonitor {
   }
   
   /**
+   * 🚨 DEX-GRADE: Refresh pool reserves from RPC (like test file)
+   * Reads CURRENT reserves from token accounts to ensure price accuracy
+   */
+  async refreshPoolReservesFromRPC() {
+    if (this.pools.size === 0) return;
+    
+    // Refresh reserves for all pools (batch in parallel)
+    const refreshPromises = [];
+    for (const [mint, poolData] of this.pools.entries()) {
+      if (!poolData.poolTokenAccount || !poolData.poolQuoteAccount) continue;
+      
+      refreshPromises.push(
+        this.refreshSinglePoolReserves(mint, poolData).catch(err => {
+          // Silently fail for individual pools (don't spam logs)
+          if (this.globalStats.totalSwapsDetected <= 5) {
+            console.error(`   ⚠️  Error refreshing reserves for ${poolData.config?.name || mint.substring(0, 8)}:`, err.message);
+          }
+        })
+      );
+    }
+    
+    // Wait for all refreshes (with timeout)
+    await Promise.allSettled(refreshPromises);
+  }
+  
+  /**
+   * Refresh reserves for a single pool from RPC
+   */
+  async refreshSinglePoolReserves(mint, poolData) {
+    try {
+      // Read CURRENT reserves from token accounts (like test file)
+      const tokenAccountInfo = await this.connection.getParsedAccountInfo(new PublicKey(poolData.poolTokenAccount));
+      const quoteAccountInfo = await this.connection.getParsedAccountInfo(new PublicKey(poolData.poolQuoteAccount));
+      
+      let tokenReserve = 0;
+      let quoteReserve = 0;
+      
+      if (tokenAccountInfo?.value?.data?.parsed?.info?.tokenAmount) {
+        tokenReserve = tokenAccountInfo.value.data.parsed.info.tokenAmount.uiAmount || 0;
+      }
+      
+      if (quoteAccountInfo?.value?.data?.parsed?.info?.tokenAmount) {
+        quoteReserve = quoteAccountInfo.value.data.parsed.info.tokenAmount.uiAmount || 0;
+      }
+      
+      // Only update if we got valid reserves
+      if (tokenReserve > 0 && quoteReserve > 0) {
+        // Update pool reserves tracking
+        const reserves = this.poolReserves.get(poolData.poolAddress);
+        if (reserves) {
+          reserves.tokenReserve = tokenReserve;
+          reserves.quoteReserve = quoteReserve;
+          reserves.lastRefresh = Date.now();
+        } else {
+          // Initialize if not exists
+          this.poolReserves.set(poolData.poolAddress, {
+            tokenReserve,
+            quoteReserve,
+            quoteMint: poolData.quoteMint || SOL_MINT,
+            quoteDecimals: poolData.quoteDecimals || 9,
+            lastRefresh: Date.now()
+          });
+        }
+        
+        // Update poolData
+        poolData.tokenReserve = tokenReserve;
+        poolData.quoteReserve = quoteReserve;
+        
+        // 🚨 CRITICAL: Calculate price from CURRENT reserves (most accurate)
+        const priceInQuote = quoteReserve / tokenReserve;
+        poolData.price = priceInQuote;
+        poolData.lastUpdate = Date.now();
+        
+        // Update tokenData.lastPriceUSD from pool reserves (for getTokenMetrics)
+        const tokenData = this.tokens.get(mint);
+        if (tokenData) {
+          const priceUSD = poolData.quoteMint === SOL_MINT 
+            ? priceInQuote * this.solPriceUSD 
+            : priceInQuote;
+          tokenData.lastPriceUSD = priceUSD;
+          tokenData.lastPriceUpdate = Date.now();
+        }
+      }
+    } catch (error) {
+      // Silently fail (don't spam logs)
+      throw error;
+    }
+  }
+  
+  /**
    * PHASE 3: Display swap from transaction-level decoding
    */
   async displaySwapFromTransaction(mint, poolData, swap, txData) {
@@ -3413,6 +3509,9 @@ export default class DexScreenerStyleMonitor {
     }
     if (this.metricsUpdater) {
       clearInterval(this.metricsUpdater);
+    }
+    if (this.reserveRefresher) {
+      clearInterval(this.reserveRefresher);
     }
 
     // Close the single gRPC stream
