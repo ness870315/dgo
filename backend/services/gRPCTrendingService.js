@@ -95,6 +95,7 @@ class gRPCTrendingService {
         this.topTokensCount = parseInt(process.env.TOP_TRENDING_TOKENS_COUNT || '50', 10);
         this.continuousInterval = null; // For continuous mode
         this.solPrice = 200; // Default SOL price, will be updated from enhancedHybridPriceService
+        this.queueCheckRunning = false; // Prevent multiple queue checks
     }
 
     async initialize() {
@@ -1158,6 +1159,70 @@ class gRPCTrendingService {
             } else {
                 console.log(`⏳ [gRPCTrending] Processor already running, tokens added to queue (will be processed when current run completes)`);
                 console.log(`   Queue size: ${this.enhancedTokenProcessor.processingQueue.length} tokens`);
+                
+                // 🚨 CRITICAL: Set up a check to process queued tokens after current run completes
+                // This ensures tokens added during processing are not forgotten
+                if (this.queueCheckRunning) {
+                    console.log(`⏭️ [gRPCTrending] Queue check already running, skipping duplicate check`);
+                    return;
+                }
+                
+                this.queueCheckRunning = true;
+                const checkQueueAfterProcessing = async () => {
+                    try {
+                        // Wait for processor to finish (check every 2 seconds, max 5 minutes)
+                        let attempts = 0;
+                        const maxAttempts = 150; // 5 minutes max wait
+                        
+                        while (this.enhancedTokenProcessor.isProcessing && attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            attempts++;
+                        }
+                        
+                        // If processor finished and queue has tokens, process them
+                        if (!this.enhancedTokenProcessor.isProcessing && this.enhancedTokenProcessor.processingQueue.length > 0) {
+                        const queuedCount = this.enhancedTokenProcessor.processingQueue.length;
+                        console.log(`🔄 [gRPCTrending] Processing ${queuedCount} tokens that were queued during previous run...`);
+                        
+                        // Process queued tokens
+                        this.enhancedTokenProcessor.isProcessing = true;
+                        try {
+                            const queuedContracts = new Set(
+                                this.enhancedTokenProcessor.processingQueue
+                                    .filter(t => t.contractAddress)
+                                    .map(t => t.contractAddress.toLowerCase())
+                            );
+                            const tokensBeforeQueued = (this.enhancedTokenProcessor.processedTokens || []).length;
+                            
+                            await this.enhancedTokenProcessor.processJupiterStage();
+                            await this.enhancedTokenProcessor.processTwitterStage();
+                            await this.enhancedTokenProcessor.processScoringStage();
+                            await this.enhancedTokenProcessor.saveFinalDatabase();
+                            
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            
+                            const allProcessedTokensAfter = this.enhancedTokenProcessor.processedTokens || [];
+                            const savedQueuedTokens = allProcessedTokensAfter
+                                .filter(t => queuedContracts.has(t.contractAddress?.toLowerCase()))
+                                .filter(t => t.source === 'gRPC-Trending' || (t.discoveredAt && new Date(t.discoveredAt).getTime() > Date.now() - 2 * 60 * 1000));
+                            
+                            if (savedQueuedTokens.length > 0) {
+                                console.log(`✅ [gRPCTrending] Successfully processed ${savedQueuedTokens.length} queued tokens`);
+                            }
+                        } finally {
+                            this.enhancedTokenProcessor.isProcessing = false;
+                        }
+                    }
+                    } finally {
+                        this.queueCheckRunning = false;
+                    }
+                };
+                
+                // Start checking in background (don't await)
+                checkQueueAfterProcessing().catch(err => {
+                    console.error(`❌ [gRPCTrending] Error processing queued tokens:`, err.message);
+                    this.queueCheckRunning = false;
+                });
             }
             
         } catch (error) {
