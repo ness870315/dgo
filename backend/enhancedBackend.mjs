@@ -2042,6 +2042,48 @@ class EnhancedBackend {
       }
     });
 
+    // 📊 Technical Analysis API (FREE - for testing, x402 to be added later)
+    this.app.post('/api/technical-analysis/analyze', async (req, res) => {
+      try {
+        const { contract, timeframe = '1h', depth = 'standard' } = req.body;
+        
+        console.log(`\n📊 [TA API] Technical Analysis Request`);
+        console.log(`   Contract: ${contract?.substring(0, 8)}...`);
+        console.log(`   Timeframe: ${timeframe}`);
+        console.log(`   Depth: ${depth}`);
+        
+        if (!contract) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing contract address'
+          });
+        }
+        
+        // Lazy-load the service
+        if (!this.technicalAnalysisService) {
+          const TechnicalAnalysisService = (await import('./services/TechnicalAnalysisService.js')).default;
+          this.technicalAnalysisService = new TechnicalAnalysisService();
+        }
+        
+        // Generate analysis
+        const analysis = await this.technicalAnalysisService.analyzeToken(
+          contract,
+          timeframe,
+          depth
+        );
+        
+        console.log(`✅ [TA API] Analysis complete for ${contract.substring(0, 8)}`);
+        res.json(analysis);
+        
+      } catch (error) {
+        console.error(`❌ [TA API] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     // Hype snapshots API
     this.app.get('/api/tokens/:contract/hype', async (req, res) => {
       try {
