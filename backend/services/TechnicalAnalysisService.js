@@ -54,17 +54,19 @@ class TechnicalAnalysisService {
       
       // 3. Fetch OHLCV data (Moralis if available, otherwise synthetic)
       let ohlcv;
+      let ohlcvSource = 'synthetic';
       if (this.hybridChartService) {
         try {
-          console.log(`📊 [TA] Fetching real OHLCV data from Moralis...`);
+          console.log(`📊 [TA] Fetching real OHLCV data from Moralis (pair discovery + fetch)...`);
           ohlcv = await this.fetchMoralisOHLCV(contractAddress, timeframe);
           console.log(`✅ [TA] Got ${ohlcv.length} real candles from Moralis`);
+          ohlcvSource = 'moralis';
         } catch (error) {
-          console.log(`⚠️  [TA] Moralis failed, using synthetic: ${error.message}`);
+          console.log(`⚠️  [TA] Moralis failed (${error.message}), falling back to synthetic OHLCV`);
           ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
         }
       } else {
-        console.log(`⚠️  [TA] No Moralis service, using synthetic OHLCV`);
+        console.log(`⚠️  [TA] No HybridChartService, using synthetic OHLCV`);
         ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
       }
       
@@ -122,6 +124,11 @@ class TechnicalAnalysisService {
         technical_indicators: indicators,
         support_resistance: levels,
         trading_strategy: aiAnalysis,
+        data_sources: {
+          ohlcv: ohlcvSource, // 'moralis' or 'synthetic'
+          market_intelligence: perplexityData ? 'perplexity' : 'none',
+          ai_analysis: this.grokApiKey ? 'grok' : 'mock'
+        },
         generated_at: new Date().toISOString()
       };
 
@@ -394,21 +401,33 @@ Provide specific details with dates, percentages, price levels, and sources wher
       throw new Error('HybridChartService not available');
     }
 
-    // Map our timeframes to Moralis/HybridService format
-    const timeframeMap = {
-      '5m': '5',
-      '15m': '15',
-      '1h': '60',
-      '4h': '240',
-      '1d': '1440'
-    };
-    
-    const moralisTimeframe = timeframeMap[timeframe] || '60';
-    const limit = 100; // Get last 100 candles
-    
     try {
+      // Step 1: Discover pair/pool address (Moralis needs this, not token address)
+      console.log(`🔍 [TA] Discovering pair address for ${tokenAddress.substring(0, 8)}...`);
+      const pairAddress = await this.hybridChartService.getPairAddress(tokenAddress);
+      
+      if (!pairAddress) {
+        throw new Error('Could not discover pair address - token may not have liquidity pool');
+      }
+      
+      console.log(`✅ [TA] Found pair address: ${pairAddress.substring(0, 8)}...`);
+
+      // Step 2: Map our timeframes to Moralis/HybridService format
+      const timeframeMap = {
+        '5m': '5',
+        '15m': '15',
+        '1h': '60',
+        '4h': '240',
+        '1d': '1440'
+      };
+      
+      const moralisTimeframe = timeframeMap[timeframe] || '60';
+      const limit = 100; // Get last 100 candles
+      
+      // Step 3: Fetch OHLCV data using PAIR address
+      console.log(`📊 [TA] Fetching OHLCV for pair ${pairAddress.substring(0, 8)}...`);
       const chartData = await this.hybridChartService.getHistoricalPrices(
-        tokenAddress,
+        pairAddress, // Use pair address, not token address
         moralisTimeframe,
         limit
       );

@@ -145,6 +145,59 @@ class HybridChartService {
         return { price: null, timestamp: null, volume: null, source: 'none' };
     }
 
+    /**
+     * Get pair/pool address from Jupiter API (for Moralis OHLCV)
+     * Moralis needs the pair address, not the token address
+     */
+    async getPairAddress(contractAddress) {
+        try {
+            const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
+            const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
+            
+            const headers = {};
+            if (JUPITER_API_KEY) {
+                headers['x-api-key'] = JUPITER_API_KEY;
+            }
+            
+            // Fetch from Jupiter
+            const response = await fetch(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=${contractAddress}`, {
+                method: 'GET',
+                headers: headers
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Jupiter API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data && Array.isArray(data) && data.length > 0) {
+                const token = data[0];
+                
+                // Extract pair address from graduatedPool or firstPool
+                let pairAddress = null;
+                if (token.graduatedPool) {
+                    pairAddress = typeof token.graduatedPool === 'string' 
+                        ? token.graduatedPool 
+                        : token.graduatedPool.address || token.graduatedPool.id;
+                } else if (token.firstPool?.id) {
+                    pairAddress = token.firstPool.id;
+                }
+                
+                if (pairAddress) {
+                    console.log(`✅ [HybridChart] Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+                    return pairAddress;
+                }
+            }
+            
+            console.log(`⚠️  [HybridChart] No pair address found in Jupiter for ${contractAddress.substring(0, 8)}`);
+            return null;
+            
+        } catch (error) {
+            console.error(`❌ [HybridChart] Failed to get pair address:`, error.message);
+            return null;
+        }
+    }
+
     getDataSourceStats() {
         return this.dataSourceStats;
     }
