@@ -13,24 +13,17 @@ async function testTAEndpoint() {
   console.log(`================================================================================\n`);
   
   try {
-    console.log(`📡 Sending POST request to: ${API_BASE_URL}/api/technical-analysis/analyze`);
+    const url = `${API_BASE_URL}/api/technical-analysis/analyze?contract=${FARTCOIN_MINT}&timeframe=1h&depth=standard`;
+    
+    console.log(`📡 Sending GET request to:`);
+    console.log(`   ${url}`);
     console.log(`   Contract: ${FARTCOIN_MINT.substring(0, 8)}...`);
     console.log(`   Timeframe: 1h`);
     console.log(`   Depth: standard\n`);
     
     const startTime = Date.now();
     
-    const response = await fetch(`${API_BASE_URL}/api/technical-analysis/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contract: FARTCOIN_MINT,
-        timeframe: '1h',
-        depth: 'standard'
-      })
-    });
+    const response = await fetch(url);
     
     const elapsed = Date.now() - startTime;
     

@@ -2043,9 +2043,10 @@ class EnhancedBackend {
     });
 
     // 📊 Technical Analysis API (FREE - for testing, x402 to be added later)
-    this.app.post('/api/technical-analysis/analyze', async (req, res) => {
+    // GET endpoint so you can test directly in browser!
+    this.app.get('/api/technical-analysis/analyze', async (req, res) => {
       try {
-        const { contract, timeframe = '1h', depth = 'standard' } = req.body;
+        const { contract, timeframe = '1h', depth = 'standard' } = req.query;
         
         console.log(`\n📊 [TA API] Technical Analysis Request`);
         console.log(`   Contract: ${contract?.substring(0, 8)}...`);
@@ -2055,7 +2056,8 @@ class EnhancedBackend {
         if (!contract) {
           return res.status(400).json({
             success: false,
-            error: 'Missing contract address'
+            error: 'Missing contract address',
+            usage: 'GET /api/technical-analysis/analyze?contract=YOUR_TOKEN_ADDRESS'
           });
         }
         
