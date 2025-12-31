@@ -14,7 +14,7 @@ import fetch from 'node-fetch';
 
 const JUPITER_API_ENDPOINT = process.env.JUP_API_ENDPOINT || 'https://api.jup.ag';
 const JUPITER_API_KEY = process.env.JUP_API_KEY || '';
-const GROK_API_KEY = process.env.GROK_API_KEY || '';
+const GROK_API_KEY = process.env.GROK_API || ''; // Same as Trending AI service
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || '';
 
 class TechnicalAnalysisService {
@@ -23,6 +23,12 @@ class TechnicalAnalysisService {
     this.jupiterApiKey = JUPITER_API_KEY;
     this.grokApiKey = GROK_API_KEY;
     this.perplexityApiKey = PERPLEXITY_API_KEY;
+    
+    // Log API key status
+    console.log(`🔧 [TA Service] Initialized`);
+    console.log(`   Jupiter API Key: ${this.jupiterApiKey ? 'SET' : 'MISSING ⚠️'}`);
+    console.log(`   Grok API Key: ${this.grokApiKey ? 'SET ✅' : 'MISSING ⚠️'}`);
+    console.log(`   Perplexity API Key: ${this.perplexityApiKey ? 'SET ✅' : 'MISSING ⚠️'}`);
   }
 
   /**
@@ -816,7 +822,7 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
               content: prompt
             }
           ],
-          model: 'grok-2-1212',
+          model: 'grok-4-1-fast-reasoning', // Same as Trending AI
           temperature: 0.7,
           max_tokens: 2000,
           stream: false
