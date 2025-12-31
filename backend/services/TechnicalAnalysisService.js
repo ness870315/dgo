@@ -44,46 +44,36 @@ class TechnicalAnalysisService {
       const jupiterData = await this.fetchJupiterMetadata(contractAddress);
       const currentPrice = jupiterData.usdPrice;
       
-      // 2. Search Perplexity for real-time news and sentiment
-      const perplexityData = await this.searchPerplexity(
+      // 2. Generate comprehensive TA using Perplexity sonar-pro (primary TA generator)
+      const perplexityTA = await this.generatePerplexityTA(
         jupiterData.name,
         jupiterData.symbol,
         contractAddress,
+        currentPrice,
+        jupiterData.marketCap,
+        jupiterData.volume24h,
         timeframe
       );
       
-      // 3. Fetch OHLCV data (Moralis if available, otherwise synthetic)
-      let ohlcv;
-      let ohlcvSource = 'synthetic';
-      if (this.hybridChartService) {
+      // 3. Use Grok to wrap Perplexity's TA in Oracle Verdict format (degen slang)
+      let oracleVerdict;
+      if (this.grokApiKey && perplexityTA) {
         try {
-          console.log(`📊 [TA] Fetching real OHLCV data from Moralis (pair discovery + fetch)...`);
-          ohlcv = await this.fetchMoralisOHLCV(contractAddress, timeframe);
-          console.log(`✅ [TA] Got ${ohlcv.length} real candles from Moralis`);
-          ohlcvSource = 'moralis';
+          console.log(`🤖 [TA] Wrapping Perplexity TA in Oracle Verdict with Grok...`);
+          oracleVerdict = await this.generateOracleVerdict(perplexityTA, jupiterData);
+          console.log(`✅ [TA] Oracle Verdict complete`);
         } catch (error) {
-          console.log(`⚠️  [TA] Moralis failed (${error.message}), falling back to synthetic OHLCV`);
-          ohlcv = this.generateSyntheticOHLCV(currentPrice, timeframe, 100);
+          console.log(`⚠️  [TA] Grok failed (${error.message}), using default verdict`);
+          oracleVerdict = this.generateDefaultVerdict();
         }
       } else {
-        console.log(`⚠️  [TA] No HybridChartService, using synthetic OHLCV`);
-        ohlcv = this.generateSyntheticOHLCV(currentPrice, timeframe, 100);
+        console.log(`⚠️  [TA] No Grok API key or Perplexity TA, using default verdict`);
+        oracleVerdict = this.generateDefaultVerdict();
       }
       
-      // 4. Calculate technical indicators
-      const indicators = {
-        rsi: this.calculateRSI(ohlcv),
-        macd: this.calculateMACD(ohlcv),
-        bollinger: this.calculateBollingerBands(ohlcv),
-        ema: this.calculateEMAs(ohlcv),
-        volume: this.analyzeVolume(ohlcv)
-      };
-      
-      // 5. Calculate support/resistance
-      const levels = this.calculateSupportResistance(ohlcv, currentPrice);
-      
-      // 6. Prepare data for AI (including Perplexity insights)
-      const analysisData = {
+      // 4. Build final report (Perplexity TA + Grok Oracle Verdict)
+      const report = {
+        success: true,
         token: {
           name: jupiterData.name,
           symbol: jupiterData.symbol,
@@ -96,45 +86,14 @@ class TechnicalAnalysisService {
           organicScore: jupiterData.organicScore,
           organicScoreLabel: jupiterData.organicScoreLabel
         },
-        indicators,
-        levels,
-        perplexityData // Include real-time news and sentiment
-      };
-      
-      // 7. Generate AI analysis (try Grok first, fallback to mock)
-      let aiAnalysis;
-      if (this.grokApiKey) {
-        try {
-          console.log(`🤖 [TA] Generating AI analysis with Grok...`);
-          aiAnalysis = await this.generateAIAnalysis(analysisData);
-          console.log(`✅ [TA] Grok analysis complete`);
-    } catch (error) {
-          console.log(`⚠️  [TA] Grok failed (${error.message}), using mock analysis`);
-          aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
-        }
-      } else {
-        console.log(`⚠️  [TA] No Grok API key, using mock analysis`);
-        aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
-      }
-      
-      // 8. Build final report (Perplexity data is used for enrichment only, not displayed)
-      const report = {
-        success: true,
-        token: analysisData.token,
-        technical_indicators: indicators,
-        support_resistance: levels,
-        trading_strategy: aiAnalysis,
+        technical_analysis: perplexityTA || { error: 'No TA available' },
+        oracle_verdict: oracleVerdict,
         data_sources: {
-          ohlcv: ohlcvSource, // 'moralis' or 'synthetic'
-          market_intelligence: perplexityData ? 'perplexity' : 'none',
-          ai_analysis: this.grokApiKey ? 'grok' : 'mock'
+          technical_analysis: perplexityTA ? 'perplexity-sonar-pro' : 'none',
+          oracle_verdict: this.grokApiKey ? 'grok' : 'default'
         },
         generated_at: new Date().toISOString()
       };
-
-      // Note: Perplexity data is passed to Grok for analysis enrichment
-      // It's not included in the report output to avoid redundancy
-      // The AI-generated analysis (trading_strategy) incorporates Perplexity insights
 
       return report;
 
@@ -145,139 +104,78 @@ class TechnicalAnalysisService {
   }
 
   /**
-   * Search Perplexity for real-time token news and market sentiment
+   * Generate comprehensive Technical Analysis using Perplexity sonar-pro
+   * This is the PRIMARY TA generator - produces detailed chart analysis, indicators, levels
    */
-  async searchPerplexity(tokenName, tokenSymbol, contractAddress, timeframe) {
+  async generatePerplexityTA(tokenName, tokenSymbol, contractAddress, currentPrice, marketCap, volume24h, timeframe) {
     if (!this.perplexityApiKey) {
       console.log(`⚠️  [TA] No Perplexity API key, skipping real-time search`);
       return null;
     }
 
     try {
-      console.log(`🔍 [TA] Searching Perplexity for ${tokenName} news and sentiment...`);
+      console.log(`📊 [TA] Generating comprehensive TA for ${tokenName} using Perplexity sonar-pro...`);
 
-      const query = `Search for the latest news, price action, technical analysis, market sentiment, and trading activity for the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${timeframe === '1h' ? '24 hours' : timeframe === '4h' ? '3 days' : '7 days'}. Include:
-- Recent price movements and volatility
-- Any major news or announcements
-- Social media sentiment and trending topics
-- Whale activity or large transactions
-- CEX listings or partnership announcements
-- Trading volume changes
-- Technical patterns traders are discussing
-- Any upcoming catalysts or events
-
-Provide specific details with dates, percentages, and sources where possible.`;
-
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.perplexityApiKey}`
-        },
-        body: JSON.stringify({
-          model: 'sonar',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a crypto market analyst providing real-time information. Be specific with dates, percentages, and sources. Focus on actionable information for traders.'
-            },
-            {
-              role: 'user',
-              content: query
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 1000,
-          return_citations: true
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Perplexity API error: ${response.status} - ${errorText.substring(0, 200)}`);
-        return null;
-      }
-
-      const result = await response.json();
-      const newsContent = result.choices[0].message.content;
-      const citations = result.citations || [];
-
-      console.log(`✅ [TA] Perplexity search complete (${citations.length} sources)`);
-
-      return {
-        news: newsContent,
-        citations: citations,
-        timestamp: Date.now()
+      // Map timeframe to display names
+      const timeframeDisplay = {
+        '5m': '5-minute',
+        '10m': '10-minute',
+        '15m': '15-minute',
+        '1h': '1-hour',
+        '4h': '4-hour',
+        '1d': 'daily'
       };
-
-    } catch (error) {
-      console.error(`❌ [TA] Perplexity search failed:`, error.message);
-      return null;
-    }
-  }
-
-  /**
-   * Search Perplexity for real-time token news, sentiment, AND technical analysis
-   */
-  async searchPerplexity(tokenName, tokenSymbol, contractAddress, timeframe) {
-    if (!this.perplexityApiKey) {
-      console.log(`⚠️  [TA] No Perplexity API key, skipping real-time search`);
-      return null;
-    }
-
-    try {
-      console.log(`🔍 [TA] Searching Perplexity for ${tokenName} news, sentiment & TA...`);
-
-      // Map timeframe to search window
-      const timeWindowMap = {
-        '5m': '2 hours',
-        '15m': '6 hours',
-        '1h': '24 hours',
-        '4h': '3 days',
-        '1d': '7 days'
-      };
-      const searchWindow = timeWindowMap[timeframe] || '7 days';
+      const tfDisplay = timeframeDisplay[timeframe] || timeframe;
       
-      const query = `Search for the latest information about the Solana SPL token "${tokenName}" (${tokenSymbol}) with the EXACT contract address ${contractAddress}. 
+      const query = `Provide a comprehensive ${tfDisplay} technical analysis for the Solana SPL token "${tokenName}" (${tokenSymbol}) currently trading at $${currentPrice.toFixed(6)} with market cap $${marketCap.toLocaleString()}.
 
-**CRITICAL: This is a Solana blockchain token. IGNORE any other tokens with similar names on Ethereum, BSC, or other chains. ONLY include information that specifically references this Solana contract address: ${contractAddress}**
+**CONTRACT ADDRESS (SOLANA ONLY):** ${contractAddress}
+**CRITICAL:** This is a Solana blockchain token. IGNORE any other tokens with similar names on Ethereum, BSC, Polygon, or other chains. ONLY analyze this Solana contract.
 
-Focus on the last ${searchWindow}. Include:
+**REQUIRED ANALYSIS SECTIONS:**
 
-**TECHNICAL ANALYSIS & CHART PATTERNS:**
-- Current technical analysis from traders and analysts
-- Key support and resistance levels being watched
-- Chart patterns (head & shoulders, triangles, flags, wedges, etc.)
-- RSI, MACD, Bollinger Bands analysis from crypto analysts
-- Moving average crossovers or key levels
-- Volume profile and order book analysis
-- Fibonacci retracement levels
-- Price action patterns and breakout setups
+1. **Current ${tfDisplay.toUpperCase()} Chart Structure:**
+   - Describe the price action over the last several hours/days relevant to this timeframe
+   - Is it in an uptrend, downtrend, or range?
+   - Key highs and lows forming the structure
 
-**NEWS & CATALYSTS:**
-- Recent price movements with specific percentages
-- Major news, announcements, or partnerships
-- CEX listings (BitMart, MEXC, Gate.io, Bybit, etc.) with dates
-- Protocol upgrades or tokenomics changes
-- Upcoming events or launches
+2. **Technical Indicators (${tfDisplay} timeframe):**
+   - RSI (14): Current value and signal (oversold <30, neutral 30-70, overbought >70)
+   - MACD: Current reading, histogram, and crossover status
+   - Bollinger Bands: Is price at upper band, middle, or lower band? Any squeeze?
+   - EMAs: 9, 21, 50 EMA alignment and crossovers
+   - Volume: Current volume vs recent average, any spikes?
 
-**MARKET SENTIMENT & ACTIVITY:**
-- Social media sentiment (Twitter/X, Reddit, Discord)
-- Whale activity and large transactions
-- Trading volume spikes with context
-- Influencer or analyst commentary
-- Community growth or engagement changes
+3. **Support & Resistance Levels:**
+   - Immediate support levels (with specific prices)
+   - Immediate resistance levels (with specific prices)
+   - Key psychological levels or round numbers
 
-**HELPFUL SOURCES TO CHECK:**
-- DexScreener Solana (dexscreener.com/solana/${contractAddress})
-- Birdeye Solana (birdeye.so/token/${contractAddress})
-- Solscan (solscan.io/token/${contractAddress})
-- Jupiter (jup.ag)
-- Raydium, Orca, or other Solana DEXs
+4. **Chart Patterns & Price Action:**
+   - Any recognizable patterns forming (triangles, flags, head & shoulders, etc.)?
+   - Recent breakouts or breakdowns?
+   - Liquidity zones or stop hunts?
 
-Provide specific details with dates, percentages, price levels, and sources where possible. If technical analysis is being discussed in the community, include those insights. 
+5. **Market Context & Catalysts:**
+   - Recent news, announcements, or CEX listings
+   - Social sentiment and community activity
+   - Whale transactions or unusual activity
+   - Any upcoming events
 
-**IMPORTANT: If you cannot find reliable Solana-specific information for this exact contract, clearly state "Limited Solana-specific data available" rather than providing data from other chains.**`;
+**OUTPUT REQUIREMENTS:**
+- Use SPECIFIC numbers: exact RSI values, price levels, percentages
+- Cite your sources where possible
+- Be actionable for traders
+- Focus on the ${tfDisplay} timeframe structure
+- Include dates/times for recent events
+
+Check sources like:
+- DexScreener Solana: dexscreener.com/solana/${contractAddress}
+- Birdeye: birdeye.so/token/${contractAddress}
+- Solscan: solscan.io/token/${contractAddress}
+- Trading discussions for Solana tokens
+
+If you cannot find sufficient Solana-specific technical data for this exact contract address, clearly state "Limited Solana-specific technical data available for this token" and provide what analysis you can from the price and market cap data provided.`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -286,11 +184,11 @@ Provide specific details with dates, percentages, price levels, and sources wher
           'Authorization': `Bearer ${this.perplexityApiKey}`
         },
         body: JSON.stringify({
-          model: 'sonar',
+          model: 'sonar-pro',
           messages: [
             {
               role: 'system',
-              content: 'You are a Solana-focused crypto market analyst. CRITICAL: Only provide information about the SPECIFIC Solana token contract mentioned in the query. If you find conflicting price data from different chains/tokens, clearly state "No reliable Solana-specific data found" rather than mixing data from different tokens. Be specific with dates, percentages, and sources. Verify contract addresses when possible.'
+              content: 'You are an expert crypto technical analyst specializing in Solana tokens. Generate comprehensive, actionable technical analysis with SPECIFIC indicator values, price levels, and chart structures. Use data from DexScreener, Birdeye, Solscan, and trading communities. CRITICAL: Only analyze the SPECIFIC Solana contract mentioned. If you cannot find sufficient technical data for this exact Solana token, clearly state it.'
             },
             {
               role: 'user',
@@ -310,24 +208,16 @@ Provide specific details with dates, percentages, price levels, and sources wher
       }
 
       const result = await response.json();
-      const newsContent = result.choices[0].message.content;
+      const taContent = result.choices[0].message.content;
       const citations = result.citations || [];
 
-      // Check for price discrepancy warnings (indicates wrong token data)
-      const hasDiscrepancy = newsContent.toLowerCase().includes('price discrepanc') || 
-                           newsContent.toLowerCase().includes('conflicting prices') ||
-                           newsContent.toLowerCase().includes('cannot provide');
-      
-      if (hasDiscrepancy) {
-        console.log(`⚠️  [TA] Perplexity found conflicting data (likely wrong chain) - returning null`);
-        return null; // Better to have no data than wrong data
-      }
-
-      console.log(`✅ [TA] Perplexity search complete (${citations.length} sources)`);
+      console.log(`✅ [TA] Perplexity sonar-pro analysis complete (${citations.length} sources)`);
 
       return {
-        content: newsContent,
-        citations: citations,
+        raw_analysis: taContent,
+        sources: citations,
+        timeframe: tfDisplay,
+        generated_at: new Date().toISOString(),
         timestamp: Date.now()
       };
 
@@ -335,6 +225,140 @@ Provide specific details with dates, percentages, price levels, and sources wher
       console.error(`❌ [TA] Perplexity search failed:`, error.message);
       return null;
     }
+  }
+
+  /**
+   * Wrap Perplexity's TA in Oracle Verdict format using Grok (degen slang + emoji)
+   */
+  async generateOracleVerdict(perplexityTA, jupiterData) {
+    if (!this.grokApiKey) {
+      console.log(`⚠️  [TA] No Grok API key`);
+      return this.generateDefaultVerdict();
+    }
+
+    try {
+      const prompt = `You are the DEGEN ORACLE - a legendary crypto trader who speaks in heavy crypto slang and emoji.
+
+**YOUR TASK:** Wrap this technical analysis in your signature style and give a VERDICT.
+
+**PERPLEXITY TA:**
+${perplexityTA.raw_analysis}
+
+**TOKEN DATA:**
+- ${jupiterData.name} (${jupiterData.symbol})
+- Price: $${jupiterData.usdPrice}
+- Market Cap: $${jupiterData.marketCap?.toLocaleString()}
+- Volume 24h: $${jupiterData.volume24h?.toLocaleString()}
+- Organic Score: ${jupiterData.organicScore || 'N/A'}
+
+**YOUR ORACLE VERDICT MUST INCLUDE:**
+
+1. **Quick Summary** (2-3 sentences in HEAVY crypto slang)
+   - Use terms like: "bullish af", "bearish", "crabbing", "chopping", "consolidation", "breakout szn", "distribution", "accumulation", "moon mission", "dump incoming", "hold the bags", "diamond hands", "paper hands", etc.
+   - Include 2-3 emoji per sentence 🚀🔥💎📉📈🐋
+
+2. **KEY LEVELS** (Support/Resistance in degen speak)
+   - Example: "🎯 Support at $X (don't fade below this or ngmi)"
+   - Example: "🚀 Resistance at $Y (break this and we moon)"
+
+3. **VERDICT** (One of these, with reasoning):
+   - **🟢 CALL IT** = Bullish, enter now or DCA
+   - **🟡 WAIT FOR CALL** = Wait for better entry (specify conditions)
+   - **🔴 FADE IT** = Bearish, stay away or take profits
+   - **⚪ WATCHLIST** = Interesting but need more confirmation
+
+4. **RISK LEVEL** (with crypto slang explanation):
+   - 🟢 LOW RISK (safe for normies)
+   - 🟡 MEDIUM RISK (degen territory)
+   - 🔴 HIGH RISK (ape at your own risk)
+   - ⚫ EXTREME RISK (lottery ticket, prepare to get rekt)
+
+**STYLE RULES:**
+- Use crypto slang HEAVILY (gm, ngmi, wagmi, degen, ape, moon, bags, ser, anon, fren, etc.)
+- Include emoji in EVERY section 🚀💎🔥📉📈🐋🎯⚠️
+- Be SPECIFIC with levels and conditions
+- Don't sugarcoat risks
+- Keep it real - if it's a shitcoin, say it
+
+**OUTPUT AS JSON:**
+\`\`\`json
+{
+  "summary": "...",
+  "key_levels": {
+    "support": "...",
+    "resistance": "..."
+  },
+  "verdict": "CALL IT | WAIT FOR CALL | FADE IT | WATCHLIST",
+  "verdict_emoji": "🟢 | 🟡 | 🔴 | ⚪",
+  "reasoning": "...",
+  "risk_level": "LOW | MEDIUM | HIGH | EXTREME",
+  "risk_emoji": "🟢 | 🟡 | 🔴 | ⚫",
+  "risk_explanation": "..."
+}
+\`\`\``;
+
+      const response = await fetch(this.grokEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.grokApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'grok-4-1-fast-reasoning',
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.9, // High creativity for degen slang
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Grok API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const content = result.choices[0].message.content;
+
+      // Extract JSON from response
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const verdictJSON = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        return verdictJSON;
+      }
+
+      // Fallback: return raw content
+      return {
+        summary: content,
+        verdict: 'WATCHLIST',
+        verdict_emoji: '⚪',
+        risk_level: 'HIGH',
+        risk_emoji: '🔴'
+      };
+
+    } catch (error) {
+      console.error(`❌ [TA] Grok Oracle Verdict failed:`, error.message);
+      return this.generateDefaultVerdict();
+    }
+  }
+
+  /**
+   * Generate default verdict if Grok fails
+   */
+  generateDefaultVerdict() {
+    return {
+      summary: "🤖 Oracle analysis pending - check back soon, fren",
+      key_levels: {
+        support: "Check chart for recent lows",
+        resistance: "Check chart for recent highs"
+      },
+      verdict: "WATCHLIST",
+      verdict_emoji: "⚪",
+      reasoning: "Insufficient data for Oracle verdict. DYOR before aping.",
+      risk_level: "HIGH",
+      risk_emoji: "🔴",
+      risk_explanation: "All crypto is high risk, ser. Only invest what you can afford to lose. NFA."
+    };
   }
 
   /**
@@ -1025,9 +1049,8 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
    */
   formatAsText(analysis) {
     const t = analysis.token;
-    const i = analysis.technical_indicators;
-    const s = analysis.trading_strategy;
-    const sr = analysis.support_resistance;
+    const ta = analysis.technical_analysis;
+    const verdict = analysis.oracle_verdict;
     
     let text = '';
     
@@ -1039,90 +1062,46 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     // Token Info
     text += `🪙 TOKEN: ${t.name} (${t.symbol})\n`;
     text += `💰 Price: $${t.price.toFixed(6)}\n`;
-    text += `📈 Market Cap: $${t.marketCap.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
-    text += `💧 24h Volume: $${t.volume24h.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n`;
+    text += `📈 Market Cap: $${t.marketCap?.toLocaleString('en-US', { maximumFractionDigits: 0 }) || 'N/A'}\n`;
+    text += `💧 24h Volume: $${t.volume24h?.toLocaleString('en-US', { maximumFractionDigits: 0 }) || 'N/A'}\n`;
     text += `📍 Contract: ${t.address}\n\n`;
-    
-    // Note: Market intelligence from Perplexity is used to enrich the AI analysis
-    // It's not displayed separately to avoid redundancy - the insights are incorporated
-    // into the Oracle Verdict, Trading Strategy, and Key Catalysts sections below
     
     // Oracle Verdict (Most Important!)
     text += `================================================================================\n`;
-    text += `🎭 ORACLE VERDICT ${s.oracle_verdict.emoji}\n`;
+    text += `🎭 ORACLE VERDICT ${verdict.verdict_emoji}\n`;
     text += `================================================================================\n`;
-    text += `${s.oracle_verdict.summary}\n\n`;
-    text += `📊 Signal: ${s.signal} (${(s.confidence * 100).toFixed(0)}% confidence)\n`;
-    text += `🎯 Action: ${s.oracle_verdict.action}\n`;
-    text += `📦 Position Size: ${s.oracle_verdict.position_size}\n`;
-    text += `⏱️  Timeframe: ${s.oracle_verdict.timeframe}\n\n`;
+    text += `${verdict.summary}\n\n`;
+    text += `📊 Signal: ${verdict.verdict}\n`;
+    text += `💡 Reasoning: ${verdict.reasoning}\n\n`;
     
-    // Key Insight
-    text += `💡 ${s.ai_summary.one_liner}\n\n`;
+    // Key Levels
+    if (verdict.key_levels) {
+      text += `🎯 KEY LEVELS:\n`;
+      if (verdict.key_levels.support) {
+        text += `   🟢 Support: ${verdict.key_levels.support}\n`;
+      }
+      if (verdict.key_levels.resistance) {
+        text += `   🔴 Resistance: ${verdict.key_levels.resistance}\n`;
+      }
+      text += `\n`;
+    }
     
-    // Technical Indicators
+    // Risk Assessment
+    text += `⚠️  RISK LEVEL: ${verdict.risk_emoji} ${verdict.risk_level}\n`;
+    text += `   ${verdict.risk_explanation}\n\n`;
+    
+    // Comprehensive Technical Analysis (from Perplexity sonar-pro)
     text += `================================================================================\n`;
-    text += `📈 TECHNICAL INDICATORS\n`;
+    text += `📊 COMPREHENSIVE TECHNICAL ANALYSIS\n`;
     text += `================================================================================\n`;
-    text += `📊 RSI (14): ${i.rsi.value?.toFixed(2) || 'N/A'} - ${i.rsi.signal.toUpperCase()}\n`;
-    text += `   ${i.rsi.interpretation}\n\n`;
-    
-    text += `📉 MACD: ${i.macd.value?.toFixed(6) || 'N/A'} - ${i.macd.crossover.toUpperCase()}\n`;
-    text += `   ${i.macd.interpretation}\n\n`;
-    
-    text += `📊 Bollinger Bands: ${i.bollinger.position.toUpperCase()}`;
-    if (i.bollinger.squeeze) {
-      text += ` ⚠️ SQUEEZE DETECTED!\n`;
+    if (ta && ta.raw_analysis) {
+      text += `${ta.raw_analysis}\n\n`;
+      if (ta.sources && ta.sources.length > 0) {
+        text += `📚 Sources: ${ta.sources.length} verified sources\n`;
+      }
+      text += `⏰ Timeframe: ${ta.timeframe}\n`;
     } else {
-      text += `\n`;
-    }
-    text += `   ${i.bollinger.interpretation}\n\n`;
-    
-    text += `📈 EMAs: ${i.ema.trend.toUpperCase()} alignment\n`;
-    text += `   9 EMA: $${i.ema.ema_9.toFixed(6)} | 21 EMA: $${i.ema.ema_21.toFixed(6)} | 50 EMA: $${i.ema.ema_50.toFixed(6)}\n`;
-    text += `   ${i.ema.interpretation}\n\n`;
-    
-    text += `📊 Volume: ${i.volume.spike ? '🔥 SPIKE!' : 'Normal'} (${i.volume.ratio.toFixed(2)}x average)\n`;
-    text += `   Current: ${i.volume.current.toLocaleString()} | Avg: ${i.volume.avg_20.toLocaleString()}\n`;
-    text += `   ${i.volume.interpretation}\n\n`;
-    
-    // Support & Resistance
-    text += `================================================================================\n`;
-    text += `🎯 SUPPORT & RESISTANCE LEVELS\n`;
-    text += `================================================================================\n`;
-    
-    if (sr.strong_resistance && sr.strong_resistance.length > 0) {
-      text += `🔴 Strong Resistance:\n`;
-      sr.strong_resistance.forEach(r => {
-        text += `   $${r.toFixed(6)} (+${(((r / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
-      });
-      text += `\n`;
-    }
-    
-    if (sr.resistance && sr.resistance.length > 0) {
-      text += `🟠 Resistance:\n`;
-      sr.resistance.forEach(r => {
-        text += `   $${r.toFixed(6)} (+${(((r / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
-      });
-      text += `\n`;
-    }
-    
-    text += `🎯 Current Price: $${sr.current_price.toFixed(6)}\n\n`;
-    
-    if (sr.support && sr.support.length > 0) {
-      text += `🟢 Support:\n`;
-      sr.support.forEach(s => {
-        text += `   $${s.toFixed(6)} (${(((s / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
-      });
-      text += `\n`;
-    }
-    
-    if (sr.strong_support && sr.strong_support.length > 0) {
-      text += `🟩 Strong Support:\n`;
-      sr.strong_support.forEach(s => {
-        text += `   $${s.toFixed(6)} (${(((s / sr.current_price) - 1) * 100).toFixed(2)}%)\n`;
-      });
-      text += `\n`;
+      text += `⚠️  No comprehensive technical analysis available\n\n`;
     }
     
     // Trading Strategy
@@ -1154,33 +1133,10 @@ ${data.perplexityData ? `- **MANDATORY**: Incorporate the real-time market intel
     text += `   ⚖️  Risk/Reward: ${s.risk_reward.ratio}\n`;
     text += `      ${s.risk_reward.verdict}\n\n`;
     
-    // Key Catalysts
-    text += `================================================================================\n`;
-    text += `🔑 KEY CATALYSTS\n`;
-    text += `================================================================================\n`;
-    s.ai_summary.key_catalysts.forEach(catalyst => {
-      text += `✅ ${catalyst}\n`;
-    });
-    text += `\n`;
-    
-    // Risks
-    text += `================================================================================\n`;
-    text += `⚠️ RISKS TO CONSIDER\n`;
-    text += `================================================================================\n`;
-    s.ai_summary.risks.forEach(risk => {
-      text += `❌ ${risk}\n`;
-    });
-    text += `\n`;
-    
-    // Detailed Analysis
-    text += `================================================================================\n`;
-    text += `📝 DETAILED ANALYSIS\n`;
-    text += `================================================================================\n`;
-    text += `${s.ai_summary.detailed_analysis}\n\n`;
-    
     // Footer
-    text += `================================================================================\n`;
+    text += `\n================================================================================\n`;
     text += `🕒 Generated: ${new Date(analysis.generated_at).toLocaleString()}\n`;
+    text += `📡 Data Sources: ${analysis.data_sources.technical_analysis} + ${analysis.data_sources.oracle_verdict}\n`;
     text += `🔗 Degen Oracle - ai.degen-oracle.com\n`;
     text += `================================================================================\n`;
     
