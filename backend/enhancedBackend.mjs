@@ -13858,6 +13858,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
     this.app.get('/api/hybrid-price/stats', (req, res) => {
       try {
+        // 🚨 FIX: Check if hybridPriceService exists (it's deprecated, replaced by DexScreenerStyleMonitor)
+        if (!this.hybridPriceService) {
+          return res.json({
+            success: true,
+            stats: {
+              message: 'HybridPriceService is deprecated, using DexScreenerStyleMonitor',
+              dexScreenerMonitor: this.dexScreenerMonitor ? {
+                tokensMonitored: this.dexScreenerMonitor.tokens.size,
+                poolsMonitored: this.dexScreenerMonitor.pools.size,
+                totalSwaps: this.dexScreenerMonitor.globalStats.totalSwapsDetected
+              } : null
+            }
+          });
+        }
+        
         const stats = this.hybridPriceService.getConnectionStats();
         res.json({
           success: true,
@@ -13876,6 +13891,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 🚀 NEW: Connection cleanup endpoint
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {
+        // 🚨 FIX: Check if hybridPriceService exists (it's deprecated, replaced by DexScreenerStyleMonitor)
+        if (!this.hybridPriceService) {
+          console.log('⚠️ [HybridPrice] Cleanup endpoint called but hybridPriceService is deprecated (replaced by DexScreenerStyleMonitor)');
+          return res.json({ 
+            success: true, 
+            message: 'HybridPriceService is deprecated. Connection cleanup not needed with DexScreenerStyleMonitor.' 
+          });
+        }
+        
         const { tokenAddress, connectionId } = req.body;
         
         if (tokenAddress && connectionId) {
