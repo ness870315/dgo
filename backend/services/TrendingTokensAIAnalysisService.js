@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
  * Trending Tokens AI Analysis Service
  * Combines trending token data with LLM analysis and real-time news discovery
  * Provides human-readable summaries with price, metrics, and catalysts
- * Uses Grok (grok-4-1-fast-reasoning) for AI summaries and Perplexity for news/catalysts
+ * Uses Grok (grok-4-1-fast-reasoning) for AI summaries and real-time news search for catalysts
  */
 class TrendingTokensAIAnalysisService {
   constructor() {
@@ -16,7 +16,7 @@ class TrendingTokensAIAnalysisService {
       // ALWAYS use production API endpoint (we're running on the same server)
       this.apiBaseUrl = 'https://api.degen-oracle.com';
       
-      console.log('🤖 [TRENDING AI] Initialized with Grok (grok-4-1-fast-reasoning) + Perplexity');
+      console.log('🤖 [TRENDING AI] Initialized with Grok (grok-4-1-fast-reasoning) + Real-time news search');
       console.log(`   API Base: ${this.apiBaseUrl}`);
       console.log(`   Grok API Key: ${process.env.GROK_API ? 'SET' : 'MISSING ⚠️'}`);
     } catch (error) {
@@ -30,7 +30,13 @@ class TrendingTokensAIAnalysisService {
    */
   async getTrendingTokens(limit = 10) {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/api/tokens/trending?limit=${limit}`, {
+      // 🚨 CRITICAL FIX: Request more tokens to ensure we get at least 'limit' after filtering
+      // Request 2x the limit to account for potential filtering/failures
+      const requestLimit = Math.max(limit * 2, 20);
+      
+      console.log(`📡 [TRENDING AI] Requesting ${requestLimit} tokens from API (target: ${limit})...`);
+      
+      const response = await fetch(`${this.apiBaseUrl}/api/tokens/trending?limit=${requestLimit}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -40,13 +46,21 @@ class TrendingTokensAIAnalysisService {
       }
 
       const tokens = await response.json();
-      console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from cache`);
+      console.log(`✅ [TRENDING AI] Fetched ${tokens.length} trending tokens from API`);
+      
+      if (tokens.length < limit) {
+        console.warn(`⚠️ [TRENDING AI] Only ${tokens.length} tokens available (requested ${limit})`);
+      }
       
       // Enrich with fresh Jupiter data
       const enrichedTokens = await this.enrichTokensWithJupiterData(tokens);
       console.log(`✅ [TRENDING AI] Enriched ${enrichedTokens.length} tokens with fresh Jupiter data`);
       
-      return enrichedTokens;
+      // 🚨 CRITICAL FIX: Ensure we return at least 'limit' tokens (or all available if less)
+      const finalTokens = enrichedTokens.slice(0, limit);
+      console.log(`✅ [TRENDING AI] Returning ${finalTokens.length} tokens for analysis`);
+      
+      return finalTokens;
       
     } catch (error) {
       console.error('❌ [TRENDING AI] Error fetching trending tokens:', error.message);
@@ -201,7 +215,7 @@ class TrendingTokensAIAnalysisService {
   }
 
   /**
-   * Analyze a single token with Perplexity (news, catalysts, context)
+   * Analyze a single token with real-time news search (news, catalysts, context)
    */
   async analyzeTokenWithPerplexity(token) {
     try {
@@ -211,7 +225,7 @@ class TrendingTokensAIAnalysisService {
       const contractAddress = token.contractAddress || '';
       const contractShort = contractAddress ? `${contractAddress.substring(0, 8)}...${contractAddress.slice(-8)}` : '';
       
-      // More direct query format that works better with Perplexity - match user's working format
+      // More direct query format for comprehensive news search
       const query = `Give me the MOST recent news and catalysts for ${tokenName} ($${tokenSymbol})${contractAddress ? ` on Solana, contract address: ${contractAddress}` : ' on Solana'} in the last 24-48 hours. 
 
 Extract and provide:
@@ -229,7 +243,7 @@ Be EXTREMELY specific with:
 
 Format your response with clear sections for each category.`;
       
-      console.log(`🔍 [TRENDING AI] Perplexity search for ${tokenName} ($${tokenSymbol})${contractShort ? ` [${contractShort}]` : ''}...`);
+      console.log(`🔍 [TRENDING AI] Real-time news search for ${tokenName} ($${tokenSymbol})${contractShort ? ` [${contractShort}]` : ''}...`);
       
       const perplexityResponse = await this.perplexityService.searchCrypto(query, {
         searchRecencyFilter: 'day', // Last 24 hours
@@ -237,11 +251,11 @@ Format your response with clear sections for each category.`;
       });
 
       if (!perplexityResponse || !perplexityResponse.content) {
-        console.warn(`⚠️ [TRENDING AI] No Perplexity data for ${token.symbol}`);
+        console.warn(`⚠️ [TRENDING AI] No news data found for ${token.symbol}`);
         return null;
       }
 
-      console.log(`✅ [TRENDING AI] Perplexity analysis complete for ${token.symbol}`);
+      console.log(`✅ [TRENDING AI] News analysis complete for ${token.symbol}`);
       console.log(`   📰 News length: ${perplexityResponse.content?.length || 0} chars`);
       console.log(`   📚 Citations: ${perplexityResponse.citations?.length || 0}`);
       
@@ -252,7 +266,7 @@ Format your response with clear sections for each category.`;
       };
       
     } catch (error) {
-      console.error(`❌ [TRENDING AI] Perplexity error for ${token.symbol}:`, error.message);
+      console.error(`❌ [TRENDING AI] News search error for ${token.symbol}:`, error.message);
       return null;
     }
   }
@@ -372,30 +386,31 @@ ${top10Pct > 0 ? `- Top 10 Control: ${top10Pct.toFixed(1)}% of supply` : '- Top 
 - 🦐 Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`
   : '⚠️ Holder insights not available for this token.'}
 
-**🔍 REAL-TIME NEWS & CATALYSTS (from Perplexity search - THIS IS YOUR PRIMARY DATA SOURCE):**
+**🔍 REAL-TIME NEWS & CATALYSTS (from Degen Oracle real-time search - THIS IS YOUR PRIMARY DATA SOURCE):**
 ${perplexityData?.news 
-  ? `\n${perplexityData.news}\n\n**Key Sources (${perplexityData.citations?.length || 0}):**\n${(perplexityData.citations || []).slice(0, 5).map((c, i) => `${i + 1}. ${c}`).join('\n') || 'No citations available'}\n\n**CRITICAL**: The above Perplexity data contains REAL, CURRENT information. You MUST extract and use SPECIFIC details from it in your summary.`
-  : '⚠️ **NO PERPLEXITY DATA FOUND** - This means the token is likely trending on pure speculation/meme momentum without fundamental catalysts. In this case, lead with on-chain holder flow analysis and mention that no recent news/catalysts were found.'}
+  ? `\n${perplexityData.news}\n\n**Key Sources (${perplexityData.citations?.length || 0}):**\n${(perplexityData.citations || []).slice(0, 5).map((c, i) => `${i + 1}. ${c}`).join('\n') || 'No citations available'}\n\n**CRITICAL**: The above data from our platform contains REAL, CURRENT information. You MUST extract and use SPECIFIC details from it in your summary. When referencing this data, use phrases like "Degen Oracle confirms", "Our platform analysis shows", "Our analytics indicate", or similar variations. NEVER mention "Perplexity" or any external service names.`
+  : '⚠️ **NO NEWS DATA FOUND** - This means the token is likely trending on pure speculation/meme momentum without fundamental catalysts. In this case, lead with on-chain holder flow analysis and mention that no recent news/catalysts were found.'}
 
 **📊 ANALYSIS REQUIREMENTS:**
 Write a 3-4 sentence comprehensive summary that provides REAL VALUE. Structure it as:
 
-1. **🚨 MANDATORY: LEAD WITH PERPLEXITY NEWS/CATALYSTS** (MOST IMPORTANT - 80% OF SUMMARY):
+1. **🚨 MANDATORY: LEAD WITH REAL-TIME NEWS/CATALYSTS** (MOST IMPORTANT - 80% OF SUMMARY):
 ${perplexityData?.news 
-  ? `   - **YOUR FIRST 2-3 SENTENCES MUST BE ABOUT PERPLEXITY DATA** - This is non-negotiable.
-   - **EXTRACT SPECIFIC DETAILS** from the Perplexity section above:
+  ? `   - **YOUR FIRST 2-3 SENTENCES MUST BE ABOUT THE NEWS DATA** - This is non-negotiable.
+   - **EXTRACT SPECIFIC DETAILS** from the news section above:
      * CEX Listings: Name the exchange (BitMart, MEXC, Gate.io, Hotcoin, Bitrue, Bitrue Alpha, etc.), listing date, trading pair (e.g., "KABUTO/USDT"), promotions (e.g., "zero-fee promo")
      * Price Action: Specific percentages (e.g., "260-327% daily gains"), market cap numbers (e.g., "briefly exceeded 10-13M USD market cap"), dates (e.g., "between December 1-2, 2025")
      * Narrative: Exact themes (e.g., "Pokémon-card tie-in", "meme/NFT/DeFi communities"), story angles, viral moments
      * Media Coverage: Articles, roundups, "best Solana memes" features
-   - **USE EXACT PHRASING** from Perplexity when possible. If Perplexity says "BitMart listing on December 4, 2025", use that exact phrasing.
+   - **USE EXACT PHRASING** from the news data when possible. If the data says "BitMart listing on December 4, 2025", use that exact phrasing.
    - **PRIORITIZE IN THIS ORDER**: 1) CEX listings (most important), 2) Price action spikes with numbers, 3) Market cap movements, 4) Narrative developments, 5) Partnerships
-   - **DON'T SAY "no fresh catalysts"** if Perplexity found data - that's contradictory. If Perplexity found news, it IS a catalyst.
-   - **MULTIPLE CATALYSTS**: If Perplexity mentions multiple things, mention the most significant ones (CEX listings first, then price spikes, then narrative).`
-  : `   - Since no Perplexity news was found, lead with on-chain holder flow analysis.
+   - **DON'T SAY "no fresh catalysts"** if news data was found - that's contradictory. If news was found, it IS a catalyst.
+   - **MULTIPLE CATALYSTS**: If multiple things are mentioned, mention the most significant ones (CEX listings first, then price spikes, then narrative).
+   - **CRITICAL**: When referencing this data, use phrases like "Degen Oracle confirms", "Our platform analysis shows", "Our analytics indicate", "Degen Oracle's analysis reveals", or similar variations. NEVER mention "Perplexity" or any external service names.`
+  : `   - Since no news data was found, lead with on-chain holder flow analysis.
    - Explicitly mention: "despite no fresh catalysts" or "no recent news/catalysts found" to indicate this is pure speculation/meme momentum.`}
 
-2. **🐋 ON-CHAIN HOLDER FLOW ANALYSIS** (SUPPORTING DATA): After covering Perplexity news, add holder flow context:
+2. **🐋 ON-CHAIN HOLDER FLOW ANALYSIS** (SUPPORTING DATA): After covering news/catalysts, add holder flow context:
    - If whales are flowing IN (positive net): "Smart money accumulating" or "Whales loading up" - this is BULLISH
    - If whales are flowing OUT (negative net): "Whale outflow detected" or "Smart money exiting" - this is BEARISH
    - If retail is flowing IN: "Retail FOMO building" or "Apes piling in"
@@ -408,17 +423,18 @@ ${perplexityData?.news
 
 **CRITICAL INSTRUCTIONS:**
 ${perplexityData?.news 
-  ? `- **MANDATORY: LEAD WITH PERPLEXITY NEWS DATA** - This is the MOST IMPORTANT information. Your summary MUST start with the specific news/catalysts from Perplexity.
-- Extract and mention SPECIFIC details from the Perplexity data:
+  ? `- **MANDATORY: LEAD WITH NEWS DATA** - This is the MOST IMPORTANT information. Your summary MUST start with the specific news/catalysts from our platform analysis.
+- Extract and mention SPECIFIC details from the news data:
   * Exchange listings (name the exchange: BitMart, MEXC, Gate.io, Hotcoin, Bitrue, etc.)
   * Price action spikes (specific percentages, market cap numbers, dates)
   * Market cap movements (e.g., "briefly exceeded 10-13M USD market cap")
   * Partnerships or major announcements
   * Narrative developments (e.g., "Pokémon-card tie-in", "meme/NFT/DeFi communities")
   * Dates mentioned (e.g., "December 1-2, 2025")
-- DO NOT summarize the news generically - use the EXACT details from Perplexity (exchange names, percentages, dates, market cap numbers).
-- If Perplexity mentions multiple catalysts, prioritize the most recent and significant ones (CEX listings > price spikes > narrative).
-- The Perplexity data is REAL and CURRENT - it should be 80% of your summary content.`
+- DO NOT summarize the news generically - use the EXACT details from the news data (exchange names, percentages, dates, market cap numbers).
+- If multiple catalysts are mentioned, prioritize the most recent and significant ones (CEX listings > price spikes > narrative).
+- The news data is REAL and CURRENT - it should be 80% of your summary content.
+- **CRITICAL**: When referencing this data, use phrases like "Degen Oracle confirms", "Our platform analysis shows", "Our analytics indicate", "Degen Oracle's analysis reveals", "Our systems analytics confirm", or similar variations. NEVER mention "Perplexity" or any external service names.`
   : `- Since no recent news was found, LEAD WITH ON-CHAIN HOLDER FLOW ANALYSIS instead.
 - Build your narrative around whale/retail flows - this is the most valuable insight when no news is available.
 - Mention that this appears to be pure speculation/meme momentum without fundamental catalysts.`
@@ -437,19 +453,20 @@ ${perplexityData?.news
 - If liquidity is very low relative to volume, mention the volatility risk
 - ${top10Pct > 0 ? `If top 10% control >30% (currently ${top10Pct.toFixed(1)}%), mention concentration risk` : 'If concentration data is available and >30%, mention concentration risk'}
 
-**Example (with Perplexity news - FOLLOW THIS EXACT FORMAT - FIRST 2-3 SENTENCES ABOUT PERPLEXITY):**
-"${token.symbol} surged after [EXACT PERPLEXITY DETAIL #1 - e.g., 'BitMart exchange listing on December 4, 2025' or 'briefly exceeded 10-13M USD market cap with 260-327% daily gains between December 1-2, 2025']. [ADD PERPLEXITY DETAIL #2 - e.g., 'Hotcoin also announced ${token.symbol}/USDT spot trading with zero-fee promo around December 1' or 'Bitrue Alpha published an official listing update on December 4']. [ADD PERPLEXITY DETAIL #3 IF AVAILABLE - e.g., 'The Pokémon-card tie-in narrative kept it in social feeds as an actively watched degen play' or 'Market data outlets report the move as highly speculative with limited real-world utility']. On-chain data shows ${whaleFlow.net > 0 ? 'smart money accumulating with +' + whaleFlow.net + ' whale net flow 🐋' : whaleFlow.net < 0 ? 'whale outflow (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity'}, while ${retailFlow.net > 0 ? 'retail FOMO building with +' + retailFlow.net + ' net flow 🦐' : retailFlow.net < 0 ? 'retail selling (' + retailFlow.net + ' net) 🦐📉' : 'retail flow balanced'}. The [Perplexity catalyst - e.g., 'listing announcements' or 'market cap spike to 10-13M USD'] triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'}"
+**Example (with news data - FOLLOW THIS EXACT FORMAT - FIRST 2-3 SENTENCES ABOUT NEWS):**
+"${token.symbol} surged after [EXACT PERPLEXITY DETAIL #1 - e.g., 'BitMart exchange listing on December 4, 2025' or 'briefly exceeded 10-13M USD market cap with 260-327% daily gains between December 1-2, 2025']. [ADD PERPLEXITY DETAIL #2 - e.g., 'Hotcoin also announced ${token.symbol}/USDT spot trading with zero-fee promo around December 1' or 'Bitrue Alpha published an official listing update on December 4']. [ADD PERPLEXITY DETAIL #3 IF AVAILABLE - e.g., 'The Pokémon-card tie-in narrative kept it in social feeds as an actively watched degen play' or 'Market data outlets report the move as highly speculative with limited real-world utility']. On-chain data shows ${whaleFlow.net > 0 ? 'smart money accumulating with +' + whaleFlow.net + ' whale net flow 🐋' : whaleFlow.net < 0 ? 'whale outflow (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity'}, while ${retailFlow.net > 0 ? 'retail FOMO building with +' + retailFlow.net + ' net flow 🦐' : retailFlow.net < 0 ? 'retail selling (' + retailFlow.net + ' net) 🦐📉' : 'retail flow balanced'}. The [news catalyst - e.g., 'listing announcements' or 'market cap spike to 10-13M USD'] triggered $${this.formatNumber(token.volume24h || 0)} in 24h volume. ${hasLowLiquidity ? '⚠️ Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity suggests high volatility risk.' : 'Strong $' + this.formatNumber(token.liquidity || 0) + ' liquidity provides stability.'}"
 
 **REMEMBER**: 
-- If Perplexity found news, your FIRST 2-3 SENTENCES should be about that news with SPECIFIC details (exchange names, dates, percentages, market cap numbers, narrative themes).
-- Holder flows are supporting context that comes AFTER the Perplexity news.
-- Don't say "despite no fresh catalysts" if Perplexity found data - that's contradictory.
+- If news data was found, your FIRST 2-3 SENTENCES should be about that news with SPECIFIC details (exchange names, dates, percentages, market cap numbers, narrative themes).
+- Holder flows are supporting context that comes AFTER the news/catalysts.
+- Don't say "despite no fresh catalysts" if news data was found - that's contradictory.
+- **CRITICAL**: Always use phrases like "Degen Oracle confirms", "Our platform analysis shows", "Our analytics indicate", or similar variations. NEVER mention "Perplexity" or any external service names.
 
 **Example (no news, holder flow-driven):**
 "${token.symbol} is ${whaleFlow.net > 0 && retailFlow.net > 0 ? 'seeing strong on-chain accumulation with whales (+' + whaleFlow.net + ') and retail (+' + retailFlow.net + ') both flowing in 🔥' : whaleFlow.net > 0 ? 'attracting smart money with +' + whaleFlow.net + ' whale net flow 🐋 while retail is ' + (retailFlow.net < 0 ? 'exiting (' + retailFlow.net + ')' : 'neutral') : 'experiencing ' + (whaleFlow.net < 0 ? 'whale distribution (' + whaleFlow.net + ') 🐋📉' : 'neutral whale activity')}, driving ${hasSignificantPriceChange ? priceChangeAbs.toFixed(1) + '%' : 'strong'} price action and $${this.formatNumber(token.volume24h || 0)} volume. ${top10Pct > 0 ? (top10Pct > 30 ? '⚠️ High concentration risk with top 10% controlling ' + top10Pct.toFixed(1) + '% of supply.' : 'Holder distribution looks healthy with ' + top10Pct.toFixed(1) + '% top 10 control.') : ''} ${hasLowLiquidity ? 'Thin $' + this.formatNumber(token.liquidity || 0) + ' liquidity creates volatility risk.' : ''}"`;
 
       console.log(`🤖 [TRENDING AI] Generating summary for ${token.symbol} using Grok...`);
-      console.log(`   📰 Perplexity data in prompt: ${perplexityData?.news ? 'YES (' + perplexityData.news.length + ' chars)' : 'NO'}`);
+      console.log(`   📰 News data in prompt: ${perplexityData?.news ? 'YES (' + perplexityData.news.length + ' chars)' : 'NO'}`);
       console.log(`   🐋 Holder insights in prompt: ${holderInsights ? 'YES' : 'NO'}`);
       
       const summary = await this.grokService.generateCompletion(prompt, {
@@ -495,7 +512,7 @@ ${perplexityData?.news
           // Add delay to avoid rate limits (stagger requests)
           await new Promise(resolve => setTimeout(resolve, index * 1000));
           
-          // Get Perplexity news/catalysts and holder insights in parallel
+          // Get real-time news/catalysts and holder insights in parallel
           const [perplexityData, holderInsights] = await Promise.all([
             this.analyzeTokenWithPerplexity(token),
             this.fetchHolderInsights(token)
@@ -544,8 +561,8 @@ ${perplexityData?.news
             });
           }
           
-          // Debug log Perplexity data
-          console.log(`📰 [TRENDING AI] ${token.symbol} Perplexity data:`, {
+          // Debug log news data
+          console.log(`📰 [TRENDING AI] ${token.symbol} news data:`, {
             hasNews: !!perplexityData?.news,
             newsLength: perplexityData?.news?.length || 0,
             citationsCount: perplexityData?.citations?.length || 0,
