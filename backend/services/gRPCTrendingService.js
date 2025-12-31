@@ -1054,8 +1054,101 @@ class gRPCTrendingService {
                 }
                 
                 console.log(`✅ [gRPCTrending] Processor workflow completed`);
+                
+                // 🚨 CRITICAL: Check if there are more tokens in queue after processing completes
+                // This handles the case where tokens were added while processing was running
+                if (this.enhancedTokenProcessor.processingQueue.length > 0 && !this.enhancedTokenProcessor.isProcessing) {
+                    const queuedCount = this.enhancedTokenProcessor.processingQueue.length;
+                    console.log(`🔄 [gRPCTrending] Found ${queuedCount} tokens still in queue, processing them now...`);
+                    
+                    // Process remaining tokens in queue directly (they're already in the queue)
+                    // Set isProcessing flag to prevent early exit in stages
+                    this.enhancedTokenProcessor.isProcessing = true;
+                    
+                    // Store contracts of queued tokens for tracking
+                    const queuedContracts = new Set(
+                        this.enhancedTokenProcessor.processingQueue
+                            .filter(t => t.contractAddress)
+                            .map(t => t.contractAddress.toLowerCase())
+                    );
+                    const queuedContractsArray = Array.from(queuedContracts);
+                    const tokensBeforeQueued = (this.enhancedTokenProcessor.processedTokens || []).length;
+                    
+                    try {
+                        // Run through Jupiter → Twitter → Scoring → Saving stages for queued tokens
+                        console.log(`🔄 [gRPCTrending] Running Jupiter stage for queued tokens...`);
+                        await this.enhancedTokenProcessor.processJupiterStage();
+                        console.log(`🔄 [gRPCTrending] Running Twitter stage for queued tokens...`);
+                        await this.enhancedTokenProcessor.processTwitterStage();
+                        console.log(`🔄 [gRPCTrending] Running Scoring stage for queued tokens...`);
+                        await this.enhancedTokenProcessor.processScoringStage();
+                        console.log(`🔄 [gRPCTrending] Running Save to Database stage for queued tokens...`);
+                        await this.enhancedTokenProcessor.saveFinalDatabase();
+                        
+                        // Wait a moment for database write to complete
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check which queued tokens were saved
+                        const allProcessedTokensAfter = this.enhancedTokenProcessor.processedTokens || [];
+                        const tokensAfterQueued = allProcessedTokensAfter.length;
+                        const newQueuedTokensCount = tokensAfterQueued - tokensBeforeQueued;
+                        
+                        console.log(`🔍 [gRPCTrending] Checking saved queued tokens:`);
+                        console.log(`   Queued contracts: ${queuedContractsArray.length}`);
+                        console.log(`   Tokens in database before: ${tokensBeforeQueued}`);
+                        console.log(`   Tokens in database after: ${tokensAfterQueued}`);
+                        console.log(`   New tokens added: ${newQueuedTokensCount}`);
+                        
+                        // Find tokens that match our queued contracts
+                        const savedQueuedTokens = allProcessedTokensAfter
+                            .filter(t => {
+                                if (!t.contractAddress) return false;
+                                const contractLower = t.contractAddress.toLowerCase();
+                                return queuedContracts.has(contractLower);
+                            })
+                            .filter(t => {
+                                // Check if token was discovered recently (within last 2 minutes) or has gRPC-Trending source
+                                if (t.source === 'gRPC-Trending') return true;
+                                if (t.discoveredAt) {
+                                    const discoveredTime = new Date(t.discoveredAt).getTime();
+                                    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+                                    return discoveredTime > twoMinutesAgo;
+                                }
+                                return true;
+                            });
+                        
+                        if (savedQueuedTokens.length > 0) {
+                            console.log(`\n${'='.repeat(80)}`);
+                            console.log(`✅ [gRPCTrending] QUEUED TOKENS ADDED TO DATABASE (${savedQueuedTokens.length}):`);
+                            console.log(`${'='.repeat(80)}`);
+                            savedQueuedTokens.forEach((token, index) => {
+                                console.log(`${index + 1}. ${token.symbol || 'UNKNOWN'} (${token.name || 'Unknown Token'})`);
+                                console.log(`   Contract: ${token.contractAddress}`);
+                                console.log(`   Overall Score: ${token.overallScore ? token.overallScore.toFixed(2) : 'N/A'}`);
+                                console.log(`   Market Cap: $${token.marketCap ? (token.marketCap / 1000000).toFixed(2) + 'M' : 'N/A'}`);
+                                console.log(`   Volume 24h: $${token.volume24h ? (token.volume24h / 1000).toFixed(2) + 'K' : 'N/A'}`);
+                                console.log(`   Twitter Mentions: ${token.twitterData?.mentions || 0}`);
+                                console.log(`   Source: ${token.source || 'gRPC-Trending'}`);
+                                console.log(`   Stage: ${token.stage || 'unknown'}`);
+                                console.log(`   ✅ Successfully saved to database`);
+                                console.log('');
+                            });
+                            console.log(`${'='.repeat(80)}\n`);
+                        } else {
+                            console.log(`⚠️ [gRPCTrending] No queued tokens were found in database yet`);
+                            console.log(`   Expected: ${queuedContractsArray.length} tokens`);
+                            console.log(`   Queued contracts: ${queuedContractsArray.slice(0, 5).join(', ')}${queuedContractsArray.length > 5 ? '...' : ''}`);
+                        }
+                        
+                        console.log(`✅ [gRPCTrending] Queued tokens processing completed`);
+                    } finally {
+                        // Always reset isProcessing flag
+                        this.enhancedTokenProcessor.isProcessing = false;
+                    }
+                }
             } else {
-                console.log(`⏳ [gRPCTrending] Processor already running, tokens will be picked up in next cycle`);
+                console.log(`⏳ [gRPCTrending] Processor already running, tokens added to queue (will be processed when current run completes)`);
+                console.log(`   Queue size: ${this.enhancedTokenProcessor.processingQueue.length} tokens`);
             }
             
         } catch (error) {
