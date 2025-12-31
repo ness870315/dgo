@@ -64,12 +64,19 @@ class TechnicalAnalysisService {
         levels
       };
       
-      // 6. Generate AI analysis (or use mock if Grok unavailable)
+      // 6. Generate AI analysis (try Grok first, fallback to mock)
       let aiAnalysis;
-      try {
-        aiAnalysis = await this.generateAIAnalysis(analysisData);
-      } catch (error) {
-        console.log(`⚠️  [TA] Grok unavailable, using mock analysis`);
+      if (this.grokApiKey) {
+        try {
+          console.log(`🤖 [TA] Generating AI analysis with Grok...`);
+          aiAnalysis = await this.generateAIAnalysis(analysisData);
+          console.log(`✅ [TA] Grok analysis complete`);
+        } catch (error) {
+          console.log(`⚠️  [TA] Grok failed (${error.message}), using mock analysis`);
+          aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
+        }
+      } else {
+        console.log(`⚠️  [TA] No Grok API key, using mock analysis`);
         aiAnalysis = this.generateMockAnalysis(analysisData, currentPrice);
       }
       
@@ -82,7 +89,7 @@ class TechnicalAnalysisService {
         trading_strategy: aiAnalysis,
         generated_at: new Date().toISOString()
       };
-      
+
     } catch (error) {
       console.error(`❌ [TA] Error analyzing token:`, error.message);
       throw error;
@@ -120,7 +127,7 @@ class TechnicalAnalysisService {
     }
     
     const tokenData = data[0];
-    
+
     return {
       address: tokenData.id,
       name: tokenData.name,
@@ -373,7 +380,7 @@ class TechnicalAnalysisService {
     } else {
       interpretation = 'EMAs mixed - no clear trend';
     }
-    
+
     return {
       ema_9: ema9,
       ema_21: ema21,
@@ -481,9 +488,160 @@ class TechnicalAnalysisService {
    * Generate AI analysis using Grok
    */
   async generateAIAnalysis(data) {
-    // TODO: Implement Grok API call
-    // For now, return mock
-    throw new Error('Grok API not implemented yet');
+    if (!this.grokApiKey) {
+      throw new Error('Grok API key not configured');
+    }
+
+    const prompt = `You are the Degen Oracle AI - an expert crypto technical analyst with a degen edge. Analyze this token and provide a trading strategy.
+
+**TOKEN DATA:**
+- Name: ${data.token.name} (${data.token.symbol})
+- Current Price: $${data.token.price.toFixed(6)}
+- Market Cap: $${data.token.marketCap.toLocaleString()}
+- 24h Volume: $${data.token.volume24h.toLocaleString()}
+
+**TECHNICAL INDICATORS:**
+- RSI (14): ${data.indicators.rsi.value?.toFixed(2)} (${data.indicators.rsi.signal})
+  ${data.indicators.rsi.interpretation}
+
+- MACD: ${data.indicators.macd.value?.toFixed(6)} (${data.indicators.macd.crossover})
+  ${data.indicators.macd.interpretation}
+
+- Bollinger Bands: ${data.indicators.bollinger.position}${data.indicators.bollinger.squeeze ? ' ⚠️ SQUEEZE DETECTED!' : ''}
+  Bandwidth: ${data.indicators.bollinger.bandwidth?.toFixed(2)}%
+  ${data.indicators.bollinger.interpretation}
+
+- EMAs: ${data.indicators.ema.trend} alignment
+  9 EMA: $${data.indicators.ema.ema_9.toFixed(6)}
+  21 EMA: $${data.indicators.ema.ema_21.toFixed(6)}
+  50 EMA: $${data.indicators.ema.ema_50.toFixed(6)}
+  ${data.indicators.ema.interpretation}
+
+- Volume: ${data.indicators.volume.spike ? '🔥 SPIKE!' : 'Normal'} (${data.indicators.volume.ratio.toFixed(2)}x average)
+  ${data.indicators.volume.interpretation}
+
+**SUPPORT & RESISTANCE:**
+- Current: $${data.levels.current_price.toFixed(6)}
+${data.levels.resistance?.length > 0 ? `- Resistance: ${data.levels.resistance.map(r => '$' + r.toFixed(6)).join(', ')}` : '- Resistance: None nearby'}
+${data.levels.support?.length > 0 ? `- Support: ${data.levels.support.map(s => '$' + s.toFixed(6)).join(', ')}` : '- Support: None nearby'}
+
+**YOUR TASK:**
+Generate a comprehensive trading strategy in JSON format with these exact fields:
+
+{
+  "signal": "BUY" | "HOLD" | "SELL",
+  "confidence": 0.0 to 1.0,
+  "reasoning": "Brief explanation of the signal",
+  "entry_strategy": {
+    "aggressive_entry": {
+      "price": <number>,
+      "size": "percentage of position",
+      "reasoning": "why this entry"
+    },
+    "conservative_entry": {
+      "price": <number>,
+      "size": "percentage of position",
+      "reasoning": "why this entry"
+    }
+  },
+  "exit_strategy": {
+    "stop_loss": {
+      "price": <number>,
+      "percentage": <number>,
+      "reasoning": "why this stop"
+    },
+    "take_profit_levels": [
+      {
+        "level": "TP1",
+        "price": <number>,
+        "percentage": <number>,
+        "action": "Take X% profit",
+        "reasoning": "why this level"
+      }
+      // ... TP2, TP3
+    ]
+  },
+  "risk_reward": {
+    "ratio": "X:1",
+    "verdict": "assessment"
+  },
+  "ai_summary": {
+    "one_liner": "catchy summary with emojis",
+    "detailed_analysis": "2-3 paragraph deep dive",
+    "key_catalysts": ["catalyst 1", "catalyst 2", ...],
+    "risks": ["risk 1", "risk 2", ...]
+  },
+  "oracle_verdict": {
+    "action": "CALL IT" | "WAIT" | "FADE IT",
+    "confidence": "LOW" | "MEDIUM" | "MEDIUM-HIGH" | "HIGH",
+    "position_size": "recommendation",
+    "timeframe": "expected duration",
+    "emoji": "🚀" | "⚠️" | "❌",
+    "summary": "final word in 2-3 sentences with heavy crypto slang"
+  }
+}
+
+**STYLE REQUIREMENTS:**
+- Use heavy crypto slang: "call it", "fade it", "send it", "ape in", "bags", "moon", "dump", "pump", "diamond hands", "paper hands", "degen play", "copium", "hopium"
+- Be direct and actionable
+- Provide specific price levels based on support/resistance
+- Make the oracle_verdict.summary punchy and memorable
+- If Bollinger squeeze detected = emphasize breakout potential
+- If RSI extreme = emphasize reversal potential
+- Consider ALL indicators together for the signal
+- Return ONLY valid JSON, no other text`;
+
+    try {
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.grokApiKey}`
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are the Degen Oracle AI, an expert crypto technical analyst. Always respond with valid JSON only.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          model: 'grok-2-1212',
+          temperature: 0.7,
+          max_tokens: 2000,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Grok API error: ${response.status} - ${errorText.substring(0, 200)}`);
+        throw new Error(`Grok API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const aiResponse = result.choices[0].message.content;
+
+      // Parse JSON response
+      let analysis;
+      try {
+        // Remove markdown code blocks if present
+        const cleanedResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        analysis = JSON.parse(cleanedResponse);
+      } catch (parseError) {
+        console.error('Failed to parse Grok response:', aiResponse.substring(0, 500));
+        throw new Error('Grok returned invalid JSON');
+      }
+
+      return analysis;
+
+    } catch (error) {
+      console.error('Grok API error:', error.message);
+      throw error;
+    }
   }
 
   /**
