@@ -10,9 +10,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Updated to new Constant K gRPC endpoint (Nov 2025)
-const CONSTANT_K_GRPC_ENDPOINT = 'http://grpc.constant-k.com/';
-const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const CONSTANT_K_RPC = 'https://rpc.constant-k.com/v1/39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const CONSTANT_K_GRPC_ENDPOINT = process.env.KGRPC_ENDPOINT || 'http://grpc.constant-k.com';
+const CONSTANT_K_GRPC_TOKEN = process.env.KGRPC_API || '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const CONSTANT_K_RPC = process.env.CONSTANT_K_RPC || 'https://rpc.constant-k.com/v1/39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 
 // DEX Programs to monitor
 const DEX_PROGRAMS = [
@@ -47,7 +47,7 @@ class gRPCTrendingService {
     constructor(enhancedHybridPriceService = null, enhancedTokenProcessor = null) {
         this.grpcClient = null;
         this.grpcInitialized = false;
-        this.grpcWrapper = null;
+        this.commitmentLevel = null;
         this.stream = null;
         this.clientInstanceId = `gtr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         this.rpcConnection = new Connection(CONSTANT_K_RPC, 'confirmed');
@@ -99,6 +99,8 @@ class gRPCTrendingService {
 
     async initialize() {
         console.log(`🔌 [gRPCTrending] Initializing gRPC client (instance ${this.clientInstanceId})...`);
+        console.log(`   Endpoint: ${CONSTANT_K_GRPC_ENDPOINT}`);
+        console.log(`   API Key: ${CONSTANT_K_GRPC_TOKEN ? `${CONSTANT_K_GRPC_TOKEN.substring(0, 8)}...` : 'MISSING'}`);
 
         if (this.grpcInitialized && this.grpcClient) {
             console.log(`⚠️ [gRPCTrending] gRPC client already initialized (instance ${this.clientInstanceId})`);
@@ -106,19 +108,27 @@ class gRPCTrendingService {
         }
 
         try {
-            if (!this.grpcWrapper) {
-                const { createRequire } = await import('module');
-                const require = createRequire(import.meta.url);
-                const GrpcWrapper = require('./GrpcWrapper.cjs');
-                this.grpcWrapper = new GrpcWrapper();
-            }
-
-            this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
+            // Create client directly (same as DexScreenerStyleMonitor) instead of using GrpcWrapper
+            const { createRequire } = await import('module');
+            const require = createRequire(import.meta.url);
+            const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
+            const Client = YellowstoneGrpc.default || YellowstoneGrpc;
+            
+            this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
             this.grpcInitialized = true;
+            
+            // Store CommitmentLevel for later use
+            this.commitmentLevel = YellowstoneGrpc.CommitmentLevel || YellowstoneGrpc.default?.CommitmentLevel;
+            
             console.log(`✅ [gRPCTrending] gRPC client initialized (instance ${this.clientInstanceId})`);
             return true;
         } catch (error) {
             console.error('❌ [gRPCTrending] Failed to initialize:', error);
+            console.error(`   Error details: ${error.message}`);
+            if (error.message.includes('UNAUTHENTICATED') || error.message.includes('API Key')) {
+                console.error('   ⚠️  Authentication failed - please check your KGRPC_API environment variable');
+                console.error(`   Current API Key: ${CONSTANT_K_GRPC_TOKEN ? `${CONSTANT_K_GRPC_TOKEN.substring(0, 8)}...` : 'MISSING'}`);
+            }
             this.grpcInitialized = false;
             this.grpcClient = null;
             return false;
@@ -154,8 +164,8 @@ class gRPCTrendingService {
         this.stats.startTime = Date.now();
 
         try {
-            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel() || { CONFIRMED: 1 };
-            const commitmentLevel = CommitmentLevel.CONFIRMED || 1; // Use numeric value (1 = CONFIRMED)
+            // Use CommitmentLevel from YellowstoneGrpc (stored during initialization)
+            const commitmentLevel = this.commitmentLevel?.CONFIRMED || 1; // Use numeric value (1 = CONFIRMED)
             
             const transactionFilters = {
                 client: {
