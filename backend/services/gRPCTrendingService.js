@@ -1061,15 +1061,28 @@ class gRPCTrendingService {
     async saveToTokensCache(newTokens) {
         try {
             const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+            const backupPath = cachePath + '.backup';
+            const tempPath = cachePath + '.tmp';
             
             // Load existing cache
             let existingTokens = [];
+            let backupCreated = false;
+            
             try {
                 if (await fs.access(cachePath).then(() => true).catch(() => false)) {
                     const cacheData = await fs.readFile(cachePath, 'utf8');
                     const parsed = JSON.parse(cacheData);
                     existingTokens = Array.isArray(parsed) ? parsed : (parsed.tokens || []);
                     console.log(`📊 [gRPCTrending] Loaded ${existingTokens.length} existing tokens from cache`);
+                    
+                    // 🚨 CRITICAL: Create backup BEFORE any modifications
+                    try {
+                        await fs.copyFile(cachePath, backupPath);
+                        backupCreated = true;
+                        console.log(`💾 [gRPCTrending] Backup created: ${backupPath}`);
+                    } catch (backupError) {
+                        console.warn(`⚠️ [gRPCTrending] Could not create backup: ${backupError.message}`);
+                    }
                 }
             } catch (error) {
                 console.warn('⚠️ [gRPCTrending] Could not load existing cache, starting fresh:', error.message);
@@ -1095,14 +1108,71 @@ class gRPCTrendingService {
             
             const finalTokens = Array.from(existingMap.values());
             
-            // Atomic write
-            const tempPath = cachePath + '.tmp';
+            // 🚨 VALIDATION: Verify data integrity before writing
+            if (!Array.isArray(finalTokens)) {
+                throw new Error('Final tokens data is not an array - aborting write to prevent data loss');
+            }
+            
+            if (finalTokens.length < existingTokens.length) {
+                console.warn(`⚠️ [gRPCTrending] WARNING: Final token count (${finalTokens.length}) is less than existing (${existingTokens.length})`);
+            }
+            
+            // 🛡️ ATOMIC WRITE: Write to temp file first
             const jsonData = JSON.stringify(finalTokens, null, 2);
             
-            await fs.writeFile(tempPath, jsonData, 'utf8');
-            await fs.rename(tempPath, cachePath);
-            
-            console.log(`💾 [gRPCTrending] Saved ${newTokens.length} new tokens to cache (total: ${finalTokens.length})`);
+            try {
+                // Ensure cache directory exists
+                await fs.mkdir(this.cacheDir, { recursive: true });
+                
+                // Write temp file
+                await fs.writeFile(tempPath, jsonData, 'utf8');
+                console.log(`✅ [gRPCTrending] Temp file written: ${tempPath}`);
+                
+                // 🚨 VERIFY: Read back temp file to ensure it was written correctly
+                try {
+                    const verifyData = await fs.readFile(tempPath, 'utf8');
+                    const verifyParsed = JSON.parse(verifyData);
+                    if (!Array.isArray(verifyParsed)) {
+                        throw new Error('Temp file contains invalid data - not an array');
+                    }
+                    if (verifyParsed.length !== finalTokens.length) {
+                        throw new Error(`Temp file verification failed: expected ${finalTokens.length} tokens, got ${verifyParsed.length}`);
+                    }
+                    console.log(`✅ [gRPCTrending] Temp file verified: ${verifyParsed.length} tokens, valid JSON`);
+                } catch (verifyError) {
+                    console.error(`❌ [gRPCTrending] Temp file verification failed: ${verifyError.message}`);
+                    throw new Error(`Temp file verification failed: ${verifyError.message}`);
+                }
+                
+                // 🚨 ATOMIC RENAME: Only rename after successful write and verification
+                await fs.rename(tempPath, cachePath);
+                console.log(`💾 [gRPCTrending] Saved ${newTokens.length} new tokens to cache (total: ${finalTokens.length}) - atomic write`);
+                
+                // Cleanup backup after successful write (optional - can keep for safety)
+                // if (backupCreated) {
+                //   await fs.unlink(backupPath);
+                // }
+                
+            } catch (error) {
+                // 🚨 ROLLBACK: If write fails, restore from backup if available
+                if (backupCreated && await fs.access(backupPath).then(() => true).catch(() => false)) {
+                    try {
+                        console.log(`🔄 [gRPCTrending] Attempting to restore from backup...`);
+                        await fs.copyFile(backupPath, cachePath);
+                        console.log(`✅ [gRPCTrending] Restored cache from backup`);
+                    } catch (restoreError) {
+                        console.error(`❌ [gRPCTrending] Failed to restore from backup: ${restoreError.message}`);
+                    }
+                }
+                
+                // Cleanup temp file if it exists
+                try {
+                    await fs.access(tempPath).then(() => fs.unlink(tempPath));
+                    console.log(`🧹 [gRPCTrending] Cleaned up temp file after error`);
+                } catch (_) {}
+                
+                throw error;
+            }
             
             return true;
         } catch (error) {

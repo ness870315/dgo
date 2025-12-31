@@ -1395,14 +1395,30 @@ class EnhancedTokenProcessor {
       // Mark all as completed
       tokensToSave.forEach(t => t.stage = 'completed');
       
-      // Load existing cache and merge with processed tokens
+      // 🛡️ ATOMIC WRITE WITH BACKUP: Load existing cache and create backup
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+      const backupPath = cachePath + '.backup';
+      const tempPath = cachePath + '.tmp';
+      
       let existingTokens = [];
+      let backupCreated = false;
+      
       try {
-        const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+        // Load existing cache
         if (await fs.access(cachePath).then(() => true).catch(() => false)) {
           const cacheData = await fs.readFile(cachePath, 'utf8');
           existingTokens = JSON.parse(cacheData);
           console.log(`📊 Loaded ${existingTokens.length} existing tokens from cache`);
+          
+          // 🚨 CRITICAL: Create backup BEFORE any modifications
+          try {
+            await fs.copyFile(cachePath, backupPath);
+            backupCreated = true;
+            console.log(`💾 Backup created: ${backupPath}`);
+          } catch (backupError) {
+            console.warn(`⚠️ Could not create backup: ${backupError.message}`);
+            // Continue anyway - we'll still use atomic write
+          }
         }
       } catch (error) {
         console.warn('⚠️ Could not load existing cache, starting fresh:', error.message);
@@ -1417,9 +1433,17 @@ class EnhancedTokenProcessor {
       const finalUniqueTokens = this.mergeWithExistingTokens(deduplicatedNewTokens, existingTokens);
       console.log(`🔄 Final merge: ${existingTokens.length} existing + ${deduplicatedNewTokens.length} new = ${finalUniqueTokens.length} total tokens`);
       
+      // 🚨 VALIDATION: Verify data integrity before writing
+      if (!Array.isArray(finalUniqueTokens)) {
+        throw new Error('Final tokens data is not an array - aborting write to prevent data loss');
+      }
+      
+      if (finalUniqueTokens.length < existingTokens.length) {
+        console.warn(`⚠️ WARNING: Final token count (${finalUniqueTokens.length}) is less than existing (${existingTokens.length})`);
+        console.warn(`   This might indicate data loss - proceeding with caution`);
+      }
+      
       // 🛡️ ATOMIC WRITE: Save to cache
-      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
-      const tempPath = cachePath + '.tmp';
       const jsonData = JSON.stringify(finalUniqueTokens, null, 2);
       
       try {
@@ -1439,32 +1463,69 @@ class EnhancedTokenProcessor {
         await fs.writeFile(tempPath, jsonData, 'utf8');
         console.log(`✅ Temp file written: ${tempPath}`);
         
-        // Verify temp file exists before rename
+        // 🚨 VERIFY: Read back temp file to ensure it was written correctly
         try {
-          await fs.access(tempPath);
-        } catch (accessError) {
-          console.error(`❌ Temp file does not exist after write: ${tempPath}`);
-          throw new Error(`Temp file was not written: ${accessError.message}`);
+          const verifyData = await fs.readFile(tempPath, 'utf8');
+          const verifyParsed = JSON.parse(verifyData);
+          if (!Array.isArray(verifyParsed)) {
+            throw new Error('Temp file contains invalid data - not an array');
+          }
+          if (verifyParsed.length !== finalUniqueTokens.length) {
+            throw new Error(`Temp file verification failed: expected ${finalUniqueTokens.length} tokens, got ${verifyParsed.length}`);
+          }
+          console.log(`✅ Temp file verified: ${verifyParsed.length} tokens, valid JSON`);
+        } catch (verifyError) {
+          console.error(`❌ Temp file verification failed: ${verifyError.message}`);
+          throw new Error(`Temp file verification failed: ${verifyError.message}`);
         }
         
-        // Atomic rename
+        // 🚨 ATOMIC RENAME: Only rename after successful write and verification
         await fs.rename(tempPath, cachePath);
         console.log(`✅ Successfully saved ${finalUniqueTokens.length} tokens to cache (atomic write)`);
+        
+        // 🧹 Cleanup backup after successful write (optional - can keep for extra safety)
+        if (backupCreated) {
+          try {
+            // Keep backup for 1 hour, then delete (or keep it for safety)
+            // await fs.unlink(backupPath);
+            console.log(`💾 Backup preserved at: ${backupPath}`);
+          } catch (_) {}
+        }
+        
+        // 🚨 CRITICAL: Only update in-memory state AFTER successful atomic write
+        this.processedTokens = finalUniqueTokens;
+        
       } catch (error) {
+        // 🚨 ROLLBACK: If write fails, restore from backup if available
+        if (backupCreated && await fs.access(backupPath).then(() => true).catch(() => false)) {
+          try {
+            console.log(`🔄 Attempting to restore from backup...`);
+            await fs.copyFile(backupPath, cachePath);
+            console.log(`✅ Restored cache from backup`);
+            
+            // Reload existing tokens to restore in-memory state
+            const restoredData = await fs.readFile(cachePath, 'utf8');
+            const restoredTokens = JSON.parse(restoredData);
+            this.processedTokens = restoredTokens;
+            console.log(`✅ Restored in-memory state: ${restoredTokens.length} tokens`);
+          } catch (restoreError) {
+            console.error(`❌ Failed to restore from backup: ${restoreError.message}`);
+          }
+        }
+        
         // Cleanup temp file if it exists
         try {
           await fs.access(tempPath).then(() => fs.unlink(tempPath));
           console.log(`🧹 Cleaned up temp file after error`);
         } catch (_) {}
+        
         console.error(`❌ Failed to save tokens to cache: ${error.message}`);
         console.error(`   Cache dir: ${this.cacheDir}`);
         console.error(`   Temp path: ${tempPath}`);
         console.error(`   Cache path: ${cachePath}`);
+        console.error(`   Backup path: ${backupPath}`);
         throw error;
       }
-      
-      // Update our internal state with deduplicated tokens
-      this.processedTokens = finalUniqueTokens;
       
       console.log(`✅ Final Database Saved: ${finalUniqueTokens.length} unique tokens`);
       console.log(`📊 New tokens added: ${tokensToSave.length}`);
