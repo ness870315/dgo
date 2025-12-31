@@ -128,21 +128,11 @@ class TechnicalAnalysisService {
       };
       const tfDisplay = timeframeDisplay[timeframe] || timeframe;
       
-      const query = `Give me the latest ${tfDisplay} technical analysis for ${tokenName} (${tokenSymbol}) on Solana with contract address ${contractAddress}.
+      const query = `Give me the latest ${tfDisplay} technical analysis on ${tokenName} on Solana ${contractAddress}.
 
-Current price: $${currentPrice.toFixed(6)}
-Market cap: $${marketCap.toLocaleString()}
-24h volume: $${volume24h.toLocaleString()}
+Include market context, ${tfDisplay} structure, key intraday levels, support and resistance zones, liquidity notes, and how to approach the current setup for both PERPS (LONG/SHORT with entry, stop loss, take profit) and SPOT (BUY/HOLD/SELL with entry zones and targets).
 
-Your analysis MUST include:
-
-1. **${tfDisplay.toUpperCase()} CHART STRUCTURE** - Trend, momentum, key levels
-2. **TECHNICAL INDICATORS** - RSI, MACD, Bollinger Bands, EMAs with specific values
-3. **SUPPORT & RESISTANCE** - Exact price levels
-4. **PERPS TRADING STRATEGY** - Should we go LONG or SHORT? Entry price, stop loss, take profit levels, and reasoning
-5. **SPOT TRADING STRATEGY** - Should we BUY (accumulate), HOLD, or SELL? Entry zones, targets, and reasoning
-
-Be specific with prices, percentages, and actionable strategies. Do NOT include citation markers like [1], [2], [3] or reference numbers in your response. Write in clean, professional format without markdown asterisks or special formatting.`;
+Be specific with prices, percentages, and actionable strategies.`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -155,14 +145,14 @@ Be specific with prices, percentages, and actionable strategies. Do NOT include 
           messages: [
             {
               role: 'system',
-              content: 'You are an expert crypto technical analyst specializing in Solana memecoins and DeFi tokens. Provide detailed, actionable TA with specific price levels, indicator readings, support/resistance zones, chart patterns, and trading strategies. Be direct and professional.'
+              content: 'You are an expert crypto technical analyst specializing in Solana tokens. Provide comprehensive technical analysis with specific price levels, market context, key zones, and actionable trading strategies.'
             },
             {
               role: 'user',
               content: query
             }
           ],
-          temperature: 0.2,
+          temperature: 0.4,
           max_tokens: 3000,
           return_citations: true
         })
