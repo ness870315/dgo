@@ -145,19 +145,40 @@ const PriceChartModal = ({ token, onClose }) => {
     const price = data.priceUsd || data.currentPrice || data.price || priceData.price || priceData.priceUsd;
     
     if (!price) {
-      console.warn(`📡 [PRICE-MODAL] ⚠️ No price found in data:`, priceData);
+      console.warn(`📡 [PRICE-MODAL] ⚠️ No price found in data:`, {
+        priceData,
+        data,
+        hasPriceUsd: !!data.priceUsd,
+        hasCurrentPrice: !!data.currentPrice,
+        hasPrice: !!data.price
+      });
       return;
     }
     
-    // Extract live market cap and liquidity from DexScreenerStyleMonitor
-    if (data.marketCap !== undefined && data.marketCap !== null) {
-      setLiveMarketCap(data.marketCap);
-      console.log(`📡 [PRICE-MODAL] 💰 Live market cap: $${(data.marketCap / 1e6).toFixed(2)}M`);
+    // 🚨 CRITICAL FIX: Extract live market cap and liquidity from DexScreenerStyleMonitor
+    // Check both data.marketCap and priceData.marketCap (structure might vary)
+    const marketCap = data.marketCap !== undefined && data.marketCap !== null 
+      ? data.marketCap 
+      : (priceData.marketCap !== undefined && priceData.marketCap !== null ? priceData.marketCap : null);
+    
+    if (marketCap !== null && marketCap !== undefined && marketCap > 0) {
+      setLiveMarketCap(marketCap);
+      console.log(`📡 [PRICE-MODAL] 💰 Live market cap: $${(marketCap / 1e6).toFixed(2)}M`);
+    } else {
+      console.warn(`📡 [PRICE-MODAL] ⚠️ Market cap not found or is 0:`, {
+        dataMarketCap: data.marketCap,
+        priceDataMarketCap: priceData.marketCap,
+        dataKeys: Object.keys(data)
+      });
     }
     
-    if (data.liquidity !== undefined && data.liquidity !== null) {
-      setLiveLiquidity(data.liquidity);
-      console.log(`📡 [PRICE-MODAL] 💧 Live liquidity: $${(data.liquidity / 1e6).toFixed(2)}M`);
+    const liquidity = data.liquidity !== undefined && data.liquidity !== null
+      ? data.liquidity
+      : (priceData.liquidity !== undefined && priceData.liquidity !== null ? priceData.liquidity : null);
+    
+    if (liquidity !== null && liquidity !== undefined && liquidity > 0) {
+      setLiveLiquidity(liquidity);
+      console.log(`📡 [PRICE-MODAL] 💧 Live liquidity: $${(liquidity / 1e6).toFixed(2)}M`);
     }
     
     // Update volume based on current timeframe
@@ -170,7 +191,7 @@ const PriceChartModal = ({ token, onClose }) => {
     setCurrentPrice(price);
     previousPriceRef.current = price;
     
-    console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${price}`);
+    console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${price}, marketCap: ${marketCap ? `$${(marketCap / 1e6).toFixed(2)}M` : 'N/A'}`);
   };
   
   // Store latest live data for volume updates when timeframe changes
@@ -310,41 +331,75 @@ const PriceChartModal = ({ token, onClose }) => {
     const handleFullStateUpdate = (data) => {
       if (!data.tokens || !token?.contractAddress) return;
       
-      // Find this token in the full state update
-      const updatedToken = data.tokens.find(t => 
-        t.contractAddress === token.contractAddress || 
-        t.tokenAddress === token.contractAddress
-      );
+      // 🚨 CRITICAL FIX: Case-insensitive address matching
+      const tokenContractAddress = (token?.contractAddress || token?.mint || token?.address || '').toLowerCase();
       
-      if (updatedToken && updatedToken.recentSwaps) {
-        console.log(`🔄 [PriceChartModal] Full state update: ${updatedToken.recentSwaps.length} swaps for ${updatedToken.symbol}`);
+      // Find this token in the full state update
+      const updatedToken = data.tokens.find(t => {
+        const tAddress = (t.contractAddress || t.tokenAddress || t.mint || '').toLowerCase();
+        return tAddress === tokenContractAddress;
+      });
+      
+      if (updatedToken) {
+        console.log(`🔄 [PriceChartModal] Full state update for ${updatedToken.symbol || 'token'}`);
         
-        // ✅ CRITICAL FIX: Merge with existing swaps, don't replace
-        setRealTimeData(prevData => {
-          if (!prevData || !prevData.swapHistory || prevData.swapHistory.length === 0) {
-            // No existing data, use the broadcast data
-            return {
-              recentSwaps: updatedToken.recentSwaps,
-              swapHistory: updatedToken.recentSwaps
-            };
-          }
+        // 🚨 CRITICAL FIX: Update price and market cap from full state update
+        if (updatedToken.priceUsd || updatedToken.currentPrice || updatedToken.price) {
+          const price = updatedToken.priceUsd || updatedToken.currentPrice || updatedToken.price;
+          setCurrentPrice(price);
+          previousPriceRef.current = price;
+          console.log(`📡 [PriceChartModal] Updated price from fullStateUpdate: ${price}`);
+        }
+        
+        if (updatedToken.marketCap !== undefined && updatedToken.marketCap !== null && updatedToken.marketCap > 0) {
+          setLiveMarketCap(updatedToken.marketCap);
+          console.log(`📡 [PriceChartModal] Updated market cap from fullStateUpdate: $${(updatedToken.marketCap / 1e6).toFixed(2)}M`);
+        }
+        
+        if (updatedToken.liquidity !== undefined && updatedToken.liquidity !== null && updatedToken.liquidity > 0) {
+          setLiveLiquidity(updatedToken.liquidity);
+          console.log(`📡 [PriceChartModal] Updated liquidity from fullStateUpdate: $${(updatedToken.liquidity / 1e6).toFixed(2)}M`);
+        }
+        
+        // Update volume and price change if available
+        if (updatedToken.volume24h || updatedToken.priceChange24h !== undefined) {
+          updateVolumeFromLiveData(updatedToken);
+          updatePriceChangeFromLiveData(updatedToken);
+        }
+        
+        // Update swap history if available
+        if (updatedToken.recentSwaps && updatedToken.recentSwaps.length > 0) {
+          console.log(`🔄 [PriceChartModal] Full state update: ${updatedToken.recentSwaps.length} swaps for ${updatedToken.symbol}`);
           
-          // Merge: Keep existing historical swaps, prepend any new swaps from broadcast
-          const existingSignatures = new Set(prevData.swapHistory.map(s => s.signature));
-          const newSwaps = updatedToken.recentSwaps.filter(s => !existingSignatures.has(s.signature));
-          
-          if (newSwaps.length > 0) {
-            console.log(`✅ [PriceChartModal] Merged ${newSwaps.length} new swaps with ${prevData.swapHistory.length} existing swaps`);
-            return {
-              ...prevData,
-              swapHistory: [...newSwaps, ...prevData.swapHistory],
-              recentSwaps: [...newSwaps, ...prevData.swapHistory].slice(0, 100) // Keep last 100
-            };
-          }
-          
-          // No new swaps, keep existing data
-          return prevData;
-        });
+          // ✅ CRITICAL FIX: Merge with existing swaps, don't replace
+          setRealTimeData(prevData => {
+            if (!prevData || !prevData.swapHistory || prevData.swapHistory.length === 0) {
+              // No existing data, use the broadcast data
+              return {
+                recentSwaps: updatedToken.recentSwaps,
+                swapHistory: updatedToken.recentSwaps
+              };
+            }
+            
+            // Merge: Keep existing historical swaps, prepend any new swaps from broadcast
+            const existingSignatures = new Set(prevData.swapHistory.map(s => s.signature));
+            const newSwaps = updatedToken.recentSwaps.filter(s => !existingSignatures.has(s.signature));
+            
+            if (newSwaps.length > 0) {
+              console.log(`✅ [PriceChartModal] Merged ${newSwaps.length} new swaps with ${prevData.swapHistory.length} existing swaps`);
+              return {
+                ...prevData,
+                swapHistory: [...newSwaps, ...prevData.swapHistory],
+                recentSwaps: [...newSwaps, ...prevData.swapHistory].slice(0, 100) // Keep last 100
+              };
+            }
+            
+            // No new swaps, keep existing data
+            return prevData;
+          });
+        }
+      } else {
+        console.log(`⚠️ [PriceChartModal] Token not found in fullStateUpdate (looking for ${tokenContractAddress.substring(0, 8)}...)`);
       }
     };
 
@@ -392,10 +447,34 @@ const PriceChartModal = ({ token, onClose }) => {
     };
 
     const handleWebSocketPriceUpdate = (data) => {
-      if (data.tokenAddress === token?.contractAddress || data.data?.tokenAddress === token?.contractAddress) {
-        console.log('📈 [PriceChartModal] Real-time price update received:', data);
-        // DexScreenerStyleMonitor sends: { type: 'priceUpdate', tokenAddress, data: { priceUsd, marketCap, liquidity, volume24h, ... } }
-        handlePriceUpdate(data.data || data.priceData || data); // Extract priceData from WebSocket event
+      // 🚨 CRITICAL FIX: Case-insensitive address matching
+      const updateTokenAddress = (data.tokenAddress || data.data?.tokenAddress || '').toLowerCase();
+      const tokenContractAddress = (token?.contractAddress || token?.mint || token?.address || '').toLowerCase();
+      
+      if (updateTokenAddress && tokenContractAddress && updateTokenAddress === tokenContractAddress) {
+        console.log('📈 [PriceChartModal] Real-time price update received:', {
+          tokenAddress: data.tokenAddress,
+          hasPriceData: !!data.priceData,
+          hasData: !!data.data,
+          priceDataKeys: data.priceData ? Object.keys(data.priceData) : [],
+          dataKeys: data.data ? Object.keys(data.data) : []
+        });
+        
+        // Extract priceData - WebSocket service sends: { tokenAddress, priceData, timestamp }
+        // priceData contains: { priceUsd, marketCap, liquidity, volume24h, ... }
+        const priceData = data.priceData || data.data || data;
+        
+        // Ensure tokenAddress is included in priceData for handlePriceUpdate
+        if (!priceData.tokenAddress) {
+          priceData.tokenAddress = data.tokenAddress;
+        }
+        
+        handlePriceUpdate(priceData);
+      } else {
+        // Debug: Log when address doesn't match
+        if (updateTokenAddress && tokenContractAddress) {
+          console.log(`⚠️ [PriceChartModal] Address mismatch - Update: ${updateTokenAddress.substring(0, 8)}... vs Token: ${tokenContractAddress.substring(0, 8)}...`);
+        }
       }
     };
 

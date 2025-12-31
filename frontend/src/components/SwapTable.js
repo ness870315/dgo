@@ -3,6 +3,7 @@ import { ExternalLink, Filter, TrendingUp, TrendingDown, Plus, Minus } from 'luc
 
 const SwapTable = React.memo(({ token, realTimeData }) => {
   const [swaps, setSwaps] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [filteredSwaps, setFilteredSwaps] = useState([]);
   const [displayedSwaps, setDisplayedSwaps] = useState([]);
   const [filters, setFilters] = useState({
@@ -19,19 +20,42 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   useEffect(() => {
     try {
       let swapData = [];
-      const existingSignatures = new Set(swaps.map(s => s.signature));
-
+      
       if (realTimeData?.swapHistory && realTimeData.swapHistory.length > 0) {
         swapData = realTimeData.swapHistory;
-        console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
+        console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps from swapHistory`);
       } else if (realTimeData?.recentSwaps && realTimeData.recentSwaps.length > 0) {
         swapData = realTimeData.recentSwaps;
-        console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
+        console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps from recentSwaps`);
+      } else if (token?.recentSwaps && token.recentSwaps.length > 0) {
+        // Fallback: Use token.recentSwaps if realTimeData is not available
+        swapData = token.recentSwaps;
+        console.log(`📊 [SwapTable] Loaded ${token.recentSwaps.length} swaps from token.recentSwaps (fallback)`);
+      }
+      
+      // If no swap data found, log warning
+      if (swapData.length === 0) {
+        console.warn(`⚠️ [SwapTable] No swap data found in realTimeData:`, {
+          hasRealTimeData: !!realTimeData,
+          hasSwapHistory: !!realTimeData?.swapHistory,
+          hasRecentSwaps: !!realTimeData?.recentSwaps,
+          swapHistoryLength: realTimeData?.swapHistory?.length || 0,
+          recentSwapsLength: realTimeData?.recentSwaps?.length || 0
+        });
+      }
+      
+      // 🚨 CRITICAL FIX: If swaps state is empty and we haven't initialized yet, initialize with all swapData
+      // Otherwise, only add new swaps that don't exist
+      const existingSignatures = new Set(swaps.map(s => s.signature));
+      const shouldInitialize = !isInitialized && swapData.length > 0;
+      
+      if (shouldInitialize) {
+        console.log(`🔄 [SwapTable] Initializing swaps state with ${swapData.length} swaps`);
       }
       
       // ✅ CRITICAL FIX: Normalize swap data and calculate correct amounts
       const processedSwaps = swapData
-        .filter(swap => !existingSignatures.has(swap.signature))
+        .filter(swap => shouldInitialize || !existingSignatures.has(swap.signature))
         .map(swap => {
         // Normalize USD value field (API may send usdValue, volumeUsd, volumeUSD, usdAmount)
         let volumeUsd = swap.volumeUsd || swap.volumeUSD || swap.usdValue || swap.usdAmount || 0;
@@ -106,18 +130,35 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
       });
       
       if (processedSwaps.length > 0) {
-        setSwaps(prev => {
-          const combined = [...processedSwaps, ...prev];
-          combined.sort((a, b) => b.timestamp - a.timestamp);
-          return combined;
-        });
+        if (shouldInitialize) {
+          // Initialize with all processed swaps (sorted by timestamp)
+          const sorted = [...processedSwaps].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          setSwaps(sorted);
+          setIsInitialized(true);
+          console.log(`✅ [SwapTable] Initialized with ${sorted.length} swaps`);
+        } else {
+          // Merge with existing swaps
+          setSwaps(prev => {
+            const combined = [...processedSwaps, ...prev];
+            combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            // Remove duplicates by signature
+            const unique = Array.from(
+              new Map(combined.map(swap => [swap.signature, swap])).values()
+            );
+            console.log(`✅ [SwapTable] Merged ${processedSwaps.length} new swaps (total: ${unique.length})`);
+            return unique;
+          });
+        }
+      } else if (shouldInitialize && swapData.length === 0) {
+        // If we expected to initialize but got no data, log it
+        console.warn(`⚠️ [SwapTable] Expected to initialize but swapData is empty`);
       }
       
     } catch (error) {
       console.error('❌ [SwapTable] Error processing swap data:', error);
       setSwaps([]);
     }
-  }, [realTimeData]);
+  }, [realTimeData, token?.recentSwaps]);
 
   // Apply filters
   useEffect(() => {
