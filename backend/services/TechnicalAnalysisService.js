@@ -128,55 +128,13 @@ class TechnicalAnalysisService {
       };
       const tfDisplay = timeframeDisplay[timeframe] || timeframe;
       
-      const query = `Provide a comprehensive ${tfDisplay} technical analysis for the Solana SPL token "${tokenName}" (${tokenSymbol}) currently trading at $${currentPrice.toFixed(6)} with market cap $${marketCap.toLocaleString()}.
+      const query = `Give me the latest ${tfDisplay} technical analysis for ${tokenName} (${tokenSymbol}) on Solana with contract address ${contractAddress}.
 
-**CONTRACT ADDRESS (SOLANA ONLY):** ${contractAddress}
-**CRITICAL:** This is a Solana blockchain token. IGNORE any other tokens with similar names on Ethereum, BSC, Polygon, or other chains. ONLY analyze this Solana contract.
+Current price: $${currentPrice.toFixed(6)}
+Market cap: $${marketCap.toLocaleString()}
+24h volume: $${volume24h.toLocaleString()}
 
-**REQUIRED ANALYSIS SECTIONS:**
-
-1. **Current ${tfDisplay.toUpperCase()} Chart Structure:**
-   - Describe the price action over the last several hours/days relevant to this timeframe
-   - Is it in an uptrend, downtrend, or range?
-   - Key highs and lows forming the structure
-
-2. **Technical Indicators (${tfDisplay} timeframe):**
-   - RSI (14): Current value and signal (oversold <30, neutral 30-70, overbought >70)
-   - MACD: Current reading, histogram, and crossover status
-   - Bollinger Bands: Is price at upper band, middle, or lower band? Any squeeze?
-   - EMAs: 9, 21, 50 EMA alignment and crossovers
-   - Volume: Current volume vs recent average, any spikes?
-
-3. **Support & Resistance Levels:**
-   - Immediate support levels (with specific prices)
-   - Immediate resistance levels (with specific prices)
-   - Key psychological levels or round numbers
-
-4. **Chart Patterns & Price Action:**
-   - Any recognizable patterns forming (triangles, flags, head & shoulders, etc.)?
-   - Recent breakouts or breakdowns?
-   - Liquidity zones or stop hunts?
-
-5. **Market Context & Catalysts:**
-   - Recent news, announcements, or CEX listings
-   - Social sentiment and community activity
-   - Whale transactions or unusual activity
-   - Any upcoming events
-
-**OUTPUT REQUIREMENTS:**
-- Use SPECIFIC numbers: exact RSI values, price levels, percentages
-- Cite your sources where possible
-- Be actionable for traders
-- Focus on the ${tfDisplay} timeframe structure
-- Include dates/times for recent events
-
-Check sources like:
-- DexScreener Solana: dexscreener.com/solana/${contractAddress}
-- Birdeye: birdeye.so/token/${contractAddress}
-- Solscan: solscan.io/token/${contractAddress}
-- Trading discussions for Solana tokens
-
-If you cannot find sufficient Solana-specific technical data for this exact contract address, clearly state "Limited Solana-specific technical data available for this token" and provide what analysis you can from the price and market cap data provided.`;
+Focus on the ${tfDisplay} timeframe structure, momentum, key levels, and trading setup. Include specific price levels, indicator signals (RSI, MACD, Bollinger Bands, EMAs), support/resistance zones, and actionable trading strategy for this timeframe.`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -189,15 +147,15 @@ If you cannot find sufficient Solana-specific technical data for this exact cont
           messages: [
             {
               role: 'system',
-              content: 'You are an expert crypto technical analyst specializing in Solana tokens. Generate comprehensive, actionable technical analysis with SPECIFIC indicator values, price levels, and chart structures. Use data from DexScreener, Birdeye, Solscan, and trading communities. CRITICAL: Only analyze the SPECIFIC Solana contract mentioned. If you cannot find sufficient technical data for this exact Solana token, clearly state it.'
+              content: 'You are an expert crypto technical analyst specializing in Solana memecoins and DeFi tokens. Provide detailed, actionable TA with specific price levels, indicator readings, support/resistance zones, chart patterns, and trading strategies. Be direct and professional.'
             },
             {
               role: 'user',
               content: query
             }
           ],
-          temperature: 0.3,
-          max_tokens: 1500,
+          temperature: 0.2,
+          max_tokens: 3000,
           return_citations: true
         })
       });
