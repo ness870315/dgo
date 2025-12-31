@@ -2390,6 +2390,7 @@ export default class DexScreenerStyleMonitor {
       // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
       let currentMarketCap = 0;
       const currentSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+      const currentPriceAfterSwap = tokenData.lastPriceUSD || swap.smoothedPriceUsd || swap.priceUsd || 0;
       
       if (currentSupply > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap) && currentPriceAfterSwap > 0.00000001) {
         currentMarketCap = currentSupply * currentPriceAfterSwap;
