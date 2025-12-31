@@ -645,11 +645,13 @@ class EnhancedTokenProcessor {
             const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
             const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
             
-            // PROBITY exception: Skip quality filter for PROBITY due to active gRPC monitoring
+            // 🚨 CRITICAL FIX: Skip quality filter for gRPC-Trending tokens (already pre-filtered)
+            // AND PROBITY exception: Skip quality filter for PROBITY due to active gRPC monitoring
+            const isGrpcTrending = token.source === 'gRPC-Trending';
             const isProbity = token.symbol === 'PROBITY' || token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
             
-            // Only delete if ALL THREE criteria are missing (AND condition) AND not PROBITY
-            if (!isProbity && !hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+            // Only delete if ALL THREE criteria are missing (AND condition) AND not gRPC-Trending AND not PROBITY
+            if (!isGrpcTrending && !isProbity && !hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
               
               removedTokens.push({
                 symbol: token.symbol,
@@ -659,16 +661,30 @@ class EnhancedTokenProcessor {
               continue; // Skip this token
             }
             
-            console.log(`✅ KEEPING: ${token.symbol} - Has at least one quality indicator`);
+            if (isGrpcTrending) {
+              console.log(`✅ KEEPING: ${token.symbol} - gRPC-Trending token (bypass quality filter)`);
+            } else {
+              console.log(`✅ KEEPING: ${token.symbol} - Has at least one quality indicator`);
+            }
           } else {
-            // No Jupiter data - also filter out
-            console.log(`🚫 FILTERING OUT: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - No Jupiter data`);
-            removedTokens.push({
-              symbol: token.symbol,
-              contractAddress: token.contractAddress,
-              reason: 'No Jupiter data'
-            });
-            continue;
+            // 🚨 CRITICAL FIX: Don't filter out gRPC-Trending tokens even if Jupiter data is missing
+            // They may have been discovered via gRPC but Jupiter API might be temporarily unavailable
+            const isGrpcTrending = token.source === 'gRPC-Trending';
+            if (isGrpcTrending) {
+              console.log(`⚠️ [Jupiter] ${token.symbol} - No Jupiter data, but keeping (gRPC-Trending token)`);
+              // Mark token as having no Jupiter data, but keep it in the queue
+              token.jupiterData = null;
+              token.stage = 'jupiter'; // Still mark as completed Jupiter stage
+            } else {
+              // No Jupiter data - filter out for non-gRPC tokens
+              console.log(`🚫 FILTERING OUT: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - No Jupiter data`);
+              removedTokens.push({
+                symbol: token.symbol,
+                contractAddress: token.contractAddress,
+                reason: 'No Jupiter data'
+              });
+              continue;
+            }
           }
           
           // Mark as completed Jupiter stage
