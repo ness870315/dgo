@@ -56,8 +56,26 @@ const TokenRankedList = ({ tokens, liveTokenDataRef, fueledTokens = [], onTokenS
       return token;
     });
     
-    console.log(`📊 [TokenRankedList] Merged ${mergedCount}/${tokens.length} tokens with live data`);
-    return result;
+    // 🚨 FILTER OUT TOKENS WITH ALL ZERO VALUES (glitches/incomplete data)
+    // Remove tokens that have no meaningful data to prevent empty rows in rankings
+    const filtered = result.filter(token => {
+      const price = token.price || token.jupiterData?.price || 0;
+      const volume = token.volume24h || 0;
+      const txns = token.txns24h || 0;
+      const marketCap = token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0;
+      
+      // Keep token if it has ANY of these values > 0
+      const hasData = price > 0 || volume > 0 || txns > 0 || marketCap > 0;
+      
+      if (!hasData && process.env.NODE_ENV === 'development') {
+        console.log(`🚫 [TokenRankedList] Filtering out token with zero values: ${token.symbol}`);
+      }
+      
+      return hasData;
+    });
+    
+    console.log(`📊 [TokenRankedList] Merged ${mergedCount}/${tokens.length} tokens with live data, filtered to ${filtered.length} tokens`);
+    return filtered;
   }, [tokens, liveTokenDataRef, refreshTick]); // Re-run when refreshTick changes
 
   // Format numbers
