@@ -469,6 +469,17 @@ export default class DexScreenerStyleMonitor {
             tokenData.metadata.circSupply = tokenInfo.circSupply || 0;
             tokenData.metadata.totalSupply = tokenInfo.totalSupply || 0;
             
+            // 🚨 CRITICAL FIX: Initialize lastPriceUSD from Jupiter price immediately
+            // This ensures tokens have a price from the start, even before first swap
+            if (tokenInfo.usdPrice && tokenInfo.usdPrice > 0) {
+              tokenData.lastPriceUSD = tokenInfo.usdPrice;
+              tokenData.lastPriceUpdate = Date.now();
+              // Also initialize recentValidPrices with Jupiter price for smoothing
+              if (tokenData.recentValidPrices.length === 0) {
+                tokenData.recentValidPrices.push(tokenInfo.usdPrice);
+              }
+            }
+            
             // CRITICAL: Store Jupiter's baseline market cap and price for incremental updates
             // This is our starting point - we'll adjust from here based on swap price changes
             if (tokenInfo.marketCap > 0 && tokenInfo.usdPrice > 0) {
