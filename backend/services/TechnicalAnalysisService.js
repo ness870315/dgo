@@ -63,11 +63,11 @@ class TechnicalAnalysisService {
           ohlcvSource = 'moralis';
         } catch (error) {
           console.log(`⚠️  [TA] Moralis failed (${error.message}), falling back to synthetic OHLCV`);
-          ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
+          ohlcv = this.generateSyntheticOHLCV(currentPrice, timeframe, 100);
         }
       } else {
         console.log(`⚠️  [TA] No HybridChartService, using synthetic OHLCV`);
-        ohlcv = this.generateSyntheticOHLCV(currentPrice, 100);
+        ohlcv = this.generateSyntheticOHLCV(currentPrice, timeframe, 100);
       }
       
       // 4. Calculate technical indicators
@@ -412,16 +412,40 @@ Provide specific details with dates, percentages, price levels, and sources wher
       
       console.log(`✅ [TA] Found pair address: ${pairAddress.substring(0, 8)}...`);
 
-      // Step 2: Map our timeframes to Moralis/HybridService format
+      // Step 2: Map our timeframes to Moralis format
+      // Moralis supports: 1s, 10s, 30s, 1min, 5min, 10min, 30min, 1h, 4h, 12h, 1d, 1w, 1M
+      // If user requests unsupported timeframe, use next smaller value
       const timeframeMap = {
-        '5m': '5',
-        '15m': '15',
-        '1h': '60',
-        '4h': '240',
-        '1d': '1440'
+        '1s': '1s',
+        '10s': '10s',
+        '30s': '30s',
+        '1m': '1min',
+        '1min': '1min',
+        '5m': '5min',
+        '5min': '5min',
+        '10m': '10min',
+        '10min': '10min',
+        '15m': '10min',   // 15min not supported, use 10min (next smaller)
+        '15min': '10min',
+        '30m': '30min',
+        '30min': '30min',
+        '1h': '1h',
+        '1hour': '1h',
+        '4h': '4h',
+        '4hour': '4h',
+        '12h': '12h',
+        '12hour': '12h',
+        '1d': '1d',
+        '1day': '1d',
+        '1w': '1w',
+        '1week': '1w',
+        '1M': '1M',
+        '1month': '1M'
       };
       
-      const moralisTimeframe = timeframeMap[timeframe] || '60';
+      const moralisTimeframe = timeframeMap[timeframe] || '1h'; // Default to 1h if unknown
+      console.log(`📊 [TA] Mapped timeframe: ${timeframe} → ${moralisTimeframe}`);
+      
       const limit = 100; // Get last 100 candles
       
       // Step 3: Fetch OHLCV data using PAIR address
@@ -455,14 +479,44 @@ Provide specific details with dates, percentages, price levels, and sources wher
   /**
    * Generate synthetic OHLCV for demonstration (fallback)
    */
-  generateSyntheticOHLCV(currentPrice, numCandles = 100) {
+  generateSyntheticOHLCV(currentPrice, timeframe = '1h', numCandles = 100) {
     const ohlcv = [];
     const now = Date.now();
-    const hourMs = 60 * 60 * 1000;
+    
+    // Map timeframe to milliseconds for candle spacing
+    const timeframeMs = {
+      '1s': 1000,
+      '10s': 10000,
+      '30s': 30000,
+      '1m': 60000,
+      '1min': 60000,
+      '5m': 5 * 60000,
+      '5min': 5 * 60000,
+      '10m': 10 * 60000,
+      '10min': 10 * 60000,
+      '15m': 15 * 60000,
+      '15min': 15 * 60000,
+      '30m': 30 * 60000,
+      '30min': 30 * 60000,
+      '1h': 60 * 60000,
+      '1hour': 60 * 60000,
+      '4h': 4 * 60 * 60000,
+      '4hour': 4 * 60 * 60000,
+      '12h': 12 * 60 * 60000,
+      '12hour': 12 * 60 * 60000,
+      '1d': 24 * 60 * 60000,
+      '1day': 24 * 60 * 60000,
+      '1w': 7 * 24 * 60 * 60000,
+      '1week': 7 * 24 * 60 * 60000,
+      '1M': 30 * 24 * 60 * 60000,
+      '1month': 30 * 24 * 60 * 60000
+    };
+    
+    const candleIntervalMs = timeframeMs[timeframe] || 60 * 60000; // Default to 1h
     let price = currentPrice * 0.95; // Start 5% lower
     
     for (let i = 0; i < numCandles; i++) {
-      const timestamp = now - (numCandles - i) * hourMs;
+      const timestamp = now - (numCandles - i) * candleIntervalMs;
       const volatility = 0.02; // 2% volatility per candle
       
       const open = price;
