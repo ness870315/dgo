@@ -450,19 +450,21 @@ Provide specific details with dates, percentages, price levels, and sources wher
       
       // Step 3: Fetch OHLCV data using PAIR address
       console.log(`📊 [TA] Fetching OHLCV for pair ${pairAddress.substring(0, 8)}...`);
-      const chartData = await this.hybridChartService.getHistoricalPrices(
+      const chartData = await this.hybridChartService.getChartData(
         pairAddress, // Use pair address, not token address
         moralisTimeframe,
         limit
       );
       
-      if (!chartData || chartData.length === 0) {
+      if (!chartData || !chartData.ohlcv || chartData.ohlcv.length === 0) {
         throw new Error('No OHLCV data returned from Moralis');
       }
       
+      console.log(`✅ [TA] Got ${chartData.ohlcv.length} candles from Moralis (source: ${chartData.source})`);
+      
       // Convert to our format
-      return chartData.map(candle => ({
-        timestamp: candle.time,
+      return chartData.ohlcv.map(candle => ({
+        timestamp: candle.timestamp,
         open: candle.open.toString(),
         high: candle.high.toString(),
         low: candle.low.toString(),
