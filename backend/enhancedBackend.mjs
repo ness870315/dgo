@@ -18540,7 +18540,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       console.log('🚀 Initializing gRPC Trending Service...');
       this.grpcTrendingService = new gRPCTrendingService(
         null, // enhancedHybridPriceService (not needed for trending service)
-        this.tokenProcessor // enhancedTokenProcessor (for full workflow)
+        this.tokenProcessor, // enhancedTokenProcessor (for full workflow)
+        this.dexScreenerMonitor // dexScreenerMonitor (for adding tokens to GRPC stream)
       );
       await this.grpcTrendingService.initialize();
       await this.grpcTrendingService.startContinuousMonitoring();

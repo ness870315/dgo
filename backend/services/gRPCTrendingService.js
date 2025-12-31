@@ -44,7 +44,7 @@ const EXCLUDED_TOKENS = new Set([
 ]);
 
 class gRPCTrendingService {
-    constructor(enhancedHybridPriceService = null, enhancedTokenProcessor = null) {
+    constructor(enhancedHybridPriceService = null, enhancedTokenProcessor = null, dexScreenerMonitor = null) {
         this.grpcClient = null;
         this.grpcInitialized = false;
         this.commitmentLevel = null;
@@ -59,6 +59,9 @@ class gRPCTrendingService {
         
         // Integration with token processor for Twitter/scoring workflow
         this.enhancedTokenProcessor = enhancedTokenProcessor;
+        
+        // Integration with DexScreener monitor for GRPC stream
+        this.dexScreenerMonitor = dexScreenerMonitor;
         
         // Stats tracking
         this.stats = {
@@ -1034,6 +1037,73 @@ class gRPCTrendingService {
                         console.log('');
                     });
                     console.log(`${'='.repeat(80)}\n`);
+                    
+                    // 🚀 Add saved tokens to DexScreener monitor for GRPC stream
+                    if (this.dexScreenerMonitor && savedTokens.length > 0) {
+                        console.log(`\n${'='.repeat(80)}`);
+                        console.log(`📡 [gRPCTrending] Adding ${savedTokens.length} tokens to DexScreener GRPC stream...`);
+                        console.log(`${'='.repeat(80)}\n`);
+                        
+                        try {
+                            // Prepare tokens in the format expected by batchOnboardTokens
+                            const tokensConfig = [];
+                            
+                            for (const token of savedTokens) {
+                                try {
+                                    const mint = token.contractAddress || token.tokenAddress;
+                                    if (!mint) {
+                                        console.log(`⚠️ [gRPCTrending] Skipping token ${token.symbol} - no contract address`);
+                                        continue;
+                                    }
+                                    
+                                    // Try to find pool in priority order (same as onboardCachedTokens)
+                                    let pool = 
+                                        token.poolAddress ||                    // 1. Direct poolAddress field
+                                        token.graduatedPool ||                  // 2. graduatedPool from Jupiter (top level)
+                                        token.jupiterData?.graduatedPool ||     // 3. graduatedPool from Jupiter (inside jupiterData)
+                                        token.jupiterData?.firstPool?.id;       // 4. firstPool.id from Jupiter
+                                    
+                                    // Handle graduatedPool object format
+                                    if (pool && typeof pool === 'object') {
+                                        pool = pool.address || pool.id;
+                                    }
+                                    
+                                    // Try to get decimals from token data, fallback to 9 (Solana default)
+                                    let decimals = token.decimals || token.jupiterData?.decimals;
+                                    if (!decimals) {
+                                        decimals = 9; // Solana default
+                                    }
+                                    
+                                    tokensConfig.push({
+                                        mint,
+                                        config: {
+                                            name: token.name || token.symbol || 'Unknown Token',
+                                            pool: pool || null, // Can be null if pool not found yet
+                                            decimals: decimals
+                                        }
+                                    });
+                                    
+                                    console.log(`   ✅ Prepared ${token.symbol}: pool=${pool ? pool.substring(0, 8) + '...' : 'none'}`);
+                                } catch (error) {
+                                    console.error(`   ❌ Failed to prepare ${token.symbol} for onboarding:`, error.message);
+                                }
+                            }
+                            
+                            if (tokensConfig.length > 0) {
+                                // Batch onboard all tokens at once
+                                const result = await this.dexScreenerMonitor.batchOnboardTokens(tokensConfig);
+                                console.log(`\n✅ [gRPCTrending] DexScreener onboarding complete: ${result.successful} successful, ${result.failed} failed`);
+                                console.log(`${'='.repeat(80)}\n`);
+                            } else {
+                                console.log(`⚠️ [gRPCTrending] No tokens prepared for onboarding (missing pool addresses?)`);
+                            }
+                        } catch (error) {
+                            console.error(`❌ [gRPCTrending] Error adding tokens to DexScreener monitor:`, error.message);
+                            console.error(`   Stack:`, error.stack);
+                        }
+                    } else if (!this.dexScreenerMonitor) {
+                        console.log(`⚠️ [gRPCTrending] DexScreener monitor not available - tokens won't be added to GRPC stream`);
+                    }
                 } else {
                     console.log(`⚠️ [gRPCTrending] No tokens from this batch were found in database yet`);
                     console.log(`   Expected: ${processingContractsArray.length} tokens`);
