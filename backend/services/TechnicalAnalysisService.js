@@ -106,9 +106,9 @@ class TechnicalAnalysisService {
       };
 
       // Include Perplexity data if available (for transparency)
-      if (perplexityData) {
+      if (perplexityData && perplexityData.content) {
         report.market_intelligence = {
-          summary: perplexityData.news.substring(0, 500) + '...', // Truncated for API response
+          summary: perplexityData.content.substring(0, 500) + '...', // Truncated for API response
           sources_count: perplexityData.citations?.length || 0,
           timestamp: new Date(perplexityData.timestamp).toISOString()
         };
@@ -689,8 +689,8 @@ Provide specific details with dates, percentages, price levels, and sources wher
 - Holders: ${data.token.holderCount ? data.token.holderCount.toLocaleString() : 'N/A'}
 - Organic Score: ${data.token.organicScoreLabel || 'N/A'}
 
-${data.perplexityData ? `**REAL-TIME MARKET INTELLIGENCE (from Degen Oracle's real-time search):**
-${data.perplexityData.news}
+${data.perplexityData && data.perplexityData.content ? `**REAL-TIME MARKET INTELLIGENCE (from Degen Oracle's real-time search):**
+${data.perplexityData.content}
 
 **Key Sources (${data.perplexityData.citations?.length || 0}):**
 ${(data.perplexityData.citations || []).slice(0, 5).map((c, i) => `${i + 1}. ${c}`).join('\n')}
