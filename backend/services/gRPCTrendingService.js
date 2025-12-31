@@ -797,6 +797,7 @@ class gRPCTrendingService {
                 const tokenData = this.tokenData.get(token) || {};
                 const score = this.calculateScore(tokenData, swapCount);
                 
+                // Structure token with jupiterData nested (matching token processor format)
                 return {
                     contractAddress: token,
                     symbol: tokenData.symbol || 'UNKNOWN',
@@ -809,8 +810,30 @@ class gRPCTrendingService {
                     volume24h: tokenData.volume24h || 0,
                     swapCount5min: swapCount,
                     score: score,
+                    // Preserve top-level fields for backward compatibility
                     organicScore: tokenData.organicScore,
                     organicScoreLabel: tokenData.organicScoreLabel,
+                    // 🚨 CRITICAL: Structure Jupiter data in nested format for token processor
+                    jupiterData: {
+                        address: token,
+                        symbol: tokenData.symbol || 'UNKNOWN',
+                        name: tokenData.name || 'Unknown Token',
+                        icon: tokenData.logo || null,
+                        decimals: tokenData.decimals || 9,
+                        mcap: tokenData.marketCap || 0,
+                        liquidity: tokenData.liquidity || 0,
+                        usdPrice: tokenData.priceUsd || 0,
+                        volume24h: tokenData.volume24h || 0,
+                        organicScore: tokenData.organicScore || null,
+                        organicScoreLabel: tokenData.organicScoreLabel || null,
+                        launchpad: tokenData.launchpad || null,
+                        graduatedAt: tokenData.graduatedAt || null,
+                        bondingCurve: tokenData.bondingCurve || null,
+                        audit: tokenData.audit || {},
+                        stats1h: tokenData.stats1h || {},
+                        stats6h: tokenData.stats6h || {},
+                        stats24h: tokenData.stats24h || {}
+                    },
                     source: 'gRPC-Trending',
                     discoveredAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString()

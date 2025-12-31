@@ -677,7 +677,15 @@ class EnhancedTokenProcessor {
           filteredTokens.push(token);
         }
         
-        // Update the tokens array to only include filtered tokens
+        // 🚨 CRITICAL FIX: Update processingQueue directly, not just local tokens array
+        // Remove filtered-out tokens from the main processing queue
+        const removedContracts = new Set(removedTokens.map(t => t.contractAddress?.toLowerCase()).filter(Boolean));
+        this.processingQueue = this.processingQueue.filter(t => {
+          const contract = t.contractAddress?.toLowerCase();
+          return !contract || !removedContracts.has(contract);
+        });
+        
+        // Update the tokens array to only include filtered tokens (for logging)
         tokens.splice(0, tokens.length, ...filteredTokens);
         
         console.log(`🔍 Quality Filter Results: ${filteredTokens.length} kept, ${removedTokens.length} removed`);
@@ -1195,21 +1203,29 @@ class EnhancedTokenProcessor {
         const token = tokens[i];
         
         // 🚨 QUALITY FILTER: Skip scoring for low-quality tokens
+        // EXCEPTION: gRPC-Trending tokens already passed quality filters, so bypass this check
+        const isGrpcTrending = token.source === 'gRPC-Trending';
         const hasLaunchpad = token.jupiterData?.launchpad && token.jupiterData.launchpad !== '';
         const hasOrganicScore = token.jupiterData?.organicScore && token.jupiterData.organicScore > 0;
         const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
         
         // 🔍 DETAILED DEBUG: Show actual values for problematic tokens
         console.log(`🔍 [QUALITY DEBUG] ${token.symbol} (${token.contractAddress?.substring(0, 8)}...):`);
+        console.log(`   - Source: ${token.source || 'unknown'}`);
         console.log(`   - launchpad: "${token.jupiterData?.launchpad}" (hasLaunchpad: ${hasLaunchpad})`);
         console.log(`   - organicScore: ${token.jupiterData?.organicScore} (hasOrganicScore: ${hasOrganicScore})`);
         console.log(`   - graduatedAt: "${token.jupiterData?.graduatedAt}" (hasGraduatedAt: ${hasGraduatedAt})`);
-        console.log(`   - Quality check result: ${hasLaunchpad || hasOrganicScore || hasGraduatedAt ? 'PASS' : 'FAIL'}`);
+        console.log(`   - Quality check result: ${isGrpcTrending ? 'BYPASS (gRPC-Trending)' : (hasLaunchpad || hasOrganicScore || hasGraduatedAt ? 'PASS' : 'FAIL')}`);
         
-        if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+        // Skip quality filter for gRPC-Trending tokens (already filtered)
+        if (!isGrpcTrending && !hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
           console.log(`🚫 [SCORING DEBUG] FILTERED OUT: ${token.symbol} - No quality indicators`);
           console.log(`🚫 [SCORING DEBUG] This token will NOT be saved to database!`);
           continue; // Skip this token
+        }
+        
+        if (isGrpcTrending) {
+          console.log(`✅ [SCORING DEBUG] BYPASSING quality filter for gRPC-Trending token: ${token.symbol}`);
         }
         
         console.log(`📊 Calculating score for ${token.symbol} (${i + 1}/${tokens.length})`);
