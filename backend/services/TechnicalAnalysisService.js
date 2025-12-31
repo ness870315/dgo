@@ -236,7 +236,11 @@ Provide specific details with dates, percentages, and sources where possible.`;
       };
       const searchWindow = timeWindowMap[timeframe] || '7 days';
       
-      const query = `Search for the latest information about the cryptocurrency ${tokenName} (${tokenSymbol}) with contract address ${contractAddress} on Solana. Focus on the last ${searchWindow}. Include:
+      const query = `Search for the latest information about the Solana SPL token "${tokenName}" (${tokenSymbol}) with the EXACT contract address ${contractAddress}. 
+
+**CRITICAL: This is a Solana blockchain token. IGNORE any other tokens with similar names on Ethereum, BSC, or other chains. ONLY include information that specifically references this Solana contract address: ${contractAddress}**
+
+Focus on the last ${searchWindow}. Include:
 
 **TECHNICAL ANALYSIS & CHART PATTERNS:**
 - Current technical analysis from traders and analysts
@@ -262,7 +266,16 @@ Provide specific details with dates, percentages, and sources where possible.`;
 - Influencer or analyst commentary
 - Community growth or engagement changes
 
-Provide specific details with dates, percentages, price levels, and sources where possible. If technical analysis is being discussed in the community, include those insights.`;
+**HELPFUL SOURCES TO CHECK:**
+- DexScreener Solana (dexscreener.com/solana/${contractAddress})
+- Birdeye Solana (birdeye.so/token/${contractAddress})
+- Solscan (solscan.io/token/${contractAddress})
+- Jupiter (jup.ag)
+- Raydium, Orca, or other Solana DEXs
+
+Provide specific details with dates, percentages, price levels, and sources where possible. If technical analysis is being discussed in the community, include those insights. 
+
+**IMPORTANT: If you cannot find reliable Solana-specific information for this exact contract, clearly state "Limited Solana-specific data available" rather than providing data from other chains.**`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -275,7 +288,7 @@ Provide specific details with dates, percentages, price levels, and sources wher
           messages: [
             {
               role: 'system',
-              content: 'You are a comprehensive crypto market analyst providing real-time information including technical analysis, news, and sentiment. Be specific with dates, percentages, price levels, and sources. Focus on actionable information for traders.'
+              content: 'You are a Solana-focused crypto market analyst. CRITICAL: Only provide information about the SPECIFIC Solana token contract mentioned in the query. If you find conflicting price data from different chains/tokens, clearly state "No reliable Solana-specific data found" rather than mixing data from different tokens. Be specific with dates, percentages, and sources. Verify contract addresses when possible.'
             },
             {
               role: 'user',
@@ -297,6 +310,16 @@ Provide specific details with dates, percentages, price levels, and sources wher
       const result = await response.json();
       const newsContent = result.choices[0].message.content;
       const citations = result.citations || [];
+
+      // Check for price discrepancy warnings (indicates wrong token data)
+      const hasDiscrepancy = newsContent.toLowerCase().includes('price discrepanc') || 
+                           newsContent.toLowerCase().includes('conflicting prices') ||
+                           newsContent.toLowerCase().includes('cannot provide');
+      
+      if (hasDiscrepancy) {
+        console.log(`⚠️  [TA] Perplexity found conflicting data (likely wrong chain) - returning null`);
+        return null; // Better to have no data than wrong data
+      }
 
       console.log(`✅ [TA] Perplexity search complete (${citations.length} sources)`);
 
