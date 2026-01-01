@@ -2098,13 +2098,6 @@ class EnhancedBackend {
         const pricePerRequest = 0.50;
         const priceInUSDCMicroUnits = pricePerRequest * 1_000_000; // 500,000 (6 decimals)
         
-        // Build payment requirements
-        const paymentRequirements = {
-          price: priceInUSDCMicroUnits,
-          currency: 'USDC',
-          network: 'solana'
-        };
-        
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
           console.log(`💰 [TA API] Returning 402 Payment Required: $${pricePerRequest} USDC`);
@@ -2121,26 +2114,33 @@ class EnhancedBackend {
             
             console.log(`   Resource URL: ${resourceUrl}`);
             
-            // Use PayAI SDK to generate payment requirements
-            const paymentResponse = this.x402PaymentHandler.generatePaymentRequirements(
-              paymentRequirements,
-              resourceUrl
-            );
+            // Create payment requirements using PayAI SDK (same pattern as Trending AI)
+            const routeConfig = {
+              price: {
+                amount: priceInUSDCMicroUnits.toString(),
+                asset: {
+                  address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                  decimals: 6
+                }
+              },
+              network: 'solana',
+              config: {
+                resource: resourceUrl,
+                description: `Technical Analysis for ${contract.substring(0, 8)}... (${timeframe}) - Agent API`,
+                maxTimeoutSeconds: 300,
+                mimeType: format === 'text' ? 'text/plain' : 'application/json'
+              }
+            };
             
-            console.log(`   Payment requirements generated successfully`);
-            console.log(`   Merchant wallet: ${this.x402PaymentHandler.merchantWallet}`);
-            console.log(`   Price: ${pricePerRequest} USDC`);
+            const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+            const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
             
-            // Return 402 with payment requirements
-            return res.status(402).json({
-              error: 'payment_required',
-              message: `Payment of $${pricePerRequest} USDC required for Technical Analysis`,
-              price: pricePerRequest,
-              currency: 'USDC',
-              payment: paymentResponse
-            });
+            console.log(`   ✅ Built 402 response using SDK, sending...`);
+            
+            return res.status(response402.status).json(response402.body);
           } catch (paymentError) {
             console.error(`❌ [TA API] Failed to generate payment requirements:`, paymentError);
+            console.error(`   Stack:`, paymentError.stack);
             return res.status(500).json({ 
               error: 'payment_generation_failed',
               message: 'Failed to generate payment requirements',
@@ -2165,20 +2165,50 @@ class EnhancedBackend {
         
         console.log(`   Resource URL for verification: ${resourceUrl}`);
         
+        // Recreate payment requirements for verification (same routeConfig as 402 response)
+        const routeConfig = {
+          price: {
+            amount: priceInUSDCMicroUnits.toString(),
+            asset: {
+              address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+              decimals: 6
+            }
+          },
+          network: 'solana',
+          config: {
+            resource: resourceUrl,
+            description: `Technical Analysis for ${contract.substring(0, 8)}... (${timeframe}) - Agent API`,
+            maxTimeoutSeconds: 300,
+            mimeType: format === 'text' ? 'text/plain' : 'application/json'
+          }
+        };
+        
+        let paymentRequirements;
+        try {
+          console.log(`   Creating payment requirements for verification...`);
+          paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+          console.log(`   ✅ Payment requirements created`);
+        } catch (reqError) {
+          console.error(`   ❌ Error creating payment requirements:`, reqError.message);
+          console.error(`   Stack:`, reqError.stack);
+          return res.status(500).json({ 
+            error: 'payment_requirements_failed',
+            message: reqError.message 
+          });
+        }
+        
+        // Verify payment using PayAI SDK (same pattern as Trending AI)
         let verifyResult;
         try {
-          verifyResult = await this.x402PaymentHandler.verifyPayment(
-            xPaymentHeader,
-            paymentRequirements,
-            resourceUrl
-          );
-          console.log(`   Verify result:`, verifyResult);
+          console.log(`   Calling verifyPayment...`);
+          verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
+          console.log(`   Verify result: ${verifyResult}`);
         } catch (verifyError) {
-          console.error(`❌ [TA API] Payment verification exception:`, verifyError);
+          console.error(`   ❌ Error during verifyPayment:`, verifyError.message);
+          console.error(`   Stack:`, verifyError.stack);
           return res.status(402).json({ 
             error: 'payment_verification_error',
-            message: 'Payment verification encountered an error',
-            details: verifyError.message
+            message: verifyError.message 
           });
         }
         
@@ -2188,13 +2218,13 @@ class EnhancedBackend {
           return res.status(402).json({ 
             error: 'payment_verification_failed',
             message: 'Payment verification failed. Please retry with valid payment.',
-            verifyResult: verifyResult
+            details: { isValid: verifyResult }
           });
         }
         
         console.log(`✅ [TA API] Payment verification successful`);
         
-        // Settle payment using PayAI SDK
+        // Settle payment using PayAI SDK (same pattern as Trending AI)
         console.log(`💰 [TA API] Settling payment...`);
         const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
         
