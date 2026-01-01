@@ -2042,13 +2042,13 @@ class EnhancedBackend {
       }
     });
 
-    // 📊 Technical Analysis API (FREE - for testing, x402 to be added later)
-    // GET endpoint so you can test directly in browser!
+    // 📊 Technical Analysis API (x402 Paid Endpoint for Agents)
+    // GET endpoint - returns 402 Payment Required if no X-PAYMENT header
     this.app.get('/api/technical-analysis/analyze', async (req, res) => {
       try {
-        const { contract, timeframe = '1h', depth = 'standard', format = 'json' } = req.query;
+        const { contract, timeframe = '15m', depth = 'standard', format = 'json' } = req.query;
         
-        console.log(`\n📊 [TA API] Technical Analysis Request`);
+        console.log(`\n📊 [TA API] ===== NEW REQUEST =====`);
         console.log(`   Contract: ${contract?.substring(0, 8)}...`);
         console.log(`   Timeframe: ${timeframe}`);
         console.log(`   Depth: ${depth}`);
@@ -2058,10 +2058,158 @@ class EnhancedBackend {
           return res.status(400).json({
             success: false,
             error: 'Missing contract address',
-            usage: 'GET /api/technical-analysis/analyze?contract=YOUR_TOKEN_ADDRESS&format=text'
+            usage: 'GET /api/technical-analysis/analyze?contract=YOUR_TOKEN_ADDRESS&timeframe=15m&format=text'
           });
         }
         
+        // Check if x402PaymentHandler is initialized
+        if (!this.x402PaymentHandler) {
+          console.error('❌ [TA API] x402PaymentHandler not initialized');
+          return res.status(500).json({ 
+            error: 'payment_handler_not_initialized',
+            message: 'Payment handler not available' 
+          });
+        }
+        
+        // Extract X-PAYMENT header
+        let xPaymentHeader = req.headers['x-payment'];
+        
+        // Handle case where X-PAYMENT might come in different header formats
+        if (!xPaymentHeader && req.headers['X-Payment']) {
+          xPaymentHeader = req.headers['X-Payment'];
+        }
+        if (!xPaymentHeader && req.headers['X-PAYMENT']) {
+          xPaymentHeader = req.headers['X-PAYMENT'];
+        }
+        
+        // Ensure we have a clean string (some clients send arrays)
+        if (Array.isArray(xPaymentHeader)) {
+          xPaymentHeader = xPaymentHeader[0];
+        }
+        
+        // PayAI SDK can't handle Buffer objects - ensure string
+        if (xPaymentHeader && typeof xPaymentHeader !== 'string') {
+          xPaymentHeader = null;
+        }
+        
+        console.log(`🤖 [TA API] Request: contract=${contract.substring(0, 8)}..., timeframe=${timeframe}, format=${format}, x402=${xPaymentHeader ? 'YES' : 'NO'}`);
+        
+        // Pricing: $0.50 per request (500,000 USDC micro-units)
+        const pricePerRequest = 0.50;
+        const priceInUSDCMicroUnits = pricePerRequest * 1_000_000; // 500,000 (6 decimals)
+        
+        // Build payment requirements
+        const paymentRequirements = {
+          price: priceInUSDCMicroUnits,
+          currency: 'USDC',
+          network: 'solana'
+        };
+        
+        // If no X-PAYMENT header, return 402 Payment Required
+        if (!xPaymentHeader) {
+          console.log(`💰 [TA API] Returning 402 Payment Required: $${pricePerRequest} USDC`);
+          
+          try {
+            // Build resource URL to match the actual request URL (preserve contract, timeframe, format)
+            let resourceUrl = `https://api.degen-oracle.com/api/technical-analysis/analyze?contract=${contract}`;
+            if (timeframe !== '15m') {
+              resourceUrl += `&timeframe=${timeframe}`;
+            }
+            if (format !== 'json') {
+              resourceUrl += `&format=${format}`;
+            }
+            
+            console.log(`   Resource URL: ${resourceUrl}`);
+            
+            // Use PayAI SDK to generate payment requirements
+            const paymentResponse = this.x402PaymentHandler.generatePaymentRequirements(
+              paymentRequirements,
+              resourceUrl
+            );
+            
+            console.log(`   Payment requirements generated successfully`);
+            console.log(`   Merchant wallet: ${this.x402PaymentHandler.merchantWallet}`);
+            console.log(`   Price: ${pricePerRequest} USDC`);
+            
+            // Return 402 with payment requirements
+            return res.status(402).json({
+              error: 'payment_required',
+              message: `Payment of $${pricePerRequest} USDC required for Technical Analysis`,
+              price: pricePerRequest,
+              currency: 'USDC',
+              payment: paymentResponse
+            });
+          } catch (paymentError) {
+            console.error(`❌ [TA API] Failed to generate payment requirements:`, paymentError);
+            return res.status(500).json({ 
+              error: 'payment_generation_failed',
+              message: 'Failed to generate payment requirements',
+              details: paymentError.message
+            });
+          }
+        }
+        
+        // Verify payment
+        console.log(`🔍 [TA API] Verifying x402 payment...`);
+        console.log(`   X-PAYMENT header length: ${xPaymentHeader?.length || 0} chars`);
+        console.log(`   X-PAYMENT header preview: ${xPaymentHeader?.substring(0, 100) || 'N/A'}...`);
+        
+        // Build resource URL to match the actual request URL (preserve contract, timeframe, format)
+        let resourceUrl = `https://api.degen-oracle.com/api/technical-analysis/analyze?contract=${contract}`;
+        if (timeframe !== '15m') {
+          resourceUrl += `&timeframe=${timeframe}`;
+        }
+        if (format !== 'json') {
+          resourceUrl += `&format=${format}`;
+        }
+        
+        console.log(`   Resource URL for verification: ${resourceUrl}`);
+        
+        let verifyResult;
+        try {
+          verifyResult = await this.x402PaymentHandler.verifyPayment(
+            xPaymentHeader,
+            paymentRequirements,
+            resourceUrl
+          );
+          console.log(`   Verify result:`, verifyResult);
+        } catch (verifyError) {
+          console.error(`❌ [TA API] Payment verification exception:`, verifyError);
+          return res.status(402).json({ 
+            error: 'payment_verification_error',
+            message: 'Payment verification encountered an error',
+            details: verifyError.message
+          });
+        }
+        
+        // SDK returns boolean: true = valid, false = invalid
+        if (verifyResult !== true) {
+          console.log(`❌ [TA API] Payment verification failed`);
+          return res.status(402).json({ 
+            error: 'payment_verification_failed',
+            message: 'Payment verification failed. Please retry with valid payment.',
+            verifyResult: verifyResult
+          });
+        }
+        
+        console.log(`✅ [TA API] Payment verification successful`);
+        
+        // Settle payment using PayAI SDK
+        console.log(`💰 [TA API] Settling payment...`);
+        const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
+        
+        // SDK returns boolean: true = settled, false = failed
+        if (settleResult !== true) {
+          console.log(`❌ [TA API] Payment settlement failed`);
+          return res.status(500).json({ 
+            error: 'payment_settlement_failed',
+            message: 'Payment settlement failed' 
+          });
+        }
+        
+        console.log(`✅ [TA API] Payment settled successfully!`);
+        
+        // Payment successful - generate and return analysis
         // Lazy-load the service
         if (!this.technicalAnalysisService) {
           const TechnicalAnalysisService = (await import('./services/TechnicalAnalysisService.js')).default;
@@ -2076,7 +2224,7 @@ class EnhancedBackend {
           depth
         );
         
-        console.log(`✅ [TA API] Analysis complete for ${contract.substring(0, 8)}`);
+        console.log(`✅ [TA API] Analysis complete for ${contract.substring(0, 8)} (paid via x402)`);
         
         // Return formatted text if requested
         if (format === 'text') {
@@ -2088,7 +2236,11 @@ class EnhancedBackend {
         }
         
       } catch (error) {
-        console.error(`❌ [TA API] Error:`, error.message);
+        console.error('\n❌ [TA API] ===== ERROR =====');
+        console.error(`   Error message: ${error.message}`);
+        console.error(`   Error stack:`, error.stack);
+        console.error('❌ [TA API] ====================\n');
+        
         res.status(500).json({
           success: false,
           error: error.message
