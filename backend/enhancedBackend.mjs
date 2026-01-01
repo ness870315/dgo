@@ -2128,7 +2128,33 @@ class EnhancedBackend {
                 resource: resourceUrl,
                 description: `Technical Analysis for ${contract.substring(0, 8)}... (${timeframe}) - Agent API`,
                 maxTimeoutSeconds: 300,
-                mimeType: format === 'text' ? 'text/plain' : 'application/json'
+                mimeType: format === 'text' ? 'text/plain' : 'application/json',
+                // Schema for x402scan UI generation
+                outputSchema: {
+                  input: {
+                    type: 'http',
+                    method: 'GET',
+                    queryParams: {
+                      contract: {
+                        type: 'string',
+                        required: true,
+                        description: 'Solana token contract address (SPL token mint)'
+                      },
+                      timeframe: {
+                        type: 'string',
+                        required: false,
+                        description: 'Chart timeframe for analysis',
+                        enum: ['5m', '10m', '15m', '1h', '4h', '1d']
+                      },
+                      format: {
+                        type: 'string',
+                        required: false,
+                        description: 'Response format',
+                        enum: ['json', 'text']
+                      }
+                    }
+                  }
+                }
               }
             };
             
@@ -2179,7 +2205,33 @@ class EnhancedBackend {
             resource: resourceUrl,
             description: `Technical Analysis for ${contract.substring(0, 8)}... (${timeframe}) - Agent API`,
             maxTimeoutSeconds: 300,
-            mimeType: format === 'text' ? 'text/plain' : 'application/json'
+            mimeType: format === 'text' ? 'text/plain' : 'application/json',
+            // Schema for x402scan UI generation (must match 402 response)
+            outputSchema: {
+              input: {
+                type: 'http',
+                method: 'GET',
+                queryParams: {
+                  contract: {
+                    type: 'string',
+                    required: true,
+                    description: 'Solana token contract address (SPL token mint)'
+                  },
+                  timeframe: {
+                    type: 'string',
+                    required: false,
+                    description: 'Chart timeframe for analysis',
+                    enum: ['5m', '10m', '15m', '1h', '4h', '1d']
+                  },
+                  format: {
+                    type: 'string',
+                    required: false,
+                    description: 'Response format',
+                    enum: ['json', 'text']
+                  }
+                }
+              }
+            }
           }
         };
         
