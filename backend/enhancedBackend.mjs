@@ -19111,7 +19111,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
                   token.jupiterData = {};
                 }
                 token.jupiterData.decimals = jupToken.decimals;
-                token.jupiterData.circSupply = jupToken.circSupply;
+                // 🚨 FIX: Jupiter uses 'circulatingSupply' not 'circSupply'
+                token.jupiterData.circSupply = jupToken.circulatingSupply || jupToken.circSupply || 0;
+                token.jupiterData.totalSupply = jupToken.totalSupply || 0;
                 token.jupiterData.name = jupToken.name;
                 token.jupiterData.symbol = jupToken.symbol;
                 
