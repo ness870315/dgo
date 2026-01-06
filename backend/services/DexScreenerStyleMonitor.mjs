@@ -2340,38 +2340,29 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Calculate market cap - CRITICAL: Match test behavior - use supply * price directly
-      // The test file calculates: marketCap = supply * price (direct calculation, no baseline adjustments)
-      // This is simpler and more accurate than incremental baseline calculations
+      // Calculate market cap - Use Jupiter baseline and scale by price change
+      // Jupiter's marketCap has accurate supply data, so we scale it by price changes
+      // This is more accurate than supply * price (which can have stale supply)
       let marketCap = 0;
       const metadata = tokenData.metadata;
-      const supply = metadata?.circSupply || metadata?.totalSupply || 0;
       
-      // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
-      // This prevents wild market cap swings from bad swap prices
-      if (supply > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd) && swap.priceUsd > 0.00000001) {
-        marketCap = supply * swap.priceUsd;
-        
-        // 🚨 ADDITIONAL VALIDATION: Double-check against Jupiter baseline as a safety net
-        // This catches any edge cases where price validation might have missed something
-        // Note: swap.priceUsd has already been validated in handleTransaction, so this is just a safety check
-        if (metadata?.marketCap && metadata.marketCap > 0) {
-          const baselineRatio = marketCap / metadata.marketCap;
-          // If market cap is >5x or <0.2x off from Jupiter, use Jupiter's market cap instead
-          // (Tighter bounds since price should already be validated)
-          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
-            console.log(`⚠️ [DexScreenerStyleMonitor] Market cap $${(marketCap/1000000).toFixed(2)}M (${baselineRatio.toFixed(2)}x off from Jupiter $${(metadata.marketCap/1000000).toFixed(2)}M), using Jupiter for ${tokenData.config.name}`);
-            marketCap = metadata.marketCap;
-          }
-        }
-      } else if (metadata?.marketCap && metadata.marketCap > 0) {
-        // Fallback: Use Jupiter's pre-calculated market cap if supply/price not available
-        marketCap = metadata.marketCap;
+      // 🚨 DEXSCREENER-ACCURATE: Scale Jupiter's baseline market cap by price change
+      // Formula: adjustedMcap = jupiterBaselineMcap * (currentPrice / baselinePrice)
+      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || metadata?.marketCap || 0;
+      const baselinePrice = tokenData.lastBaselinePrice || metadata?.usdPrice || 0;
+      
+      if (jupiterBaseline > 0 && baselinePrice > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
+        // Scale market cap by price change from baseline
+        const priceRatio = swap.priceUsd / baselinePrice;
+        marketCap = jupiterBaseline * priceRatio;
       } else {
-        // Last resort: Try to calculate from supply if we have it
-        if (supply > 0 && metadata?.usdPrice && metadata.usdPrice > 0) {
-          marketCap = supply * metadata.usdPrice;
-        }
+        // Fallback: Use Jupiter's market cap directly if we can't scale
+        marketCap = jupiterBaseline || metadata?.marketCap || 0;
+      }
+      
+      // Sanity check: ensure market cap is reasonable (not 0 or astronomical)
+      if (marketCap <= 0 || !isFinite(marketCap)) {
+        marketCap = metadata?.marketCap || 0;
       }
       
       // Create swap record (must match format expected by calculations)
@@ -2409,25 +2400,18 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // Calculate current market cap after swap (using validated price)
-      // 🚨 CRITICAL FIX: Use simple supply * price calculation (like test file)
+      // Calculate current market cap after swap - use Jupiter baseline scaled by price change
       let currentMarketCap = 0;
-      const currentSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
+      const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
       const currentPriceAfterSwap = tokenData.lastPriceUSD || swap.priceUsd || 0;
       
-      if (currentSupply > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap) && currentPriceAfterSwap > 0.00000001) {
-        currentMarketCap = currentSupply * currentPriceAfterSwap;
-        
-        // Validate against Jupiter baseline (tighter bounds since price is already validated)
-        if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-          const baselineRatio = currentMarketCap / tokenData.metadata.marketCap;
-          // Tighter bounds (5x) since we're using validated median price
-          if (baselineRatio > 5.0 || baselineRatio < 0.2) {
-            currentMarketCap = tokenData.metadata.marketCap;
-          }
-        }
-      } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-        currentMarketCap = tokenData.metadata.marketCap;
+      if (jupiterBaseline > 0 && baselinePrice > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap)) {
+        // Scale market cap by price change from baseline
+        currentMarketCap = jupiterBaseline * (currentPriceAfterSwap / baselinePrice);
+      } else {
+        // Fallback: Use Jupiter's market cap directly
+        currentMarketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
       }
       
       // Log swap
@@ -2636,9 +2620,16 @@ export default class DexScreenerStyleMonitor {
       
       const quoteAmount = Math.abs(delta) * tokenPriceInQuote;
       const quoteAmountUSD = Math.abs(delta) * tokenPriceUSD;
-      const marketCap = metadata && metadata.circSupply > 0 
-        ? metadata.circSupply * tokenPriceUSD 
-        : 0;
+      
+      // Calculate market cap using Jupiter baseline scaled by price change
+      let marketCap = 0;
+      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || metadata?.marketCap || 0;
+      const baselinePrice = tokenData.lastBaselinePrice || metadata?.usdPrice || 0;
+      if (jupiterBaseline > 0 && baselinePrice > 0 && tokenPriceUSD > 0) {
+        marketCap = jupiterBaseline * (tokenPriceUSD / baselinePrice);
+      } else {
+        marketCap = jupiterBaseline || 0;
+      }
 
       // Create swap record
       const swap = {
@@ -2874,18 +2865,17 @@ export default class DexScreenerStyleMonitor {
       lastUpdate: tokenData.lastUpdate
     };
     
-    // Market cap - CRITICAL: Match test behavior - use supply * price directly
-    // The test file calculates: marketCap = tokenConfig.supply * swap.priceUSD
-    // This is simpler and more accurate than incremental baseline calculations
+    // Market cap - Use Jupiter baseline and scale by price change
     let marketCap = 0;
-    const circSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+    const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
+    const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
     
-    if (circSupply > 0 && currentPriceUSD > 0) {
-      // Match test: supply * price (direct calculation, no baseline adjustments)
-      marketCap = circSupply * currentPriceUSD;
-    } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-      // Fallback: Use Jupiter's pre-calculated market cap if supply not available
-      marketCap = tokenData.metadata.marketCap;
+    if (jupiterBaseline > 0 && baselinePrice > 0 && currentPriceUSD > 0 && isFinite(currentPriceUSD)) {
+      // Scale market cap by price change from baseline
+      marketCap = jupiterBaseline * (currentPriceUSD / baselinePrice);
+    } else {
+      // Fallback: Use Jupiter's market cap directly
+      marketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
     }
     
     // Add market cap to return object
@@ -3275,18 +3265,19 @@ export default class DexScreenerStyleMonitor {
 
       const poolData = this.pools.get(mint);
       
-      // Calculate market cap - CRITICAL: Match test behavior - use supply * price directly
-      // The test file calculates: marketCap = tokenConfig.supply * swap.priceUSD
-      // This is simpler and more accurate than incremental baseline calculations
+      // Calculate market cap - Use Jupiter baseline and scale by price change
+      // Jupiter's marketCap has accurate supply data, so we scale it by price changes
       let marketCap = 0;
-      const circSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || 0;
+      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
+      const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
       
-      if (circSupply > 0 && metrics.currentPrice > 0) {
-        // Match test: supply * price (direct calculation, no baseline adjustments)
-        marketCap = circSupply * metrics.currentPrice;
-      } else if (tokenData.metadata?.marketCap && tokenData.metadata.marketCap > 0) {
-        // Fallback: Use Jupiter's pre-calculated market cap if supply not available
-        marketCap = tokenData.metadata.marketCap;
+      if (jupiterBaseline > 0 && baselinePrice > 0 && metrics.currentPrice > 0 && isFinite(metrics.currentPrice)) {
+        // Scale market cap by price change from baseline
+        const priceRatio = metrics.currentPrice / baselinePrice;
+        marketCap = jupiterBaseline * priceRatio;
+      } else {
+        // Fallback: Use Jupiter's market cap directly
+        marketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
       }
       
       // Reduced verbosity: Only log broadcasts for debugging (controlled by env var)
@@ -3413,9 +3404,15 @@ export default class DexScreenerStyleMonitor {
           const poolData = this.pools.get(mint);
           // Don't skip if no poolData - we can still use Jupiter price!
 
-          // Calculate market cap
-          const circSupply = tokenData.metadata?.circSupply || 0;
-          const marketCap = metrics.currentPrice * circSupply;
+          // Calculate market cap - Use Jupiter baseline scaled by price change
+          let marketCap = 0;
+          const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
+          const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
+          if (jupiterBaseline > 0 && baselinePrice > 0 && metrics.currentPrice > 0 && isFinite(metrics.currentPrice)) {
+            marketCap = jupiterBaseline * (metrics.currentPrice / baselinePrice);
+          } else {
+            marketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
+          }
 
           // Calculate age
           const age = tokenData.createdAt 
