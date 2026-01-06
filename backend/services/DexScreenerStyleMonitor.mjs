@@ -659,7 +659,16 @@ export default class DexScreenerStyleMonitor {
     
     // Count tokens that already have pools
     const alreadyHavePools = tokensConfig.filter(({ config }) => config.pool).length;
-    console.log(`   📊 Tokens already with pools: ${alreadyHavePools}/${tokensConfig.length}`);
+    console.log(`   📊 Tokens already with pools from cache: ${alreadyHavePools}/${tokensConfig.length}`);
+    
+    // Sample tokens without pools for debugging
+    const sampleWithoutPools = tokensConfig
+      .filter(({ config }) => !config.pool)
+      .slice(0, 5)
+      .map(({ config }) => config.name);
+    if (sampleWithoutPools.length > 0) {
+      console.log(`   🔍 Sample tokens needing pool discovery: ${sampleWithoutPools.join(', ')}...`);
+    }
     
     let moralisCount = 0;
     let jupiterCount = 0;
@@ -667,6 +676,9 @@ export default class DexScreenerStyleMonitor {
     let failedCount = 0;
     
     // Step 1: Try Moralis API first (main source)
+    console.log(`   🔑 MORALIS_API_KEY: ${MORALIS_API_KEY ? 'SET (' + MORALIS_API_KEY.substring(0, 8) + '...)' : 'NOT SET'}`);
+    console.log(`   🔑 JUPITER_API_KEY: ${JUPITER_API_KEY ? 'SET' : 'NOT SET'}`);
+    
     if (MORALIS_API_KEY) {
       const moralisPools = await this.batchFetchPoolsFromMoralis(Array.from(this.tokens.keys()));
       
