@@ -1866,14 +1866,18 @@ export default class DexScreenerStyleMonitor {
           // Priority 3: No baseline (0) - accept first swap after absolute checks
           const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           
+          // 🚨 SWAP FILTER DEBUG: Log all filter decisions for debugging
+          const tokenName = tokenData.config?.name || mint.substring(0, 8);
+          const swapInfo = `${tokenName} ${swap.type} $${swap.volumeUsd?.toFixed(2) || '0'} @ $${swap.priceUsd?.toFixed(6) || '0'}`;
+          
           // 🚨 ABSOLUTE PRICE SANITY CHECK: Reject obviously invalid prices (< $0.000001 or > $1M)
           // Even if we have no baseline, extremely low prices are always multi-hop legs
           if (swap.priceUsd < 0.000001) {
-            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too low: $${swap.priceUsd.toFixed(10)} - FILTERING OUT (likely multi-hop leg)`);
+            console.log(`❌ FILTER [too low]: ${swapInfo} - price < $0.000001`);
             continue; // Skip this swap
           }
           if (swap.priceUsd > 1000000) {
-            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price too high: $${swap.priceUsd.toFixed(2)} - FILTERING OUT (likely error)`);
+            console.log(`❌ FILTER [too high]: ${swapInfo} - price > $1M`);
             continue; // Skip this swap
           }
           
@@ -1881,18 +1885,22 @@ export default class DexScreenerStyleMonitor {
           // Jupiter price is used ONLY as initial baseline (backend reboot), then swaps take over
           if (expectedPrice > 0 && swap.priceUsd) {
             const priceRatio = swap.priceUsd / expectedPrice;
-            // EXACT MATCH: test-transaction-level-decoding.mjs (10x range)
-            if (priceRatio > 10 || priceRatio < 0.1) {
-              console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap price outlier: $${swap.priceUsd.toFixed(6)} vs expected $${expectedPrice.toFixed(6)} (${priceRatio.toFixed(2)}x) - FILTERING OUT`);
+            // 🚨 RELAXED: Use 20x range instead of 10x to catch more legitimate swaps
+            if (priceRatio > 20 || priceRatio < 0.05) {
+              console.log(`❌ FILTER [outlier ${priceRatio.toFixed(2)}x]: ${swapInfo} vs expected $${expectedPrice.toFixed(6)}`);
               continue; // Skip this swap
             }
           }
           
-          // EXACT MATCH: test-transaction-level-decoding.mjs ($0.50 minimum)
-          if (swap.volumeUsd && swap.volumeUsd < 0.50) {
-            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] Swap volume too low: $${swap.volumeUsd.toFixed(2)} - FILTERING OUT (likely dust/MEV)`);
+          // 🚨 RELAXED: Lower dust threshold to $0.10 to catch more small swaps
+          if (swap.volumeUsd && swap.volumeUsd < 0.10) {
+            console.log(`❌ FILTER [dust]: ${swapInfo} - volume < $0.10`);
             continue; // Skip this swap
           }
+          
+          // ✅ PASSED ALL FILTERS
+          console.log(`✅ PASSED: ${swapInfo} (pool: ${swap.poolAddress?.substring(0,8) || 'unknown'}...)`);
+
 
           
           // Log large swaps for debugging (user reported missing large swaps)
