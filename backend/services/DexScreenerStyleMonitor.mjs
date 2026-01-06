@@ -204,6 +204,8 @@ export default class DexScreenerStyleMonitor {
     this.reconnectAttempts = 0;
     this.lastStreamActivity = 0;
     this.streamHealthChecker = null;
+    this.streamGeneration = 0; // Incremented each time we create a new stream
+    this.activeStreamGeneration = 0; // The generation of the currently active stream
 
     console.log('🚀 [DexScreenerStyleMonitor] Initialized');
   }
@@ -279,14 +281,21 @@ export default class DexScreenerStyleMonitor {
    * PHASE 3: Create or recreate the gRPC stream with transaction filters only
    */
   async recreateStream() {
-    // Cancel existing stream if any
+    // Increment generation to invalidate old stream events
+    this.streamGeneration++;
+    const thisGeneration = this.streamGeneration;
+    
+    // Cancel and clean up existing stream if any
     if (this.stream) {
       try {
+        // Remove all listeners to prevent ghost events from triggering reconnects
+        this.stream.removeAllListeners();
         this.stream.cancel();
-        console.log('🔄 [DexScreenerStyleMonitor] Cancelled existing stream');
+        console.log('🔄 [DexScreenerStyleMonitor] Cancelled existing stream (gen ' + (thisGeneration - 1) + ')');
       } catch (e) {
         // Ignore cancellation errors
       }
+      this.stream = null;
     }
 
     // PHASE 3: Combine all pool addresses into a single transaction filter
@@ -344,15 +353,21 @@ export default class DexScreenerStyleMonitor {
       []
     );
     
+    // Mark this as the active stream generation
+    this.activeStreamGeneration = thisGeneration;
+    
     // PHASE 3: Only handle transactions (no account updates)
     let messageCount = 0;
     this.stream.on('data', (msg) => {
+      // Ignore events from old stream generations
+      if (thisGeneration !== this.activeStreamGeneration) return;
+      
       messageCount++;
       this.lastStreamActivity = Date.now(); // Track activity for health check
       
       // Log first message to confirm stream is working
       if (messageCount === 1) {
-        console.log(`✅ [DexScreenerStyleMonitor] First message received from stream!`);
+        console.log(`✅ [DexScreenerStyleMonitor] First message received from stream (gen ${thisGeneration})!`);
         console.log(`   Message keys:`, Object.keys(msg));
       }
       
@@ -362,20 +377,30 @@ export default class DexScreenerStyleMonitor {
     });
     
     this.stream.on('error', (error) => {
-      console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
+      // Ignore errors from old stream generations
+      if (thisGeneration !== this.activeStreamGeneration) {
+        console.log(`⏭️  [DexScreenerStyleMonitor] Ignoring error from old stream (gen ${thisGeneration}, active: ${this.activeStreamGeneration})`);
+        return;
+      }
+      console.error(`❌ [DexScreenerStyleMonitor] Stream error (gen ${thisGeneration}):`, error.message);
       // Auto-reconnect after error
       this.scheduleReconnect('error');
     });
     
     this.stream.on('end', () => {
-      console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
+      // Ignore end events from old stream generations
+      if (thisGeneration !== this.activeStreamGeneration) {
+        console.log(`⏭️  [DexScreenerStyleMonitor] Ignoring end from old stream (gen ${thisGeneration}, active: ${this.activeStreamGeneration})`);
+        return;
+      }
+      console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended (gen ${thisGeneration})`);
       // Auto-reconnect after stream ends
       this.scheduleReconnect('end');
     });
     
     this.globalStats.streamRecreations++;
     this.lastStreamActivity = Date.now();
-    console.log('✅ [DexScreenerStyleMonitor] Stream created successfully');
+    console.log(`✅ [DexScreenerStyleMonitor] Stream created successfully (gen ${thisGeneration})`);
   }
 
   /**
@@ -1802,51 +1827,10 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // PHASE 3: Create stream with transaction filters only (no account filters)
-      // Combine all pool addresses into a single transaction filter for efficiency
-      const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
-      const combinedTransactionFilter = {
-        client: {
-          accountInclude: allPoolAddresses, // Single filter with all pool addresses
-          accountExclude: [],
-          accountRequired: [],
-          vote: false,
-          failed: false
-        }
-      };
-      
-      // Create new stream with combined transaction filter
-      this.stream = await this.grpcClient.subscribeOnce(
-        {}, // accounts (no longer used)
-        {}, // slots
-        combinedTransactionFilter, // transactions (single filter for all pools)
-        {}, // blocks
-        {}, // blocksMeta
-        {}, // entry
-        {}, // transactionsStatus
-        1, // CONFIRMED
-        []
-      );
-      
-      // PHASE 3: Only handle transactions (no account updates)
-      this.stream.on('data', (msg) => {
-        this.lastStreamActivity = Date.now(); // Track activity for health check
-        if (msg.transaction) {
-          this.handleTransaction(msg);
-        }
-      });
-      
-      this.stream.on('error', (error) => {
-        console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
-        this.scheduleReconnect('error');
-      });
-      
-      this.stream.on('end', () => {
-        console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
-        this.scheduleReconnect('end');
-      });
-
-      this.lastStreamActivity = Date.now();
+      // PHASE 3: Just use the shared recreateStream method which handles all pool addresses
+      // This avoids duplicate code and ensures consistent generation tracking
+      console.log(`   📡 Recreating stream with new pool for ${config.name}...`);
+      await this.recreateStream();
       console.log(`✅ [DexScreenerStyleMonitor] Pool added to stream for ${config.name}`);
 
     } catch (error) {
