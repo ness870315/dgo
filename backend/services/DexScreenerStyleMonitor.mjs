@@ -644,7 +644,16 @@ export default class DexScreenerStyleMonitor {
    * Updates config.pool and stores Moralis liquidity as baseline
    */
   async discoverPoolsInPriorityOrder(tokensConfig) {
-    console.log(`   🔍 Discovering pools for ${tokensConfig.length} tokens...`);
+    console.log(`\n   🔍 Discovering pools for ${tokensConfig?.length || 0} tokens...`);
+    
+    if (!tokensConfig || tokensConfig.length === 0) {
+      console.error('   ❌ CRITICAL: No tokens to discover pools for!');
+      return;
+    }
+    
+    // Count tokens that already have pools
+    const alreadyHavePools = tokensConfig.filter(({ config }) => config.pool).length;
+    console.log(`   📊 Tokens already with pools: ${alreadyHavePools}/${tokensConfig.length}`);
     
     let moralisCount = 0;
     let jupiterCount = 0;
@@ -1111,7 +1120,20 @@ export default class DexScreenerStyleMonitor {
    * @param {Array} tokensConfig - Array of { mint, config: { name, pool, decimals } }
    */
   async batchOnboardTokens(tokensConfig) {
-    console.log(`\n📦 [DexScreenerStyleMonitor] Batch onboarding ${tokensConfig.length} tokens...`);
+    console.log(`\n📦 [DexScreenerStyleMonitor] Batch onboarding ${tokensConfig?.length || 0} tokens...`);
+    
+    // 🚨 CRITICAL DEBUG
+    if (!tokensConfig || tokensConfig.length === 0) {
+      console.error('❌ [DexScreenerStyleMonitor] CRITICAL: No tokensConfig passed to batchOnboardTokens!');
+      return { successful: 0, failed: 0 };
+    }
+    
+    // Log first few tokens for debugging
+    console.log(`   🔍 First 3 tokens:`);
+    for (let i = 0; i < Math.min(3, tokensConfig.length); i++) {
+      const { mint, config } = tokensConfig[i];
+      console.log(`      ${i+1}. ${config.name} (${mint?.substring(0,8) || 'NO MINT'}...) pool=${config.pool ? config.pool.substring(0,8)+'...' : 'NONE'}`);
+    }
     
     let successful = 0;
     let failed = 0;

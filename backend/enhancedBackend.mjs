@@ -18837,6 +18837,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Load token cache
       const tokens = await this.loadTokenCache();
       
+      // 🚨 CRITICAL DEBUG: Check what we loaded
+      console.log(`\n🚨 [Backend] loadTokenCache returned: ${tokens?.length || 0} tokens`);
+      if (tokens && tokens.length > 0) {
+        console.log(`   First token: ${tokens[0]?.symbol} (${tokens[0]?.contractAddress?.substring(0,8) || 'NO ADDRESS'}...)`);
+        console.log(`   Last token: ${tokens[tokens.length-1]?.symbol} (${tokens[tokens.length-1]?.contractAddress?.substring(0,8) || 'NO ADDRESS'}...)`);
+      }
+      
       // Batch fetch decimals + pools from Jupiter API for all tokens
       // Pass skipCacheSave=true to avoid triggering TokenCacheWatcher during startup
       await this.enrichTokensWithJupiter(tokens, true);
@@ -18844,7 +18851,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Save enriched tokens to cache BEFORE TokenCacheWatcher starts
       // This ensures graduatedPool addresses are persisted
       const tokensWithGraduatedPool = tokens.filter(t => t.graduatedPool).length;
-      console.log(`🔍 [Backend] Tokens with graduatedPool before save: ${tokensWithGraduatedPool}/${tokens.length}`);
+      const tokensWithPoolAddress = tokens.filter(t => t.poolAddress).length;
+      const tokensWithAnyPool = tokens.filter(t => t.poolAddress || t.graduatedPool || t.jupiterData?.graduatedPool).length;
+      console.log(`\n🔍 [Backend] Pool status before onboarding:`);
+      console.log(`   - Total tokens: ${tokens.length}`);
+      console.log(`   - With graduatedPool: ${tokensWithGraduatedPool}`);
+      console.log(`   - With poolAddress: ${tokensWithPoolAddress}`);
+      console.log(`   - With ANY pool: ${tokensWithAnyPool}`);
       
       // Debug: Check Uranus specifically
       const uranus = tokens.find(t => t.symbol === 'URANUS');
@@ -18901,7 +18914,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
    */
   async loadTokenCache() {
     try {
-      console.log('📂 [Backend] Loading token cache...');
+      console.log('\n📂 [Backend] Loading token cache...');
+      console.log(`   Cache path: ${this.persistentCachePath}`);
       
       const cachePath = this.persistentCachePath;
       const backupCachePath = cachePath.replace('.json', '-backup.json');
@@ -18910,14 +18924,31 @@ Thanks for using x402 payments on Twitter! 🚀`;
       let cacheData;
       try {
         cacheData = await fs.readFile(cachePath, 'utf8');
-        console.log('✅ [Backend] Loaded primary cache');
+        console.log(`✅ [Backend] Loaded primary cache (${cacheData.length} bytes)`);
       } catch (error) {
-        console.log('⚠️ [Backend] Primary cache not found, trying backup...');
-        cacheData = await fs.readFile(backupCachePath, 'utf8');
-        console.log('✅ [Backend] Loaded backup cache');
+        console.log(`⚠️ [Backend] Primary cache not found (${error.code}), trying backup...`);
+        try {
+          cacheData = await fs.readFile(backupCachePath, 'utf8');
+          console.log(`✅ [Backend] Loaded backup cache (${cacheData.length} bytes)`);
+        } catch (backupError) {
+          console.error(`❌ [Backend] Backup cache also not found: ${backupError.code}`);
+          return [];
+        }
       }
       
-      const tokens = JSON.parse(cacheData);
+      let tokens;
+      try {
+        tokens = JSON.parse(cacheData);
+      } catch (parseError) {
+        console.error(`❌ [Backend] Failed to parse cache JSON: ${parseError.message}`);
+        return [];
+      }
+      
+      // Validate tokens array
+      if (!Array.isArray(tokens)) {
+        console.error(`❌ [Backend] Cache is not an array! Got: ${typeof tokens}`);
+        return [];
+      }
       
       // 🚨 CRITICAL FIX: Load ALL tokens from cache, don't filter on startup
       // Filtering should only happen when onboarding to DexScreener monitor, not when loading cache
@@ -19111,6 +19142,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
       return;
     }
 
+    // 🚨 CRITICAL DEBUG: Log what we receive
+    console.log(`\n🚨 [Backend] onboardCachedTokens called with ${tokens?.length || 0} tokens`);
+    if (!tokens || tokens.length === 0) {
+      console.error('❌ [Backend] CRITICAL: No tokens passed to onboardCachedTokens!');
+      return;
+    }
+    
+    // Sample check
+    const sample = tokens[0];
+    console.log(`   📋 Sample token: ${sample?.symbol} (${sample?.contractAddress?.substring(0,8) || 'NO ADDRESS'}...)`);
+    
     console.log(`📋 [Backend] Preparing ${tokens.length} cached tokens for batch onboarding...`);
     
     const tokensConfig = [];
