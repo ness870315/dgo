@@ -472,8 +472,14 @@ export default class DexScreenerStyleMonitor {
             tokenData.metadata.marketCap = tokenInfo.marketCap || 0;
             tokenData.metadata.liquidity = tokenInfo.liquidity || 0;
             tokenData.metadata.holderCount = tokenInfo.holderCount || 0;
-            tokenData.metadata.circSupply = tokenInfo.circSupply || 0;
+            // 🚨 FIX: Jupiter returns 'circulatingSupply' not 'circSupply'!
+            tokenData.metadata.circSupply = tokenInfo.circulatingSupply || tokenInfo.circSupply || 0;
             tokenData.metadata.totalSupply = tokenInfo.totalSupply || 0;
+            
+            // Debug log supply data (first few tokens only)
+            if (totalFetched < 5) {
+              console.log(`   📊 ${tokenInfo.symbol}: price=$${tokenInfo.usdPrice?.toFixed(6) || '0'}, circSupply=${tokenInfo.circulatingSupply?.toLocaleString() || 'N/A'}, totalSupply=${tokenInfo.totalSupply?.toLocaleString() || 'N/A'}, mcap=$${(tokenInfo.marketCap / 1000000)?.toFixed(2) || '0'}M`);
+            }
             
             // 🚨 CRITICAL FIX: Initialize lastPriceUSD from Jupiter price immediately
             // This ensures tokens have a price from the start, even before first swap
