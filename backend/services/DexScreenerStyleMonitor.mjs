@@ -299,7 +299,22 @@ export default class DexScreenerStyleMonitor {
     }
 
     // PHASE 3: Combine all pool addresses into a single transaction filter
+    // Include main pools + additional pools discovered for multi-pool tokens
     const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
+    
+    // 🚨 MULTI-POOL: Add additional pools for tokens that have them (Orca, Meteora, etc.)
+    let additionalPoolCount = 0;
+    for (const [mint, tokenData] of this.tokens.entries()) {
+      if (tokenData.additionalPools && tokenData.additionalPools.length > 0) {
+        for (const pool of tokenData.additionalPools) {
+          if (!allPoolAddresses.includes(pool.address)) {
+            allPoolAddresses.push(pool.address);
+            additionalPoolCount++;
+          }
+        }
+      }
+    }
+    
     if (allPoolAddresses.length === 0) {
       console.log('⚠️  [DexScreenerStyleMonitor] No pools to monitor, skipping stream creation');
       return;
@@ -312,7 +327,8 @@ export default class DexScreenerStyleMonitor {
       const tokenName = tokenData?.config?.name || mint.substring(0, 8);
       monitoredTokens.push(`${tokenName} (${poolData.poolAddress.substring(0, 8)}...)`);
     }
-    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools:`);
+    const mainPoolCount = this.pools.size;
+    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools (${mainPoolCount} main + ${additionalPoolCount} additional):`);
     if (monitoredTokens.length <= 10) {
       monitoredTokens.forEach((token, idx) => {
         console.log(`   ${idx + 1}. ${token}`);
@@ -850,7 +866,7 @@ export default class DexScreenerStyleMonitor {
       }
     }
     
-    // Step 3: Try DexScreener as final fallback
+    // Step 3: Try DexScreener as final fallback for tokens without pools
     const tokensStillWithoutPools = tokensConfig.filter(({ mint, config }) => {
       if (!this.tokens.has(mint)) return false;
       if (config.pool) return false;
@@ -876,6 +892,58 @@ export default class DexScreenerStyleMonitor {
           console.log(`   ⚠️  [DexScreener] Error for ${config.name}: ${error.message}`);
         }
       }
+    }
+    
+    // Step 4: 🚨 MULTI-POOL DISCOVERY - Add additional pools for high-liquidity tokens
+    // This catches swaps on Orca, Meteora, etc. that we'd otherwise miss
+    console.log(`\n   🏊 Phase 4: Multi-pool discovery (DexScreener)...`);
+    let additionalPoolsCount = 0;
+    const MIN_LIQUIDITY_FOR_ADDITIONAL_POOLS = 50000; // $50K minimum
+    
+    for (const { mint, config } of tokensConfig) {
+      if (!this.tokens.has(mint)) continue;
+      if (!config.pool) continue; // Skip tokens without a main pool
+      
+      const tokenData = this.tokens.get(mint);
+      if (!tokenData) continue;
+      
+      try {
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+        if (!response.ok) continue;
+        
+        const data = await response.json();
+        if (!data || !data.pairs || data.pairs.length <= 1) continue;
+        
+        // Get all pools with significant liquidity (excluding the main one)
+        const additionalPools = data.pairs
+          .filter(p => p.pairAddress !== config.pool) // Exclude main pool
+          .filter(p => p.liquidity?.usd >= MIN_LIQUIDITY_FOR_ADDITIONAL_POOLS)
+          .slice(0, 4); // Max 4 additional pools per token
+        
+        if (additionalPools.length > 0) {
+          // Store additional pool addresses for gRPC filter
+          if (!tokenData.additionalPools) {
+            tokenData.additionalPools = [];
+          }
+          
+          for (const pool of additionalPools) {
+            tokenData.additionalPools.push({
+              address: pool.pairAddress,
+              dex: pool.dexId,
+              liquidity: pool.liquidity?.usd || 0
+            });
+            additionalPoolsCount++;
+          }
+          
+          console.log(`   🏊 [Multi-Pool] ${config.name}: +${additionalPools.length} pools (${additionalPools.map(p => p.dexId).join(', ')})`);
+        }
+      } catch (error) {
+        // Silently skip errors for additional pool discovery
+      }
+    }
+    
+    if (additionalPoolsCount > 0) {
+      console.log(`   ✅ Discovered ${additionalPoolsCount} additional pools for multi-pool tokens`);
     }
     
     // Count tokens that still don't have pools
