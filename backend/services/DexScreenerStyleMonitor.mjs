@@ -1981,22 +1981,21 @@ export default class DexScreenerStyleMonitor {
         if (swap) {
           decodedAnySwap = true;
           
-          // 🚨 CRITICAL FILTERS: Reject multi-hop legs, MEV dust, and aggregator internals
-          // These filters match test-transaction-level-decoding.mjs behavior (98% accuracy)
+          // 🚨 CRITICAL FILTERS: Match test-transaction-level-decoding.mjs exactly
+          // These filters achieved 98% accuracy in testing
           
-          // Filter 1: Price Outlier Filter (rejects multi-hop internal legs)
-          // If price is >10x or <0.1x the expected price, it's likely a multi-hop leg or sandwich bot
-          // Priority 1: lastPriceUSD (from recent swaps) - most accurate
-          // Priority 2: Jupiter initial price (ONLY as initial baseline when backend reboots)
-          // Priority 3: No baseline (0) - accept first swap after absolute checks
-          const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
-          
-          // 🚨 SWAP FILTER DEBUG: Log all filter decisions for debugging
           const tokenName = tokenData.config?.name || mint.substring(0, 8);
           const swapInfo = `${tokenName} ${swap.type} $${swap.volumeUsd?.toFixed(2) || '0'} @ $${swap.priceUsd?.toFixed(6) || '0'}`;
           
-          // 🚨 ABSOLUTE PRICE SANITY CHECK: Reject obviously invalid prices (< $0.000001 or > $1M)
-          // Even if we have no baseline, extremely low prices are always multi-hop legs
+          // 🚨 FILTER 0: Skip swaps where pool is 'unknown' (aggregator internals)
+          // Test file: "skip swaps where pool couldn't be determined"
+          if (!swap.poolAddress || swap.poolAddress === 'unknown') {
+            // Don't log - too noisy
+            continue; // Skip this swap
+          }
+          
+          // 🚨 FILTER 1: ABSOLUTE PRICE SANITY CHECK
+          // Reject obviously invalid prices (< $0.000001 or > $1M)
           if (swap.priceUsd < 0.000001) {
             console.log(`❌ FILTER [too low]: ${swapInfo} - price < $0.000001`);
             continue; // Skip this swap
@@ -2006,25 +2005,27 @@ export default class DexScreenerStyleMonitor {
             continue; // Skip this swap
           }
           
-          // Relative price check (only if we have a baseline)
-          // Jupiter price is used ONLY as initial baseline (backend reboot), then swaps take over
+          // 🚨 FILTER 2: RELATIVE PRICE OUTLIER (match test: 10x range)
+          // Priority 1: lastPriceUSD (from recent swaps)
+          // Priority 2: Jupiter initial price (only as baseline on reboot)
+          const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           if (expectedPrice > 0 && swap.priceUsd) {
             const priceRatio = swap.priceUsd / expectedPrice;
-            // 🚨 RELAXED: Use 20x range instead of 10x to catch more legitimate swaps
-            if (priceRatio > 20 || priceRatio < 0.05) {
+            // 🎯 MATCH TEST: Use 10x range (0.1x - 10x) like test file
+            if (priceRatio > 10 || priceRatio < 0.1) {
               console.log(`❌ FILTER [outlier ${priceRatio.toFixed(2)}x]: ${swapInfo} vs expected $${expectedPrice.toFixed(6)}`);
               continue; // Skip this swap
             }
           }
           
-          // 🚨 RELAXED: Lower dust threshold to $0.10 to catch more small swaps
-          if (swap.volumeUsd && swap.volumeUsd < 0.10) {
-            console.log(`❌ FILTER [dust]: ${swapInfo} - volume < $0.10`);
+          // 🚨 FILTER 3: DUST VOLUME (match test: $0.50 minimum)
+          if (swap.volumeUsd && swap.volumeUsd < 0.50) {
+            console.log(`❌ FILTER [dust]: ${swapInfo} - volume < $0.50`);
             continue; // Skip this swap
           }
           
           // ✅ PASSED ALL FILTERS
-          console.log(`✅ PASSED: ${swapInfo} (pool: ${swap.poolAddress?.substring(0,8) || 'unknown'}...)`);
+          console.log(`✅ PASSED: ${swapInfo} (pool: ${swap.poolAddress?.substring(0,8)}...)`);
 
 
           
