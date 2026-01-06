@@ -2420,20 +2420,6 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // Calculate current market cap after swap - use Jupiter baseline scaled by price change
-      let currentMarketCap = 0;
-      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
-      const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
-      const currentPriceAfterSwap = tokenData.lastPriceUSD || swap.priceUsd || 0;
-      
-      if (jupiterBaseline > 0 && baselinePrice > 0 && currentPriceAfterSwap > 0 && isFinite(currentPriceAfterSwap)) {
-        // Scale market cap by price change from baseline
-        currentMarketCap = jupiterBaseline * (currentPriceAfterSwap / baselinePrice);
-      } else {
-        // Fallback: Use Jupiter's market cap directly
-        currentMarketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
-      }
-      
       // Log swap
       // Reduced verbosity: Only log essential swap info
       const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
