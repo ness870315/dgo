@@ -18941,7 +18941,56 @@ Thanks for using x402 payments on Twitter! 🚀`;
         tokens = JSON.parse(cacheData);
       } catch (parseError) {
         console.error(`❌ [Backend] Failed to parse cache JSON: ${parseError.message}`);
-        return [];
+        console.log(`🔧 [Backend] Attempting to recover from backup...`);
+        
+        // Try backup file
+        try {
+          const backupData = await fs.readFile(backupCachePath, 'utf8');
+          console.log(`✅ [Backend] Loaded backup cache (${backupData.length} bytes)`);
+          tokens = JSON.parse(backupData);
+          console.log(`✅ [Backend] Recovered ${tokens.length} tokens from backup!`);
+          
+          // Restore the primary cache from backup
+          try {
+            await fs.writeFile(cachePath, backupData, 'utf8');
+            console.log(`✅ [Backend] Restored primary cache from backup`);
+          } catch (restoreError) {
+            console.error(`⚠️ [Backend] Could not restore primary cache: ${restoreError.message}`);
+          }
+        } catch (backupError) {
+          console.error(`❌ [Backend] Backup also failed: ${backupError.message}`);
+          
+          // Last resort: try to repair the JSON
+          console.log(`🔧 [Backend] Attempting JSON repair...`);
+          try {
+            // Common repair: find last complete object
+            let repaired = cacheData.trim();
+            
+            // If it ends with incomplete object, find last complete one
+            if (!repaired.endsWith(']')) {
+              // Find the last valid closing bracket for array
+              const lastValidIndex = repaired.lastIndexOf('},');
+              if (lastValidIndex > 0) {
+                repaired = repaired.substring(0, lastValidIndex + 1) + ']';
+                console.log(`🔧 [Backend] Truncated at position ${lastValidIndex}, attempting parse...`);
+                tokens = JSON.parse(repaired);
+                console.log(`✅ [Backend] Repaired and recovered ${tokens.length} tokens!`);
+                
+                // Save the repaired version
+                await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
+                console.log(`✅ [Backend] Saved repaired cache`);
+              } else {
+                console.error(`❌ [Backend] Cannot find valid JSON structure to repair`);
+                return [];
+              }
+            } else {
+              return [];
+            }
+          } catch (repairError) {
+            console.error(`❌ [Backend] Repair failed: ${repairError.message}`);
+            return [];
+          }
+        }
       }
       
       // Validate tokens array
