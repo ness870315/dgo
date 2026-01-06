@@ -199,6 +199,12 @@ export default class DexScreenerStyleMonitor {
       startTime: Date.now()
     };
 
+    // Stream health & auto-reconnection
+    this.reconnecting = false;
+    this.reconnectAttempts = 0;
+    this.lastStreamActivity = 0;
+    this.streamHealthChecker = null;
+
     console.log('🚀 [DexScreenerStyleMonitor] Initialized');
   }
 
@@ -246,6 +252,24 @@ export default class DexScreenerStyleMonitor {
     this.reserveRefresher = setInterval(async () => {
       await this.refreshPoolReservesFromRPC();
     }, 10 * 1000); // Refresh every 10 seconds
+
+    // 🚨 STREAM HEALTH CHECKER: Detect stale streams and auto-reconnect
+    // If no activity for 60 seconds, the stream is likely dead
+    this.streamHealthChecker = setInterval(() => {
+      const now = Date.now();
+      const inactiveMs = now - this.lastStreamActivity;
+      const poolCount = this.pools.size;
+      
+      // Only check if we have pools to monitor and stream was once active
+      if (poolCount > 0 && this.lastStreamActivity > 0) {
+        if (inactiveMs > 60000) { // 60 seconds without activity
+          console.log(`🚨 [DexScreenerStyleMonitor] Stream appears stale! No activity for ${Math.floor(inactiveMs/1000)}s - triggering reconnect`);
+          this.scheduleReconnect('health-check');
+        } else if (inactiveMs > 30000) { // 30 seconds warning
+          console.log(`⚠️  [DexScreenerStyleMonitor] Stream idle for ${Math.floor(inactiveMs/1000)}s (monitoring ${poolCount} pools)`);
+        }
+      }
+    }, 15000); // Check every 15 seconds
 
     this.isInitialized = true;
     console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
@@ -324,6 +348,7 @@ export default class DexScreenerStyleMonitor {
     let messageCount = 0;
     this.stream.on('data', (msg) => {
       messageCount++;
+      this.lastStreamActivity = Date.now(); // Track activity for health check
       
       // Log first message to confirm stream is working
       if (messageCount === 1) {
@@ -338,14 +363,58 @@ export default class DexScreenerStyleMonitor {
     
     this.stream.on('error', (error) => {
       console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
+      // Auto-reconnect after error
+      this.scheduleReconnect('error');
     });
     
     this.stream.on('end', () => {
       console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
+      // Auto-reconnect after stream ends
+      this.scheduleReconnect('end');
     });
     
     this.globalStats.streamRecreations++;
+    this.lastStreamActivity = Date.now();
     console.log('✅ [DexScreenerStyleMonitor] Stream created successfully');
+  }
+
+  /**
+   * Schedule stream reconnection with exponential backoff
+   */
+  scheduleReconnect(reason) {
+    if (this.reconnecting) {
+      console.log(`⏳ [DexScreenerStyleMonitor] Already reconnecting, skipping...`);
+      return;
+    }
+    
+    this.reconnecting = true;
+    const delay = Math.min(5000 * Math.pow(2, this.reconnectAttempts), 60000); // 5s, 10s, 20s, 40s, max 60s
+    this.reconnectAttempts++;
+    
+    console.log(`🔄 [DexScreenerStyleMonitor] Scheduling reconnect in ${delay/1000}s (reason: ${reason}, attempt: ${this.reconnectAttempts})`);
+    
+    setTimeout(async () => {
+      try {
+        console.log(`🔌 [DexScreenerStyleMonitor] Attempting reconnection...`);
+        await this.recreateStreamWithAllFilters();
+        this.reconnecting = false;
+        this.reconnectAttempts = 0; // Reset on success
+        console.log(`✅ [DexScreenerStyleMonitor] Reconnected successfully!`);
+      } catch (error) {
+        console.error(`❌ [DexScreenerStyleMonitor] Reconnection failed:`, error.message);
+        this.reconnecting = false;
+        // Try again
+        this.scheduleReconnect('retry');
+      }
+    }, delay);
+  }
+
+  /**
+   * Recreate stream with all current pool filters (for reconnection)
+   */
+  async recreateStreamWithAllFilters() {
+    console.log(`🔄 [DexScreenerStyleMonitor] Recreating stream with ${this.pools.size} pools...`);
+    await this.recreateStream();
   }
 
   /**
@@ -1761,6 +1830,7 @@ export default class DexScreenerStyleMonitor {
       
       // PHASE 3: Only handle transactions (no account updates)
       this.stream.on('data', (msg) => {
+        this.lastStreamActivity = Date.now(); // Track activity for health check
         if (msg.transaction) {
           this.handleTransaction(msg);
         }
@@ -1768,12 +1838,15 @@ export default class DexScreenerStyleMonitor {
       
       this.stream.on('error', (error) => {
         console.error(`❌ [DexScreenerStyleMonitor] Stream error:`, error.message);
+        this.scheduleReconnect('error');
       });
       
       this.stream.on('end', () => {
         console.log(`⚠️  [DexScreenerStyleMonitor] Stream ended`);
+        this.scheduleReconnect('end');
       });
 
+      this.lastStreamActivity = Date.now();
       console.log(`✅ [DexScreenerStyleMonitor] Pool added to stream for ${config.name}`);
 
     } catch (error) {
