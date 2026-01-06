@@ -18960,35 +18960,59 @@ Thanks for using x402 payments on Twitter! 🚀`;
         } catch (backupError) {
           console.error(`❌ [Backend] Backup also failed: ${backupError.message}`);
           
-          // Last resort: try to repair the JSON
-          console.log(`🔧 [Backend] Attempting JSON repair...`);
+          // Last resort: Extract tokens using regex
+          console.log(`🔧 [Backend] Attempting token extraction from corrupted JSON...`);
           try {
-            // Common repair: find last complete object
-            let repaired = cacheData.trim();
+            tokens = [];
             
-            // If it ends with incomplete object, find last complete one
-            if (!repaired.endsWith(']')) {
-              // Find the last valid closing bracket for array
-              const lastValidIndex = repaired.lastIndexOf('},');
-              if (lastValidIndex > 0) {
-                repaired = repaired.substring(0, lastValidIndex + 1) + ']';
-                console.log(`🔧 [Backend] Truncated at position ${lastValidIndex}, attempting parse...`);
-                tokens = JSON.parse(repaired);
-                console.log(`✅ [Backend] Repaired and recovered ${tokens.length} tokens!`);
-                
-                // Save the repaired version
-                await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
-                console.log(`✅ [Backend] Saved repaired cache`);
-              } else {
-                console.error(`❌ [Backend] Cannot find valid JSON structure to repair`);
-                return [];
+            // Find all complete token objects using regex
+            // Look for objects that have contractAddress field
+            const tokenRegex = /\{[^{}]*"contractAddress"\s*:\s*"([A-Za-z0-9]{32,50})"[^{}]*\}/g;
+            let match;
+            let extracted = 0;
+            
+            while ((match = tokenRegex.exec(cacheData)) !== null) {
+              try {
+                const tokenStr = match[0];
+                const token = JSON.parse(tokenStr);
+                if (token.contractAddress && token.symbol) {
+                  tokens.push(token);
+                  extracted++;
+                }
+              } catch (e) {
+                // Skip malformed tokens
               }
-            } else {
-              return [];
             }
-          } catch (repairError) {
-            console.error(`❌ [Backend] Repair failed: ${repairError.message}`);
-            return [];
+            
+            if (tokens.length > 0) {
+              console.log(`✅ [Backend] Extracted ${tokens.length} tokens from corrupted cache!`);
+              
+              // Save the extracted tokens
+              await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
+              console.log(`✅ [Backend] Saved recovered tokens to cache`);
+            } else {
+              console.error(`❌ [Backend] Could not extract any tokens from corrupted cache`);
+              console.log(`🆕 [Backend] Creating fresh empty cache...`);
+              
+              // Create a fresh empty cache to stop the corruption cycle
+              tokens = [];
+              await fs.writeFile(cachePath, '[]', 'utf8');
+              await fs.writeFile(backupCachePath, '[]', 'utf8');
+              console.log(`✅ [Backend] Created fresh empty cache - tokens will be rediscovered`);
+            }
+          } catch (extractError) {
+            console.error(`❌ [Backend] Token extraction failed: ${extractError.message}`);
+            console.log(`🆕 [Backend] Creating fresh empty cache...`);
+            
+            // Create fresh empty cache
+            tokens = [];
+            try {
+              await fs.writeFile(cachePath, '[]', 'utf8');
+              await fs.writeFile(backupCachePath, '[]', 'utf8');
+              console.log(`✅ [Backend] Created fresh empty cache - tokens will be rediscovered`);
+            } catch (freshError) {
+              console.error(`❌ [Backend] Could not create fresh cache: ${freshError.message}`);
+            }
           }
         }
       }
