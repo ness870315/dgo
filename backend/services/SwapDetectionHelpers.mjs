@@ -11,6 +11,9 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 
+// Debug counter
+let globalTxCount = 0;
+
 // 🚀 Stablecoin whitelist for counter USD pricing
 const STABLECOIN_MINTS = new Set([
     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
@@ -687,14 +690,39 @@ export function extractRaydiumPoolFromIx(tx, programId) {
  * @returns {Object | null} Swap record or null if not a valid swap
  */
 export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, knownPoolAddress = null) {
+    // 🔍 DEBUG: Log first few calls to diagnose issues
+    const txCount = globalTxCount++;
+    if (txCount < 3) {
+        const message = tx.transaction?.message ?? {};
+        const rawAccountKeys = message.accountKeys || [];
+        console.log(`🔍 [processTxForSwap #${txCount}] DEBUG:`);
+        console.log(`   tx.transaction exists: ${!!tx.transaction}`);
+        console.log(`   tx.meta exists: ${!!tx.meta}`);
+        console.log(`   message exists: ${!!message}`);
+        console.log(`   accountKeys count: ${rawAccountKeys.length}`);
+        if (rawAccountKeys.length > 0) {
+            const firstKey = rawAccountKeys[0];
+            console.log(`   First accountKey type: ${typeof firstKey}, isBuffer: ${Buffer.isBuffer(firstKey)}`);
+            console.log(`   First accountKey sample: ${JSON.stringify(firstKey).substring(0, 100)}`);
+            const { combined } = buildCombinedKeys(message);
+            console.log(`   Combined keys count: ${combined.length}`);
+            if (combined.length > 0) {
+                console.log(`   First combined key: ${combined[0]?.substring?.(0, 16) || 'not string'}...`);
+            }
+        }
+        const preBalances = tx.meta?.preTokenBalances?.length || 0;
+        const postBalances = tx.meta?.postTokenBalances?.length || 0;
+        console.log(`   preTokenBalances: ${preBalances}, postTokenBalances: ${postBalances}`);
+    }
+    
     // 🚀 RELAXED: Don't require AMM program (aggregator swaps may not have direct AMM program)
     // Check for AMM program, but if not found and we have a known pool address, still try to decode
     const hasAmm = hasAmmProgram(tx);
     if (!hasAmm && !knownPoolAddress) {
         // No AMM program AND no known pool address - likely not a swap
-        if (process.env.DEBUG_SWAPS === '1') {
+        if (process.env.DEBUG_SWAPS === '1' || txCount < 5) {
             const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-            console.log(`⚠️ [processTxForSwap] Filter: no AMM program and no known pool - ${sig}...`);
+            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: no AMM program and no known pool - ${sig}...`);
         }
         return null;
     }
@@ -721,18 +749,26 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     
     const deltas = extractTokenDeltas(tx);
     if (!deltas.length) {
-        if (process.env.DEBUG_SWAPS === '1') {
+        if (process.env.DEBUG_SWAPS === '1' || txCount < 5) {
             const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-            console.log(`⚠️ [processTxForSwap] Filter: no token deltas - ${sig}...`);
+            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: no token deltas - ${sig}...`);
         }
         return null;
     }
 
+    // 🔍 DEBUG: Log deltas for first few transactions
+    if (txCount < 3) {
+        console.log(`🔍 [processTxForSwap #${txCount}] Deltas found: ${deltas.length}`);
+        for (const d of deltas.slice(0, 5)) {
+            console.log(`   Delta: mint=${d.mint?.substring?.(0, 8) || 'null'}..., change=${d.change}, owner=${d.owner?.substring?.(0, 8) || 'null'}...`);
+        }
+    }
+    
     const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder, knownPoolAddress); // Pass decoder
     if (!legs) {
-        if (process.env.DEBUG_SWAPS === '1') {
+        if (process.env.DEBUG_SWAPS === '1' || txCount < 5) {
             const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-            console.log(`⚠️ [processTxForSwap] Filter: cannot pick legs (${deltas.length} deltas) - ${sig}...`);
+            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: cannot pick legs (${deltas.length} deltas, targetMint=${targetMint?.substring?.(0, 8)}...) - ${sig}...`);
         }
         return null;
     }
