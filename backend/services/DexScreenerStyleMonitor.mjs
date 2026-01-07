@@ -2164,13 +2164,6 @@ export default class DexScreenerStyleMonitor {
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
         
-        // 🚨 CRITICAL: Only try to decode if transaction involves this token's pool
-        // This matches test file behavior - don't waste time on tokens not in the transaction
-        if (!txAccountAddresses.has(poolData.poolAddress)) {
-          // Transaction doesn't involve this pool - skip
-          continue;
-        }
-        
         // 🔍 DEBUG: Log Fartcoin transactions
         const isFartcoin = mint === FARTCOIN_MINT;
         if (isFartcoin && involvesFartcoinPool && this.globalStats.totalTransactions % 10 === 0) {
@@ -2199,9 +2192,9 @@ export default class DexScreenerStyleMonitor {
           poolData.poolAddress // knownPoolAddress
         );
         
-        // 🔍 DEBUG: Log ALL swap attempts for first 5 transactions
-        if (this.globalStats.totalTransactions <= 5) {
-          console.log(`🔍 [DEBUG] TX #${this.globalStats.totalTransactions} - Token ${tokenData.config?.name || mint.substring(0, 8)}: swap=${swap ? 'DECODED' : 'null'}`);
+        // 🔍 DEBUG: Log ALL swap attempts for first 5 transactions AND first 10 tokens
+        if (this.globalStats.totalTransactions <= 5 && tokensChecked <= 10) {
+          console.log(`🔍 [DEBUG] TX #${this.globalStats.totalTransactions} - Token #${tokensChecked} ${tokenData.config?.name || mint.substring(0, 8)}: swap=${swap ? 'DECODED' : 'null'}`);
           if (swap) {
             console.log(`   ✅ Swap decoded: type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}`);
           } else {
@@ -2209,7 +2202,8 @@ export default class DexScreenerStyleMonitor {
             const hasMessage = !!tx.transaction?.message;
             const hasInstructions = !!tx.transaction?.message?.instructions;
             const hasAccountKeys = !!tx.transaction?.message?.accountKeys;
-            console.log(`   ❌ No swap: hasMessage=${hasMessage}, hasInstructions=${hasInstructions}, hasAccountKeys=${hasAccountKeys}, poolAddress=${poolData.poolAddress.substring(0, 8)}...`);
+            const poolInTx = txAccountAddresses.has(poolData.poolAddress);
+            console.log(`   ❌ No swap: hasMessage=${hasMessage}, hasInstructions=${hasInstructions}, hasAccountKeys=${hasAccountKeys}, poolInTx=${poolInTx}, poolAddress=${poolData.poolAddress.substring(0, 8)}...`);
           }
         }
         
