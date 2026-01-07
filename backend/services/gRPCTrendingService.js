@@ -607,6 +607,13 @@ class gRPCTrendingService {
         const tokenData = this.tokenData.get(tokenAddress);
         if (!tokenData) return false;
         
+        // 🚨 BYPASS: High market cap tokens (> $10M) are established and shouldn't be filtered
+        // These liquidity ratio checks don't apply well to major tokens like Fartcoin, WIF, etc.
+        const marketCap = tokenData.marketCap || tokenData.mcap || 0;
+        if (marketCap > 10_000_000) {
+            return false; // Skip suspicious checks for established tokens
+        }
+        
         const audit = tokenData.audit || {};
         
         // Check for Blockaid scam indicators
