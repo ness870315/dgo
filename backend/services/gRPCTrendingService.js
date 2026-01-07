@@ -610,7 +610,14 @@ class gRPCTrendingService {
         // 🚨 BYPASS: High market cap tokens (> $10M) are established and shouldn't be filtered
         // These liquidity ratio checks don't apply well to major tokens like Fartcoin, WIF, etc.
         const marketCap = tokenData.marketCap || tokenData.mcap || 0;
+        
+        // 🔍 DEBUG: Log market cap for major tokens
+        if (tokenData.symbol === 'Fartcoin' || tokenData.symbol === 'FARTCOIN' || tokenAddress.startsWith('9BB6NFEc')) {
+            console.log(`🔍 [DEBUG] Fartcoin marketCap check: marketCap=${marketCap}, tokenData.marketCap=${tokenData.marketCap}, tokenData.mcap=${tokenData.mcap}`);
+        }
+        
         if (marketCap > 10_000_000) {
+            console.log(`✅ [gRPCTrending] Bypassing suspicious check for ${tokenData.symbol || tokenAddress.substring(0, 8)} (mcap: $${(marketCap/1000000).toFixed(1)}M)`);
             return false; // Skip suspicious checks for established tokens
         }
         
