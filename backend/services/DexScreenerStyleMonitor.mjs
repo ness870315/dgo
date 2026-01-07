@@ -302,6 +302,24 @@ export default class DexScreenerStyleMonitor {
     // Include main pools + additional pools discovered for multi-pool tokens
     const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
     
+    // 🔍 DEBUG: Check if Fartcoin's pool is included
+    const FARTCOIN_POOL = 'Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw';
+    const fartcoinInPools = allPoolAddresses.includes(FARTCOIN_POOL);
+    if (fartcoinInPools) {
+      console.log(`✅ [DEBUG] Fartcoin pool ${FARTCOIN_POOL.substring(0, 8)}... IS in allPoolAddresses`);
+    } else {
+      console.log(`❌ [DEBUG] Fartcoin pool ${FARTCOIN_POOL.substring(0, 8)}... NOT in allPoolAddresses!`);
+      // Check if Fartcoin is in this.pools
+      const fartcoinMint = '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump';
+      const fartcoinPoolData = this.pools.get(fartcoinMint);
+      if (fartcoinPoolData) {
+        console.log(`   Fartcoin IS in this.pools with pool: ${fartcoinPoolData.poolAddress}`);
+        console.log(`   Expected: ${FARTCOIN_POOL}, Got: ${fartcoinPoolData.poolAddress}`);
+      } else {
+        console.log(`   Fartcoin NOT in this.pools Map!`);
+      }
+    }
+    
     // 🚨 MULTI-POOL: Add additional pools for tokens that have them (Orca, Meteora, etc.)
     let additionalPoolCount = 0;
     for (const [mint, tokenData] of this.tokens.entries()) {
@@ -1953,10 +1971,26 @@ export default class DexScreenerStyleMonitor {
       
       // Try to decode swap for ALL monitored tokens (match test behavior)
       let decodedAnySwap = false;
+      const FARTCOIN_MINT = '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump';
+      const FARTCOIN_POOL = 'Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw';
+      
+      // 🔍 DEBUG: Check if transaction involves Fartcoin's pool
+      const txAccounts = innerTx?.message?.accountKeys || [];
+      const involvesFartcoinPool = txAccounts.some(acc => {
+        const addr = typeof acc === 'string' ? acc : (acc.pubkey || acc.toString());
+        return addr === FARTCOIN_POOL;
+      });
+      
       for (const [mint, poolData] of this.pools.entries()) {
         if (!poolData.poolAddress) continue; // Skip tokens without pool addresses
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
+        
+        // 🔍 DEBUG: Log Fartcoin transactions
+        const isFartcoin = mint === FARTCOIN_MINT;
+        if (isFartcoin && involvesFartcoinPool && this.globalStats.totalTransactions % 10 === 0) {
+          console.log(`🔍 [DEBUG] Fartcoin transaction #${this.globalStats.totalTransactions}: pool=${poolData.poolAddress.substring(0, 8)}...`);
+        }
         
         // Get token price cache (for USD calculations)
         const tokenPriceCache = new Map();
@@ -1979,6 +2013,11 @@ export default class DexScreenerStyleMonitor {
           null, // raydiumDecoder (can be added later if needed)
           poolData.poolAddress // knownPoolAddress
         );
+        
+        // 🔍 DEBUG: Log if Fartcoin swap decoded
+        if (isFartcoin && swap) {
+          console.log(`✅ [DEBUG] Fartcoin swap decoded! type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}, pool=${swap.poolAddress}`);
+        }
         
         if (swap) {
           decodedAnySwap = true;
