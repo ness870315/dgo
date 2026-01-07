@@ -2035,7 +2035,23 @@ export default class DexScreenerStyleMonitor {
       
       // 🚨 CRITICAL: If no meta, skip swap decoding (matches test file behavior)
       if (!meta) {
+        // Log EVERY missing meta (not just every 100) for first 10 transactions
+        if (this.globalStats.totalTransactions <= 10) {
+          console.log(`❌ [CRITICAL] Transaction #${this.globalStats.totalTransactions} has NO META! This prevents ALL swap detection.`);
+          console.log(`   txData structure:`, {
+            hasTransaction: !!txData.transaction,
+            hasMeta: !!txData.meta,
+            innerTxKeys: innerTx ? Object.keys(innerTx).slice(0, 5) : 'null'
+          });
+        }
         return; // No meta = no token balance changes = can't detect swap
+      }
+      
+      // 🔍 DEBUG: Log meta structure for first few transactions
+      if (this.globalStats.totalTransactions <= 5) {
+        const preBalances = meta.preTokenBalances?.length || 0;
+        const postBalances = meta.postTokenBalances?.length || 0;
+        console.log(`✅ [DEBUG] Transaction #${this.globalStats.totalTransactions} HAS META: pre=${preBalances}, post=${postBalances}`);
       }
       
       // Try to decode swap for ALL monitored tokens (match test behavior)
@@ -2050,7 +2066,15 @@ export default class DexScreenerStyleMonitor {
         return addr === FARTCOIN_POOL;
       });
       
+      // 🔍 DEBUG: Log pool count for first transaction
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DEBUG] Checking ${this.pools.size} pools for swaps in first transaction`);
+      }
+      
+      let tokensChecked = 0;
+      let swapsDecoded = 0;
       for (const [mint, poolData] of this.pools.entries()) {
+        tokensChecked++;
         if (!poolData.poolAddress) continue; // Skip tokens without pool addresses
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
@@ -2083,6 +2107,14 @@ export default class DexScreenerStyleMonitor {
           poolData.poolAddress // knownPoolAddress
         );
         
+        // 🔍 DEBUG: Log ALL swap attempts for first 5 transactions
+        if (this.globalStats.totalTransactions <= 5) {
+          console.log(`🔍 [DEBUG] TX #${this.globalStats.totalTransactions} - Token ${tokenData.config?.name || mint.substring(0, 8)}: swap=${swap ? 'DECODED' : 'null'}`);
+          if (swap) {
+            console.log(`   ✅ Swap decoded: type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}`);
+          }
+        }
+        
         // 🔍 DEBUG: Log if Fartcoin swap decoded
         if (isFartcoin && swap) {
           console.log(`✅ [DEBUG] Fartcoin swap decoded! type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}, pool=${swap.poolAddress}`);
@@ -2090,6 +2122,7 @@ export default class DexScreenerStyleMonitor {
         
         if (swap) {
           decodedAnySwap = true;
+          swapsDecoded++;
           
           // 🚨 CRITICAL FILTERS: Match test-transaction-level-decoding.mjs exactly
           // These filters achieved 98% accuracy in testing
