@@ -421,16 +421,16 @@ export default class DexScreenerStyleMonitor {
       sampleAddresses: allPoolAddresses.slice(0, 3).map(a => a.substring(0, 12) + '...')
     });
     
-    // 🚨 CRITICAL: Parameter order MUST match Yellowstone gRPC signature:
-    // subscribeOnce(accounts, slots, transactions, transactionsStatus, entry, blocks, blocksMeta, commitmentLevel, accountsDataSlice)
+    // 🚨 REVERTED: Restore original parameter order that was working
+    // The test file parameter order may be incorrect - reverting to what was deployed
     this.stream = await this.grpcClient.subscribeOnce(
       {}, // accounts (no longer used)
       {}, // slots
       combinedTransactionFilter, // transactions (single filter for all pools)
-      {}, // transactionsStatus (4th - not blocks!)
-      {}, // entry (5th)
-      {}, // blocks (6th)
-      {}, // blocksMeta (7th)
+      {}, // blocks (4th - original order)
+      {}, // blocksMeta (5th - original order)
+      {}, // entry (6th - original order)
+      {}, // transactionsStatus (7th - original order)
       1, // CONFIRMED (8th)
       []  // accountsDataSlice (9th)
     );
