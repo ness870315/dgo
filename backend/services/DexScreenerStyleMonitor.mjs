@@ -2048,10 +2048,25 @@ export default class DexScreenerStyleMonitor {
         console.log(`   msg.blockTime: ${msg.blockTime}`);
       }
       
+      // Extract signature and convert to string if needed
+      let signature = innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature;
+      
+      // Convert signature to string if it's a Buffer or array
+      if (signature) {
+        if (Buffer.isBuffer(signature)) {
+          signature = bs58.encode(signature);
+        } else if (Array.isArray(signature)) {
+          signature = bs58.encode(Buffer.from(signature));
+        } else if (typeof signature !== 'string') {
+          // Try to convert to string
+          signature = signature.toString();
+        }
+      }
+      
       const tx = {
         transaction: innerTx,
         meta: meta, // CRITICAL: meta must be at top level
-        signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
+        signature: signature,
         slot: txData.slot || msg.slot,
         blockTime: txData.blockTime || msg.blockTime
       };
@@ -2061,7 +2076,7 @@ export default class DexScreenerStyleMonitor {
         console.log(`🔍 [DEBUG] Final tx object:`);
         console.log(`   tx.transaction exists: ${!!tx.transaction}`);
         console.log(`   tx.meta exists: ${!!tx.meta}`);
-        console.log(`   tx.signature: ${tx.signature?.substring(0, 16) || 'null'}...`);
+        console.log(`   tx.signature type: ${typeof tx.signature}, value: ${tx.signature ? (typeof tx.signature === 'string' ? tx.signature.substring(0, 16) : 'NOT STRING') : 'null'}...`);
         console.log(`   tx.slot: ${tx.slot}`);
         console.log(`   tx.blockTime: ${tx.blockTime}`);
       }
