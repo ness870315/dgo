@@ -451,6 +451,14 @@ export default class DexScreenerStyleMonitor {
       if (messageCount === 1) {
         console.log(`✅ [DexScreenerStyleMonitor] First message received from stream (gen ${thisGeneration})!`);
         console.log(`   Message keys:`, Object.keys(msg));
+        if (msg.transaction) {
+          console.log(`   msg.transaction keys:`, Object.keys(msg.transaction));
+          console.log(`   msg.transaction.transaction exists:`, !!msg.transaction.transaction);
+          console.log(`   msg.transaction.meta exists:`, !!msg.transaction.meta);
+          if (msg.transaction.transaction) {
+            console.log(`   msg.transaction.transaction.meta exists:`, !!msg.transaction.transaction.meta);
+          }
+        }
       }
       
       if (msg.transaction) {
@@ -2007,13 +2015,28 @@ export default class DexScreenerStyleMonitor {
       // CRITICAL: processTxForSwap expects tx.meta at top level (for extractTokenDeltas)
       // The gRPC structure has meta nested: txData.transaction.meta or txData.transaction.transaction.meta
       const innerTx = txData.transaction?.transaction || txData.transaction;
+      const meta = innerTx?.meta || txData.transaction?.meta || txData.meta;
+      
+      // 🚨 CRITICAL DEBUG: Log if meta is missing (this would prevent ALL swap detection)
+      if (!meta && this.globalStats.totalTransactions % 100 === 0) {
+        console.log(`❌ [DEBUG] Transaction #${this.globalStats.totalTransactions} has NO META! Cannot detect swaps.`);
+        console.log(`   txData keys: ${Object.keys(txData).join(', ')}`);
+        console.log(`   txData.transaction keys: ${txData.transaction ? Object.keys(txData.transaction).join(', ') : 'null'}`);
+        console.log(`   innerTx keys: ${innerTx ? Object.keys(innerTx).join(', ') : 'null'}`);
+      }
+      
       const tx = {
         transaction: innerTx,
-        meta: innerTx?.meta || txData.transaction?.meta || txData.meta, // CRITICAL: meta must be at top level
+        meta: meta, // CRITICAL: meta must be at top level
         signature: innerTx?.signatures?.[0] || innerTx?.signature || txData.transaction?.signatures?.[0] || txData.transaction?.signature || msg.signature,
         slot: txData.slot || msg.slot,
         blockTime: txData.blockTime || msg.blockTime
       };
+      
+      // 🚨 CRITICAL: If no meta, skip swap decoding (matches test file behavior)
+      if (!meta) {
+        return; // No meta = no token balance changes = can't detect swap
+      }
       
       // Try to decode swap for ALL monitored tokens (match test behavior)
       let decodedAnySwap = false;
