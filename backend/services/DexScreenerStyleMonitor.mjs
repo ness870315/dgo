@@ -2017,12 +2017,35 @@ export default class DexScreenerStyleMonitor {
       const innerTx = txData.transaction?.transaction || txData.transaction;
       const meta = innerTx?.meta || txData.transaction?.meta || txData.meta;
       
+      // 🔍 DEBUG: Log innerTx structure for first transaction
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DEBUG] innerTx structure:`);
+        console.log(`   innerTx keys: ${innerTx ? Object.keys(innerTx).join(', ') : 'null'}`);
+        console.log(`   innerTx.message exists: ${!!innerTx?.message}`);
+        console.log(`   innerTx.message.instructions exists: ${!!innerTx?.message?.instructions}`);
+        console.log(`   innerTx.message.accountKeys exists: ${!!innerTx?.message?.accountKeys}`);
+        console.log(`   innerTx.message.staticAccountKeys exists: ${!!innerTx?.message?.staticAccountKeys}`);
+      }
+      
       // 🚨 CRITICAL DEBUG: Log if meta is missing (this would prevent ALL swap detection)
       if (!meta && this.globalStats.totalTransactions % 100 === 0) {
         console.log(`❌ [DEBUG] Transaction #${this.globalStats.totalTransactions} has NO META! Cannot detect swaps.`);
         console.log(`   txData keys: ${Object.keys(txData).join(', ')}`);
         console.log(`   txData.transaction keys: ${txData.transaction ? Object.keys(txData.transaction).join(', ') : 'null'}`);
         console.log(`   innerTx keys: ${innerTx ? Object.keys(innerTx).join(', ') : 'null'}`);
+      }
+      
+      // 🔍 DEBUG: Log transaction structure for first transaction
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DEBUG] Building tx object for first transaction:`);
+        console.log(`   innerTx exists: ${!!innerTx}`);
+        console.log(`   meta exists: ${!!meta}`);
+        console.log(`   meta.preTokenBalances: ${meta?.preTokenBalances?.length || 0}`);
+        console.log(`   meta.postTokenBalances: ${meta?.postTokenBalances?.length || 0}`);
+        console.log(`   txData.slot: ${txData.slot}`);
+        console.log(`   msg.slot: ${msg.slot}`);
+        console.log(`   txData.blockTime: ${txData.blockTime}`);
+        console.log(`   msg.blockTime: ${msg.blockTime}`);
       }
       
       const tx = {
@@ -2032,6 +2055,16 @@ export default class DexScreenerStyleMonitor {
         slot: txData.slot || msg.slot,
         blockTime: txData.blockTime || msg.blockTime
       };
+      
+      // 🔍 DEBUG: Log final tx structure for first transaction
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DEBUG] Final tx object:`);
+        console.log(`   tx.transaction exists: ${!!tx.transaction}`);
+        console.log(`   tx.meta exists: ${!!tx.meta}`);
+        console.log(`   tx.signature: ${tx.signature?.substring(0, 16) || 'null'}...`);
+        console.log(`   tx.slot: ${tx.slot}`);
+        console.log(`   tx.blockTime: ${tx.blockTime}`);
+      }
       
       // 🚨 CRITICAL: If no meta, skip swap decoding (matches test file behavior)
       if (!meta) {
@@ -2073,11 +2106,55 @@ export default class DexScreenerStyleMonitor {
       
       let tokensChecked = 0;
       let swapsDecoded = 0;
+      // 🔍 DEBUG: Extract all account addresses from transaction (for filtering)
+      const txAccountAddresses = new Set();
+      if (innerTx?.message) {
+        // Try to extract account addresses from the transaction
+        const message = innerTx.message;
+        if (message.accountKeys) {
+          for (const key of message.accountKeys) {
+            try {
+              const addr = typeof key === 'string' ? key : (key.pubkey || key.toString());
+              if (addr && addr.length >= 32) {
+                txAccountAddresses.add(addr);
+              }
+            } catch (e) {
+              // Skip invalid keys
+            }
+          }
+        }
+        if (message.staticAccountKeys) {
+          for (const key of message.staticAccountKeys) {
+            try {
+              const addr = typeof key === 'string' ? key : (key.pubkey || key.toString());
+              if (addr && addr.length >= 32) {
+                txAccountAddresses.add(addr);
+              }
+            } catch (e) {
+              // Skip invalid keys
+            }
+          }
+        }
+      }
+      
+      // 🔍 DEBUG: Log account addresses for first transaction
+      if (this.globalStats.totalTransactions === 1) {
+        console.log(`🔍 [DEBUG] Transaction has ${txAccountAddresses.size} account addresses`);
+        console.log(`   Sample addresses: ${Array.from(txAccountAddresses).slice(0, 5).map(a => a.substring(0, 8) + '...').join(', ')}`);
+      }
+      
       for (const [mint, poolData] of this.pools.entries()) {
         tokensChecked++;
         if (!poolData.poolAddress) continue; // Skip tokens without pool addresses
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
+        
+        // 🚨 CRITICAL: Only try to decode if transaction involves this token's pool
+        // This matches test file behavior - don't waste time on tokens not in the transaction
+        if (!txAccountAddresses.has(poolData.poolAddress)) {
+          // Transaction doesn't involve this pool - skip
+          continue;
+        }
         
         // 🔍 DEBUG: Log Fartcoin transactions
         const isFartcoin = mint === FARTCOIN_MINT;
@@ -2112,6 +2189,12 @@ export default class DexScreenerStyleMonitor {
           console.log(`🔍 [DEBUG] TX #${this.globalStats.totalTransactions} - Token ${tokenData.config?.name || mint.substring(0, 8)}: swap=${swap ? 'DECODED' : 'null'}`);
           if (swap) {
             console.log(`   ✅ Swap decoded: type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}`);
+          } else {
+            // Log why swap wasn't decoded
+            const hasMessage = !!tx.transaction?.message;
+            const hasInstructions = !!tx.transaction?.message?.instructions;
+            const hasAccountKeys = !!tx.transaction?.message?.accountKeys;
+            console.log(`   ❌ No swap: hasMessage=${hasMessage}, hasInstructions=${hasInstructions}, hasAccountKeys=${hasAccountKeys}, poolAddress=${poolData.poolAddress.substring(0, 8)}...`);
           }
         }
         
