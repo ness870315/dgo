@@ -273,8 +273,54 @@ export default class DexScreenerStyleMonitor {
       }
     }, 15000); // Check every 15 seconds
 
+    // 🚨 CRITICAL: Periodic cleanup to prevent /tmp overflow
+    // Clean up old swap data every 5 minutes
+    this.swapCleanupInterval = setInterval(() => {
+      this.cleanupOldSwaps();
+    }, 5 * 60 * 1000); // Every 5 minutes
+
     this.isInitialized = true;
     console.log('✅ [DexScreenerStyleMonitor] Initialized successfully');
+  }
+  
+  /**
+   * Clean up old swap data to prevent /tmp overflow
+   */
+  cleanupOldSwaps() {
+    const cutoff = Date.now() - SWAP_RETENTION_MS;
+    const MAX_SWAPS_PER_TOKEN = 1000;
+    let totalSwapsRemoved = 0;
+    
+    for (const [mint, tokenData] of this.tokens.entries()) {
+      if (!tokenData.swaps) continue;
+      
+      const beforeCount = tokenData.swaps.length;
+      
+      // Filter by time (24h retention)
+      tokenData.swaps = tokenData.swaps.filter(s => s.timestamp >= cutoff);
+      
+      // Enforce max swaps per token
+      if (tokenData.swaps.length > MAX_SWAPS_PER_TOKEN) {
+        tokenData.swaps = tokenData.swaps.slice(-MAX_SWAPS_PER_TOKEN);
+      }
+      
+      const removed = beforeCount - tokenData.swaps.length;
+      if (removed > 0) {
+        totalSwapsRemoved += removed;
+      }
+      
+      // Also cleanup price history
+      if (tokenData.priceHistory) {
+        tokenData.priceHistory = tokenData.priceHistory.filter(p => p.timestamp >= cutoff);
+        if (tokenData.priceHistory.length > 500) {
+          tokenData.priceHistory = tokenData.priceHistory.slice(-500);
+        }
+      }
+    }
+    
+    if (totalSwapsRemoved > 0) {
+      console.log(`🧹 [DexScreenerStyleMonitor] Cleaned up ${totalSwapsRemoved} old swaps to prevent /tmp overflow`);
+    }
   }
 
   /**
@@ -2573,11 +2619,19 @@ export default class DexScreenerStyleMonitor {
       // Add to token's swap history
       tokenData.swaps.push(swapRecord);
       
-      // Keep only last 24h of swaps
+      // 🚨 CRITICAL: Limit in-memory swap storage to prevent /tmp overflow
+      // Keep only last 24h of swaps, but also enforce MAX_SWAPS_PER_TOKEN limit
+      const MAX_SWAPS_PER_TOKEN = 1000; // Max swaps per token in memory
       const cutoff = Date.now() - SWAP_RETENTION_MS;
       tokenData.swaps = tokenData.swaps.filter(s => s.timestamp >= cutoff);
       
+      // If still too many swaps, keep only the most recent ones
+      if (tokenData.swaps.length > MAX_SWAPS_PER_TOKEN) {
+        tokenData.swaps = tokenData.swaps.slice(-MAX_SWAPS_PER_TOKEN);
+      }
+      
       // Save to database (persistent storage)
+      // Note: Database should handle its own cleanup/limits
       await this.saveSwapToDatabase(mint, swapRecord);
       
       // Broadcast to WebSocket clients (real-time updates for frontend)
