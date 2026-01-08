@@ -692,46 +692,19 @@ export function extractRaydiumPoolFromIx(tx, programId) {
 export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, knownPoolAddress = null) {
     // 🔍 DEBUG: Log first few calls to diagnose issues
     const txCount = globalTxCount++;
-    if (txCount < 3) {
-        const message = tx.transaction?.message ?? {};
-        const rawAccountKeys = message.accountKeys || [];
-        console.log(`🔍 [processTxForSwap #${txCount}] DEBUG:`);
-        console.log(`   tx.transaction exists: ${!!tx.transaction}`);
-        console.log(`   tx.meta exists: ${!!tx.meta}`);
-        console.log(`   message exists: ${!!message}`);
-        console.log(`   accountKeys count: ${rawAccountKeys.length}`);
-        if (rawAccountKeys.length > 0) {
-            const firstKey = rawAccountKeys[0];
-            console.log(`   First accountKey type: ${typeof firstKey}, isBuffer: ${Buffer.isBuffer(firstKey)}`);
-            console.log(`   First accountKey sample: ${JSON.stringify(firstKey).substring(0, 100)}`);
-            const { combined } = buildCombinedKeys(message);
-            console.log(`   Combined keys count: ${combined.length}`);
-            if (combined.length > 0) {
-                console.log(`   First combined key: ${combined[0]?.substring?.(0, 16) || 'not string'}...`);
-            }
-        }
-        const preBalances = tx.meta?.preTokenBalances?.length || 0;
-        const postBalances = tx.meta?.postTokenBalances?.length || 0;
-        console.log(`   preTokenBalances: ${preBalances}, postTokenBalances: ${postBalances}`);
+    
+    // 🚨 CRITICAL FIX: If we have a known pool address, SKIP AMM program check entirely!
+    // Transaction-level decoding uses token balance changes, NOT program instructions
+    // The test file works because it only looks at preTokenBalances/postTokenBalances
+    // AMM check is only needed for account-level detection
+    
+    if (txCount < 5) {
+        console.log(`🔍 [processTxForSwap #${txCount}] knownPoolAddress=${knownPoolAddress ? knownPoolAddress.substring(0, 8) + '...' : 'NULL'}, targetMint=${targetMint?.substring?.(0, 8) || 'null'}...`);
     }
     
-    // 🚀 RELAXED: Don't require AMM program (aggregator swaps may not have direct AMM program)
-    // Check for AMM program, but if not found and we have a known pool address, still try to decode
-    const hasAmm = hasAmmProgram(tx);
-    if (!hasAmm && !knownPoolAddress) {
-        // No AMM program AND no known pool address - likely not a swap
-        if (process.env.DEBUG_SWAPS === '1' || txCount < 5) {
-            const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: no AMM program and no known pool - ${sig}...`);
-        }
-        return null;
-    }
-    
-    // If we have a known pool address, allow even without AMM program (aggregator swap)
-    if (!hasAmm && knownPoolAddress && process.env.DEBUG_SWAPS === '1') {
-        const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-        console.log(`⚠️ [processTxForSwap] No AMM program but have known pool ${knownPoolAddress.substring(0, 8)}..., allowing - ${sig}...`);
-    }
+    // 🚨 REMOVED AMM CHECK: We're doing transaction-level decoding with known pools
+    // No need to check for AMM program - we just look at token balance changes
+    // This matches test file behavior which never checks for AMM programs
     
     // 🚀 FILTER 2: Skip known market-maker wallets (optional but recommended)
     const message = tx.transaction?.message ?? {};
