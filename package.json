@@ -1,6 +1,6 @@
 {
   "name": "xtrend-monorepo",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "DeGen Oracle - Solana Meme Coin Discovery Platform",
   "private": true,
   "workspaces": [
@@ -39,6 +39,7 @@
     "@meteora-ag/cp-amm-sdk": "^1.2.3",
     "@payai/x402-solana": "^0.1.0-beta.2",
     "@raydium-io/raydium-sdk": "^1.3.1-beta.58",
+    "@shyft-to/solana-transaction-parser": "^2.0.1",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.87.6",
     "@triton-one/yellowstone-grpc": "^4.0.2",
