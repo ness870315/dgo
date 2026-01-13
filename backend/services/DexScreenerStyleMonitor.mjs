@@ -2282,18 +2282,21 @@ export default class DexScreenerStyleMonitor {
           decodedAnySwap = true;
           swapsDecoded++;
           
+          // 🚨 CRITICAL FIX: Set poolAddress from poolData since we know which pool this token uses
+          // processTxForSwap may return 'unknown' if it can't determine the pool from the transaction
+          // But we KNOW the pool because we're iterating through this.pools!
+          if (!swap.poolAddress || swap.poolAddress === 'unknown') {
+            swap.poolAddress = poolData.poolAddress;
+          }
+          
           // 🚨 CRITICAL FILTERS: Match test-transaction-level-decoding.mjs exactly
           // These filters achieved 98% accuracy in testing
           
           const tokenName = tokenData.config?.name || mint.substring(0, 8);
           const swapInfo = `${tokenName} ${swap.type} $${swap.volumeUsd?.toFixed(2) || '0'} @ $${swap.priceUsd?.toFixed(6) || '0'}`;
           
-          // 🚨 FILTER 0: Skip swaps where pool is 'unknown' (aggregator internals)
-          // Test file: "skip swaps where pool couldn't be determined"
-          if (!swap.poolAddress || swap.poolAddress === 'unknown') {
-            // Don't log - too noisy
-            continue; // Skip this swap
-          }
+          // Pool address is now guaranteed to be set from poolData above
+          // No need to filter by 'unknown' pool anymore
           
           // 🚨 FILTER 1: ABSOLUTE PRICE SANITY CHECK
           // Reject obviously invalid prices (< $0.000001 or > $1M)
