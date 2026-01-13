@@ -1,0 +1,82 @@
+{
+  "version": "0.1.0",
+  "name": "meteora_dlmm",
+  "instructions": [
+    {
+      "name": "swap",
+      "accounts": [
+        { "name": "lbPair", "isMut": true, "isSigner": false },
+        { "name": "binArrayBitmapExtension", "isMut": false, "isSigner": false },
+        { "name": "reserveX", "isMut": true, "isSigner": false },
+        { "name": "reserveY", "isMut": true, "isSigner": false },
+        { "name": "userTokenIn", "isMut": true, "isSigner": false },
+        { "name": "userTokenOut", "isMut": true, "isSigner": false },
+        { "name": "tokenXMint", "isMut": false, "isSigner": false },
+        { "name": "tokenYMint", "isMut": false, "isSigner": false },
+        { "name": "oracle", "isMut": true, "isSigner": false },
+        { "name": "hostFeeIn", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": false, "isSigner": true },
+        { "name": "tokenXProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenYProgram", "isMut": false, "isSigner": false },
+        { "name": "eventAuthority", "isMut": false, "isSigner": false },
+        { "name": "program", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amountIn", "type": "u64" },
+        { "name": "minAmountOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "swapExactOut",
+      "accounts": [
+        { "name": "lbPair", "isMut": true, "isSigner": false },
+        { "name": "binArrayBitmapExtension", "isMut": false, "isSigner": false },
+        { "name": "reserveX", "isMut": true, "isSigner": false },
+        { "name": "reserveY", "isMut": true, "isSigner": false },
+        { "name": "userTokenIn", "isMut": true, "isSigner": false },
+        { "name": "userTokenOut", "isMut": true, "isSigner": false },
+        { "name": "tokenXMint", "isMut": false, "isSigner": false },
+        { "name": "tokenYMint", "isMut": false, "isSigner": false },
+        { "name": "oracle", "isMut": true, "isSigner": false },
+        { "name": "hostFeeIn", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": false, "isSigner": true },
+        { "name": "tokenXProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenYProgram", "isMut": false, "isSigner": false },
+        { "name": "eventAuthority", "isMut": false, "isSigner": false },
+        { "name": "program", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "maxAmountIn", "type": "u64" },
+        { "name": "amountOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "swapWithPriceImpact",
+      "accounts": [
+        { "name": "lbPair", "isMut": true, "isSigner": false },
+        { "name": "binArrayBitmapExtension", "isMut": false, "isSigner": false },
+        { "name": "reserveX", "isMut": true, "isSigner": false },
+        { "name": "reserveY", "isMut": true, "isSigner": false },
+        { "name": "userTokenIn", "isMut": true, "isSigner": false },
+        { "name": "userTokenOut", "isMut": true, "isSigner": false },
+        { "name": "tokenXMint", "isMut": false, "isSigner": false },
+        { "name": "tokenYMint", "isMut": false, "isSigner": false },
+        { "name": "oracle", "isMut": true, "isSigner": false },
+        { "name": "hostFeeIn", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": false, "isSigner": true },
+        { "name": "tokenXProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenYProgram", "isMut": false, "isSigner": false },
+        { "name": "eventAuthority", "isMut": false, "isSigner": false },
+        { "name": "program", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amountIn", "type": "u64" },
+        { "name": "activeId", "type": "i32" },
+        { "name": "maxPriceImpactBps", "type": "u16" }
+      ]
+    }
+  ],
+  "metadata": {
+    "address": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"
+  }
+}

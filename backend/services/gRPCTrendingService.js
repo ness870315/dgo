@@ -4,7 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { processTxForSwap } from './SwapDetectionHelpers.mjs';
+import { idlSwapParser } from './IDLSwapParser.mjs';
+// 🚀 processTxForSwap REMOVED - now using IDL-based parser only
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,20 +182,26 @@ class gRPCTrendingService {
                 }
             };
 
-            // Use subscribeOnce (same as DexScreenerStyleMonitor and EnhancedHybridPriceService)
-            this.stream = await this.grpcClient.subscribeOnce(
-                {}, // accounts
-                {}, // slots
-                transactionFilters, // transactions
-                {}, // blocks
-                {}, // blocksMeta
-                {}, // entry
-                {}, // transactionsStatus
-                commitmentLevel, // CONFIRMED (numeric: 1)
-                [] // accountsDataSlice
-            );
+            // 🚀 Use BIDIRECTIONAL subscribe() for consistency with DexScreenerStyleMonitor
+            this.stream = await this.grpcClient.subscribe();
+            
+            // Build subscription request
+            const subscriptionRequest = {
+                accounts: {},
+                slots: {},
+                transactions: transactionFilters,
+                transactionsStatus: {},
+                blocks: {},
+                blocksMeta: {},
+                entry: {},
+                accountsDataSlice: [],
+                commitment: commitmentLevel,
+            };
+            
+            // Send initial subscription
+            this.stream.write(subscriptionRequest);
 
-            console.log(`✅ [gRPCTrending] Subscribed to transaction stream (instance ${this.clientInstanceId})`);
+            console.log(`✅ [gRPCTrending] Subscribed to BIDIRECTIONAL transaction stream (instance ${this.clientInstanceId})`);
 
             this.stream.on('data', (msg) => {
                 // Only process if message has transaction (same as DexScreenerStyleMonitor)
@@ -263,7 +270,7 @@ class gRPCTrendingService {
             // The gRPC structure has meta nested: txData.transaction.meta or txData.transaction.transaction.meta
             const innerTx = txData.transaction?.transaction || txData.transaction;
             
-            // Build transaction object for processTxForSwap (match DexScreenerStyleMonitor structure)
+            // Build transaction object for idlSwapParser (match DexScreenerStyleMonitor structure)
             const tx = {
                 transaction: innerTx,
                 meta: innerTx?.meta || txData.transaction?.meta || txData.meta || msg.meta, // CRITICAL: meta must be at top level
@@ -318,15 +325,8 @@ class gRPCTrendingService {
             
             tokenMints.forEach(mint => {
                 try {
-                    const swap = processTxForSwap(
-                        tx,
-                        mint,
-                        solPrice,
-                        tokenPriceCache,
-                        null, // midPriceUsd = null (disable price outlier filter)
-                        null, // raydiumDecoder
-                        null  // knownPoolAddress (let it discover)
-                    );
+                    // 🚀 USE ONLY IDL-BASED PARSER (professional-grade accuracy)
+                    const swap = idlSwapParser.parseSwap(tx, mint, solPrice, null);
                     
                     if (swap && swap.signature && !processedSwaps.has(swap.signature)) {
                         processedSwaps.add(swap.signature);
@@ -343,7 +343,7 @@ class gRPCTrendingService {
                         }
                         
                         // Track both token mints from the swap
-                        // processTxForSwap returns: mintAddress (target) and counterMint (what we're trading against)
+                        // idlSwapParser returns: mintAddress (target) and counterMint (what we're trading against)
                         const tokenA = swap.mintAddress || swap.tokenMint; // The target token we're looking for
                         const tokenB = swap.counterMint; // What we're trading against (SOL, USDC, etc.)
                         
@@ -983,15 +983,15 @@ class gRPCTrendingService {
                 this.enhancedTokenProcessor.isProcessing = true;
                 
                 try {
-                    // Run through Jupiter → Twitter → Scoring → Saving stages
-                    console.log(`🔄 [gRPCTrending] Running Jupiter stage...`);
-                    await this.enhancedTokenProcessor.processJupiterStage();
-                    console.log(`🔄 [gRPCTrending] Running Twitter stage...`);
-                    await this.enhancedTokenProcessor.processTwitterStage();
-                    console.log(`🔄 [gRPCTrending] Running Scoring stage...`);
-                    await this.enhancedTokenProcessor.processScoringStage();
-                    console.log(`🔄 [gRPCTrending] Running Save to Database stage...`);
-                    await this.enhancedTokenProcessor.saveFinalDatabase();
+                // Run through Jupiter → Twitter → Scoring → Saving stages
+                console.log(`🔄 [gRPCTrending] Running Jupiter stage...`);
+                await this.enhancedTokenProcessor.processJupiterStage();
+                console.log(`🔄 [gRPCTrending] Running Twitter stage...`);
+                await this.enhancedTokenProcessor.processTwitterStage();
+                console.log(`🔄 [gRPCTrending] Running Scoring stage...`);
+                await this.enhancedTokenProcessor.processScoringStage();
+                console.log(`🔄 [gRPCTrending] Running Save to Database stage...`);
+                await this.enhancedTokenProcessor.saveFinalDatabase();
                 } finally {
                     // Always reset isProcessing flag
                     this.enhancedTokenProcessor.isProcessing = false;
@@ -1107,7 +1107,7 @@ class gRPCTrendingService {
                                 // Batch onboard all tokens at once
                                 const result = await this.dexScreenerMonitor.batchOnboardTokens(tokensConfig);
                                 console.log(`\n✅ [gRPCTrending] DexScreener onboarding complete: ${result.successful} successful, ${result.failed} failed`);
-                                console.log(`${'='.repeat(80)}\n`);
+                    console.log(`${'='.repeat(80)}\n`);
                             } else {
                                 console.log(`⚠️ [gRPCTrending] No tokens prepared for onboarding (missing pool addresses?)`);
                             }
@@ -1228,7 +1228,7 @@ class gRPCTrendingService {
                                 console.log('');
                             });
                             console.log(`${'='.repeat(80)}\n`);
-                        } else {
+            } else {
                             console.log(`⚠️ [gRPCTrending] No queued tokens were found in database yet`);
                             console.log(`   Expected: ${queuedContractsArray.length} tokens`);
                             console.log(`   Queued contracts: ${queuedContractsArray.slice(0, 5).join(', ')}${queuedContractsArray.length > 5 ? '...' : ''}`);

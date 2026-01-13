@@ -1,0 +1,57 @@
+{
+  "version": "0.1.0",
+  "name": "raydium_clmm",
+  "instructions": [
+    {
+      "name": "swap",
+      "accounts": [
+        { "name": "payer", "isMut": true, "isSigner": true },
+        { "name": "ammConfig", "isMut": false, "isSigner": false },
+        { "name": "poolState", "isMut": true, "isSigner": false },
+        { "name": "inputTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "outputTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "inputVault", "isMut": true, "isSigner": false },
+        { "name": "outputVault", "isMut": true, "isSigner": false },
+        { "name": "observationState", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "tickArray0", "isMut": true, "isSigner": false },
+        { "name": "tickArray1", "isMut": true, "isSigner": false },
+        { "name": "tickArray2", "isMut": true, "isSigner": false },
+        { "name": "oracle", "isMut": true, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "otherAmountThreshold", "type": "u64" },
+        { "name": "sqrtPriceLimitX64", "type": "u128" },
+        { "name": "isBaseInput", "type": "bool" }
+      ]
+    },
+    {
+      "name": "swapV2",
+      "accounts": [
+        { "name": "payer", "isMut": true, "isSigner": true },
+        { "name": "ammConfig", "isMut": false, "isSigner": false },
+        { "name": "poolState", "isMut": true, "isSigner": false },
+        { "name": "inputTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "outputTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "inputVault", "isMut": true, "isSigner": false },
+        { "name": "outputVault", "isMut": true, "isSigner": false },
+        { "name": "observationState", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram2022", "isMut": false, "isSigner": false },
+        { "name": "memoProgram", "isMut": false, "isSigner": false },
+        { "name": "inputVaultMint", "isMut": false, "isSigner": false },
+        { "name": "outputVaultMint", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "otherAmountThreshold", "type": "u64" },
+        { "name": "sqrtPriceLimitX64", "type": "u128" },
+        { "name": "isBaseInput", "type": "bool" }
+      ]
+    }
+  ],
+  "metadata": {
+    "address": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"
+  }
+}

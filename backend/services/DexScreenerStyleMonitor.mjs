@@ -3,9 +3,9 @@
  * 
  * Pool-centric real-time swap detection with DexScreener-level accuracy
  * 
- * Architecture (PHASE 3: Transaction-Level Decoding):
- * - Single gRPC stream with transaction subscriptions (filtered by pool addresses)
- * - Transaction-level decoding using processTxForSwap (no account monitoring)
+ * Architecture (PHASE 4: IDL-Based Parsing + Inflight Subscriptions):
+ * - BIDIRECTIONAL gRPC stream for inflight pool additions (no stream recreation!)
+ * - IDL-based swap decoding using idlSwapParser (professional-grade accuracy)
  * - Real-time reserve tracking from swap deltas
  * - Dynamic liquidity calculation from reserves
  * - In-memory swap storage (last 24h) with database persistence
@@ -13,8 +13,9 @@
  * - Pool discovery: Moralis → Jupiter → DexScreener
  * 
  * Key Features:
- * - 100% accurate swap detection (transaction-level decoding)
+ * - 100% accurate swap detection (IDL-based parsing)
  * - Works for all pool types (CPMM, DLMM, CLMM, Whirlpool)
+ * - INFLIGHT pool additions - no stream recreation when adding new pools
  * - Full transaction details (maker wallet, signature, slot)
  * - Real-time USD pricing, market cap, and liquidity
  * - Survives restarts (loads from ChartDatabase)
@@ -26,7 +27,8 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import bs58 from 'bs58';
 import fetch from 'node-fetch';
 import atomicCacheWriter from '../utils/atomicCacheWriter.js';
-import { processTxForSwap } from './SwapDetectionHelpers.mjs';
+import { idlSwapParser } from './IDLSwapParser.mjs';
+// 🚀 processTxForSwap REMOVED - now using IDL-based parser only
 
 // Use CommonJS wrapper for gRPC loading (same as EnhancedHybridPriceService)
 import { createRequire } from 'module';
@@ -206,6 +208,10 @@ export default class DexScreenerStyleMonitor {
     this.streamHealthChecker = null;
     this.streamGeneration = 0; // Incremented each time we create a new stream
     this.activeStreamGeneration = 0; // The generation of the currently active stream
+    
+    // 🚀 INFLIGHT SUBSCRIPTION: Track current subscription state for bidirectional streaming
+    this.currentSubscribedPools = new Set(); // Pools currently in the active subscription
+    this.isBidirectionalStream = false; // Whether we're using subscribe() vs subscribeOnce()
 
     console.log('🚀 [DexScreenerStyleMonitor] Initialized');
   }
@@ -225,6 +231,14 @@ export default class DexScreenerStyleMonitor {
     
     console.log('✅ [DexScreenerStyleMonitor] gRPC client initialized');
     console.log('⏳ [DexScreenerStyleMonitor] Stream will be created after pool discovery...');
+    
+    // Initialize IDL-based swap parser
+    try {
+      await idlSwapParser.initialize();
+      console.log('✅ [DexScreenerStyleMonitor] IDL swap parser initialized');
+    } catch (error) {
+      console.warn('⚠️ [DexScreenerStyleMonitor] IDL parser init failed, using balance-based only:', error.message);
+    }
     
     // Fetch initial SOL price
     await this.fetchSOLPrice();
@@ -325,6 +339,7 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * PHASE 3: Create or recreate the gRPC stream with transaction filters only
+   * 🚀 NOW USES BIDIRECTIONAL STREAMING for inflight pool additions
    */
   async recreateStream() {
     // Increment generation to invalidate old stream events
@@ -336,35 +351,22 @@ export default class DexScreenerStyleMonitor {
       try {
         // Remove all listeners to prevent ghost events from triggering reconnects
         this.stream.removeAllListeners();
-        this.stream.cancel();
+        if (this.isBidirectionalStream) {
+          this.stream.end(); // Graceful close for bidirectional
+        } else {
+          this.stream.cancel();
+        }
         console.log('🔄 [DexScreenerStyleMonitor] Cancelled existing stream (gen ' + (thisGeneration - 1) + ')');
       } catch (e) {
         // Ignore cancellation errors
       }
       this.stream = null;
+      this.currentSubscribedPools.clear();
     }
 
     // PHASE 3: Combine all pool addresses into a single transaction filter
     // Include main pools + additional pools discovered for multi-pool tokens
     const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
-    
-    // 🔍 DEBUG: Check if Fartcoin's pool is included
-    const FARTCOIN_POOL = 'Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw';
-    const fartcoinInPools = allPoolAddresses.includes(FARTCOIN_POOL);
-    if (fartcoinInPools) {
-      console.log(`✅ [DEBUG] Fartcoin pool ${FARTCOIN_POOL.substring(0, 8)}... IS in allPoolAddresses`);
-    } else {
-      console.log(`❌ [DEBUG] Fartcoin pool ${FARTCOIN_POOL.substring(0, 8)}... NOT in allPoolAddresses!`);
-      // Check if Fartcoin is in this.pools
-      const fartcoinMint = '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump';
-      const fartcoinPoolData = this.pools.get(fartcoinMint);
-      if (fartcoinPoolData) {
-        console.log(`   Fartcoin IS in this.pools with pool: ${fartcoinPoolData.poolAddress}`);
-        console.log(`   Expected: ${FARTCOIN_POOL}, Got: ${fartcoinPoolData.poolAddress}`);
-      } else {
-        console.log(`   Fartcoin NOT in this.pools Map!`);
-      }
-    }
     
     // 🚨 MULTI-POOL: Add additional pools for tokens that have them (Orca, Meteora, etc.)
     let additionalPoolCount = 0;
@@ -392,7 +394,7 @@ export default class DexScreenerStyleMonitor {
       monitoredTokens.push(`${tokenName} (${poolData.poolAddress.substring(0, 8)}...)`);
     }
     const mainPoolCount = this.pools.size;
-    console.log(`📡 [DexScreenerStyleMonitor] Creating gRPC stream with ${allPoolAddresses.length} pools (${mainPoolCount} main + ${additionalPoolCount} additional):`);
+    console.log(`📡 [DexScreenerStyleMonitor] Creating BIDIRECTIONAL gRPC stream with ${allPoolAddresses.length} pools (${mainPoolCount} main + ${additionalPoolCount} additional):`);
     if (monitoredTokens.length <= 10) {
       monitoredTokens.forEach((token, idx) => {
         console.log(`   ${idx + 1}. ${token}`);
@@ -403,37 +405,23 @@ export default class DexScreenerStyleMonitor {
       });
       console.log(`   ... and ${monitoredTokens.length - 10} more pools`);
     }
-    
-    const combinedTransactionFilter = {
-      client: {
-        accountInclude: allPoolAddresses, // Single filter with all pool addresses
-        accountExclude: [],
-        accountRequired: [],
-        vote: false,
-        failed: false
-      }
-    };
 
-    // Create new stream with transaction filters only
-    console.log(`📡 [DexScreenerStyleMonitor] Subscribing to transactions involving ${allPoolAddresses.length} pool addresses...`);
-    console.log(`   Filter structure:`, {
-      accountInclude: allPoolAddresses.length,
-      sampleAddresses: allPoolAddresses.slice(0, 3).map(a => a.substring(0, 12) + '...')
-    });
+    // 🚀 Use BIDIRECTIONAL subscribe() instead of subscribeOnce() for inflight modifications
+    console.log(`📡 [DexScreenerStyleMonitor] Opening bidirectional stream for ${allPoolAddresses.length} pool addresses...`);
     
-    // 🚨 REVERTED: Restore original parameter order that was working
-    // The test file parameter order may be incorrect - reverting to what was deployed
-    this.stream = await this.grpcClient.subscribeOnce(
-      {}, // accounts (no longer used)
-      {}, // slots
-      combinedTransactionFilter, // transactions (single filter for all pools)
-      {}, // blocks (4th - original order)
-      {}, // blocksMeta (5th - original order)
-      {}, // entry (6th - original order)
-      {}, // transactionsStatus (7th - original order)
-      1, // CONFIRMED (8th)
-      []  // accountsDataSlice (9th)
-    );
+    this.stream = await this.grpcClient.subscribe();
+    this.isBidirectionalStream = true;
+    
+    // Build subscription request
+    const subscriptionRequest = this.buildSubscriptionRequest(allPoolAddresses);
+    
+    // Send initial subscription
+    this.stream.write(subscriptionRequest);
+    
+    // Track subscribed pools
+    allPoolAddresses.forEach(p => this.currentSubscribedPools.add(p));
+    
+    console.log(`✅ [DexScreenerStyleMonitor] Initial subscription sent (${allPoolAddresses.length} pools)`);
     
     // Mark this as the active stream generation
     this.activeStreamGeneration = thisGeneration;
@@ -449,16 +437,7 @@ export default class DexScreenerStyleMonitor {
       
       // Log first message to confirm stream is working
       if (messageCount === 1) {
-        console.log(`✅ [DexScreenerStyleMonitor] First message received from stream (gen ${thisGeneration})!`);
-        console.log(`   Message keys:`, Object.keys(msg));
-        if (msg.transaction) {
-          console.log(`   msg.transaction keys:`, Object.keys(msg.transaction));
-          console.log(`   msg.transaction.transaction exists:`, !!msg.transaction.transaction);
-          console.log(`   msg.transaction.meta exists:`, !!msg.transaction.meta);
-          if (msg.transaction.transaction) {
-            console.log(`   msg.transaction.transaction.meta exists:`, !!msg.transaction.transaction.meta);
-          }
-        }
+        console.log(`✅ [DexScreenerStyleMonitor] First message received from BIDIRECTIONAL stream (gen ${thisGeneration})!`);
       }
       
       if (msg.transaction) {
@@ -490,7 +469,61 @@ export default class DexScreenerStyleMonitor {
     
     this.globalStats.streamRecreations++;
     this.lastStreamActivity = Date.now();
-    console.log(`✅ [DexScreenerStyleMonitor] Stream created successfully (gen ${thisGeneration})`);
+    console.log(`✅ [DexScreenerStyleMonitor] Bidirectional stream created successfully (gen ${thisGeneration})`);
+  }
+
+  /**
+   * 🚀 Build subscription request for gRPC stream
+   */
+  buildSubscriptionRequest(poolAddresses) {
+    return {
+      accounts: {},
+      slots: {},
+      transactions: {
+        client: {
+          accountInclude: poolAddresses,
+          accountExclude: [],
+          accountRequired: [],
+          vote: false,
+          failed: false,
+        }
+      },
+      transactionsStatus: {},
+      blocks: {},
+      blocksMeta: {},
+      entry: {},
+      accountsDataSlice: [],
+      commitment: 1, // CONFIRMED
+    };
+  }
+
+  /**
+   * 🚀 Add pool to active subscription INFLIGHT (no stream recreation!)
+   * Called by trending stream when new pools are discovered
+   */
+  addPoolInflight(poolAddress, tokenName = '') {
+    if (!this.stream || !this.isBidirectionalStream) {
+      console.log(`⚠️ [DexScreenerStyleMonitor] No bidirectional stream active, cannot add inflight`);
+      return false;
+    }
+    
+    if (this.currentSubscribedPools.has(poolAddress)) {
+      // Already subscribed
+      return true;
+    }
+    
+    // Add to tracked pools
+    this.currentSubscribedPools.add(poolAddress);
+    
+    // Build updated subscription with ALL current pools
+    const allPools = Array.from(this.currentSubscribedPools);
+    const updatedRequest = this.buildSubscriptionRequest(allPools);
+    
+    // Send updated subscription INFLIGHT
+    this.stream.write(updatedRequest);
+    
+    console.log(`🚀 [INFLIGHT] Added pool ${poolAddress.substring(0, 12)}... ${tokenName ? `(${tokenName})` : ''} | Total: ${allPools.length} pools`);
+    return true;
   }
 
   /**
@@ -1808,7 +1841,7 @@ export default class DexScreenerStyleMonitor {
       }
 
       // CRITICAL: Price = quote per token (e.g., SOL per token)
-      // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+      // This matches idlSwapParser's priceInCounter = qtyCounter / qtyTarget
       const price = tokenReserve > 0 ? quoteReserve / tokenReserve : 0;
 
       return {
@@ -1956,22 +1989,18 @@ export default class DexScreenerStyleMonitor {
         }
       };
 
-      // Recreate the stream with updated filters
-      console.log(`   📡 Recreating stream with new filters for ${config.name}...`);
-      this.globalStats.streamRecreations++;
-      
-      // Cancel existing stream
-      if (this.stream) {
-        try {
-          this.stream.cancel();
-        } catch (e) {
-          // Ignore cancellation errors
+      // 🚀 INFLIGHT: Try to add pool without recreating stream
+      if (this.stream && this.isBidirectionalStream) {
+        // Stream already running - add pool INFLIGHT
+        const success = this.addPoolInflight(poolData.poolAddress, config.name);
+        if (success) {
+          console.log(`✅ [DexScreenerStyleMonitor] Pool added INFLIGHT for ${config.name}`);
+          return;
         }
       }
       
-      // PHASE 3: Just use the shared recreateStream method which handles all pool addresses
-      // This avoids duplicate code and ensures consistent generation tracking
-      console.log(`   📡 Recreating stream with new pool for ${config.name}...`);
+      // No stream or not bidirectional - need to create/recreate
+      console.log(`   📡 Creating stream with new pool for ${config.name}...`);
       await this.recreateStream();
       console.log(`✅ [DexScreenerStyleMonitor] Pool added to stream for ${config.name}`);
 
@@ -1982,8 +2011,8 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * PHASE 3: Handle transaction message from gRPC stream
-   * Uses transaction-level decoding with processTxForSwap
+   * PHASE 4: Handle transaction message from gRPC stream
+   * Uses IDL-based swap decoding (idlSwapParser)
    */
   async handleTransaction(msg) {
     try {
@@ -2002,7 +2031,7 @@ export default class DexScreenerStyleMonitor {
       
       // CRITICAL: Match test behavior - try to decode swaps for ALL tokens on EVERY transaction
       // Don't pre-filter by pool address - aggregator swaps may not have pool addresses in accounts
-      // processTxForSwap will return null if it's not a swap, so there's no harm in trying
+      // idlSwapParser will return null if it's not a swap, so there's no harm in trying
       // This ensures we catch ALL swaps, including those through aggregators/routers
       
       // DEBUG: Log first transaction
@@ -2011,8 +2040,8 @@ export default class DexScreenerStyleMonitor {
       }
       
       
-      // Build transaction object for processTxForSwap (must match expected structure)
-      // CRITICAL: processTxForSwap expects tx.meta at top level (for extractTokenDeltas)
+      // Build transaction object for idlSwapParser (must match expected structure)
+      // CRITICAL: idlSwapParser expects tx.meta at top level (for extractTokenDeltas)
       // The gRPC structure has meta nested: txData.transaction.meta or txData.transaction.transaction.meta
       const innerTx = txData.transaction?.transaction || txData.transaction;
       const meta = innerTx?.meta || txData.transaction?.meta || txData.meta;
@@ -2242,21 +2271,9 @@ export default class DexScreenerStyleMonitor {
           tokenPriceCache.set(mint, tokenData.metadata.usdPrice);
         }
         
-        // Try to decode swap using processTxForSwap
-        
-        // CRITICAL: Disable price outlier filter (pass null) to catch ALL swaps
-        // The price outlier filter was too strict and was filtering valid swaps
-        // After first swap, price changes, so the filter would reject subsequent swaps
-        // Match test behavior: pass null to disable the filter (like test-transaction-level-decoding.mjs)
-        const swap = processTxForSwap(
-          tx,
-          mint,
-          this.solPriceUSD,
-          tokenPriceCache,
-          null, // midPriceUsd = null (DISABLE price outlier filter - we want ALL swaps)
-          null, // raydiumDecoder (can be added later if needed)
-          poolData.poolAddress // knownPoolAddress
-        );
+        // 🚀 USE ONLY IDL-BASED PARSER (professional-grade accuracy)
+        // No fallback to old processTxForSwap - IDL parser handles all DEXes
+        let swap = idlSwapParser.parseSwap(tx, mint, this.solPriceUSD, poolData.poolAddress);
         
         // 🔍 DEBUG: Log ALL swap attempts for first 5 transactions AND first 10 tokens
         if (this.globalStats.totalTransactions <= 5 && tokensChecked <= 10) {
@@ -2283,7 +2300,7 @@ export default class DexScreenerStyleMonitor {
           swapsDecoded++;
           
           // 🚨 CRITICAL FIX: Set poolAddress from poolData since we know which pool this token uses
-          // processTxForSwap may return 'unknown' if it can't determine the pool from the transaction
+          // IDL parser may return 'unknown' if it can't determine the pool from the transaction
           // But we KNOW the pool because we're iterating through this.pools!
           if (!swap.poolAddress || swap.poolAddress === 'unknown') {
             swap.poolAddress = poolData.poolAddress;
@@ -2387,7 +2404,7 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Note: No need to log "no swap decoded" - processTxForSwap returns null for non-swaps, which is expected
+      // Note: No need to log "no swap decoded" - idlSwapParser returns null for non-swaps, which is expected
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error handling transaction:`, error.message);
       if (error.stack) {
@@ -2643,7 +2660,7 @@ export default class DexScreenerStyleMonitor {
     } else {
       // Fallback: Calculate from reserves if swap price not available
       // Price = quote per token (e.g., SOL per token)
-      // This matches processTxForSwap's priceInCounter = qtyCounter / qtyTarget
+      // This matches idlSwapParser's priceInCounter = qtyCounter / qtyTarget
       // CRITICAL: Only use reserves if they're valid (both > 0)
       if (reserves.tokenReserve > 0 && reserves.quoteReserve > 0) {
         poolData.price = reserves.quoteReserve / reserves.tokenReserve;
@@ -3991,11 +4008,16 @@ export default class DexScreenerStyleMonitor {
     // Close the single gRPC stream
     if (this.stream) {
       try {
-        this.stream.cancel();
+        if (this.isBidirectionalStream) {
+          this.stream.end(); // Graceful close for bidirectional
+        } else {
+          this.stream.cancel();
+        }
       } catch (e) {
         // Ignore errors
       }
       this.stream = null;
+      this.currentSubscribedPools.clear();
     }
 
     // Close gRPC client
