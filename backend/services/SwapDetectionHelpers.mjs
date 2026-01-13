@@ -733,7 +733,7 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     if (txCount < 3) {
         console.log(`🔍 [processTxForSwap #${txCount}] Deltas found: ${deltas.length}`);
         for (const d of deltas.slice(0, 5)) {
-            console.log(`   Delta: mint=${d.mint?.substring?.(0, 8) || 'null'}..., change=${d.change}, owner=${d.owner?.substring?.(0, 8) || 'null'}...`);
+            console.log(`   Delta: mint=${d.mint?.substring?.(0, 8) || 'null'}..., deltaUI=${d.deltaUI}, owner=${d.owner?.substring?.(0, 8) || 'null'}...`);
         }
     }
     
@@ -741,7 +741,11 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     if (!legs) {
         if (process.env.DEBUG_SWAPS === '1' || txCount < 5) {
             const sig = (tx.signature?.substring?.(0, 16) || 'unknown');
-            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: cannot pick legs (${deltas.length} deltas, targetMint=${targetMint?.substring?.(0, 8)}...) - ${sig}...`);
+            // 🔍 DEBUG: Show what mints are in deltas vs target
+            const deltaMints = [...new Set(deltas.map(d => d.mint?.substring?.(0, 8) || 'null'))];
+            console.log(`⚠️ [processTxForSwap #${txCount}] Filter: cannot pick legs (${deltas.length} deltas) - ${sig}...`);
+            console.log(`   Target mint: ${targetMint?.substring?.(0, 8)}...`);
+            console.log(`   Delta mints: ${deltaMints.join(', ')}...`);
         }
         return null;
     }
