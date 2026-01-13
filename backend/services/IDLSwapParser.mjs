@@ -27,14 +27,18 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Try to load Shyft parser
+// Try to load Shyft parser (use require for CommonJS compatibility)
 let SolanaParser;
 try {
-  const shyftParser = await import('@shyft-to/solana-transaction-parser');
-  SolanaParser = shyftParser.SolanaParser;
-  console.log('✅ [IDLSwapParser] @shyft-to/solana-transaction-parser loaded');
+  const shyftParser = require('@shyft-to/solana-transaction-parser');
+  SolanaParser = shyftParser.SolanaParser || shyftParser.default?.SolanaParser;
+  if (SolanaParser) {
+    console.log('✅ [IDLSwapParser] @shyft-to/solana-transaction-parser loaded successfully');
+  } else {
+    console.warn('⚠️ [IDLSwapParser] SolanaParser class not found in module');
+  }
 } catch (e) {
-  console.warn('⚠️ [IDLSwapParser] @shyft-to/solana-transaction-parser not available, using balance-based parsing only');
+  console.warn('⚠️ [IDLSwapParser] @shyft-to/solana-transaction-parser not available:', e.message);
 }
 
 // DEX Program IDs

@@ -2290,9 +2290,9 @@ export default class DexScreenerStyleMonitor {
           }
         }
         
-        // 🔍 DEBUG: Log if Fartcoin swap decoded
+        // 🔍 DEBUG: Log if Fartcoin swap decoded - INCLUDE METHOD to verify IDL parser
         if (isFartcoin && swap) {
-          console.log(`✅ [DEBUG] Fartcoin swap decoded! type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}, pool=${swap.poolAddress}`);
+          console.log(`✅ [DEBUG] Fartcoin swap decoded! method=${swap.method || 'UNKNOWN'}, type=${swap.type}, price=${swap.priceUsd}, volume=${swap.volumeUsd}, pool=${swap.poolAddress}`);
         }
         
         if (swap) {
@@ -2882,11 +2882,11 @@ export default class DexScreenerStyleMonitor {
         this.broadcastMetrics(mint);
       }
       
-      // Log swap
-      // Reduced verbosity: Only log essential swap info
+      // Log swap with parser method
       const swapType = swap.type === 'BUY' ? '🟢 BUY' : '🔴 SELL';
       const mcapStr = marketCap > 0 ? `$${(marketCap / 1000000).toFixed(2)}M` : 'N/A';
-      console.log(`📊 ${tokenData.config.name} (${swapType}) | ${swap.tokenAmount.toLocaleString()} tokens | $${swap.priceUsd.toFixed(6)} | Vol: $${swap.volumeUsd.toFixed(2)} | MCap: ${mcapStr}`);
+      const parserMethod = swap.method || 'UNKNOWN';
+      console.log(`📊 ${tokenData.config.name} (${swapType}) [${parserMethod}] | ${swap.tokenAmount.toLocaleString()} tokens | $${swap.priceUsd.toFixed(6)} | Vol: $${swap.volumeUsd.toFixed(2)} | MCap: ${mcapStr}`);
 
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error displaying swap:`, error.message);
