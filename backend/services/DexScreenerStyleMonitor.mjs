@@ -2309,22 +2309,22 @@ export default class DexScreenerStyleMonitor {
             continue; // Skip this swap
           }
           
-          // 🚨 FILTER 2: RELATIVE PRICE OUTLIER (match test: 10x range)
-          // Priority 1: lastPriceUSD (from recent swaps)
-          // Priority 2: Jupiter initial price (only as baseline on reboot)
+          // 🚨 FILTER 2: RELATIVE PRICE OUTLIER - RELAXED to 100x range
+          // The 10x filter was too strict for volatile memecoins
+          // Let the swap through and use smoothed prices for display
           const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
           if (expectedPrice > 0 && swap.priceUsd) {
             const priceRatio = swap.priceUsd / expectedPrice;
-            // 🎯 MATCH TEST: Use 10x range (0.1x - 10x) like test file
-            if (priceRatio > 10 || priceRatio < 0.1) {
+            // 🚨 RELAXED: 100x range instead of 10x (memecoins are volatile!)
+            if (priceRatio > 100 || priceRatio < 0.01) {
               console.log(`❌ FILTER [outlier ${priceRatio.toFixed(2)}x]: ${swapInfo} vs expected $${expectedPrice.toFixed(6)}`);
               continue; // Skip this swap
             }
           }
           
-          // 🚨 FILTER 3: DUST VOLUME (match test: $0.50 minimum)
-          if (swap.volumeUsd && swap.volumeUsd < 0.50) {
-            console.log(`❌ FILTER [dust]: ${swapInfo} - volume < $0.50`);
+          // 🚨 FILTER 3: DUST VOLUME - RELAXED to $0.10
+          if (swap.volumeUsd && swap.volumeUsd < 0.10) {
+            // Don't log dust - too noisy
             continue; // Skip this swap
           }
           
@@ -2790,29 +2790,36 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // Calculate market cap - Use Jupiter baseline and scale by price change
-      // Jupiter's marketCap has accurate supply data, so we scale it by price changes
-      // This is more accurate than supply * price (which can have stale supply)
+      // Calculate market cap - Use circulating supply * price (most accurate)
       let marketCap = 0;
       const metadata = tokenData.metadata;
       
-      // 🚨 DEXSCREENER-ACCURATE: Scale Jupiter's baseline market cap by price change
-      // Formula: adjustedMcap = jupiterBaselineMcap * (currentPrice / baselinePrice)
-      const jupiterBaseline = tokenData.jupiterBaselineMarketCap || metadata?.marketCap || 0;
-      const baselinePrice = tokenData.lastBaselinePrice || metadata?.usdPrice || 0;
+      // 🚨 FIX: Market cap = circulating supply * current price (like DexScreener)
+      const circSupply = metadata?.circSupply || metadata?.totalSupply || 0;
       
-      if (jupiterBaseline > 0 && baselinePrice > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
-        // Scale market cap by price change from baseline
-        const priceRatio = swap.priceUsd / baselinePrice;
-        marketCap = jupiterBaseline * priceRatio;
+      if (circSupply > 0 && swap.priceUsd > 0 && isFinite(swap.priceUsd)) {
+        // Market cap = circulating supply * current price
+        marketCap = circSupply * swap.priceUsd;
       } else {
-        // Fallback: Use Jupiter's market cap directly if we can't scale
-        marketCap = jupiterBaseline || metadata?.marketCap || 0;
+        // Fallback: Scale Jupiter baseline by price change
+        const jupiterBaseline = tokenData.jupiterBaselineMarketCap || metadata?.marketCap || 0;
+        const baselinePrice = tokenData.lastBaselinePrice || metadata?.usdPrice || 0;
+        
+        if (jupiterBaseline > 0 && baselinePrice > 0 && swap.priceUsd > 0) {
+          marketCap = jupiterBaseline * (swap.priceUsd / baselinePrice);
+        } else {
+          marketCap = jupiterBaseline || metadata?.marketCap || 0;
+        }
       }
       
-      // Sanity check: ensure market cap is reasonable (not 0 or astronomical)
+      // Sanity check
       if (marketCap <= 0 || !isFinite(marketCap)) {
         marketCap = metadata?.marketCap || 0;
+      }
+      
+      // 🔍 DEBUG: Log market cap for first few swaps
+      if (this.globalStats.totalSwapsDetected <= 5) {
+        console.log(`   📊 MCap: supply=${circSupply?.toLocaleString() || 'N/A'}, price=$${swap.priceUsd?.toFixed(6)}, mcap=$${(marketCap/1e6)?.toFixed(2)}M`);
       }
       
       // Create swap record (must match format expected by calculations)
