@@ -2166,15 +2166,40 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
-      // 🔍 DEBUG: Log account addresses for first transaction
-      if (this.globalStats.totalTransactions === 1) {
-        console.log(`🔍 [DEBUG] Transaction has ${txAccountAddresses.size} account addresses`);
+      // 🔍 DEBUG: Log account addresses AND token balance mints for first few transactions
+      if (this.globalStats.totalTransactions <= 3) {
+        console.log(`🔍 [DEBUG] Transaction #${this.globalStats.totalTransactions} details:`);
+        console.log(`   Account addresses: ${txAccountAddresses.size}`);
         console.log(`   Sample addresses: ${Array.from(txAccountAddresses).slice(0, 5).map(a => a.substring?.(0, 8) + '...' || 'invalid').join(', ')}`);
+        
         // Show raw key type for debugging
         const firstKey = innerTx?.message?.accountKeys?.[0];
         console.log(`   First raw key type: ${typeof firstKey}, isBuffer: ${Buffer.isBuffer(firstKey)}, isArray: ${Array.isArray(firstKey)}`);
-        if (firstKey && typeof firstKey !== 'string') {
-          console.log(`   First raw key sample: ${JSON.stringify(firstKey).substring(0, 100)}`);
+        
+        // 🔑 CRITICAL: Show what TOKEN MINTS are in the balance changes
+        // This is what we ACTUALLY use for swap detection!
+        const balanceMints = new Set();
+        for (const bal of meta?.preTokenBalances || []) {
+          if (bal.mint) balanceMints.add(bal.mint);
+        }
+        for (const bal of meta?.postTokenBalances || []) {
+          if (bal.mint) balanceMints.add(bal.mint);
+        }
+        console.log(`   Token mints in balances: ${balanceMints.size}`);
+        console.log(`   Mints: ${Array.from(balanceMints).map(m => m.substring(0, 8) + '...').join(', ')}`);
+        
+        // Check if ANY of our monitored tokens are in this transaction
+        const monitoredMintsInTx = [];
+        for (const [mint] of this.pools.entries()) {
+          if (balanceMints.has(mint)) {
+            const tokenData = this.tokens.get(mint);
+            monitoredMintsInTx.push(tokenData?.config?.name || mint.substring(0, 8));
+          }
+        }
+        if (monitoredMintsInTx.length > 0) {
+          console.log(`   🎯 MONITORED TOKENS IN TX: ${monitoredMintsInTx.join(', ')}`);
+        } else {
+          console.log(`   ⚠️ No monitored tokens in this transaction's balance changes`);
         }
       }
       
