@@ -27,17 +27,19 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Try to load Shyft parser (optional enhancement - BALANCE method works great without it)
+// Load Shyft parser for IDL-based swap decoding (REQUIRED for accurate parsing)
 let SolanaParser;
 try {
   const shyftParser = require('@shyft-to/solana-transaction-parser');
   SolanaParser = shyftParser.SolanaParser || shyftParser.default?.SolanaParser;
   if (SolanaParser) {
-    console.log('✅ [IDLSwapParser] Shyft parser loaded - IDL mode available');
+    console.log('✅ [IDLSwapParser] Shyft parser loaded - IDL mode ENABLED (professional-grade)');
+  } else {
+    console.error('❌ [IDLSwapParser] SolanaParser class not found in module!');
   }
 } catch (e) {
-  // BALANCE method is professional-grade and works for all DEXes - Shyft is optional
-  console.log('ℹ️ [IDLSwapParser] Using BALANCE mode (professional-grade swap detection)');
+  console.error('❌ [IDLSwapParser] CRITICAL: @shyft-to/solana-transaction-parser not available:', e.message);
+  console.error('   IDL-based parsing DISABLED - swap detection will be less accurate!');
 }
 
 // DEX Program IDs
@@ -74,7 +76,8 @@ export class IDLSwapParser {
     if (this.initialized) return;
 
     if (!SolanaParser) {
-      console.log('✅ [IDLSwapParser] Initialized in BALANCE mode (professional-grade swap detection)');
+      console.error('❌ [IDLSwapParser] CRITICAL: Cannot initialize - Shyft parser not available!');
+      console.error('   Swap detection will fall back to BALANCE mode (less accurate)');
       this.initialized = true;
       return;
     }
