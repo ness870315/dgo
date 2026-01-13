@@ -2203,11 +2203,32 @@ export default class DexScreenerStyleMonitor {
         }
       }
       
+      // 🚨 CRITICAL FIX: Build set of token mints from balance changes (already strings!)
+      // This is more reliable than checking pool addresses (which require Buffer conversion)
+      const balanceMints = new Set();
+      for (const bal of meta?.preTokenBalances || []) {
+        if (bal.mint) balanceMints.add(bal.mint);
+      }
+      for (const bal of meta?.postTokenBalances || []) {
+        if (bal.mint) balanceMints.add(bal.mint);
+      }
+      
       for (const [mint, poolData] of this.pools.entries()) {
         tokensChecked++;
         if (!poolData.poolAddress) continue; // Skip tokens without pool addresses
+        
+        // 🚨 CRITICAL: Only try to decode if this token's MINT is in the balance changes
+        // This is more reliable than checking pool addresses
+        if (!balanceMints.has(mint)) continue; // Skip tokens not involved in this transaction
+        
         const tokenData = this.tokens.get(mint);
         if (!tokenData) continue;
+        
+        // 🔍 DEBUG: Log when we find a matching token
+        const tokenName = tokenData?.config?.name || mint.substring(0, 8);
+        if (this.globalStats.totalTransactions <= 10) {
+          console.log(`🎯 [DEBUG] TX #${this.globalStats.totalTransactions} - MATCH: ${tokenName} mint found in balances!`);
+        }
         
         // 🔍 DEBUG: Log Fartcoin transactions
         const isFartcoin = mint === FARTCOIN_MINT;
