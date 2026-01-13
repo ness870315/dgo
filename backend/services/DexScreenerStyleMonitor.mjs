@@ -2126,10 +2126,24 @@ export default class DexScreenerStyleMonitor {
       if (innerTx?.message) {
         // Try to extract account addresses from the transaction
         const message = innerTx.message;
+        
+        // Helper to convert key to base58 string
+        const keyToBase58 = (key) => {
+          if (typeof key === 'string') return key;
+          if (Buffer.isBuffer(key) || key instanceof Uint8Array) {
+            return bs58.encode(key);
+          }
+          if (key?.type === 'Buffer' && Array.isArray(key.data)) {
+            return bs58.encode(Uint8Array.from(key.data));
+          }
+          if (key?.pubkey) return keyToBase58(key.pubkey);
+          return null;
+        };
+        
         if (message.accountKeys) {
           for (const key of message.accountKeys) {
             try {
-              const addr = typeof key === 'string' ? key : (key.pubkey || key.toString());
+              const addr = keyToBase58(key);
               if (addr && addr.length >= 32) {
                 txAccountAddresses.add(addr);
               }
@@ -2141,7 +2155,7 @@ export default class DexScreenerStyleMonitor {
         if (message.staticAccountKeys) {
           for (const key of message.staticAccountKeys) {
             try {
-              const addr = typeof key === 'string' ? key : (key.pubkey || key.toString());
+              const addr = keyToBase58(key);
               if (addr && addr.length >= 32) {
                 txAccountAddresses.add(addr);
               }
@@ -2155,7 +2169,13 @@ export default class DexScreenerStyleMonitor {
       // 🔍 DEBUG: Log account addresses for first transaction
       if (this.globalStats.totalTransactions === 1) {
         console.log(`🔍 [DEBUG] Transaction has ${txAccountAddresses.size} account addresses`);
-        console.log(`   Sample addresses: ${Array.from(txAccountAddresses).slice(0, 5).map(a => a.substring(0, 8) + '...').join(', ')}`);
+        console.log(`   Sample addresses: ${Array.from(txAccountAddresses).slice(0, 5).map(a => a.substring?.(0, 8) + '...' || 'invalid').join(', ')}`);
+        // Show raw key type for debugging
+        const firstKey = innerTx?.message?.accountKeys?.[0];
+        console.log(`   First raw key type: ${typeof firstKey}, isBuffer: ${Buffer.isBuffer(firstKey)}, isArray: ${Array.isArray(firstKey)}`);
+        if (firstKey && typeof firstKey !== 'string') {
+          console.log(`   First raw key sample: ${JSON.stringify(firstKey).substring(0, 100)}`);
+        }
       }
       
       for (const [mint, poolData] of this.pools.entries()) {
