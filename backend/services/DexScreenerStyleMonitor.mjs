@@ -474,10 +474,11 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * 🚀 Build subscription request for gRPC stream
-   * Includes both pool addresses AND DEX program IDs for comprehensive swap coverage
+   * EXACTLY LIKE THE TEST: Subscribe to DEX PROGRAM IDs to catch ALL swaps
+   * Then filter by tokens we care about in the handler
    */
   buildSubscriptionRequest(poolAddresses) {
-    // DEX Program IDs - subscribe to these to catch ALL swaps (like the test did)
+    // DEX Program IDs - EXACTLY like the test that worked!
     const DEX_PROGRAMS = [
       '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', // Raydium AMM V4
       'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK', // Raydium CLMM
@@ -485,20 +486,21 @@ export default class DexScreenerStyleMonitor {
       'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',  // Orca Whirlpool
       'Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB', // Meteora DAMM
       'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',  // Meteora DLMM
+      'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG', // Meteora DAMM v2
       'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA', // Pump AMM
+      '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', // PumpFun Bonding
+      'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4', // Jupiter V6
     ];
     
-    // Combine pool addresses + DEX programs for comprehensive coverage
-    const allAccounts = [...new Set([...poolAddresses, ...DEX_PROGRAMS])];
-    
-    console.log(`📡 [Subscription] ${poolAddresses.length} pools + ${DEX_PROGRAMS.length} DEX programs = ${allAccounts.length} accounts`);
+    console.log(`📡 [Subscription] Subscribing to ${DEX_PROGRAMS.length} DEX PROGRAMS (like test)`);
+    console.log(`   This captures ALL swaps, then we filter by our ${poolAddresses.length} monitored tokens`);
     
     return {
       accounts: {},
       slots: {},
       transactions: {
         client: {
-          accountInclude: allAccounts,
+          accountInclude: DEX_PROGRAMS, // ONLY DEX programs, NOT pools!
           accountExclude: [],
           accountRequired: [],
           vote: false,
@@ -515,31 +517,41 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * 🚀 Add pool to active subscription INFLIGHT (no stream recreation!)
-   * Called by trending stream when new pools are discovered
+   * 🚀 Add token to monitor - NO stream recreation needed!
+   * Since we subscribe to DEX PROGRAMS, we just add the token to our filter list
+   * The stream captures ALL DEX swaps, we filter client-side for monitored tokens
    */
-  addPoolInflight(poolAddress, tokenName = '') {
-    if (!this.stream || !this.isBidirectionalStream) {
-      console.log(`⚠️ [DexScreenerStyleMonitor] No bidirectional stream active, cannot add inflight`);
-      return false;
-    }
-    
-    if (this.currentSubscribedPools.has(poolAddress)) {
-      // Already subscribed
+  addTokenToMonitor(mint, poolAddress, tokenConfig) {
+    // Add to our monitored tokens - stream already captures all DEX swaps
+    if (this.tokens.has(mint)) {
+      console.log(`ℹ️ [DexScreenerStyleMonitor] Token ${tokenConfig?.name || mint.substring(0,8)} already monitored`);
       return true;
     }
     
-    // Add to tracked pools
-    this.currentSubscribedPools.add(poolAddress);
+    // Add token to monitoring
+    this.tokens.set(mint, {
+      config: tokenConfig,
+      metadata: null,
+      lastPriceUSD: 0,
+      additionalPools: [],
+    });
     
-    // Build updated subscription with ALL current pools
-    const allPools = Array.from(this.currentSubscribedPools);
-    const updatedRequest = this.buildSubscriptionRequest(allPools);
+    // Add pool mapping
+    this.pools.set(mint, {
+      poolAddress,
+      dex: tokenConfig?.dex || 'unknown',
+    });
     
-    // Send updated subscription INFLIGHT
-    this.stream.write(updatedRequest);
-    
-    console.log(`🚀 [INFLIGHT] Added pool ${poolAddress.substring(0, 12)}... ${tokenName ? `(${tokenName})` : ''} | Total: ${allPools.length} pools`);
+    console.log(`🚀 [INFLIGHT] Added token ${tokenConfig?.name || mint.substring(0,8)} | Pool: ${poolAddress.substring(0,12)}... | Total monitored: ${this.tokens.size}`);
+    return true;
+  }
+  
+  /**
+   * @deprecated - Use addTokenToMonitor instead
+   * Kept for backwards compatibility
+   */
+  addPoolInflight(poolAddress, tokenName = '') {
+    console.log(`⚠️ [DexScreenerStyleMonitor] addPoolInflight is deprecated - tokens are added via addTokenToMonitor`);
     return true;
   }
 
