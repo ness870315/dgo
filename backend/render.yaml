@@ -5,7 +5,7 @@ services:
   - type: web
     name: enhanced-backend
     env: node
-    buildCommand: npm install --legacy-peer-deps
+    buildCommand: npm install && npm install @shyft-to/solana-transaction-parser@2.0.1 --legacy-peer-deps
     startCommand: npm start
     plan: starter
     envVars:
