@@ -474,14 +474,31 @@ export default class DexScreenerStyleMonitor {
 
   /**
    * 🚀 Build subscription request for gRPC stream
+   * Includes both pool addresses AND DEX program IDs for comprehensive swap coverage
    */
   buildSubscriptionRequest(poolAddresses) {
+    // DEX Program IDs - subscribe to these to catch ALL swaps (like the test did)
+    const DEX_PROGRAMS = [
+      '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', // Raydium AMM V4
+      'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK', // Raydium CLMM
+      'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C', // Raydium CPMM
+      'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',  // Orca Whirlpool
+      'Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB', // Meteora DAMM
+      'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',  // Meteora DLMM
+      'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA', // Pump AMM
+    ];
+    
+    // Combine pool addresses + DEX programs for comprehensive coverage
+    const allAccounts = [...new Set([...poolAddresses, ...DEX_PROGRAMS])];
+    
+    console.log(`📡 [Subscription] ${poolAddresses.length} pools + ${DEX_PROGRAMS.length} DEX programs = ${allAccounts.length} accounts`);
+    
     return {
       accounts: {},
       slots: {},
       transactions: {
         client: {
-          accountInclude: poolAddresses,
+          accountInclude: allAccounts,
           accountExclude: [],
           accountRequired: [],
           vote: false,
