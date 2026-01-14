@@ -14015,7 +14015,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Get recent swaps from tokenData if available
         const tokenData = this.dexScreenerMonitor.tokens.get(contract);
         const recentSwaps = tokenData?.swaps || [];
-        const swapHistory = recentSwaps.slice(-50); // Last 50 swaps
+        const swapHistory = recentSwaps.slice(-200); // Last 200 swaps (increased from 50)
         
         console.log(`✅ [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.currentPrice,
@@ -14100,17 +14100,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
           
           // If still not found, return 404 (token needs to be in database first)
           if (!realTimeData || !tokenData) {
-            return res.status(404).json({
-              success: false,
+          return res.status(404).json({
+            success: false,
               error: 'Token not found in real-time monitoring. Token must be in database and have a pool address.',
               hint: 'Token may need to be discovered by gRPC trending service first'
-            });
+          });
           }
         }
         
         // Get recent swaps from tokenData if available
         const recentSwaps = tokenData?.swaps || [];
-        const swapHistory = recentSwaps.slice(-50); // Last 50 swaps
+        const swapHistory = recentSwaps.slice(-200); // Last 200 swaps (increased from 50)
         
         console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
           price: realTimeData.currentPrice,
@@ -15471,7 +15471,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/charts/swaps/:token', async (req, res) => {
       try {
         const { token } = req.params;
-        const { limit = 50, since } = req.query;
+        const { limit = 200, since } = req.query; // Increased default from 50 to 200
         
         console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
@@ -18928,7 +18928,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       } catch (error) {
         console.log(`⚠️ [Backend] Primary cache not found (${error.code}), trying backup...`);
         try {
-          cacheData = await fs.readFile(backupCachePath, 'utf8');
+        cacheData = await fs.readFile(backupCachePath, 'utf8');
           console.log(`✅ [Backend] Loaded backup cache (${cacheData.length} bytes)`);
         } catch (backupError) {
           console.error(`❌ [Backend] Backup cache also not found: ${backupError.code}`);
@@ -19227,7 +19227,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Sample check
     const sample = tokens[0];
     console.log(`   📋 Sample token: ${sample?.symbol} (${sample?.contractAddress?.substring(0,8) || 'NO ADDRESS'}...)`);
-    
+
     console.log(`📋 [Backend] Preparing ${tokens.length} cached tokens for batch onboarding...`);
     
     const tokensConfig = [];

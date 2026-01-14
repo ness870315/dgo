@@ -2837,9 +2837,12 @@ export default class DexScreenerStyleMonitor {
       
       // Broadcast to WebSocket clients (real-time updates for frontend)
       if (this.webSocketServer) {
+        console.log(`📤 [BROADCAST] Sending swap to frontend: ${tokenData.config.name} ${swap.type} $${swap.volumeUsd?.toFixed(2)}`);
         this.broadcastSwap(mint, swapRecord);
         // Also broadcast updated metrics (volume, TX count, makers, etc.)
         this.broadcastMetrics(mint);
+      } else {
+        console.warn(`⚠️ [BROADCAST] WebSocket server not available - swap not broadcast!`);
       }
       
       // Log swap with parser method
