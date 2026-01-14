@@ -2271,9 +2271,14 @@ export default class DexScreenerStyleMonitor {
           tokenPriceCache.set(mint, tokenData.metadata.usdPrice);
         }
         
-        // 🚀 USE ONLY IDL-BASED PARSER (professional-grade accuracy)
-        // No fallback to old processTxForSwap - IDL parser handles all DEXes
+        // 🚀 USE IDL-BASED PARSER (uses "largest delta" algorithm)
         let swap = idlSwapParser.parseSwap(tx, mint, this.solPriceUSD, poolData.poolAddress);
+        
+        // 🔍 Log every 100th swap attempt for monitoring
+        if (this.globalStats.totalTransactions % 100 === 0) {
+          const tokenName = tokenData.config?.name || mint.substring(0, 8);
+          console.log(`📈 [SWAP CHECK] TX#${this.globalStats.totalTransactions} ${tokenName}: ${swap ? `✅ ${swap.type} $${swap.volumeUsd?.toFixed(2)}` : '❌ no swap'}`);
+        }
         
         // 🔍 DEBUG: Log ALL swap attempts for first 5 transactions AND first 10 tokens
         if (this.globalStats.totalTransactions <= 5 && tokensChecked <= 10) {
@@ -2315,34 +2320,24 @@ export default class DexScreenerStyleMonitor {
           // Pool address is now guaranteed to be set from poolData above
           // No need to filter by 'unknown' pool anymore
           
-          // 🚨 FILTER 1: ABSOLUTE PRICE SANITY CHECK
-          // Reject obviously invalid prices (< $0.000001 or > $1M)
-          if (swap.priceUsd < 0.000001) {
-            console.log(`❌ FILTER [too low]: ${swapInfo} - price < $0.000001`);
-            continue; // Skip this swap
+          // 🚨 FILTER 1: ABSOLUTE PRICE SANITY CHECK - VERY RELAXED
+          // Only reject truly invalid prices
+          if (swap.priceUsd < 0.0000000001) {
+            console.log(`❌ FILTER [too low]: ${swapInfo} - price essentially zero`);
+            continue;
           }
-          if (swap.priceUsd > 1000000) {
-            console.log(`❌ FILTER [too high]: ${swapInfo} - price > $1M`);
-            continue; // Skip this swap
-          }
-          
-          // 🚨 FILTER 2: RELATIVE PRICE OUTLIER - RELAXED to 100x range
-          // The 10x filter was too strict for volatile memecoins
-          // Let the swap through and use smoothed prices for display
-          const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
-          if (expectedPrice > 0 && swap.priceUsd) {
-            const priceRatio = swap.priceUsd / expectedPrice;
-            // 🚨 RELAXED: 100x range instead of 10x (memecoins are volatile!)
-            if (priceRatio > 100 || priceRatio < 0.01) {
-              console.log(`❌ FILTER [outlier ${priceRatio.toFixed(2)}x]: ${swapInfo} vs expected $${expectedPrice.toFixed(6)}`);
-              continue; // Skip this swap
-            }
+          if (swap.priceUsd > 10000000) {
+            console.log(`❌ FILTER [too high]: ${swapInfo} - price > $10M`);
+            continue;
           }
           
-          // 🚨 FILTER 3: DUST VOLUME - RELAXED to $0.10
-          if (swap.volumeUsd && swap.volumeUsd < 0.10) {
-            // Don't log dust - too noisy
-            continue; // Skip this swap
+          // 🚨 FILTER 2: DISABLED - memecoins are too volatile for price outlier filtering
+          // Users want to see ALL swaps regardless of price deviation
+          // const expectedPrice = tokenData.lastPriceUSD || tokenData.metadata?.usdPrice || 0;
+          
+          // 🚨 FILTER 3: DUST VOLUME - Only filter true dust
+          if (swap.volumeUsd && swap.volumeUsd < 0.01) {
+            continue; // Skip sub-cent volume
           }
           
           // ✅ PASSED ALL FILTERS
