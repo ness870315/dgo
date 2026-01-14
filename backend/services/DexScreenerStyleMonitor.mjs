@@ -341,87 +341,45 @@ export default class DexScreenerStyleMonitor {
    * PHASE 3: Create or recreate the gRPC stream with transaction filters only
    * 🚀 NOW USES BIDIRECTIONAL STREAMING for inflight pool additions
    */
-  async recreateStream() {
+  /**
+   * 🚀 Start DEX program stream - subscribes ONCE to all DEX programs
+   * This is the CORRECT approach (like the test that worked!)
+   * - Subscribe to DEX programs, NOT pools
+   * - Filter client-side for monitored tokens
+   * - No stream recreation needed when adding tokens
+   */
+  async startDexProgramStream() {
     // Increment generation to invalidate old stream events
     this.streamGeneration++;
     const thisGeneration = this.streamGeneration;
     
-    // Cancel and clean up existing stream if any
+    // Close existing stream if any
     if (this.stream) {
       try {
-        // Remove all listeners to prevent ghost events from triggering reconnects
         this.stream.removeAllListeners();
         if (this.isBidirectionalStream) {
-          this.stream.end(); // Graceful close for bidirectional
+          this.stream.end();
         } else {
           this.stream.cancel();
         }
-        console.log('🔄 [DexScreenerStyleMonitor] Cancelled existing stream (gen ' + (thisGeneration - 1) + ')');
       } catch (e) {
-        // Ignore cancellation errors
+        // Ignore
       }
       this.stream = null;
-      this.currentSubscribedPools.clear();
     }
 
-    // PHASE 3: Combine all pool addresses into a single transaction filter
-    // Include main pools + additional pools discovered for multi-pool tokens
-    const allPoolAddresses = Array.from(this.pools.values()).map(p => p.poolAddress);
-    
-    // 🚨 MULTI-POOL: Add additional pools for tokens that have them (Orca, Meteora, etc.)
-    let additionalPoolCount = 0;
-    for (const [mint, tokenData] of this.tokens.entries()) {
-      if (tokenData.additionalPools && tokenData.additionalPools.length > 0) {
-        for (const pool of tokenData.additionalPools) {
-          if (!allPoolAddresses.includes(pool.address)) {
-            allPoolAddresses.push(pool.address);
-            additionalPoolCount++;
-          }
-        }
-      }
-    }
-    
-    if (allPoolAddresses.length === 0) {
-      console.log('⚠️  [DexScreenerStyleMonitor] No pools to monitor, skipping stream creation');
-      return;
-    }
-    
-    // Log which tokens/pools are being monitored
-    const monitoredTokens = [];
-    for (const [mint, poolData] of this.pools.entries()) {
-      const tokenData = this.tokens.get(mint);
-      const tokenName = tokenData?.config?.name || mint.substring(0, 8);
-      monitoredTokens.push(`${tokenName} (${poolData.poolAddress.substring(0, 8)}...)`);
-    }
-    const mainPoolCount = this.pools.size;
-    console.log(`📡 [DexScreenerStyleMonitor] Creating BIDIRECTIONAL gRPC stream with ${allPoolAddresses.length} pools (${mainPoolCount} main + ${additionalPoolCount} additional):`);
-    if (monitoredTokens.length <= 10) {
-      monitoredTokens.forEach((token, idx) => {
-        console.log(`   ${idx + 1}. ${token}`);
-      });
-    } else {
-      monitoredTokens.slice(0, 10).forEach((token, idx) => {
-        console.log(`   ${idx + 1}. ${token}`);
-      });
-      console.log(`   ... and ${monitoredTokens.length - 10} more pools`);
-    }
-
-    // 🚀 Use BIDIRECTIONAL subscribe() instead of subscribeOnce() for inflight modifications
-    console.log(`📡 [DexScreenerStyleMonitor] Opening bidirectional stream for ${allPoolAddresses.length} pool addresses...`);
+    // 🚀 SUBSCRIBE TO DEX PROGRAMS (like the test!)
+    console.log(`📡 [DexScreenerStyleMonitor] Subscribing to DEX PROGRAMS (captures ALL swaps)`);
+    console.log(`   Filtering client-side for ${this.tokens.size} monitored tokens`);
     
     this.stream = await this.grpcClient.subscribe();
     this.isBidirectionalStream = true;
     
-    // Build subscription request
-    const subscriptionRequest = this.buildSubscriptionRequest(allPoolAddresses);
-    
-    // Send initial subscription
+    // Build subscription - DEX PROGRAMS only
+    const subscriptionRequest = this.buildSubscriptionRequest([]);
     this.stream.write(subscriptionRequest);
     
-    // Track subscribed pools
-    allPoolAddresses.forEach(p => this.currentSubscribedPools.add(p));
-    
-    console.log(`✅ [DexScreenerStyleMonitor] Initial subscription sent (${allPoolAddresses.length} pools)`);
+    console.log(`✅ [DexScreenerStyleMonitor] DEX program stream started`);
     
     // Mark this as the active stream generation
     this.activeStreamGeneration = thisGeneration;
@@ -573,7 +531,7 @@ export default class DexScreenerStyleMonitor {
     setTimeout(async () => {
       try {
         console.log(`🔌 [DexScreenerStyleMonitor] Attempting reconnection...`);
-        await this.recreateStreamWithAllFilters();
+        await this.startDexProgramStream();
         this.reconnecting = false;
         this.reconnectAttempts = 0; // Reset on success
         console.log(`✅ [DexScreenerStyleMonitor] Reconnected successfully!`);
@@ -587,11 +545,11 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Recreate stream with all current pool filters (for reconnection)
+   * @deprecated - Use startDexProgramStream instead
    */
   async recreateStreamWithAllFilters() {
-    console.log(`🔄 [DexScreenerStyleMonitor] Recreating stream with ${this.pools.size} pools...`);
-    await this.recreateStream();
+    console.log(`🔄 [DexScreenerStyleMonitor] Reconnecting DEX program stream...`);
+    await this.startDexProgramStream();
   }
 
   /**
@@ -1553,10 +1511,10 @@ export default class DexScreenerStyleMonitor {
       console.log(`   💡 Pool discovery will be retried periodically`);
     }
     
-    // Phase 3: Create stream with all pool addresses
+    // Phase 3: Start DEX program stream (subscribes ONCE to all DEX programs)
     if (initialized > 0) {
-      console.log(`\n📡 Phase 3: Creating stream with ${initialized} pools...`);
-      await this.recreateStream();
+      console.log(`\n📡 Phase 3: Starting DEX program stream...`);
+      await this.startDexProgramStream();
       this.stats.tokensMonitored = this.tokens.size;
     }
 
@@ -2006,32 +1964,10 @@ export default class DexScreenerStyleMonitor {
 
       this.pools.set(mint, poolData);
 
-      // PHASE 3: Transaction-level decoding - filter by pool address only
-      // This is more efficient than account-based monitoring (one filter per pool vs two accounts)
-      this.transactionFilters[`${mint}_txs`] = {
-        client: {
-          accountInclude: [poolData.poolAddress], // Filter transactions involving pool address
-        accountExclude: [],
-        accountRequired: [],
-        vote: false,
-          failed: false
-        }
-      };
-
-      // 🚀 INFLIGHT: Try to add pool without recreating stream
-      if (this.stream && this.isBidirectionalStream) {
-        // Stream already running - add pool INFLIGHT
-        const success = this.addPoolInflight(poolData.poolAddress, config.name);
-        if (success) {
-          console.log(`✅ [DexScreenerStyleMonitor] Pool added INFLIGHT for ${config.name}`);
-          return;
-        }
-      }
-      
-      // No stream or not bidirectional - need to create/recreate
-      console.log(`   📡 Creating stream with new pool for ${config.name}...`);
-      await this.recreateStream();
-      console.log(`✅ [DexScreenerStyleMonitor] Pool added to stream for ${config.name}`);
+      // 🚀 NO STREAM RECREATION NEEDED!
+      // We subscribe to DEX PROGRAMS, so all swaps are already captured
+      // Just adding the token to our internal maps (done above) is enough
+      console.log(`✅ [DexScreenerStyleMonitor] Token ${config.name} added to monitoring (stream captures all DEX swaps)`);
 
     } catch (error) {
       console.error(`❌ [DexScreenerStyleMonitor] Error subscribing to pool:`, error.message);
