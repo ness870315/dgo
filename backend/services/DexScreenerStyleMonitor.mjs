@@ -2334,8 +2334,8 @@ export default class DexScreenerStyleMonitor {
           
           // Only reject if price is truly invalid (NaN, Infinity, negative, or zero)
           if (!swap.priceUsd || !isFinite(swap.priceUsd) || swap.priceUsd <= 0) {
-            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: truly invalid price (${swap.priceUsd}) - SKIPPING DISPLAY`);
-            return; // Only skip truly invalid prices
+            console.log(`⚠️  [${tokenData.config?.name || mint.substring(0, 8)}] REJECTING swap: truly invalid price (${swap.priceUsd}) - SKIPPING`);
+            continue; // Skip this swap, check other tokens
           }
           
           // Helper function to calculate median (for smoothing prices)
