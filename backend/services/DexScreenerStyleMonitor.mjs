@@ -178,7 +178,7 @@ export default class DexScreenerStyleMonitor {
     this.poolReserves = new Map();
     
     // Global state
-    this.solPriceUSD = 0;
+    this.solPriceUSD = 135; // Default SOL price (never leave at 0!)
     this.priceUpdater = null;
     this.isInitialized = false;
     
@@ -553,31 +553,36 @@ export default class DexScreenerStyleMonitor {
   }
 
   /**
-   * Fetch SOL price from Jupiter API
+   * Fetch SOL price from Jupiter API v3 (FIXED - using price endpoint, not search!)
    */
   async fetchSOLPrice() {
     try {
-      const headers = {};
-      if (JUPITER_API_KEY) {
-        headers['x-api-key'] = JUPITER_API_KEY;
-      }
-      
-      const response = await fetch(`${JUPITER_API_ENDPOINT}/tokens/v2/search?query=SOL`, {
+      // Use Jupiter Price API v3 (same as test file)
+      const response = await fetch(`https://api.jup.ag/price/v3?ids=${SOL_MINT}`, {
         method: 'GET',
-        headers: headers
+        headers: {
+          'Accept': 'application/json',
+          'x-api-key': JUPITER_API_KEY || ''
+        }
       });
       const data = await response.json();
       
-      const solToken = data.find(t => t.id === SOL_MINT);
-      if (solToken && solToken.usdPrice) {
-        this.solPriceUSD = solToken.usdPrice;
-        console.log(`💵 [DexScreenerStyleMonitor] SOL Price: $${this.solPriceUSD.toFixed(2)}`);
+      // Jupiter v3 format: { "So111...": { usdPrice: 127.01 } }
+      if (data?.[SOL_MINT]?.usdPrice) {
+        this.solPriceUSD = parseFloat(data[SOL_MINT].usdPrice);
+        console.log(`💵 [DexScreenerStyleMonitor] SOL Price: $${this.solPriceUSD.toFixed(2)} (Jupiter v3)`);
         return this.solPriceUSD;
       }
     } catch (error) {
       console.error('❌ [DexScreenerStyleMonitor] Error fetching SOL price:', error.message);
     }
-    return this.solPriceUSD; // Return cached price on error
+    
+    // Fallback to default if fetch fails (never leave at 0!)
+    if (this.solPriceUSD === 0) {
+      this.solPriceUSD = 135; // Reasonable default
+      console.log(`⚠️ [DexScreenerStyleMonitor] Using default SOL price: $${this.solPriceUSD}`);
+    }
+    return this.solPriceUSD;
   }
 
   /**
