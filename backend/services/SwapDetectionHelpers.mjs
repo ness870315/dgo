@@ -277,19 +277,46 @@ function getFeePayer(tx) {
 // ============================================================================
 
 /**
- * Collapse multiple user-side deltas per mint into largest-magnitude delta
- * (Some routes emit multiple inner movements of the same leg)
- * 🚀 ENHANCED: Now supports Raydium pool decoder
+ * Collapse multiple user-side deltas per mint by SUMMING (not picking largest!)
+ * 🚀 CRITICAL FIX: In multi-hop swaps, we need the TOTAL amount, not just one leg
+ * This fixes the "half SOL" problem where we were missing half the swap amount
  */
 function collapseUserSideByMint(deltas, signerSet, raydiumDecoder = null, poolAddress = null) {
-    const best = {};
+    const sumByMint = {};
+    const templateByMint = {}; // Keep one delta as template for metadata
+    
     for (const d of deltas.filter((x) => isUserSide(x, signerSet, raydiumDecoder, poolAddress))) {
-        const cur = best[d.mint];
-        if (!cur || Math.abs(d.deltaUI) > Math.abs(cur.deltaUI)) {
-            best[d.mint] = d;
+        if (!sumByMint[d.mint]) {
+            sumByMint[d.mint] = { positive: 0, negative: 0 };
+            templateByMint[d.mint] = d;
+        }
+        // Sum by sign to get total flow
+        if (d.deltaUI > 0) {
+            sumByMint[d.mint].positive += d.deltaUI;
+        } else {
+            sumByMint[d.mint].negative += Math.abs(d.deltaUI);
         }
     }
-    return Object.values(best);
+    
+    // Build result using template with summed deltaUI
+    const result = [];
+    for (const mint of Object.keys(sumByMint)) {
+        const sums = sumByMint[mint];
+        const template = templateByMint[mint];
+        
+        // Use larger of positive/negative as the swap amount
+        // Determine sign based on which is larger
+        const absAmount = Math.max(sums.positive, sums.negative);
+        const sign = sums.positive > sums.negative ? 1 : -1;
+        
+        result.push({
+            ...template,
+            deltaUI: absAmount * sign,
+            deltaRaw: BigInt(Math.round(absAmount * sign * Math.pow(10, template.decimals))),
+        });
+    }
+    
+    return result;
 }
 
 // ============================================================================

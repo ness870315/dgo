@@ -232,7 +232,8 @@ export class IDLSwapParser {
 
   /**
    * Parse swap from token balance changes (FIXED VERSION!)
-   * This is the core algorithm that now works correctly by picking the largest delta
+   * 🚀 CRITICAL FIX: Sum ALL deltas with same sign, not just pick the largest one
+   * This fixes the "half SOL" problem in multi-hop/aggregated swaps
    */
   parseSwapFromBalances(tx, targetMint, solPriceUSD, knownPoolAddress) {
     const pre = tx.meta?.preTokenBalances || [];
@@ -262,7 +263,7 @@ export class IDLSwapParser {
       }
     }
 
-    // Find target token delta
+    // Find target token deltas and SOL deltas
     const targetDeltas = deltas.get(targetMint) || [];
     const solDeltas = deltas.get(SOL_MINT) || [];
 
@@ -270,17 +271,48 @@ export class IDLSwapParser {
       return null;
     }
 
-    // 🔥 KEY FIX: Pick the LARGEST absolute delta (user's side, not pool side)
-    // User delta and pool delta are equal and opposite, so pick the largest absolute value
-    const targetDelta = targetDeltas.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0]?.deltaUI || 0;
-    const solDelta = solDeltas.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0]?.deltaUI || 0;
+    // 🚀 CRITICAL FIX: Sum ALL deltas with same sign (not just pick one!)
+    // In multi-hop swaps, there can be multiple token/SOL movements
+    // We need the TOTAL amount, not just one leg
+    
+    // Sum token deltas by sign
+    let positiveTokenSum = 0;
+    let negativeTokenSum = 0;
+    for (const d of targetDeltas) {
+      if (d.deltaUI > 0) positiveTokenSum += d.deltaUI;
+      else negativeTokenSum += Math.abs(d.deltaUI);
+    }
+    
+    // Sum SOL deltas by sign
+    let positiveSolSum = 0;
+    let negativeSolSum = 0;
+    for (const d of solDeltas) {
+      if (d.deltaUI > 0) positiveSolSum += d.deltaUI;
+      else negativeSolSum += Math.abs(d.deltaUI);
+    }
+    
+    // Use the LARGER sum for each (the actual swap amount, not small fees)
+    const tokenAmount = Math.max(positiveTokenSum, negativeTokenSum);
+    const solAmount = Math.max(positiveSolSum, negativeSolSum);
+    
+    if (tokenAmount === 0 || solAmount === 0) return null;
 
-    if (targetDelta === 0 || solDelta === 0) return null;
-
-    // Determine buy/sell - if user received tokens (positive delta), it's a BUY
-    const type = targetDelta > 0 ? 'BUY' : 'SELL';
-    const tokenAmount = Math.abs(targetDelta);
-    const solAmount = Math.abs(solDelta);
+    // Determine BUY/SELL based on NET flow direction
+    // BUY: Net tokens IN (positive > negative), Net SOL OUT (negative > positive)
+    // SELL: Net tokens OUT (negative > positive), Net SOL IN (positive > negative)
+    const netTokenFlow = positiveTokenSum - negativeTokenSum;
+    const netSolFlow = positiveSolSum - negativeSolSum;
+    
+    let type;
+    if (netTokenFlow > 0 && netSolFlow < 0) {
+      type = 'BUY'; // Tokens coming in, SOL going out
+    } else if (netTokenFlow < 0 && netSolFlow > 0) {
+      type = 'SELL'; // Tokens going out, SOL coming in
+    } else if (netTokenFlow > 0 || positiveTokenSum > negativeTokenSum) {
+      type = 'BUY'; // More tokens coming in
+    } else {
+      type = 'SELL'; // Default to SELL
+    }
     
     // Calculate price: (SOL amount / token amount) * SOL price
     const priceUsd = tokenAmount > 0 ? (solAmount / tokenAmount) * solPriceUSD : 0;
