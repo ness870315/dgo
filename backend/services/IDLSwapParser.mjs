@@ -231,9 +231,8 @@ export class IDLSwapParser {
   }
 
   /**
-   * Parse swap from token balance changes (FIXED VERSION!)
-   * 🚀 CRITICAL FIX: Sum ALL deltas with same sign, not just pick the largest one
-   * This fixes the "half SOL" problem in multi-hop/aggregated swaps
+   * Parse swap from token balance changes (EXACT COPY from test-multi-token-parser.mjs)
+   * 🚀 5 METHODS for robust delta detection + pool vault account handling
    */
   parseSwapFromBalances(tx, targetMint, solPriceUSD, knownPoolAddress) {
     const pre = tx.meta?.preTokenBalances || [];
@@ -263,8 +262,14 @@ export class IDLSwapParser {
       }
     }
 
-    // Find target token deltas and SOL deltas
-    const targetDeltas = deltas.get(targetMint) || [];
+    // Find target token deltas
+    let targetDeltas = deltas.get(targetMint) || [];
+    
+    // 🚀 PumpSwap FIX: Pool address may appear as "mint" in balances
+    if (targetDeltas.length === 0 && knownPoolAddress && deltas.has(knownPoolAddress)) {
+      targetDeltas = deltas.get(knownPoolAddress) || [];
+    }
+    
     const solDeltas = deltas.get(SOL_MINT) || [];
 
     if (targetDeltas.length === 0 || solDeltas.length === 0) {
@@ -278,44 +283,104 @@ export class IDLSwapParser {
     let targetDelta = 0;
     let solDelta = 0;
 
-    // 🚀 METHOD 1: Find matching pairs with OPPOSITE signs (user-side swap pattern)
-    // BUY: +tokens, -SOL | SELL: -tokens, +SOL
-    for (const tokenD of sortedTokenDeltas) {
-      for (const solD of sortedSolDeltas) {
-        const isBuy = tokenD.deltaUI > 0 && solD.deltaUI < 0;
-        const isSell = tokenD.deltaUI < 0 && solD.deltaUI > 0;
+    // 🚀 METHOD 1: Pool vault detection - identify pool accounts by owner pattern
+    const poolOwners = new Set();
+    for (const d of targetDeltas) {
+      const ownerStr = d.owner?.toLowerCase() || '';
+      if (ownerStr.includes('vault') || ownerStr.includes('pool')) {
+        poolOwners.add(d.owner);
+      }
+    }
+    
+    // If we found pool accounts, use LARGEST pool delta (for multi-hop swaps)
+    if (poolOwners.size > 0) {
+      const poolTokenDeltas = sortedTokenDeltas.filter(d => poolOwners.has(d.owner));
+      const poolSolDeltas = sortedSolDeltas.filter(d => poolOwners.has(d.owner));
+      
+      if (poolTokenDeltas.length > 0) {
+        poolTokenDeltas.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+        targetDelta = -poolTokenDeltas[0].deltaUI; // INVERT pool perspective
+      }
+      if (poolSolDeltas.length > 0) {
+        poolSolDeltas.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+        solDelta = -poolSolDeltas[0].deltaUI; // INVERT pool perspective
+      }
+    }
+
+    // 🚀 METHOD 2: Find matching pairs with LARGEST SOL delta (opposite signs)
+    if (targetDelta === 0 || solDelta === 0) {
+      for (const tokenD of sortedTokenDeltas) {
+        let bestSolMatch = null;
+        for (const solD of sortedSolDeltas) {
+          const oppositeSign = (tokenD.deltaUI > 0 && solD.deltaUI < 0) || (tokenD.deltaUI < 0 && solD.deltaUI > 0);
+          if (oppositeSign) {
+            if (!bestSolMatch || Math.abs(solD.deltaUI) > Math.abs(bestSolMatch.deltaUI)) {
+              bestSolMatch = solD;
+            }
+          }
+        }
         
-        if (isBuy || isSell) {
+        if (bestSolMatch && Math.abs(tokenD.deltaUI) > Math.abs(targetDelta)) {
           targetDelta = tokenD.deltaUI;
-          solDelta = solD.deltaUI;
+          solDelta = bestSolMatch.deltaUI;
           break;
         }
       }
-      if (targetDelta !== 0) break;
     }
 
-    // 🚀 METHOD 2: If no opposite-sign match, check for same-sign (pool-side) and INVERT
+    // 🚀 METHOD 3: Group by owner and find matching pairs
     if (targetDelta === 0 || solDelta === 0) {
-      const largestToken = sortedTokenDeltas[0];
-      const largestSol = sortedSolDeltas[0];
+      const tokenByOwner = new Map();
+      const solByOwner = new Map();
       
-      if (largestToken && largestSol) {
-        const sameSign = (largestToken.deltaUI > 0 && largestSol.deltaUI > 0) || 
-                        (largestToken.deltaUI < 0 && largestSol.deltaUI < 0);
-        
-        if (sameSign) {
-          // Pool-side deltas - INVERT to get user perspective
-          targetDelta = -largestToken.deltaUI;
-          solDelta = -largestSol.deltaUI;
-        } else {
-          // Use as-is
-          targetDelta = largestToken.deltaUI;
-          solDelta = largestSol.deltaUI;
+      for (const d of targetDeltas) {
+        const current = tokenByOwner.get(d.owner) || 0;
+        tokenByOwner.set(d.owner, current + d.deltaUI);
+      }
+      
+      for (const d of solDeltas) {
+        const current = solByOwner.get(d.owner) || 0;
+        solByOwner.set(d.owner, current + d.deltaUI);
+      }
+      
+      for (const [owner, tokenSum] of tokenByOwner) {
+        const solSum = solByOwner.get(owner);
+        if (solSum !== undefined) {
+          const isBuy = tokenSum > 0 && solSum < 0;
+          const isSell = tokenSum < 0 && solSum > 0;
+          
+          if ((isBuy || isSell) && Math.abs(tokenSum) > Math.abs(targetDelta)) {
+            targetDelta = tokenSum;
+            solDelta = solSum;
+          }
         }
       }
     }
 
-    // 🚀 METHOD 3: Sum all deltas by sign
+    // 🚀 METHOD 4: Sum all deltas (net change)
+    if (targetDelta === 0 || solDelta === 0) {
+      let totalTokenDelta = 0;
+      let totalSolDelta = 0;
+      
+      for (const d of targetDeltas) totalTokenDelta += d.deltaUI;
+      for (const d of solDeltas) totalSolDelta += d.deltaUI;
+      
+      const isBuy = totalTokenDelta > 0 && totalSolDelta < 0;
+      const isSell = totalTokenDelta < 0 && totalSolDelta > 0;
+      
+      if (isBuy || isSell) {
+        targetDelta = totalTokenDelta;
+        solDelta = totalSolDelta;
+      }
+    }
+
+    // 🚀 METHOD 5: Fallback - use largest absolute deltas
+    if (targetDelta === 0 || solDelta === 0) {
+      targetDelta = sortedTokenDeltas[0]?.deltaUI || 0;
+      solDelta = sortedSolDeltas[0]?.deltaUI || 0;
+    }
+
+    // Sum all deltas by sign for amounts
     let positiveTokenSum = 0;
     let negativeTokenSum = 0;
     for (const d of targetDeltas) {
@@ -329,23 +394,26 @@ export class IDLSwapParser {
       if (d.deltaUI > 0) positiveSolSum += d.deltaUI;
       else negativeSolSum += Math.abs(d.deltaUI);
     }
-    
+
     // Use larger of: matched pair OR summed amounts
-    const tokenAmount = Math.max(Math.abs(targetDelta), positiveTokenSum, negativeTokenSum);
-    const solAmount = Math.max(Math.abs(solDelta), positiveSolSum, negativeSolSum);
+    const tokenAmount = Math.max(positiveTokenSum, negativeTokenSum, Math.abs(targetDelta));
+    const solAmount = Math.max(positiveSolSum, negativeSolSum, Math.abs(solDelta));
     
     if (tokenAmount === 0 || solAmount === 0) return null;
 
-    // Determine BUY/SELL based on targetDelta sign (already corrected for pool-side)
+    // Determine BUY/SELL based on NET flow direction (same as test file)
+    const netTokenFlow = positiveTokenSum - negativeTokenSum;
+    const netSolFlow = positiveSolSum - negativeSolSum;
+    
     let type;
-    if (targetDelta > 0) {
-      type = 'BUY'; // User received tokens
-    } else if (targetDelta < 0) {
-      type = 'SELL'; // User sent tokens
+    if (netTokenFlow > 0 && netSolFlow < 0) {
+      type = 'BUY';
+    } else if (netTokenFlow < 0 && netSolFlow > 0) {
+      type = 'SELL';
+    } else if (netTokenFlow > 0 || positiveTokenSum > negativeTokenSum) {
+      type = 'BUY';
     } else {
-      // Fallback to net flow
-      const netTokenFlow = positiveTokenSum - negativeTokenSum;
-      type = netTokenFlow > 0 ? 'BUY' : 'SELL';
+      type = 'SELL';
     }
     
     // Calculate price: (SOL amount / token amount) * SOL price
