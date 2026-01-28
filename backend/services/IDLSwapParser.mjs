@@ -58,6 +58,53 @@ export const DEX_PROGRAMS = {
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
+// 🚀 Rolling price history for outlier detection (same as test file)
+const priceHistory = new Map(); // mint -> { prices: number[], lastMedian: number }
+const PRICE_HISTORY_SIZE = 20; // Keep last 20 prices
+const MAX_DEVIATION_FROM_MEDIAN = 0.5; // 50% max deviation from rolling median
+
+/**
+ * Add price to history and check if it's an outlier
+ * Returns: { isValid: boolean, medianPrice: number|null, deviation: number }
+ */
+function validatePriceWithHistory(calculatedPrice, tokenMint) {
+  let history = priceHistory.get(tokenMint);
+  
+  if (!history) {
+    history = { prices: [], lastMedian: null };
+    priceHistory.set(tokenMint, history);
+  }
+  
+  // If we don't have enough history, accept the price and add it
+  if (history.prices.length < 5) {
+    history.prices.push(calculatedPrice);
+    history.lastMedian = calculatedPrice;
+    return { isValid: true, medianPrice: null, deviation: 0 };
+  }
+  
+  // Calculate median of recent prices
+  const sortedPrices = [...history.prices].sort((a, b) => a - b);
+  const mid = Math.floor(sortedPrices.length / 2);
+  const median = sortedPrices.length % 2 === 0
+    ? (sortedPrices[mid - 1] + sortedPrices[mid]) / 2
+    : sortedPrices[mid];
+  
+  // Check deviation from median
+  const deviation = Math.abs(calculatedPrice - median) / median;
+  const isValid = deviation <= MAX_DEVIATION_FROM_MEDIAN;
+  
+  // Only add valid prices to history (to prevent outliers from corrupting the median)
+  if (isValid) {
+    history.prices.push(calculatedPrice);
+    if (history.prices.length > PRICE_HISTORY_SIZE) {
+      history.prices.shift(); // Remove oldest
+    }
+    history.lastMedian = median;
+  }
+  
+  return { isValid, medianPrice: median, deviation };
+}
+
 /**
  * IDL-based Swap Parser
  */
@@ -417,7 +464,11 @@ export class IDLSwapParser {
     }
     
     // Calculate price: (SOL amount / token amount) * SOL price
-    const priceUsd = tokenAmount > 0 ? (solAmount / tokenAmount) * solPriceUSD : 0;
+    const calculatedPrice = tokenAmount > 0 ? (solAmount / tokenAmount) * solPriceUSD : 0;
+    
+    // 🚀 Validate price with rolling median (same as test file)
+    const validation = validatePriceWithHistory(calculatedPrice, targetMint);
+    const priceUsd = validation.isValid ? calculatedPrice : (validation.medianPrice || calculatedPrice);
     const volumeUsd = solAmount * solPriceUSD;
 
     // Detect pool from accounts
@@ -433,6 +484,12 @@ export class IDLSwapParser {
       targetMint,
       signature: this.extractSignature(tx),
       blockTime: tx.blockTime || Date.now() / 1000,
+      priceValidation: {
+        calculated: calculatedPrice,
+        isValid: validation.isValid,
+        median: validation.medianPrice,
+        deviation: validation.deviation
+      }
     };
   }
 
