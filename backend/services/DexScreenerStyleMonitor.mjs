@@ -3287,17 +3287,17 @@ export default class DexScreenerStyleMonitor {
       lastUpdate: tokenData.lastUpdate
     };
     
-    // Market cap - Use Jupiter baseline and scale by price change
+    // Market cap = Circulating Supply × Current Price (SIMPLE AND ACCURATE!)
     let marketCap = 0;
-    const jupiterBaseline = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
-    const baselinePrice = tokenData.lastBaselinePrice || tokenData.metadata?.usdPrice || 0;
+    const circSupply = tokenData.metadata?.circSupply || tokenData.metadata?.totalSupply || tokenData.config?.circSupply || 0;
     
-    if (jupiterBaseline > 0 && baselinePrice > 0 && currentPriceUSD > 0 && isFinite(currentPriceUSD)) {
-      // Scale market cap by price change from baseline
-      marketCap = jupiterBaseline * (currentPriceUSD / baselinePrice);
-    } else {
-      // Fallback: Use Jupiter's market cap directly
-      marketCap = jupiterBaseline || tokenData.metadata?.marketCap || 0;
+    // PRIORITY 1: Direct calculation (most accurate)
+    if (circSupply > 0 && currentPriceUSD > 0 && isFinite(currentPriceUSD)) {
+      marketCap = circSupply * currentPriceUSD;
+    } 
+    // PRIORITY 2: Fallback to Jupiter baseline
+    else {
+      marketCap = tokenData.jupiterBaselineMarketCap || tokenData.metadata?.marketCap || 0;
     }
     
     // Add market cap to return object
