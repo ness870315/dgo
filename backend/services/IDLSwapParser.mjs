@@ -271,11 +271,51 @@ export class IDLSwapParser {
       return null;
     }
 
-    // 🚀 CRITICAL FIX: Sum ALL deltas with same sign (not just pick one!)
-    // In multi-hop swaps, there can be multiple token/SOL movements
-    // We need the TOTAL amount, not just one leg
-    
-    // Sum token deltas by sign
+    // Sort by absolute value - largest first
+    const sortedTokenDeltas = [...targetDeltas].sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+    const sortedSolDeltas = [...solDeltas].sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI));
+
+    let targetDelta = 0;
+    let solDelta = 0;
+
+    // 🚀 METHOD 1: Find matching pairs with OPPOSITE signs (user-side swap pattern)
+    // BUY: +tokens, -SOL | SELL: -tokens, +SOL
+    for (const tokenD of sortedTokenDeltas) {
+      for (const solD of sortedSolDeltas) {
+        const isBuy = tokenD.deltaUI > 0 && solD.deltaUI < 0;
+        const isSell = tokenD.deltaUI < 0 && solD.deltaUI > 0;
+        
+        if (isBuy || isSell) {
+          targetDelta = tokenD.deltaUI;
+          solDelta = solD.deltaUI;
+          break;
+        }
+      }
+      if (targetDelta !== 0) break;
+    }
+
+    // 🚀 METHOD 2: If no opposite-sign match, check for same-sign (pool-side) and INVERT
+    if (targetDelta === 0 || solDelta === 0) {
+      const largestToken = sortedTokenDeltas[0];
+      const largestSol = sortedSolDeltas[0];
+      
+      if (largestToken && largestSol) {
+        const sameSign = (largestToken.deltaUI > 0 && largestSol.deltaUI > 0) || 
+                        (largestToken.deltaUI < 0 && largestSol.deltaUI < 0);
+        
+        if (sameSign) {
+          // Pool-side deltas - INVERT to get user perspective
+          targetDelta = -largestToken.deltaUI;
+          solDelta = -largestSol.deltaUI;
+        } else {
+          // Use as-is
+          targetDelta = largestToken.deltaUI;
+          solDelta = largestSol.deltaUI;
+        }
+      }
+    }
+
+    // 🚀 METHOD 3: Sum all deltas by sign
     let positiveTokenSum = 0;
     let negativeTokenSum = 0;
     for (const d of targetDeltas) {
@@ -283,7 +323,6 @@ export class IDLSwapParser {
       else negativeTokenSum += Math.abs(d.deltaUI);
     }
     
-    // Sum SOL deltas by sign
     let positiveSolSum = 0;
     let negativeSolSum = 0;
     for (const d of solDeltas) {
@@ -291,27 +330,22 @@ export class IDLSwapParser {
       else negativeSolSum += Math.abs(d.deltaUI);
     }
     
-    // Use the LARGER sum for each (the actual swap amount, not small fees)
-    const tokenAmount = Math.max(positiveTokenSum, negativeTokenSum);
-    const solAmount = Math.max(positiveSolSum, negativeSolSum);
+    // Use larger of: matched pair OR summed amounts
+    const tokenAmount = Math.max(Math.abs(targetDelta), positiveTokenSum, negativeTokenSum);
+    const solAmount = Math.max(Math.abs(solDelta), positiveSolSum, negativeSolSum);
     
     if (tokenAmount === 0 || solAmount === 0) return null;
 
-    // Determine BUY/SELL based on NET flow direction
-    // BUY: Net tokens IN (positive > negative), Net SOL OUT (negative > positive)
-    // SELL: Net tokens OUT (negative > positive), Net SOL IN (positive > negative)
-    const netTokenFlow = positiveTokenSum - negativeTokenSum;
-    const netSolFlow = positiveSolSum - negativeSolSum;
-    
+    // Determine BUY/SELL based on targetDelta sign (already corrected for pool-side)
     let type;
-    if (netTokenFlow > 0 && netSolFlow < 0) {
-      type = 'BUY'; // Tokens coming in, SOL going out
-    } else if (netTokenFlow < 0 && netSolFlow > 0) {
-      type = 'SELL'; // Tokens going out, SOL coming in
-    } else if (netTokenFlow > 0 || positiveTokenSum > negativeTokenSum) {
-      type = 'BUY'; // More tokens coming in
+    if (targetDelta > 0) {
+      type = 'BUY'; // User received tokens
+    } else if (targetDelta < 0) {
+      type = 'SELL'; // User sent tokens
     } else {
-      type = 'SELL'; // Default to SELL
+      // Fallback to net flow
+      const netTokenFlow = positiveTokenSum - negativeTokenSum;
+      type = netTokenFlow > 0 ? 'BUY' : 'SELL';
     }
     
     // Calculate price: (SOL amount / token amount) * SOL price
