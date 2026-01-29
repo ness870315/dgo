@@ -3633,7 +3633,7 @@ export default class DexScreenerStyleMonitor {
         amountTokens: swap.tokenAmount || swap.amountTokens || 0,
         amountSOL: swap.baseAmount || swap.amountSOL || 0,
         priceSOL: swap.price || swap.priceSOL || 0,
-        priceUSD: swap.priceUSD || swap.priceUSD || 0,
+        priceUSD: swap.priceUSD || swap.priceUsd || 0,
         usdAmount: swap.volumeUSD || swap.volumeUsd || 0,
         volumeUSD: swap.volumeUSD || swap.volumeUsd || 0,
         marketCap: swap.marketCap || 0,
