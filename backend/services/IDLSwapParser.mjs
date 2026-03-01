@@ -287,6 +287,11 @@ export class IDLSwapParser {
 
     if (pre.length === 0 || post.length === 0) return null;
 
+    // 🚀 CRITICAL: Identify pool vault accounts (from test file!)
+    // Meteora vault accounts are owned by the vault program
+    const vaultProgram = 'vau1zxA2LbssAUEF7Gpw91zMM1LvXrvpzJtmZ58rPsn'; // Meteora Vault Program
+    const poolVaultAccounts = new Set();
+
     // Build delta map - tracking individual account deltas
     const deltas = new Map();
 
@@ -297,10 +302,20 @@ export class IDLSwapParser {
       const delta = postBal - preBal;
 
       if (delta !== 0n) {
+        // 🚀 Check if this is a pool vault account (owned by vault program)
+        const isVaultAccount = bal.owner === vaultProgram || 
+                              (bal.owner && bal.owner.includes && bal.owner.includes('Vault'));
+        
+        if (isVaultAccount) {
+          poolVaultAccounts.add(bal.accountIndex);
+        }
+
         const existing = deltas.get(bal.mint) || [];
         existing.push({
           mint: bal.mint,
           owner: bal.owner,
+          accountIndex: bal.accountIndex,
+          isVaultAccount,
           delta: Number(delta),
           decimals: bal.uiTokenAmount?.decimals || 0,
           deltaUI: Number(delta) / Math.pow(10, bal.uiTokenAmount?.decimals || 0),
@@ -330,9 +345,14 @@ export class IDLSwapParser {
     let targetDelta = 0;
     let solDelta = 0;
 
-    // 🚀 METHOD 1: Pool vault detection - identify pool accounts by owner pattern
+    // 🚀 METHOD 1: Pool vault detection - identify pool accounts by isVaultAccount flag
     const poolOwners = new Set();
     for (const d of targetDeltas) {
+      // Use the isVaultAccount flag we set during delta building
+      if (d.isVaultAccount) {
+        poolOwners.add(d.owner);
+      }
+      // Fallback: check owner string pattern
       const ownerStr = d.owner?.toLowerCase() || '';
       if (ownerStr.includes('vault') || ownerStr.includes('pool')) {
         poolOwners.add(d.owner);
